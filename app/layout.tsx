@@ -6,7 +6,7 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'Where2Go - Event Finder',
-  description: 'Finde Events in deiner Stadt - Saubere Neuentwicklung der Eventsuchseite für Städte- und Zeitraumfilter',
+  description: 'Entdecke Events in deiner Stadt - Alle Events. Weltweit. Eine Plattform.',
   keywords: ['events', 'stadt', 'veranstaltungen', 'event finder', 'where2go'],
   authors: [{ name: 'Where2Go Team' }],
   creator: 'Where2Go',
@@ -19,13 +19,13 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'de_DE',
     url: 'https://where2go.example.com',
-    title: 'Where2Go - Event Finder',
+    title: 'Where2Go - Alle Events. Weltweit. Eine Plattform.',
     description: 'Finde Events in deiner Stadt',
     siteName: 'Where2Go',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Where2Go - Event Finder',
+    title: 'Where2Go - Alle Events. Weltweit. Eine Plattform.',
     description: 'Finde Events in deiner Stadt',
   },
 };
