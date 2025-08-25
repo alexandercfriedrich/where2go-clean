@@ -10,15 +10,11 @@ interface JobStatus {
 }
 
 // Global map to store job statuses
-declare global {
-  var jobMap: Map<string, JobStatus> | undefined;
+const globalForJobs = global as unknown as { jobMap?: Map<string, JobStatus> };
+if (!globalForJobs.jobMap) {
+  globalForJobs.jobMap = new Map();
 }
-
-if (!global.jobMap) {
-  global.jobMap = new Map<string, JobStatus>();
-}
-
-const jobMap = global.jobMap;
+const jobMap = globalForJobs.jobMap!;
 
 export async function GET(request: NextRequest, { params }: { params: { jobId: string } }) {
   try {
