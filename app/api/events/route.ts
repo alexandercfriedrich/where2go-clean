@@ -122,7 +122,7 @@ WICHTIG: Gib **ausschließlich** die Tabelle mit maximal ausführlicher Zeilenza
           }
         ],
         max_tokens: 5000,
-        temperature: 0.2,
+        temperature: 0.4,
         stream: false
       })
     });
