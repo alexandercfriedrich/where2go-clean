@@ -121,7 +121,7 @@ WICHTIG: Gib **ausschließlich** die Tabelle mit maximal ausführlicher Zeilenza
             content: prompt
           }
         ],
-        max_tokens: 5000,
+        max_tokens: 10000,
         temperature: 0.4,
         stream: false
       })
