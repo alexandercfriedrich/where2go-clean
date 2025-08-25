@@ -96,28 +96,36 @@ function parseEventsFromResponse(responseText: string): EventData[] {
   const events: EventData[] = [];
   
   try {
-    // Versuche JSON zu parsen
-    const lines = responseText.split('\n');
+    // First try to parse markdown tables with pipe-separated content
+    const markdownEvents = parseMarkdownTable(responseText);
+    if (markdownEvents.length > 0) {
+      events.push(...markdownEvents);
+    }
     
-    for (const line of lines) {
-      // Suche nach JSON-artigen Strukturen
-      const trimmedLine = line.trim();
-      if (trimmedLine.startsWith('{') && trimmedLine.endsWith('}')) {
-        try {
-          const event = JSON.parse(trimmedLine);
-          if (event.title && event.category) {
-            events.push({
-              title: event.title || '',
-              category: event.category || '',
-              date: event.date || '',
-              time: event.time || '',
-              venue: event.venue || '',
-              price: event.price || '',
-              website: event.website || '',
-            });
+    // If no markdown table found, try JSON parsing
+    if (events.length === 0) {
+      const lines = responseText.split('\n');
+      
+      for (const line of lines) {
+        // Suche nach JSON-artigen Strukturen
+        const trimmedLine = line.trim();
+        if (trimmedLine.startsWith('{') && trimmedLine.endsWith('}')) {
+          try {
+            const event = JSON.parse(trimmedLine);
+            if (event.title && event.category) {
+              events.push({
+                title: event.title || '',
+                category: event.category || '',
+                date: event.date || '',
+                time: event.time || '',
+                venue: event.venue || '',
+                price: event.price || '',
+                website: event.website || '',
+              });
+            }
+          } catch (error) {
+            console.error('JSON parsing error:', error);
           }
-        } catch (error) {
-          console.error('JSON parsing error:', error);
         }
       }
     }
@@ -131,6 +139,64 @@ function parseEventsFromResponse(responseText: string): EventData[] {
     
   } catch (error) {
     console.error('Event parsing error:', error);
+  }
+  
+  return events;
+}
+
+function parseMarkdownTable(responseText: string): EventData[] {
+  const events: EventData[] = [];
+  const lines = responseText.split('\n');
+  
+  // Find table rows (lines containing pipe characters)
+  const tableLines = lines.filter(line => 
+    line.trim().includes('|') && 
+    line.trim().split('|').length >= 3 // At least 3 columns (accounting for empty start/end)
+  );
+  
+  if (tableLines.length < 2) {
+    return events; // Not enough lines for a table
+  }
+  
+  // Skip potential header line (first line) and separator line (second line if it contains dashes)
+  let startIndex = 0;
+  if (tableLines.length > 1 && tableLines[1].includes('-')) {
+    startIndex = 2; // Skip header and separator
+  } else {
+    startIndex = 1; // Skip just the header
+  }
+  
+  // Parse data rows
+  for (let i = startIndex; i < tableLines.length; i++) {
+    const line = tableLines[i].trim();
+    if (!line || line.startsWith('|---') || line.includes('---')) {
+      continue; // Skip separator lines
+    }
+    
+    // Split by pipe and clean up
+    const columns = line.split('|')
+      .map(col => col.trim())
+      .filter((col, index, arr) => {
+        // Remove empty first and last elements if they exist (from leading/trailing pipes)
+        return !(index === 0 && col === '') && !(index === arr.length - 1 && col === '');
+      });
+    
+    if (columns.length >= 7) {
+      const event: EventData = {
+        title: columns[0] || '',
+        category: columns[1] || '',
+        date: columns[2] || '',
+        time: columns[3] || '',
+        venue: columns[4] || '',
+        price: columns[5] || '',
+        website: columns[6] || '',
+      };
+      
+      // Only add if we have at least a title
+      if (event.title.length > 0) {
+        events.push(event);
+      }
+    }
   }
   
   return events;
