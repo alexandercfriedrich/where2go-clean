@@ -91,7 +91,7 @@ Suche alle Veranstaltungen und events in ${city} am ${date} in den kategorien:
 10. Szene-Events & Underground Events & Alternative Events
 
 suche auch die für ${city} populärsten eventseiten und veranstaltungsseiten bzw. ticketseiten und tourismusseiten ab.
-suche auch auf Google Search API zusätzliche Realtime-Quellen ab für events in ${city} am ${date}
+suche auch auf Google Search API zusätzliche Realtime-Quellen ab für events in ${city} am ${date}.
 
 Gib die Ausgabe ausschließlich als **Tabelle** mit den Spalten:
 "title" | "category" | "date" | "time" | "venue" | "price" | "website" (Quellen-URL)
