@@ -5,7 +5,7 @@ import { Inter } from 'next/font/google';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Where2Go - Event Finder',
+  title: 'Where2Go - Entdecke Events in deiner Stadt!',
   description: 'Entdecke Events in deiner Stadt - Alle Events. Weltweit. Eine Plattform.',
   keywords: ['events', 'stadt', 'veranstaltungen', 'event finder', 'where2go'],
   authors: [{ name: 'Where2Go Team' }],
