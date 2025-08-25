@@ -31,6 +31,7 @@ export async function POST(request: NextRequest) {
 gib die ausgabe Tabellarisch mit den Spalten: "title", "category", "date", "time", "venue", "price", "website".
 City: ${city}
 Date: ${date}
+Gib rein die Tabelle aus, sonst nichts!
 `;
     
     // Perplexity API Configuration
