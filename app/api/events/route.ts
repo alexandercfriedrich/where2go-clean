@@ -77,7 +77,7 @@ async function fetchPerplexityInBackground(jobId: string, city: string, date: st
   try {
     // Erstelle den dynamischen Prompt
     const prompt = `
-Suche alle Veranstaltungen und events in ${city} am ${date} in den kategorien:
+Finde für die Stadt ${city} am ${date} ALLE tatsächlich existierenden Events in den kategorien:
 
 1. Konzerte & Musik (Klassik, Rock, Pop, Jazz, Elektronik)
 2. Theater & Kabarett & Comedy & Musicals
@@ -90,17 +90,17 @@ Suche alle Veranstaltungen und events in ${city} am ${date} in den kategorien:
 9. Universitäts- & Studentenevents
 10. Szene-Events & Underground Events & Alternative Events
 
-suche auch die für ${city} populärsten eventseiten und veranstaltungsseiten bzw. ticketseiten und tourismusseiten ab.
-suche auch auf Google Search API zusätzliche Realtime-Quellen ab für events in ${city} am ${date}.
+Gib die gefundenen Events als reine Markdown-Tabelle mit den Spalten title, category, date, starttime, venue, price, website zurück.
 
-Gib die Ausgabe ausschließlich als **Tabelle** mit den Spalten:
-"title" | "category" | "date" | "time" | "venue" | "price" | "website" (Quellen-URL)
+Gib die Ausgabe ausschließlich als reine Markdown-Tabelle **Tabelle** mit folgenden Spalten zurück:
+"title" | "category" | "date" | "time" | "venue" | "price" | "website" (Quellen-URL) 
 
 Fülle jedes Feld so exakt wie möglich aus, lasse Preis/Website nur leer, wenn wirklich nicht verfügbar (dann „k.A.“).
 
 WICHTIG:
-- Generiere KEINE Fantasie-Veranstaltungen und KEINE Schätzungen oder Minimalbeispiele.
-- Gib KEINE Erklärungen, Kommentare oder Kontext – nur die vollständige Tabelle! Keine doppelten Events, keine Einleitungen, keine Werbung.
+- Gib KEINE Beispiele, Fließtexte oder Fantasie-Events aus. 
+- Wenn du keine Events findest, schreibe "Keine passenden Events gefunden".
+- Keine doppelten Events, keine Einleitungen, keine Werbung.
 `;
 
     
