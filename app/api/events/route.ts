@@ -15,6 +15,26 @@ interface EventData {
   website: string;
 }
 
+// Job status interface
+interface JobStatus {
+  id: string;
+  status: 'pending' | 'done' | 'error';
+  events?: EventData[];
+  error?: string;
+  createdAt: Date;
+}
+
+// Global map to store job statuses (shared with jobs API)
+declare global {
+  var jobMap: Map<string, JobStatus> | undefined;
+}
+
+if (!global.jobMap) {
+  global.jobMap = new Map<string, JobStatus>();
+}
+
+const jobMap = global.jobMap;
+
 export async function POST(request: NextRequest) {
   try {
     const { city, date }: RequestBody = await request.json();
@@ -26,6 +46,39 @@ export async function POST(request: NextRequest) {
       );
     }
     
+    // Generate unique job ID
+    const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Create job entry with pending status
+    const job: JobStatus = {
+      id: jobId,
+      status: 'pending',
+      createdAt: new Date()
+    };
+    
+    jobMap.set(jobId, job);
+    
+    // Start background job (don't await)
+    fetchPerplexityInBackground(jobId, city, date);
+    
+    // Return job ID immediately
+    return NextResponse.json({ 
+      jobId,
+      status: 'pending'
+    });
+    
+  } catch (error) {
+    console.error('Events API Error:', error);
+    return NextResponse.json(
+      { error: 'Unerwarteter Fehler beim Verarbeiten der Anfrage' },
+      { status: 500 }
+    );
+  }
+}
+
+// Background function to fetch from Perplexity
+async function fetchPerplexityInBackground(jobId: string, city: string, date: string) {
+  try {
     // Erstelle den dynamischen Prompt
     const prompt = `Suche auf verschieden quellen (mindestens 5) nach allen events, Konzerte, theater, museen, ausstellungen, dj sets, DJ, clubs, nightclubs, open air, gay, LGBT, Schwul, party, afterwork, livemusik, festivals die stattfinden. 
 gib die ausgabe Tabellarisch mit den Spalten: "title", "category", "date", "time", "venue", "price", "website".
@@ -38,14 +91,15 @@ Gib rein die Tabelle aus, sonst nichts!
     const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
     
     if (!PERPLEXITY_API_KEY) {
-      return NextResponse.json(
-        { error: 'Perplexity API Key ist nicht konfiguriert' },
-        { status: 500 }
-      );
+      const job = jobMap.get(jobId);
+      if (job) {
+        job.status = 'error';
+        job.error = 'Perplexity API Key ist nicht konfiguriert';
+      }
+      return;
     }
     
-    // Logging vor dem Perplexity API Call
-    console.log('About to call Perplexity API for city:', city, 'date:', date);
+    console.log('Background job starting for:', jobId, city, date);
     
     // API Call zur Perplexity
     const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
@@ -68,28 +122,33 @@ Gib rein die Tabelle aus, sonst nichts!
       })
     });
     
+    const job = jobMap.get(jobId);
+    if (!job) return; // Job might have been cleaned up
+    
     if (!perplexityResponse.ok) {
       console.error('Perplexity API Error:', perplexityResponse.status, perplexityResponse.statusText);
-      return NextResponse.json(
-        { error: 'Fehler beim Abrufen der Veranstaltungsdaten' },
-        { status: 500 }
-      );
+      job.status = 'error';
+      job.error = 'Fehler beim Abrufen der Veranstaltungsdaten';
+      return;
     }
     
     const perplexityData = await perplexityResponse.json();
-    console.log('Perplexity Response:', JSON.stringify(perplexityData, null, 2));
+    console.log('Background job completed for:', jobId);
     
     // Parse die Antwort von Perplexity
     const events = parseEventsFromResponse(perplexityData.choices[0]?.message?.content || '');
     
-    return NextResponse.json({ events });
+    // Update job with results
+    job.status = 'done';
+    job.events = events;
     
   } catch (error) {
-    console.error('API Error:', error);
-    return NextResponse.json(
-      { error: 'Unerwarteter Fehler beim Verarbeiten der Anfrage' },
-      { status: 500 }
-    );
+    console.error('Background job error for:', jobId, error);
+    const job = jobMap.get(jobId);
+    if (job) {
+      job.status = 'error';
+      job.error = 'Fehler beim Verarbeiten der Anfrage';
+    }
   }
 }
 
@@ -201,16 +260,6 @@ function parseMarkdownTable(responseText: string): EventData[] {
   }
   
   return events;
-}
-
-function extractValueAfterKeyword(text: string, keywords: string[]): string {
-  for (const keyword of keywords) {
-    const index = text.toLowerCase().indexOf(keyword.toLowerCase());
-    if (index !== -1) {
-      return text.substring(index + keyword.length).trim();
-    }
-  }
-  return '';
 }
 
 function extractKeywordBasedEvents(responseText: string): EventData[] {
