@@ -27,7 +27,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Erstelle den dynamischen Prompt
-    const prompt = `Suche vollständig nach allen events, Konzerte, theater, museen, ausstellungen, dj sets, DJ, clubs, nightclubs, open air, gay, LGBT, Schwul, party, afterwork, livemusik, festivals usw...\nTabellarisch mit den Spalten: "title", "category", "date", "time", "venue", "price", "website".\nCity: ${city}\nDate: ${date}`;
+    const prompt = `Suche vollständig nach allen events, Konzerte, theater, museen, ausstellungen, dj sets, DJ, clubs, nightclubs, open air, gay, LGBT, Schwul, party, afterwork, livemusik, festivals usw...
+Tabellarisch mit den Spalten: "title", "category", "date", "time", "venue", "price", "website".
+City: ${city}
+Date: ${date}`;
 
     // Perplexity API Configuration
     const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
@@ -54,100 +57,96 @@ export async function POST(request: NextRequest) {
             content: prompt,
           },
         ],
-        max_tokens: 2000,
+        max_tokens: 4000,
         temperature: 0.2,
+        top_p: 0.9,
+        return_citations: true,
+        search_domain_filter: ['perplexity.ai'],
+        return_images: false,
+        return_related_questions: false,
+        search_recency_filter: 'month',
+        top_k: 0,
+        stream: false,
+        presence_penalty: 0,
+        frequency_penalty: 1
       }),
     });
 
     if (!perplexityResponse.ok) {
-      throw new Error(`Perplexity API Error: ${perplexityResponse.status}`);
+      console.error('Perplexity API error:', perplexityResponse.statusText);
+      return NextResponse.json(
+        { error: 'Fehler beim Abrufen der Event-Daten' },
+        { status: 500 }
+      );
     }
 
     const perplexityData = await perplexityResponse.json();
-    
-    // Artificial delay of 90 seconds after Perplexity request
-    await new Promise(resolve => setTimeout(resolve, 90000));
-    
-    const responseText = perplexityData.choices[0]?.message?.content || '';
+    console.log('Perplexity Response:', JSON.stringify(perplexityData, null, 2));
 
-    // Versuche strukturierte Daten zu extrahieren
-    const events: EventData[] = parseEventsFromResponse(responseText);
+    // Parse Events aus der Antwort
+    const events = parseEventsFromResponse(perplexityData);
 
-    return NextResponse.json({
-      success: true,
-      events,
-      rawResponse: responseText,
-      city,
-      date,
-    });
+    return NextResponse.json({ events });
   } catch (error) {
-    console.error('API Error:', error);
+    console.error('API Route Error:', error);
     return NextResponse.json(
-      { 
-        error: 'Fehler beim Abrufen der Event-Daten',
-        details: error instanceof Error ? error.message : 'Unbekannter Fehler'
-      },
+      { error: 'Interner Server-Fehler' },
       { status: 500 }
     );
   }
 }
 
-// Hilfsfunktion zum Parsen der Events aus der Perplexity-Antwort
-function parseEventsFromResponse(responseText: string): EventData[] {
+function parseEventsFromResponse(perplexityData: any): EventData[] {
   const events: EventData[] = [];
   
   try {
-    // Suche nach Tabellen-ähnlichen Strukturen oder Listen
-    const lines = responseText.split('\n').filter(line => line.trim().length > 0);
+    const responseText = perplexityData?.choices?.[0]?.message?.content || '';
+    
+    // Try to find table-like structures
+    const lines = responseText.split('\n');
     
     for (const line of lines) {
-      // Verschiedene Parsing-Strategien versuchen
-      let event: Partial<EventData> = {};
-      
-      // Strategie 1: Pipe-separated values
-      if (line.includes('|')) {
+      // Look for lines that might contain event data
+      if (line.includes('|') && line.split('|').length >= 6) {
         const parts = line.split('|').map(part => part.trim());
-        if (parts.length >= 7) {
-          event = {
-            title: parts[0] || '',
-            category: parts[1] || '',
-            date: parts[2] || '',
-            time: parts[3] || '',
-            venue: parts[4] || '',
-            price: parts[5] || '',
-            website: parts[6] || '',
-          };
+        
+        // Skip header rows
+        if (parts[0].toLowerCase().includes('title') || parts[0].includes('---')) {
+          continue;
+        }
+        
+        if (parts.length >= 7 && parts[1].length > 0) {
+          events.push({
+            title: parts[1] || '',
+            category: parts[2] || '',
+            date: parts[3] || '',
+            time: parts[4] || '',
+            venue: parts[5] || '',
+            price: parts[6] || '',
+            website: parts[7] || '',
+          });
         }
       }
-      // Strategie 2: JSON-ähnliche Struktur erkennen
-      else if (line.includes('{') && line.includes('}')) {
-        try {
-          const jsonMatch = line.match(/{.*}/);
-          if (jsonMatch) {
-            const parsed = JSON.parse(jsonMatch[0]);
-            event = parsed;
-          }
-        } catch {
-          // JSON parsing fehlgeschlagen, ignorieren
+    }
+
+    // Alternative parsing for JSON-like structures
+    const jsonMatch = responseText.match(/\[\s*{[\s\S]*}\s*\]/);
+    if (jsonMatch && events.length === 0) {
+      try {
+        const parsedEvents = JSON.parse(jsonMatch[0]);
+        for (const event of parsedEvents) {
+          events.push({
+            title: event.title || '',
+            category: event.category || '',
+            date: event.date || '',
+            time: event.time || '',
+            venue: event.venue || '',
+            price: event.price || '',
+            website: event.website || '',
+          });
         }
-      }
-      // Strategie 3: Strukturierte Text-Erkennung
-      else if (line.toLowerCase().includes('titel:') || line.toLowerCase().includes('event:')) {
-        // Einfache Textextraktion für strukturierten Text
-        event.title = extractValueAfterKeyword(line, ['titel:', 'event:', 'name:']);
-      }
-      
-      // Event hinzufügen, wenn mindestens Titel vorhanden
-      if (event.title && event.title.length > 0 && !event.title.includes('---')) {
-        events.push({
-          title: event.title || 'Unbekannt',
-          category: event.category || 'Event',
-          date: event.date || '',
-          time: event.time || '',
-          venue: event.venue || '',
-          price: event.price || '',
-          website: event.website || '',
-        });
+      } catch (error) {
+        console.error('JSON parsing error:', error);
       }
     }
     
