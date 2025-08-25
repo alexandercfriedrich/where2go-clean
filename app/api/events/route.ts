@@ -126,7 +126,7 @@ WICHTIG:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'pplx-7b-online',
+        model: 'sonar-pro',
         messages: [
           {
             role: 'user',
