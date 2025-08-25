@@ -35,7 +35,7 @@ export default function Home() {
     }
   };
 
-  // Funktion zum Suchen von Events
+  // Funktion zum Suchen von Events mit AbortController und 5min Timeout
   const searchEvents = async () => {
     if (!city.trim()) {
       setError('Bitte gib eine Stadt ein');
@@ -45,6 +45,12 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setEvents([]);
+
+    // AbortController für Timeout erstellen
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      controller.abort();
+    }, 300000); // 5 Minuten = 300000ms
 
     try {
       const response = await fetch('/api/events', {
@@ -56,7 +62,10 @@ export default function Home() {
           city: city.trim(),
           date: formatDateForAPI(),
         }),
+        signal: controller.signal // AbortController signal hinzufügen
       });
+
+      clearTimeout(timeoutId); // Timeout löschen wenn Response erhalten
 
       const data = await response.json();
 
@@ -72,9 +81,19 @@ export default function Home() {
       } else {
         setError(data.error || 'Unbekannter Fehler');
       }
-    } catch (err) {
-      console.error('Search error:', err);
-      setError(err instanceof Error ? err.message : 'Netzwerkfehler beim Laden der Events');
+    } catch (error) {
+      clearTimeout(timeoutId); // Timeout auch bei Fehlern löschen
+      
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          // Spezielle Behandlung für Timeout-Fehler
+          setError('Antwort dauert leider zu lange (über 5 Minuten). Bitte versuche es später erneut.');
+        } else {
+          setError(error.message || 'Ein Fehler ist aufgetreten');
+        }
+      } else {
+        setError('Ein unbekannter Fehler ist aufgetreten');
+      }
     } finally {
       setLoading(false);
     }
@@ -150,10 +169,8 @@ export default function Home() {
                 type="button"
                 onClick={searchEvents}
                 disabled={loading}
-                className={`w-full py-2 px-4 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors ${
-                  loading
-                    ? 'bg-gray-400 cursor-not-allowed text-white'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                className={`w-full px-4 py-2 text-white rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                  loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
                 }`}
               >
                 {loading ? 'Suchen...' : 'Suchen'}
@@ -168,7 +185,12 @@ export default function Home() {
             <div className="flex items-center">
               <div className="text-red-400 mr-3">
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
                 </svg>
               </div>
               <p className="text-red-800">{error}</p>
@@ -196,7 +218,12 @@ export default function Home() {
             <div className="text-center py-12">
               <div className="text-gray-400 mb-4">
                 <svg className="mx-auto h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
                 </svg>
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -214,36 +241,31 @@ export default function Home() {
                     <div className="md:col-span-2">
                       <h3 className="font-semibold text-gray-900 mb-1">{event.title || 'Unbekannt'}</h3>
                       <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-                        event.category.toLowerCase().includes('konzert') ? 'bg-purple-100 text-purple-800' :
-                        event.category.toLowerCase().includes('theater') ? 'bg-red-100 text-red-800' :
-                        event.category.toLowerCase().includes('club') ? 'bg-pink-100 text-pink-800' :
-                        event.category.toLowerCase().includes('museum') ? 'bg-green-100 text-green-800' :
-                        'bg-blue-100 text-blue-800'
+                        event.category?.toLowerCase() === 'konzert' ? 'bg-blue-100 text-blue-800' :
+                        event.category?.toLowerCase() === 'theater' ? 'bg-green-100 text-green-800' :
+                        event.category?.toLowerCase() === 'sport' ? 'bg-red-100 text-red-800' :
+                        event.category?.toLowerCase() === 'kunst' ? 'bg-purple-100 text-purple-800' :
+                        'bg-pink-100 text-pink-800'
                       }`}>
                         {event.category || 'Event'}
                       </span>
                     </div>
-                    
                     <div>
                       <p className="text-sm text-gray-500 mb-1">Datum</p>
                       <p className="text-sm font-medium">{event.date || 'Nicht angegeben'}</p>
                     </div>
-                    
                     <div>
                       <p className="text-sm text-gray-500 mb-1">Zeit</p>
                       <p className="text-sm font-medium">{event.time || 'Nicht angegeben'}</p>
                     </div>
-                    
                     <div>
                       <p className="text-sm text-gray-500 mb-1">Ort</p>
                       <p className="text-sm font-medium">{event.venue || 'Nicht angegeben'}</p>
                     </div>
-                    
                     <div>
                       <p className="text-sm text-gray-500 mb-1">Preis</p>
                       <p className="text-sm font-medium">{event.price || 'Nicht angegeben'}</p>
                     </div>
-                    
                     <div className="flex items-center">
                       {event.website && (
                         <a
@@ -254,7 +276,12 @@ export default function Home() {
                         >
                           Website
                           <svg className="ml-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+                            />
                           </svg>
                         </a>
                       )}
