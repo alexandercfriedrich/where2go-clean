@@ -292,5 +292,3 @@ function extractKeywordBasedEvents(responseText: string): EventData[] {
 
   return events; // <— KEIN slice-Limit mehr!
 }
-
-}
