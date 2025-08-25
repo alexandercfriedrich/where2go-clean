@@ -135,7 +135,7 @@ WICHTIG:
         ],
         max_tokens: 20000,
         temperature: 0.3,
-        stream: true
+        stream: false
       })
     });
     
