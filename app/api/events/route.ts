@@ -76,11 +76,20 @@ export async function POST(request: NextRequest) {
 async function fetchPerplexityInBackground(jobId: string, city: string, date: string) {
   try {
     // Erstelle den dynamischen Prompt
-    const prompt = `Suche auf verschieden quellen (mindestens 5) nach allen events, Konzerte, theater, museen, ausstellungen, dj sets, DJ, clubs, nightclubs, open air, gay, LGBT, Schwul, party, afterwork, livemusik, festivals die stattfinden. 
-gib die ausgabe Tabellarisch mit den Spalten: "title", "category", "date", "time", "venue", "price", "website".
-City: ${city}
-Date: ${date}
-Gib rein die Tabelle aus, sonst nichts!
+    const prompt = `Suche für die Stadt ${city} am Tag ${date} vollständig und tiefgründig nach sämtlichen Veranstaltungen aller Kategorien — auch kleine, neue, spontane, einmalige Events und Specials (z.B. Konzerte, Theater, Comedy, Museen, Ausstellungen, Lesungen, DJ-Sets, Clubs, LGBT+, Afterwork, Open Air, Szene, Poetry Slam, Bar-Events, Open Mic, Unis, Parks, Secret Locations, Feste, Kinder, Familien, Senioren etc.).
+
+- Recherchiere mindestens 10 unabhängige und vielfältige Quellen (Eventportale, Ticketsysteme, Stadt-/Gemeindekalender, Konzertveranstalter, Ausgehmagazine, Social Media [Facebook/Instagram/Meetup/Eventbrite], lokale Szeneplattformen, Nischenforen usw.).
+- Gib auch Einzeltermine, Laufzeiten und Einzelevents von Museums-/Galeriebesuchen oder Workshops an, falls verfügbar.
+- Füge neue, spontane oder heute kurzfristig veröffentlichte Events und Tipps aus der lokalen Szene hinzu.
+- Tabellarische, komprimierte Ausgabe **ohne jede Einleitung, Fußnote, Kommentar oder Fließtext!**
+
+Erstelle eine möglichst lange Tabelle mit den Spalten: 
+"title" | "category" | "date" | "time" | "venue" | "price" | "website"
+
+Hinweis: Wenn kein Preis/Website bekannt, Feld leer lassen oder "k.A." schreiben.
+
+WICHTIG: Gib **ausschließlich** die Tabelle mit maximal ausführlicher Zeilenzahl/Tiefe zurück. Keine doppelten, aber auch keine ausgelassenen Events!
+
 `;
     
     // Perplexity API Configuration
