@@ -126,7 +126,7 @@ WICHTIG:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'xpplx-70b-online',
+        model: 'pplx-70b-online',
         messages: [
           {
             role: 'user',
