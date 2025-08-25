@@ -76,21 +76,23 @@ export async function POST(request: NextRequest) {
 async function fetchPerplexityInBackground(jobId: string, city: string, date: string) {
   try {
     // Erstelle den dynamischen Prompt
-    const prompt = `Suche für die Stadt ${city} am Tag ${date} vollständig und tiefgründig nach sämtlichen Veranstaltungen aller Kategorien — auch kleine, neue, spontane, einmalige Events und Specials (z.B. Konzerte, Theater, Comedy, Museen, Ausstellungen, Lesungen, DJ-Sets, Clubs, LGBT+, Afterwork, Open Air, Szene, Poetry Slam, Bar-Events, Open Mic, Unis, Parks, Secret Locations, Feste, Kinder, Familien, Senioren etc.).
+    const prompt = `
+Suche für die Stadt ${city} am Tag ${date} nach ALLEN tatsächlich existierenden, öffentlich auffindbaren Veranstaltungen, Konzerten, Theaterstücken, Museen, Ausstellungen, Bars, DJ-Sets, Clubs, Open-Airs, LGBT+, Afterwork, Unis, Kinder, Szene, besonderen Aktionen etc.
 
-- Recherchiere mindestens 10 unabhängige und vielfältige Quellen (Eventportale, Ticketsysteme, Stadt-/Gemeindekalender, Konzertveranstalter, Ausgehmagazine, Social Media [Facebook/Instagram/Meetup/Eventbrite], lokale Szeneplattformen, Nischenforen usw.).
-- Gib auch Einzeltermine, Laufzeiten und Einzelevents von Museums-/Galeriebesuchen oder Workshops an, falls verfügbar.
-- Füge neue, spontane oder heute kurzfristig veröffentlichte Events und Tipps aus der lokalen Szene hinzu.
-- Tabellarische, komprimierte Ausgabe **ohne jede Einleitung, Fußnote, Kommentar oder Fließtext!**
+WICHTIG:
+- JEDES Event MUSS einzeln belegbar und nachprüfbar im Internet gelistet sein (offizielle Webseiten, Eventportale, Social Media, Veranstalter).
+- Zu JEDEM Event MUSS ein DIREKTER Link zu einer existierenden externen Quelle angegeben werden (Feld „website“: z.B. Ticket-Link, offizielles Event, Social-Media-Post, Kalender, Zeitungsankündigung).
+- SCHLIESSE ALLE erfundenen, hypothetischen, generierten oder nicht belegbaren Events AUS! 
+- Generiere KEINE Fantasie-Veranstaltungen und KEINE Schätzungen oder Minimalbeispiele.
 
-Erstelle eine möglichst lange Tabelle mit den Spalten: 
-"title" | "category" | "date" | "time" | "venue" | "price" | "website"
+Gib die Ausgabe ausschließlich als **Tabelle** mit den Spalten:
+"title" | "category" | "date" | "time" | "venue" | "price" | "website" (Quellen-URL)
 
-Hinweis: Wenn kein Preis/Website bekannt, Feld leer lassen oder "k.A." schreiben.
+Fülle jedes Feld so exakt wie möglich aus, lasse Preis/Website nur leer, wenn wirklich nicht verfügbar (dann „k.A.“).
 
-WICHTIG: Gib **ausschließlich** die Tabelle mit maximal ausführlicher Zeilenzahl/Tiefe zurück. Keine doppelten, aber auch keine ausgelassenen Events!
-
+Gib KEINE Erklärungen, Kommentare oder Kontext – nur die vollständige Tabelle! Keine doppelten Events, keine Einleitungen, keine Werbung.
 `;
+
     
     // Perplexity API Configuration
     const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
