@@ -77,18 +77,32 @@ async function fetchPerplexityInBackground(jobId: string, city: string, date: st
   try {
     // Erstelle den dynamischen Prompt
     const prompt = `
-Suche für die Stadt ${city} am Tag ${date} nach ALLEN tatsächlich existierenden, öffentlich auffindbaren Veranstaltungen, Konzerte, Theaterstücke, Museen, Ausstellungen, Bars, DJ-Sets, Clubs, Open-Airs, LGBT+, Afterwork, Unifeste, mensafest, Kinder, Szene, besonderen events etc.
+Suche alle Veranstaltungen und events in ${city} am ${date}:
+
+1. Konzerte & Musik (Klassik, Rock, Pop, Jazz, Elektronik)
+2. Theater & Kabarett & Comedy & Musicals
+3. Museen & Ausstellungen & Galerien (auch Sonderausstellungen)
+4. Clubs & DJ-Sets & Partys & Electronic Music Events
+5. Bars & Rooftop Events & Afterwork Events
+6. Open-Air Events & Festivals & Outdoor Events
+7. LGBT+ Events & Queer Events & Pride Events
+8. Kinder- & Familienveranstaltungen
+9. Universitäts- & Studentenevents
+10. Szene-Events & Underground Events & Alternative Events
+
+suche auch die für ${city} populärsten eventseiten und veranstaltungsseiten bzw. ticketseiten und tourismusseiten ab.
+suche auch auf Google Search API zusätzliche Realtime-Quellen ab für events in ${city} am ${date}
+
+Gib die Ausgabe ausschließlich als **Tabelle** mit den Spalten:
+"title" | "category" | "date" | "time" | "venue" | "price" | "website" (Quellen-URL)
+
+Fülle jedes Feld so exakt wie möglich aus, lasse Preis/Website nur leer, wenn wirklich nicht verfügbar (dann „k.A.“).
 
 WICHTIG:
 - JEDES Event MUSS einzeln belegbar und nachprüfbar im Internet gelistet sein (offizielle Webseite, Eventportale, Social Media, Veranstalter, ...).
 - Zu JEDEM Event MUSS ein DIREKTER Link zu einer existierenden externen Quelle angegeben werden (Feld „website“: z.B. Ticket-Link, offizielles Event, Social-Media-Post, Kalender, Zeitungsankündigung, ...).
 - SCHLIESSE ALLE erfundenen, hypothetischen, generierten oder nicht belegbaren Events AUS! 
 - Generiere KEINE Fantasie-Veranstaltungen und KEINE Schätzungen oder Minimalbeispiele.
-
-Gib die Ausgabe ausschließlich als **Tabelle** mit den Spalten:
-"title" | "category" | "date" | "time" | "venue" | "price" | "website" (Quellen-URL)
-
-Fülle jedes Feld so exakt wie möglich aus, lasse Preis/Website nur leer, wenn wirklich nicht verfügbar (dann „k.A.“).
 
 Gib KEINE Erklärungen, Kommentare oder Kontext – nur die vollständige Tabelle! Keine doppelten Events, keine Einleitungen, keine Werbung.
 `;
@@ -124,7 +138,7 @@ Gib KEINE Erklärungen, Kommentare oder Kontext – nur die vollständige Tabell
           }
         ],
         max_tokens: 10000,
-        temperature: 0.9,
+        temperature: 0.4,
         stream: false
       })
     });
