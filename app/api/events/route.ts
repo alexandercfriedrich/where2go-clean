@@ -264,31 +264,20 @@ function parseMarkdownTable(responseText: string): EventData[] {
 
 function extractKeywordBasedEvents(responseText: string): EventData[] {
   const events: EventData[] = [];
-  const eventKeywords = [
-    'konzert', 'theater', 'museum', 'ausstellung', 'festival', 'party', 'club', 'dj',
-    'livemusik', 'lesung', 'kabarett', 'comedy', 'musical', 'poetry', 'vortrag', 'workshop',
-    'märkte', 'markt', 'kino', 'film', 'tanz', 'nachtleben', 'afterwork', 'lgbt', 'queer', 'pride',
-    'kinder', 'familie', 'student', 'uni', 'campus', 'open air', 'open-air', 'szene', 'underground',
-    'vernissage', 'performance', 'talk', 'diskussion', 'seminar', 'führung', 'art', 'kunst', 'lounge',
-    'special', 'event', 'benefiz', 'spenden', 'techno', 'rave', 'brunch', 'weihnachtsmarkt', 'sommerfest'
-  ];
-
   const sentences = responseText.split('.').filter(s => s.trim().length > 10);
 
+  // KEIN Keyword-Filter mehr!
   for (const sentence of sentences) {
-    const lowerSentence = sentence.toLowerCase();
-    if (eventKeywords.some(keyword => lowerSentence.includes(keyword))) {
-      events.push({
-        title: sentence.trim(),
-        category: 'Event',
-        date: '',
-        time: '',
-        venue: '',
-        price: '',
-        website: '',
-      });
-    }
+    events.push({
+      title: sentence.trim(),
+      category: 'Event',
+      date: '',
+      time: '',
+      venue: '',
+      price: '',
+      website: '',
+    });
   }
 
-  return events; // <— KEIN slice-Limit mehr!
+  return events;
 }
