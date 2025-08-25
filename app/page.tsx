@@ -1,7 +1,6 @@
 'use client';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 
-// Event interface to match API response
 interface EventData {
   title: string;
   category: string;
@@ -19,287 +18,185 @@ export default function Home() {
   const [events, setEvents] = useState<EventData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [jobStatus, setJobStatus] = useState<'idle' | 'pending' | 'done' | 'error'>('idle');
+  const [pollCount, setPollCount] = useState(0);
 
-  // Funktion zum Formatieren des Datums
+  // To store polling interval id persistently
+  const pollInterval = useRef<NodeJS.Timeout | null>(null);
+
   const formatDateForAPI = (): string => {
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-
-    if (timePeriod === 'heute') {
-      return today.toISOString().split('T')[0];
-    } else if (timePeriod === 'morgen') {
-      return tomorrow.toISOString().split('T')[0];
-    } else {
-      return customDate || today.toISOString().split('T')[0];
-    }
+    if (timePeriod === 'heute') return today.toISOString().split('T')[0];
+    else if (timePeriod === 'morgen') return tomorrow.toISOString().split('T')[0];
+    else return customDate || today.toISOString().split('T')[0];
   };
 
-  // Funktion zum Suchen von Events mit AbortController und 5min Timeout
+  // Asynchrone Suche (Job)
   const searchEvents = async () => {
     if (!city.trim()) {
-      setError('Bitte gib eine Stadt ein');
+      setError('Bitte gib eine Stadt ein.');
       return;
     }
-
     setLoading(true);
     setError(null);
     setEvents([]);
+    setJobId(null);
+    setJobStatus('pending');
+    setPollCount(0);
 
-    // AbortController für Timeout erstellen
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      controller.abort();
-    }, 300000); // 5 Minuten = 300000ms
-
+    // Job starten
     try {
-      const response = await fetch('/api/events', {
+      const res = await fetch('/api/events', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          city: city.trim(),
-          date: formatDateForAPI(),
-        }),
-        signal: controller.signal // AbortController signal hinzufügen
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ city: city.trim(), date: formatDateForAPI() }),
       });
+      const { jobId } = await res.json();
+      setJobId(jobId);
 
-      clearTimeout(timeoutId); // Timeout löschen wenn Response erhalten
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Fehler beim Laden der Events');
-      }
-
-      if (data.success) {
-        setEvents(data.events || []);
-        if (data.events.length === 0) {
-          setError('Keine Events für diese Stadt und dieses Datum gefunden.');
-        }
-      } else {
-        setError(data.error || 'Unbekannter Fehler');
-      }
-    } catch (error) {
-      clearTimeout(timeoutId); // Timeout auch bei Fehlern löschen
-      
-      if (error instanceof Error) {
-        if (error.name === 'AbortError') {
-          // Spezielle Behandlung für Timeout-Fehler
-          setError('Antwort dauert leider zu lange (über 5 Minuten). Bitte versuche es später erneut.');
-        } else {
-          setError(error.message || 'Ein Fehler ist aufgetreten');
-        }
-      } else {
-        setError('Ein unbekannter Fehler ist aufgetreten');
-      }
-    } finally {
+      // Poll starten
+      startPolling(jobId);
+    } catch (err) {
+      setError('Fehler beim Starten der Eventsuche.');
       setLoading(false);
+      setJobStatus('idle');
     }
   };
 
+  // Polling-Funktion
+  const startPolling = (jobId: string) => {
+    if (pollInterval.current) clearInterval(pollInterval.current);
+    let count = 0;
+    pollInterval.current = setInterval(async () => {
+      count++;
+      setPollCount(count);
+      if (count > 7) { // nach 7x (ca. 70s) abbrechen
+        clearInterval(pollInterval.current!);
+        setLoading(false);
+        setJobStatus('error');
+        setError('Die Suche dauert zu lange (Timeout nach über einer Minute). Bitte versuche es später erneut.');
+        return;
+      }
+      try {
+        const res = await fetch(`/api/jobs/${jobId}`);
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        const job = await res.json();
+        if (job.status === 'pending') return;
+        clearInterval(pollInterval.current!);
+        setLoading(false);
+        if (job.status === 'done') {
+          setEvents(job.events);
+          setJobStatus('done');
+        } else {
+          setJobStatus('error');
+          setError(job.message || 'Fehler bei der Eventsuche.');
+        }
+      } catch (err) {
+        clearInterval(pollInterval.current!);
+        setLoading(false);
+        setJobStatus('error');
+        setError('Fehler beim Abrufen des Jobs/Ergebnisses.');
+      }
+    }, 10000); // alle 10 Sekunden poll
+  };
+
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <header className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">
-            Where2Go
-          </h1>
-          <p className="text-gray-600">
-            Finde Events in deiner Stadt
-          </p>
-        </header>
+    <main className="max-w-lg mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-2">Where2Go</h1>
+      <p className="mb-4">Eventsuche für verschiedene Städte – unterstützt auch längere KI-Auswertung!</p>
 
-        {/* Search Form */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* City Input */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="city">
-                Stadt
-              </label>
-              <input
-                type="text"
-                id="city"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                placeholder="z.B. Berlin, München..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            {/* Time Period Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="timePeriod">
-                Zeitraum
-              </label>
-              <select
-                id="timePeriod"
-                value={timePeriod}
-                onChange={(e) => setTimePeriod(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="heute">Heute</option>
-                <option value="morgen">Morgen</option>
-                <option value="benutzerdefiniert">Benutzerdefiniert</option>
-              </select>
-            </div>
-
-            {/* Custom Date Input (shows when benutzerdefiniert is selected) */}
-            {timePeriod === 'benutzerdefiniert' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="customDate">
-                  Datum
-                </label>
-                <input
-                  type="date"
-                  id="customDate"
-                  value={customDate}
-                  onChange={(e) => setCustomDate(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-            )}
-
-            {/* Search Button */}
-            <div className="flex items-end">
-              <button
-                type="button"
-                onClick={searchEvents}
-                disabled={loading}
-                className={`w-full px-4 py-2 text-white rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
-                  loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'
-                }`}
-              >
-                {loading ? 'Suchen...' : 'Suchen'}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
-            <div className="flex items-center">
-              <div className="text-red-400 mr-3">
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-              </div>
-              <p className="text-red-800">{error}</p>
-            </div>
-          </div>
+      <form
+        onSubmit={e => {
+          e.preventDefault();
+          searchEvents();
+        }}
+        className="space-y-2 mb-6"
+      >
+        <label>
+          Stadt
+          <input
+            type="text"
+            id="city"
+            value={city}
+            onChange={e => setCity(e.target.value)}
+            placeholder="z.B. Linz, Berlin, Hamburg ..."
+            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+          />
+        </label>
+        <label>
+          Zeitraum
+          <select
+            id="timePeriod"
+            value={timePeriod}
+            onChange={e => setTimePeriod(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md"
+          >
+            <option value="heute">Heute</option>
+            <option value="morgen">Morgen</option>
+            <option value="benutzerdefiniert">Benutzerdefiniert</option>
+          </select>
+        </label>
+        {timePeriod === 'benutzerdefiniert' && (
+          <label>
+            Datum
+            <input
+              type="date"
+              id="customDate"
+              value={customDate}
+              onChange={e => setCustomDate(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md"
+            />
+          </label>
         )}
-
-        {/* Events List */}
-        <div className="bg-white rounded-lg shadow-md p-6">
-          <h2 className="text-2xl font-semibold text-gray-800 mb-4">
-            Events
-          </h2>
-
-          {loading ? (
-            <div className="text-center py-12">
-              <div className="animate-spin inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full mb-4"></div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Events werden geladen...
-              </h3>
-              <p className="text-gray-500">
-                Suche nach Events in {city} für {formatDateForAPI()}
-              </p>
-            </div>
-          ) : events.length === 0 && !error ? (
-            <div className="text-center py-12">
-              <div className="text-gray-400 mb-4">
-                <svg className="mx-auto h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
-              </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
-                Noch keine Events
-              </h3>
-              <p className="text-gray-500">
-                Gib eine Stadt ein und wähle einen Zeitraum, um Events zu finden.
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {events.map((event, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
-                    <div className="md:col-span-2">
-                      <h3 className="font-semibold text-gray-900 mb-1">{event.title || 'Unbekannt'}</h3>
-                      <span className={`inline-block px-2 py-1 text-xs rounded-full ${
-                        event.category?.toLowerCase() === 'konzert' ? 'bg-blue-100 text-blue-800' :
-                        event.category?.toLowerCase() === 'theater' ? 'bg-green-100 text-green-800' :
-                        event.category?.toLowerCase() === 'sport' ? 'bg-red-100 text-red-800' :
-                        event.category?.toLowerCase() === 'kunst' ? 'bg-purple-100 text-purple-800' :
-                        'bg-pink-100 text-pink-800'
-                      }`}>
-                        {event.category || 'Event'}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Datum</p>
-                      <p className="text-sm font-medium">{event.date || 'Nicht angegeben'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Zeit</p>
-                      <p className="text-sm font-medium">{event.time || 'Nicht angegeben'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Ort</p>
-                      <p className="text-sm font-medium">{event.venue || 'Nicht angegeben'}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500 mb-1">Preis</p>
-                      <p className="text-sm font-medium">{event.price || 'Nicht angegeben'}</p>
-                    </div>
-                    <div className="flex items-center">
-                      {event.website && (
-                        <a
-                          href={event.website.startsWith('http') ? event.website : `https://${event.website}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center px-3 py-1 border border-blue-300 text-sm leading-4 font-medium rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                        >
-                          Website
-                          <svg className="ml-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                            />
-                          </svg>
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-              
-              {/* Event Count */}
-              <div className="text-center pt-4 border-t border-gray-200">
-                <p className="text-sm text-gray-500">
-                  {events.length} Event{events.length !== 1 ? 's' : ''} gefunden
-                </p>
-              </div>
-            </div>
-          )}
+        <button
+          type="submit"
+          className="block w-full bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700"
+        >
+          Events suchen
+        </button>
+      </form>
+      {error && <div className="bg-red-100 text-red-800 px-3 py-2 rounded mb-3">{error}</div>}
+      {loading && (
+        <div className="mb-3">
+          <div className="animate-spin h-6 w-6 mr-3 inline-block border-4 border-blue-400 border-t-transparent rounded-full" />
+          Suche läuft … bitte habe etwas Geduld.<br />
+          Abfrage <span className="font-mono">{pollCount}/7</span> (max. 70 sec) – KI-Auswertung kann länger dauern!
         </div>
-      </div>
+      )}
+
+      <h2 className="text-lg font-bold mt-4 mb-2">Events</h2>
+      {!loading && !events.length && !error && (
+        <p className="text-gray-500">Starte eine Suche, um Events zu sehen.</p>
+      )}
+      {!!events.length && (
+        <table className="w-full border mt-3 text-sm">
+          <thead>
+            <tr>
+              <th>Titel</th><th>Kategorie</th><th>Datum</th><th>Zeit</th><th>Ort</th><th>Preis</th><th>Website</th>
+            </tr>
+          </thead>
+          <tbody>
+            {events.map((ev, i) => (
+              <tr key={i} className="border-t">
+                <td>{ev.title}</td>
+                <td>{ev.category}</td>
+                <td>{ev.date}</td>
+                <td>{ev.time}</td>
+                <td>{ev.venue}</td>
+                <td>{ev.price}</td>
+                <td>
+                  {ev.website &&
+                    <a href={ev.website.startsWith('http') ? ev.website : `https://${ev.website}`} target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">Link</a>
+                  }
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </main>
   );
 }
