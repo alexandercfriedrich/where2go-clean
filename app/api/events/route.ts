@@ -99,12 +99,8 @@ Gib die Ausgabe ausschließlich als **Tabelle** mit den Spalten:
 Fülle jedes Feld so exakt wie möglich aus, lasse Preis/Website nur leer, wenn wirklich nicht verfügbar (dann „k.A.“).
 
 WICHTIG:
-- JEDES Event MUSS einzeln belegbar und nachprüfbar im Internet gelistet sein (offizielle Webseite, Eventportale, Social Media, Veranstalter, ...).
-- Zu JEDEM Event MUSS ein DIREKTER Link zu einer existierenden externen Quelle angegeben werden (Feld „website“: z.B. Ticket-Link, offizielles Event, Social-Media-Post, Kalender, Zeitungsankündigung, ...).
-- SCHLIESSE ALLE erfundenen, hypothetischen, generierten oder nicht belegbaren Events AUS! 
 - Generiere KEINE Fantasie-Veranstaltungen und KEINE Schätzungen oder Minimalbeispiele.
-
-Gib KEINE Erklärungen, Kommentare oder Kontext – nur die vollständige Tabelle! Keine doppelten Events, keine Einleitungen, keine Werbung.
+- Gib KEINE Erklärungen, Kommentare oder Kontext – nur die vollständige Tabelle! Keine doppelten Events, keine Einleitungen, keine Werbung.
 `;
 
     
