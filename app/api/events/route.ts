@@ -25,13 +25,14 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-
+    
     // Erstelle den dynamischen Prompt
     const prompt = `Suche vollständig nach allen events, Konzerte, theater, museen, ausstellungen, dj sets, DJ, clubs, nightclubs, open air, gay, LGBT, Schwul, party, afterwork, livemusik, festivals usw...
 Tabellarisch mit den Spalten: "title", "category", "date", "time", "venue", "price", "website".
 City: ${city}
-Date: ${date}`;
-
+Date: ${date}
+`;
+    
     // Perplexity API Configuration
     const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
     
@@ -41,10 +42,10 @@ Date: ${date}`;
         { status: 500 }
       );
     }
-
+    
     // Logging vor dem Perplexity API Call
     console.log('About to call Perplexity API for city:', city, 'date:', date);
-
+    
     // API Call zur Perplexity
     const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
@@ -53,122 +54,71 @@ Date: ${date}`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama-3.1-sonar-small-128k-online',
+        model: 'sonar-pro',
         messages: [
           {
             role: 'user',
-            content: prompt,
-          },
+            content: prompt
+          }
         ],
-        max_tokens: 4000,
+        max_tokens: 2000,
         temperature: 0.2,
-        top_p: 0.9,
-        return_citations: true,
-        search_domain_filter: ['perplexity.ai'],
-        return_images: false,
-        return_related_questions: false,
-        search_recency_filter: 'month',
-        top_k: 0,
-        stream: false,
-        presence_penalty: 0,
-        frequency_penalty: 1
-      }),
+        stream: false
+      })
     });
-
-    // Logging nach dem Perplexity API Call
-    console.log('Perplexity API Response Status:', perplexityResponse.status);
-    console.log('Perplexity API Response StatusText:', perplexityResponse.statusText);
     
-    // Get response body as text for logging
-    const responseText = await perplexityResponse.text();
-    console.log('Perplexity API Response Body (full):', responseText);
-    
-    // Parse the response text back to JSON
-    let perplexityData;
-    try {
-      perplexityData = JSON.parse(responseText);
-    } catch (parseError) {
-      console.error('Failed to parse Perplexity response as JSON:', parseError);
-      return NextResponse.json(
-        { error: 'Invalid response from Perplexity API' },
-        { status: 500 }
-      );
-    }
-
     if (!perplexityResponse.ok) {
-      console.error('Perplexity API error:', perplexityResponse.statusText);
+      console.error('Perplexity API Error:', perplexityResponse.status, perplexityResponse.statusText);
       return NextResponse.json(
-        { error: 'Fehler beim Abrufen der Event-Daten' },
+        { error: 'Fehler beim Abrufen der Veranstaltungsdaten' },
         { status: 500 }
       );
     }
-
+    
+    const perplexityData = await perplexityResponse.json();
     console.log('Perplexity Response:', JSON.stringify(perplexityData, null, 2));
-
-    // Parse Events aus der Antwort
-    const events = parseEventsFromResponse(perplexityData);
-
+    
+    // Parse die Antwort von Perplexity
+    const events = parseEventsFromResponse(perplexityData.choices[0]?.message?.content || '');
+    
     return NextResponse.json({ events });
+    
   } catch (error) {
-    console.error('API Route Error:', error);
+    console.error('API Error:', error);
     return NextResponse.json(
-      { error: 'Interner Server-Fehler' },
+      { error: 'Unerwarteter Fehler beim Verarbeiten der Anfrage' },
       { status: 500 }
     );
   }
 }
 
-function parseEventsFromResponse(perplexityData: any): EventData[] {
+function parseEventsFromResponse(responseText: string): EventData[] {
   const events: EventData[] = [];
   
   try {
-    const responseText = perplexityData?.choices?.[0]?.message?.content || '';
-    
-    // Try to find table-like structures
+    // Versuche JSON zu parsen
     const lines = responseText.split('\n');
     
     for (const line of lines) {
-      // Look for lines that might contain event data
-      if (line.includes('|') && line.split('|').length >= 6) {
-        const parts = line.split('|').map(part => part.trim());
-        
-        // Skip header rows
-        if (parts[0].toLowerCase().includes('title') || parts[0].includes('---')) {
-          continue;
+      // Suche nach JSON-artigen Strukturen
+      const trimmedLine = line.trim();
+      if (trimmedLine.startsWith('{') && trimmedLine.endsWith('}')) {
+        try {
+          const event = JSON.parse(trimmedLine);
+          if (event.title && event.category) {
+            events.push({
+              title: event.title || '',
+              category: event.category || '',
+              date: event.date || '',
+              time: event.time || '',
+              venue: event.venue || '',
+              price: event.price || '',
+              website: event.website || '',
+            });
+          }
+        } catch (error) {
+          console.error('JSON parsing error:', error);
         }
-        
-        if (parts.length >= 7 && parts[1].length > 0) {
-          events.push({
-            title: parts[1] || '',
-            category: parts[2] || '',
-            date: parts[3] || '',
-            time: parts[4] || '',
-            venue: parts[5] || '',
-            price: parts[6] || '',
-            website: parts[7] || '',
-          });
-        }
-      }
-    }
-
-    // Alternative parsing for JSON-like structures
-    const jsonMatch = responseText.match(/\[\s*{[\s\S]*}\s*\]/);
-    if (jsonMatch && events.length === 0) {
-      try {
-        const parsedEvents = JSON.parse(jsonMatch[0]);
-        for (const event of parsedEvents) {
-          events.push({
-            title: event.title || '',
-            category: event.category || '',
-            date: event.date || '',
-            time: event.time || '',
-            venue: event.venue || '',
-            price: event.price || '',
-            website: event.website || '',
-          });
-        }
-      } catch (error) {
-        console.error('JSON parsing error:', error);
       }
     }
     
