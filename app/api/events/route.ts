@@ -126,13 +126,14 @@ WICHTIG:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'pplx-70b-online',
+        model: 'sonar-pro',
         messages: [
           {
             role: 'user',
             content: prompt
           }
         ],
+        stream: true,
         max_tokens: 20000,
         temperature: 0.3,
         stream: false
