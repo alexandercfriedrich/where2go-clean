@@ -42,6 +42,9 @@ Date: ${date}`;
       );
     }
 
+    // Logging vor dem Perplexity API Call
+    console.log('About to call Perplexity API for city:', city, 'date:', date);
+
     // API Call zur Perplexity
     const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
@@ -72,6 +75,26 @@ Date: ${date}`;
       }),
     });
 
+    // Logging nach dem Perplexity API Call
+    console.log('Perplexity API Response Status:', perplexityResponse.status);
+    console.log('Perplexity API Response StatusText:', perplexityResponse.statusText);
+    
+    // Get response body as text for logging
+    const responseText = await perplexityResponse.text();
+    console.log('Perplexity API Response Body (full):', responseText);
+    
+    // Parse the response text back to JSON
+    let perplexityData;
+    try {
+      perplexityData = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Failed to parse Perplexity response as JSON:', parseError);
+      return NextResponse.json(
+        { error: 'Invalid response from Perplexity API' },
+        { status: 500 }
+      );
+    }
+
     if (!perplexityResponse.ok) {
       console.error('Perplexity API error:', perplexityResponse.statusText);
       return NextResponse.json(
@@ -80,7 +103,6 @@ Date: ${date}`;
       );
     }
 
-    const perplexityData = await perplexityResponse.json();
     console.log('Perplexity Response:', JSON.stringify(perplexityData, null, 2));
 
     // Parse Events aus der Antwort
