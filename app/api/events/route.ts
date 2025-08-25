@@ -77,7 +77,7 @@ async function fetchPerplexityInBackground(jobId: string, city: string, date: st
   try {
     // Erstelle den dynamischen Prompt
     const prompt = `
-Suche alle Veranstaltungen und events in ${city} am ${date}:
+Suche alle Veranstaltungen und events in ${city} am ${date} in den kategorien:
 
 1. Konzerte & Musik (Klassik, Rock, Pop, Jazz, Elektronik)
 2. Theater & Kabarett & Comedy & Musicals
@@ -126,7 +126,7 @@ WICHTIG:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'sonar-pro',
+        model: 'xpplx-70b-online',
         messages: [
           {
             role: 'user',
@@ -134,7 +134,7 @@ WICHTIG:
           }
         ],
         max_tokens: 20000,
-        temperature: 0.4,
+        temperature: 0.3,
         stream: false
       })
     });
