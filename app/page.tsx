@@ -66,18 +66,20 @@ export default function Home() {
     }
   };
 
-  // Polling-Funktion
+  // Polling-Funktion (jetzt: max 4 Minuten)
   const startPolling = (jobId: string) => {
     if (pollInterval.current) clearInterval(pollInterval.current);
     let count = 0;
+    const maxPolls = 24; // 24 x 10s = 240s = 4 Minuten
+
     pollInterval.current = setInterval(async () => {
       count++;
       setPollCount(count);
-      if (count > 7) { // nach 7x (ca. 70s) abbrechen
+      if (count > maxPolls) { // nach 4 Minuten abbrechen
         clearInterval(pollInterval.current!);
         setLoading(false);
         setJobStatus('error');
-        setError('Die Suche dauert zu lange (Timeout nach über einer Minute). Bitte versuche es später erneut.');
+        setError('Die Suche dauert zu lange (Timeout nach 4 Minuten). Bitte versuche es später erneut.');
         return;
       }
       try {
@@ -100,7 +102,7 @@ export default function Home() {
         setJobStatus('error');
         setError('Fehler beim Abrufen des Jobs/Ergebnisses.');
       }
-    }, 10000); // alle 10 Sekunden poll
+    }, 10000); // alle 10 Sekunden pollen
   };
 
   return (
@@ -163,7 +165,7 @@ export default function Home() {
         <div className="mb-3">
           <div className="animate-spin h-6 w-6 mr-3 inline-block border-4 border-blue-400 border-t-transparent rounded-full" />
           Suche läuft … bitte habe etwas Geduld.<br />
-          Abfrage <span className="font-mono">{pollCount}/7</span> (max. 70 sec) – KI-Auswertung kann länger dauern!
+          Abfrage <span className="font-mono">{pollCount}/24</span> (max. 240 sec / 4min) – KI-Auswertung kann länger dauern!
         </div>
       )}
 
