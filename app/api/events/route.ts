@@ -64,6 +64,10 @@ export async function POST(request: NextRequest) {
     }
 
     const perplexityData = await perplexityResponse.json();
+    
+    // Artificial delay of 90 seconds after Perplexity request
+    await new Promise(resolve => setTimeout(resolve, 90000));
+    
     const responseText = perplexityData.choices[0]?.message?.content || '';
 
     // Versuche strukturierte Daten zu extrahieren
