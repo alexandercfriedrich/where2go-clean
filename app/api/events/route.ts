@@ -133,10 +133,9 @@ WICHTIG:
             content: prompt
           }
         ],
-        stream: true,
         max_tokens: 20000,
         temperature: 0.3,
-        stream: false
+        stream: true
       })
     });
     
