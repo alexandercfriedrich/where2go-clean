@@ -77,11 +77,11 @@ async function fetchPerplexityInBackground(jobId: string, city: string, date: st
   try {
     // Erstelle den dynamischen Prompt
     const prompt = `
-Suche für die Stadt ${city} am Tag ${date} nach ALLEN tatsächlich existierenden, öffentlich auffindbaren Veranstaltungen, Konzerten, Theaterstücken, Museen, Ausstellungen, Bars, DJ-Sets, Clubs, Open-Airs, LGBT+, Afterwork, Unis, Kinder, Szene, besonderen Aktionen etc.
+Suche für die Stadt ${city} am Tag ${date} nach ALLEN tatsächlich existierenden, öffentlich auffindbaren Veranstaltungen, Konzerte, Theaterstücke, Museen, Ausstellungen, Bars, DJ-Sets, Clubs, Open-Airs, LGBT+, Afterwork, Unifeste, mensafest, Kinder, Szene, besonderen events etc.
 
 WICHTIG:
-- JEDES Event MUSS einzeln belegbar und nachprüfbar im Internet gelistet sein (offizielle Webseiten, Eventportale, Social Media, Veranstalter).
-- Zu JEDEM Event MUSS ein DIREKTER Link zu einer existierenden externen Quelle angegeben werden (Feld „website“: z.B. Ticket-Link, offizielles Event, Social-Media-Post, Kalender, Zeitungsankündigung).
+- JEDES Event MUSS einzeln belegbar und nachprüfbar im Internet gelistet sein (offizielle Webseite, Eventportale, Social Media, Veranstalter, ...).
+- Zu JEDEM Event MUSS ein DIREKTER Link zu einer existierenden externen Quelle angegeben werden (Feld „website“: z.B. Ticket-Link, offizielles Event, Social-Media-Post, Kalender, Zeitungsankündigung, ...).
 - SCHLIESSE ALLE erfundenen, hypothetischen, generierten oder nicht belegbaren Events AUS! 
 - Generiere KEINE Fantasie-Veranstaltungen und KEINE Schätzungen oder Minimalbeispiele.
 
@@ -124,7 +124,7 @@ Gib KEINE Erklärungen, Kommentare oder Kontext – nur die vollständige Tabell
           }
         ],
         max_tokens: 10000,
-        temperature: 0.4,
+        temperature: 0.9,
         stream: false
       })
     });
