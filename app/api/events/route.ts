@@ -55,7 +55,54 @@ export async function POST(request: NextRequest) {
     jobMap.set(jobId, job);
     
     // Start background job (don't await)
-    fetchPerplexityInBackground(jobId, city, date);
+    async function fetchPerplexityInBackground(jobId: string, city: string, date: string) {
+  try {
+    // ... Prompt-Definition ...
+    let perplexityData;
+    let lastError = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const perplexityResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'sonar-pro',
+            messages: [{ role: 'user', content: prompt }],
+            max_tokens: 20000,
+            temperature: 0.3,
+            stream: false
+          })
+        });
+        if (!perplexityResponse.ok) throw new Error('Fehler beim Abrufen der Veranstaltungsdaten');
+        perplexityData = await perplexityResponse.json();
+        break;
+      } catch (e: any) {
+        lastError = e;
+        if (attempt === 0 && String(e).includes('not valid JSON')) {
+          await new Promise(res => setTimeout(res, 500));
+          continue;
+        }
+        throw e;
+      }
+    }
+    const job = jobMap.get(jobId);
+    if (!job) return;
+    const events = parseEventsFromResponse(perplexityData.choices?.[0]?.message?.content ?? '');
+    job.status = 'done';
+    job.events = events;
+  } catch (error) {
+    console.error('Background job error for:', jobId, error);
+    const job = jobMap.get(jobId);
+    if (job) {
+      job.status = 'error';
+      job.error = 'Fehler beim Verarbeiten der Anfrage';
+    }
+  }
+}
+
     
     // Return job ID immediately
     return NextResponse.json({ 
