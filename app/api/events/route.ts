@@ -27,8 +27,8 @@ export async function POST(request: NextRequest) {
     }
     
     // Erstelle den dynamischen Prompt
-    const prompt = `Suche vollständig nach allen events, Konzerte, theater, museen, ausstellungen, dj sets, DJ, clubs, nightclubs, open air, gay, LGBT, Schwul, party, afterwork, livemusik, festivals usw...
-Tabellarisch mit den Spalten: "title", "category", "date", "time", "venue", "price", "website".
+    const prompt = `Suche auf verschieden quellen (mindestens 5) nach allen events, Konzerte, theater, museen, ausstellungen, dj sets, DJ, clubs, nightclubs, open air, gay, LGBT, Schwul, party, afterwork, livemusik, festivals die stattfinden. 
+gib die ausgabe Tabellarisch mit den Spalten: "title", "category", "date", "time", "venue", "price", "website".
 City: ${city}
 Date: ${date}
 `;
@@ -61,7 +61,7 @@ Date: ${date}
             content: prompt
           }
         ],
-        max_tokens: 2000,
+        max_tokens: 5000,
         temperature: 0.2,
         stream: false
       })
