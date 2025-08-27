@@ -106,7 +106,8 @@ export default function Home() {
     );
   };
 
-  // Asynchrone Suche (Job)
+// ...imports and component boilerplate unchanged...
+
   const searchEvents = async () => {
     if (!city.trim()) {
       setError('Bitte gib eine Stadt ein.');
@@ -141,13 +142,23 @@ export default function Home() {
           }
         }),
       });
+
+      // New: handle non-OK before parsing
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Serverfehler (${res.status})`);
+      }
+
       const { jobId } = await res.json();
+      if (!jobId) {
+        throw new Error('Kein Job ID erhalten.');
+      }
+
       setJobId(jobId);
-      
       // Poll starten
       startPolling(jobId);
-    } catch (err) {
-      setError('Fehler beim Starten der Eventsuche.');
+    } catch (err: any) {
+      setError(err?.message || 'Fehler beim Starten der Eventsuche.');
       setLoading(false);
       setJobStatus('idle');
     }
