@@ -212,7 +212,25 @@ export default function Home() {
           setLoading(false);
           
           if (job.status === 'done') {
-            setEvents(job.events || []);
+            const incomingEvents: EventData[] = job.events || [];
+            
+            // If this is the first set of results (no prior events), mark all as new
+            if (eventsRef.current.length === 0 && incomingEvents.length > 0) {
+              const allNewEventKeys = new Set(incomingEvents.map(createEventKey));
+              setNewEvents(allNewEventKeys);
+              setToast({
+                show: true,
+                message: `${incomingEvents.length} Event${incomingEvents.length !== 1 ? 's' : ''} gefunden`
+              });
+              
+              // Hide toast and clear "Neu" markers after 3 seconds
+              setTimeout(() => {
+                setToast({show: false, message: ''});
+                setNewEvents(new Set());
+              }, 3000);
+            }
+            
+            setEvents(incomingEvents);
             setJobStatus('done');
             
             // Update debug data if available
@@ -225,10 +243,17 @@ export default function Home() {
           }
         }
       } catch (err) {
-        clearInterval(pollInterval.current!);
-        setLoading(false);
-        setJobStatus('error');
-        setError('Fehler beim Abrufen des Jobs/Ergebnisses.');
+        // Show non-blocking toast for transient errors, continue polling
+        console.warn(`Polling attempt ${count} failed:`, err);
+        setToast({
+          show: true,
+          message: `Netzwerkfehler (Versuch ${count}) - Suche läuft weiter...`
+        });
+        
+        // Hide toast after 3 seconds but don't stop polling
+        setTimeout(() => {
+          setToast({show: false, message: ''});
+        }, 3000);
       }
     }, 10000); // alle 10 Sekunden pollen
   };
@@ -389,7 +414,7 @@ export default function Home() {
                     {/* Venue and Address */}
                     <div className="event-location">
                       📍 {event.venue}
-                      {event.address && (
+                      {event.address ? (
                         <a 
                           href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address)}`}
                           target="_blank"
@@ -398,6 +423,16 @@ export default function Home() {
                           title="Adresse in Google Maps öffnen"
                         >
                           <br />📍 {event.address}
+                        </a>
+                      ) : (
+                        <a 
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${event.venue}, ${city}`)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="event-address-link"
+                          title="Venue in Google Maps öffnen"
+                        >
+                          <br />🗺️ In Maps öffnen
                         </a>
                       )}
                     </div>
