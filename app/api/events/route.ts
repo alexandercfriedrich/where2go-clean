@@ -30,7 +30,7 @@ const DEFAULT_CATEGORIES = [
 // Default Perplexity options
 const DEFAULT_PPLX_OPTIONS = {
   temperature: 0.2,
-  max_tokens: 1000
+  max_tokens: 5000
 };
 
 // TODO: Ideas to get more events from raw data
