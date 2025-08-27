@@ -87,7 +87,8 @@ export class EventAggregator {
         .map(col => col.trim())
         .filter((col, idx, arr) => !(idx === 0 && col === '') && !(idx === arr.length - 1 && col === ''));
 
-      if (columns.length >= 7) {
+      // More tolerant parsing - accept tables with at least 3 columns (title, date, venue minimum)
+      if (columns.length >= 3) {
         const event: EventData = {
           title: columns[0] || '',
           category: columns[1] || '',
@@ -96,7 +97,17 @@ export class EventAggregator {
           venue: columns[4] || '',
           price: columns[5] || '',
           website: columns[6] || '',
+          // Enhanced optional fields
+          endTime: columns[7] || undefined,
+          address: columns[8] || undefined,
+          ticketPrice: columns[9] || columns[5] || undefined, // fallback to price
+          eventType: columns[10] || undefined,
+          description: columns[11] || undefined,
+          bookingLink: columns[12] || columns[6] || undefined, // fallback to website
+          ageRestrictions: columns[13] || undefined,
         };
+        
+        // Only require title to be present
         if (event.title.length > 0) {
           events.push(event);
         }
@@ -107,7 +118,7 @@ export class EventAggregator {
   }
 
   /**
-   * Parses JSON format events
+   * Parses JSON format events with enhanced field support
    */
   private parseJsonEvents(responseText: string): EventData[] {
     const events: EventData[] = [];
@@ -117,17 +128,30 @@ export class EventAggregator {
       const trimmedLine = line.trim();
       if (trimmedLine.startsWith('{') && trimmedLine.endsWith('}')) {
         try {
-          const event = JSON.parse(trimmedLine);
-          if (event.title && event.category) {
-            events.push({
-              title: event.title || '',
-              category: event.category || '',
-              date: event.date || '',
-              time: event.time || '',
-              venue: event.venue || '',
-              price: event.price || '',
-              website: event.website || '',
-            });
+          const rawEvent = JSON.parse(trimmedLine);
+          
+          // Map various field names to our unified structure
+          const event: EventData = {
+            title: this.extractField(rawEvent, ['title', 'name', 'event', 'eventName']) || '',
+            category: this.extractField(rawEvent, ['category', 'type', 'genre']) || '',
+            date: this.extractField(rawEvent, ['date', 'eventDate', 'day']) || '',
+            time: this.extractField(rawEvent, ['time', 'startTime', 'start', 'begin', 'doors']) || '',
+            venue: this.extractField(rawEvent, ['venue', 'location', 'place']) || '',
+            price: this.extractField(rawEvent, ['price', 'cost', 'ticketPrice', 'entry']) || '',
+            website: this.extractField(rawEvent, ['website', 'url', 'link']) || '',
+            // Enhanced optional fields
+            endTime: this.extractField(rawEvent, ['endTime', 'end', 'finish']),
+            address: this.extractField(rawEvent, ['address', 'location', 'venueAddress']),
+            ticketPrice: this.extractField(rawEvent, ['ticketPrice', 'price', 'cost', 'entry']),
+            eventType: this.extractField(rawEvent, ['eventType', 'type', 'category']),
+            description: this.extractField(rawEvent, ['description', 'details', 'info']),
+            bookingLink: this.extractField(rawEvent, ['bookingLink', 'ticketLink', 'tickets', 'booking']),
+            ageRestrictions: this.extractField(rawEvent, ['ageRestrictions', 'age', 'ageLimit', 'restrictions']),
+          };
+          
+          // Only require title to be present
+          if (event.title && event.title.length > 0) {
+            events.push(event);
           }
         } catch (error) {
           console.error('JSON parsing error:', error);
@@ -139,26 +163,73 @@ export class EventAggregator {
   }
 
   /**
-   * Extracts events using keyword-based extraction as fallback
+   * Helper function to extract field value from multiple possible key names
+   */
+  private extractField(obj: any, fieldNames: string[]): string | undefined {
+    for (const fieldName of fieldNames) {
+      if (obj[fieldName] && typeof obj[fieldName] === 'string') {
+        return obj[fieldName].trim();
+      }
+    }
+    return undefined;
+  }
+
+  /**
+   * Extracts events using keyword-based extraction as fallback with enhanced tolerance
    */
   private extractKeywordBasedEvents(responseText: string): EventData[] {
     const events: EventData[] = [];
-    const sentences = responseText.split('.').filter(s => s.trim().length > 10);
+    
+    // Split by multiple delimiters to be more tolerant
+    const sentences = responseText
+      .split(/[.\n\r•\-\*]/)
+      .map(s => s.trim())
+      .filter(s => s.length > 10 && s.length < 200); // Reasonable length
 
-    // No keyword filter anymore - just create events from sentences
+    // Look for lines that seem like event descriptions
     for (const sentence of sentences) {
-      events.push({
-        title: sentence.trim(),
-        category: 'Event',
-        date: '',
-        time: '',
-        venue: '',
-        price: '',
-        website: '',
-      });
+      // Skip obvious non-event content
+      if (sentence.toLowerCase().includes('keine events') || 
+          sentence.toLowerCase().includes('no events') ||
+          sentence.toLowerCase().includes('sorry') ||
+          sentence.toLowerCase().startsWith('hier')) {
+        continue;
+      }
+
+      // Try to extract structured information from the sentence
+      const eventData = this.parseEventFromText(sentence);
+      if (eventData.title) {
+        events.push(eventData);
+      }
     }
 
     return events;
+  }
+
+  /**
+   * Attempts to parse structured event data from a text line
+   */
+  private parseEventFromText(text: string): EventData {
+    // Basic pattern recognition for common event formats
+    const timePattern = /(\d{1,2}:\d{2}|\d{1,2}\s*Uhr)/i;
+    const datePattern = /(\d{1,2}\.?\d{1,2}\.?\d{2,4})/;
+    const pricePattern = /(€\s?\d+|kostenlos|frei|free)/i;
+    
+    const timeMatch = text.match(timePattern);
+    const dateMatch = text.match(datePattern);
+    const priceMatch = text.match(pricePattern);
+
+    return {
+      title: text.trim(),
+      category: 'Event',
+      date: dateMatch ? dateMatch[1] : '',
+      time: timeMatch ? timeMatch[1] : '',
+      venue: '', // Cannot reliably extract from sentence
+      price: priceMatch ? priceMatch[1] : '',
+      website: '',
+      // Try to extract additional info if patterns are found
+      description: text.length > 50 ? text.substring(0, 100) + '...' : undefined,
+    };
   }
 
   /**

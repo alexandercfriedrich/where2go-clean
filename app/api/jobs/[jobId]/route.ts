@@ -10,22 +10,41 @@ const jobStore = getJobStore();
 export async function GET(request: NextRequest, { params }: { params: { jobId: string } }) {
   try {
     const jobId = params.jobId;
-    const url = new URL(request.url);
-    const debugMode = url.searchParams.get('debug') === '1';
+    // Use request.nextUrl instead of new URL(request.url) to avoid searchParams undefined errors
+    const debugMode = request.nextUrl.searchParams.get('debug') === '1';
     
     if (!jobId) {
       return NextResponse.json(
         { error: 'Job ID ist erforderlich' },
-        { status: 400 }
+        { 
+          status: 400,
+          headers: { 'Cache-Control': 'no-store' }
+        }
       );
     }
 
-    const job = await jobStore.getJob(jobId);
+    // Wrap jobStore.getJob() call defensively
+    let job;
+    try {
+      job = await jobStore.getJob(jobId);
+    } catch (error) {
+      console.error('Error retrieving job from store:', error);
+      return NextResponse.json(
+        { error: 'Fehler beim Abrufen des Job-Status' },
+        { 
+          status: 500,
+          headers: { 'Cache-Control': 'no-store' }
+        }
+      );
+    }
     
     if (!job) {
       return NextResponse.json(
         { error: 'Job nicht gefunden' },
-        { status: 404 }
+        { 
+          status: 404,
+          headers: { 'Cache-Control': 'no-store' }
+        }
       );
     }
 
@@ -35,26 +54,36 @@ export async function GET(request: NextRequest, { params }: { params: { jobId: s
     const response: any = {
       jobId: job.id,
       status: job.status,
-      // Return events for both 'pending' and 'done' status
+      // Always include events array if present, even for pending jobs
       ...(job.events ? { events: job.events } : {}),
       ...(job.status === 'error' && job.error ? { error: job.error } : {})
     };
 
     // Include debug data if requested and available
     if (debugMode) {
-      const debugInfo = await jobStore.getDebugInfo(jobId);
-      if (debugInfo) {
-        response.debug = debugInfo;
+      try {
+        const debugInfo = await jobStore.getDebugInfo(jobId);
+        if (debugInfo) {
+          response.debug = debugInfo;
+        }
+      } catch (error) {
+        console.error('Error retrieving debug info:', error);
+        // Don't fail the entire request if debug info retrieval fails
       }
     }
 
-    return NextResponse.json(response);
+    return NextResponse.json(response, {
+      headers: { 'Cache-Control': 'no-store' }
+    });
     
   } catch (error) {
     console.error('Job status API Error:', error);
     return NextResponse.json(
       { error: 'Fehler beim Abrufen des Job-Status' },
-      { status: 500 }
+      { 
+        status: 500,
+        headers: { 'Cache-Control': 'no-store' }
+      }
     );
   }
 }

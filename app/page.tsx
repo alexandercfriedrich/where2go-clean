@@ -72,6 +72,16 @@ export default function Home() {
     eventsRef.current = events;
   }, [events]);
 
+  // Cleanup polling interval on component unmount
+  useEffect(() => {
+    return () => {
+      if (pollInterval.current) {
+        clearInterval(pollInterval.current);
+        pollInterval.current = null;
+      }
+    };
+  }, []);
+
   // Helper function to create event key for deduplication
   const createEventKey = (event: EventData): string => {
     return `${event.title}_${event.date}_${event.venue}`;
@@ -394,12 +404,12 @@ export default function Home() {
         {/* Events Grid */}
         {!!events.length && (
           <div className="events-grid">
-            {events.map((event, index) => {
+            {events.map((event) => {
               const eventKey = createEventKey(event);
               const isNew = newEvents.has(eventKey);
               
               return (
-                <div key={index} className={`event-card ${isNew ? 'event-card-new' : ''}`}>
+                <div key={eventKey} className={`event-card ${isNew ? 'event-card-new' : ''}`}>
                   {isNew && <div className="badge-new">Neu</div>}
                   <div className="event-content">
                     <h3 className="event-title">{event.title}</h3>
