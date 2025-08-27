@@ -57,12 +57,20 @@ export default function Home() {
   
   // To store polling interval id persistently
   const pollInterval = useRef<NodeJS.Timeout | null>(null);
+  
+  // To store latest events for polling comparison (fixes stale closure issue)
+  const eventsRef = useRef<EventData[]>([]);
 
   // Check for debug mode from URL on component mount
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     setDebugMode(urlParams.get('debug') === '1');
   }, []);
+
+  // Keep eventsRef in sync with events state to fix stale closure issue
+  useEffect(() => {
+    eventsRef.current = events;
+  }, [events]);
 
   // Helper function to create event key for deduplication
   const createEventKey = (event: EventData): string => {
@@ -160,7 +168,7 @@ export default function Home() {
         
         // Handle progressive updates - show events even if still pending
         if (job.status === 'pending' && job.events && job.events.length > 0) {
-          const currentEventKeys = new Set(events.map(createEventKey));
+          const currentEventKeys = new Set(eventsRef.current.map(createEventKey));
           const incomingEvents = job.events;
           const newEventKeys = new Set<string>();
           
