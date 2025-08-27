@@ -32,6 +32,13 @@ const DEFAULT_PPLX_OPTIONS = {
   max_tokens: 1000
 };
 
+// TODO: Ideas to get more events from raw data
+// - Loosen prompt/parsing (e.g. make parser more tolerant of partial data; fallback rules for missing times)
+// - Increase max_tokens or paginated follow-up queries per category (currently kept at 1000, optionally configurable via options)  
+// - Add iterative subgenre queries per category (e.g. the listed subcategories)
+// - Adjust deduplication (fuzzy match with Levenshtein instead of hard equality)
+// - Optional: second aggregation pass with "loose" heuristics to not discard entries without website/price
+
 // Global map to store job statuses (shared with jobs API)
 const globalForJobs = global as unknown as { jobMap?: Map<string, JobStatus> };
 if (!globalForJobs.jobMap) {

@@ -21,6 +21,8 @@ export class EventAggregator {
 
   /**
    * Parses events from a single response text
+   * TODO: Make parser more tolerant of partial data and add fallback rules for missing times
+   * TODO: Consider implementing fuzzy matching for event deduplication using Levenshtein distance
    */
   parseEventsFromResponse(responseText: string): EventData[] {
     const events: EventData[] = [];
