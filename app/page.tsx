@@ -11,10 +11,31 @@ interface EventData {
   website: string;
 }
 
+// Categories matching backend DEFAULT_CATEGORIES
+const ALL_CATEGORIES = [
+  'DJ Sets/Electronic',
+  'Clubs/Discos',
+  'Live-Konzerte',
+  'Open Air',
+  'Museen',
+  'LGBTQ+',
+  'Comedy/Kabarett',
+  'Theater/Performance',
+  'Film',
+  'Food/Culinary',
+  'Sport',
+  'Familien/Kids',
+  'Kunst/Design',
+  'Wellness/Spirituell',
+  'Networking/Business',
+  'Natur/Outdoor'
+];
+
 export default function Home() {
   const [city, setCity] = useState('');
   const [timePeriod, setTimePeriod] = useState('heute');
   const [customDate, setCustomDate] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(ALL_CATEGORIES);
   const [events, setEvents] = useState<EventData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -33,6 +54,15 @@ export default function Home() {
     if (timePeriod === 'heute') return today.toISOString().split('T')[0];
     else if (timePeriod === 'morgen') return tomorrow.toISOString().split('T')[0];
     else return customDate || today.toISOString().split('T')[0];
+  };
+
+  // Toggle category selection
+  const toggleCategory = (category: string) => {
+    setSelectedCategories(prev => 
+      prev.includes(category)
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    );
   };
 
   // Asynchrone Suche (Job)
@@ -54,7 +84,15 @@ export default function Home() {
       const res = await fetch('/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ city: city.trim(), date: formatDateForAPI() }),
+        body: JSON.stringify({ 
+          city: city.trim(), 
+          date: formatDateForAPI(),
+          categories: selectedCategories,
+          options: { 
+            temperature: 0.2, 
+            max_tokens: 1000 
+          }
+        }),
       });
       const { jobId } = await res.json();
       setJobId(jobId);
@@ -103,7 +141,7 @@ export default function Home() {
           setJobStatus('done');
         } else {
           setJobStatus('error');
-          setError(job.message || 'Fehler bei der Eventsuche.');
+          setError(job.error || 'Fehler bei der Eventsuche.');
         }
       } catch (err) {
         clearInterval(pollInterval.current!);
@@ -174,6 +212,39 @@ export default function Home() {
                 />
               </div>
             )}
+
+            {/* Categories Section */}
+            <div className="categories-section">
+              <label className="categories-label">Kategorien</label>
+              <div className="categories-grid">
+                {ALL_CATEGORIES.map((category) => (
+                  <label key={category} className="category-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={selectedCategories.includes(category)}
+                      onChange={() => toggleCategory(category)}
+                    />
+                    <span className="category-name">{category}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="categories-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setSelectedCategories(ALL_CATEGORIES)}
+                >
+                  Alle auswählen
+                </button>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setSelectedCategories([])}
+                >
+                  Alle abwählen
+                </button>
+              </div>
+            </div>
 
             <button type="submit" className="btn-search">
               Events suchen
