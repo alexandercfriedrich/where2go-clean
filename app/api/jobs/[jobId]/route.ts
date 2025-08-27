@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Explicit runtime configuration for clarity
+export const runtime = 'nodejs';
+
 // Type definitions (matching the events route)
 interface JobStatus {
   id: string;
@@ -9,9 +12,18 @@ interface JobStatus {
   createdAt: Date;
 }
 
-// Access shared maps from global
-const jobMap = (global as any).jobMapForAPI as Map<string, JobStatus>;
-const debugMap = (global as any).debugMapForAPI as Map<string, any>;
+// Lazily initialize global maps to prevent runtime crashes
+const globalForJobs = global as unknown as { jobMapForAPI?: Map<string, JobStatus> };
+if (!globalForJobs.jobMapForAPI) {
+  globalForJobs.jobMapForAPI = new Map();
+}
+const jobMap = globalForJobs.jobMapForAPI!;
+
+const globalForDebug = global as unknown as { debugMapForAPI?: Map<string, any> };
+if (!globalForDebug.debugMapForAPI) {
+  globalForDebug.debugMapForAPI = new Map();
+}
+const debugMap = globalForDebug.debugMapForAPI!;
 
 export async function GET(request: NextRequest, { params }: { params: { jobId: string } }) {
   try {
@@ -40,8 +52,10 @@ export async function GET(request: NextRequest, { params }: { params: { jobId: s
     for (const [id, jobData] of jobMap.entries()) {
       if (jobData.createdAt < tenMinutesAgo) {
         jobMap.delete(id);
-        // Also clean up debug data
-        debugMap.delete(id);
+        // Also clean up debug data if available
+        if (debugMap) {
+          debugMap.delete(id);
+        }
       }
     }
 
@@ -54,7 +68,7 @@ export async function GET(request: NextRequest, { params }: { params: { jobId: s
     };
 
     // Include debug data if requested and available
-    if (debugMode) {
+    if (debugMode && debugMap) {
       const debugInfo = debugMap.get(jobId);
       if (debugInfo) {
         response.debug = debugInfo;

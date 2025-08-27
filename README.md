@@ -28,6 +28,30 @@ The application will start on `http://localhost:3000`.
 - Automatic event categorization and deduplication
 - No UI changes required - fully backward compatible
 - New synchronous search endpoint for immediate results
+- **Progressive loading** - Shows events as they are found during search
+- **Debug mode** - Add `?debug=1` to URL for detailed search insights
+- **Real-time updates** - Progressive results with new event notifications and toast messages
+
+### Debug Mode
+
+To enable debug mode, add `?debug=1` to the URL (e.g., `http://localhost:3000?debug=1`).
+
+Debug mode provides:
+- Detailed search query information per category
+- Raw API responses for troubleshooting
+- Parsed event counts per search step
+- Complete search timeline and performance metrics
+
+The debug panel appears at the bottom of the page when debug mode is active and shows comprehensive information about each search step.
+
+### Progressive Updates
+
+The application supports progressive loading of search results:
+- Results appear as they are found, reducing perceived wait time
+- New events are highlighted with a "Neu" badge and glow animation
+- Toast notifications show when new events are discovered
+- Search continues in the background while showing initial results
+- Status message updates to "Suche läuft – Ergebnisse werden ergänzt" during progressive loading
 
 ### API
 
