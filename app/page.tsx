@@ -134,7 +134,10 @@ export default function Home() {
           options: { 
             temperature: 0.2, 
             max_tokens: 5000,
-            debug: debugMode
+            debug: debugMode,
+            categoryConcurrency: 5,
+            categoryTimeoutMs: 45000, // 45 seconds per category
+            maxAttempts: 5
           }
         }),
       });
@@ -150,22 +153,22 @@ export default function Home() {
     }
   };
 
-  // Polling-Funktion (jetzt: max 4 Minuten) with progressive updates
+  // Polling-Funktion (jetzt: max 8 Minuten) with progressive updates
   const startPolling = (jobId: string) => {
     if (pollInterval.current) clearInterval(pollInterval.current);
     
     let count = 0;
-    const maxPolls = 24; // 24 x 10s = 240s = 4 Minuten
+    const maxPolls = 48; // 48 x 10s = 480s = 8 Minuten
     
     pollInterval.current = setInterval(async () => {
       count++;
       setPollCount(count);
       
-      if (count > maxPolls) { // nach 4 Minuten abbrechen
+      if (count > maxPolls) { // nach 8 Minuten abbrechen
         clearInterval(pollInterval.current!);
         setLoading(false);
         setJobStatus('error');
-        setError('Die Suche dauert zu lange (Timeout nach 4 Minuten). Bitte versuche es später erneut.');
+        setError('Die Suche dauert zu lange (Timeout nach 8 Minuten). Bitte versuche es später erneut.');
         return;
       }
 
@@ -388,7 +391,7 @@ export default function Home() {
                 : 'Suche läuft … bitte habe etwas Geduld.'
               }
             </p>
-            <p>Abfrage <span className="font-mono">{pollCount}/24</span> (max. 240 sec / 4min)</p>
+            <p>Abfrage <span className="font-mono">{pollCount}/48</span> (max. 480 sec / 8min)</p>
             <p>KI-Auswertung kann länger dauern!</p>
           </div>
         )}
@@ -541,8 +544,10 @@ export default function Home() {
                 <div className="debug-query">
                   <strong>Query:</strong> {step.query}
                 </div>
-                <div className="debug-parsed">
-                  <strong>Gefundene Events:</strong> {step.parsedCount}
+                <div className="debug-metrics">
+                  <strong>Parsed Events:</strong> {step.parsedCount || 0} | 
+                  <strong> Added to Total:</strong> {step.addedCount || 0} | 
+                  <strong> Total After:</strong> {step.totalAfter || 0}
                 </div>
                 <details className="debug-response">
                   <summary>Rohdaten anzeigen</summary>
