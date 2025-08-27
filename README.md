@@ -24,17 +24,24 @@ The application will start on `http://localhost:3000`.
 
 - Event search by city and date
 - Multi-query Perplexity search with smart aggregation
-- 5-minute caching for repeated queries
+- Dynamic caching with TTL based on event timings (instead of fixed 5-minute caching)
 - Automatic event categorization and deduplication
 - No UI changes required - fully backward compatible
+- New synchronous search endpoint for immediate results
 
 ### API
 
-The existing API remains unchanged:
+#### Asynchronous Events API (existing)
 - `POST /api/events` - Submit search request, returns job ID
 - `GET /api/jobs/[jobId]` - Check job status and get results
 
-Optional request body fields for enhanced search:
+#### Synchronous Events Search API (new)
+- `POST /api/events/search` - Returns events directly (no job/polling required)
+
+Both endpoints accept the same request body format and use shared caching.
+
+#### Request Format (both endpoints)
+
 ```json
 {
   "city": "Berlin",
@@ -47,3 +54,49 @@ Optional request body fields for enhanced search:
     "accessibility": "wheelchair"
   }
 }
+```
+
+#### Response Format
+
+**Asynchronous API (`/api/events`)**:
+```json
+{
+  "jobId": "job_1234567890_abcdef123",
+  "status": "pending"
+}
+```
+
+**Synchronous API (`/api/events/search`)**:
+```json
+{
+  "events": [
+    {
+      "title": "Concert at Philharmonie",
+      "category": "Musik",
+      "date": "2025-01-20",
+      "time": "19:30",
+      "venue": "Berliner Philharmonie",
+      "price": "€35-85",
+      "website": "https://example.com",
+      "cacheUntil": "2025-01-20T23:30:00Z" // optional
+    }
+  ],
+  "cached": false,
+  "timestamp": "2025-01-20T15:00:00Z",
+  "ttl": 7200 // cache TTL in seconds
+}
+```
+
+### Caching Policy
+
+The application uses intelligent caching with dynamic TTL (Time To Live) based on event timing:
+
+- **Cache expiration**: Set to when the earliest event ends
+- **TTL calculation**: 
+  - If event has `cacheUntil` field, use it directly
+  - Otherwise, derive end time from `date` + `time` + 3 hours duration fallback
+  - For date-only entries (no time), cache until 23:59 of that day
+- **Bounds**: Minimum 1 minute, maximum 24 hours
+- **Fallback**: 5 minutes when event timing cannot be determined
+
+This ensures cache stays fresh while events are current, improving performance and API efficiency.
