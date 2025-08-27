@@ -228,60 +228,77 @@ async function fetchPerplexityInBackground(
         }
       }
       
-      // Process the result if we got one
+      // Process the result if we got one - wrap everything in try/catch to prevent escaping exceptions
       let parsedCount = 0;
       let addedCount = 0;
+      let processedSuccessfully = false;
       
-      if (categoryResult) {
-        // Check if result has error (from retry failure)
-        const isErrorResult = categoryResult.response.startsWith('Error after');
-        
-        if (!isErrorResult) {
-          // Parse events from this category result
-          categoryResult.events = eventAggregator.parseEventsFromResponse(categoryResult.response);
-          parsedCount = categoryResult.events.length;
+      try {
+        if (categoryResult) {
+          // Check if result has error (from retry failure)
+          const isErrorResult = categoryResult.response.startsWith('Error after');
           
-          // Aggregate new events with existing ones
-          const newResults = [{ ...categoryResult, events: categoryResult.events }];
-          const categoryEvents = eventAggregator.aggregateResults(newResults);
-          
-          // Merge with existing events and deduplicate
-          const beforeCount = allEvents.length;
-          const combinedEvents = [...allEvents, ...categoryEvents];
-          allEvents = eventAggregator.deduplicateEvents(combinedEvents);
-          
-          // Categorize all events
-          allEvents = eventAggregator.categorizeEvents(allEvents);
-          
-          addedCount = allEvents.length - beforeCount;
-          
-          // Update job with current results (status remains 'pending') - progressive updates
-          await jobStore.updateJob(jobId, { events: allEvents });
-          
-          console.log(`Category ${category} complete: ${parsedCount} parsed, ${addedCount} added, ${allEvents.length} total`);
+          if (!isErrorResult) {
+            try {
+              // Parse events from this category result
+              categoryResult.events = eventAggregator.parseEventsFromResponse(categoryResult.response);
+              parsedCount = categoryResult.events.length;
+              
+              // Aggregate new events with existing ones
+              const newResults = [{ ...categoryResult, events: categoryResult.events }];
+              const categoryEvents = eventAggregator.aggregateResults(newResults);
+              
+              // Merge with existing events and deduplicate
+              const beforeCount = allEvents.length;
+              const combinedEvents = [...allEvents, ...categoryEvents];
+              allEvents = eventAggregator.deduplicateEvents(combinedEvents);
+              
+              // Categorize all events
+              allEvents = eventAggregator.categorizeEvents(allEvents);
+              
+              addedCount = allEvents.length - beforeCount;
+              
+              // Update job with current results (status remains 'pending') - progressive updates
+              await jobStore.updateJob(jobId, { events: allEvents });
+              
+              console.log(`Category ${category} complete: ${parsedCount} parsed, ${addedCount} added, ${allEvents.length} total`);
+              processedSuccessfully = true;
+            } catch (processingError: any) {
+              console.error(`Error processing results for category ${category}:`, processingError.message);
+              // Keep parsedCount from successful parsing, but reset addedCount
+              addedCount = 0;
+              // Update categoryResult to reflect the error
+              categoryResult.response = `Processing error: ${processingError.message}`;
+            }
+          }
         }
         
-        // Add to debug info (even for errors) with enhanced metrics
-        await jobStore.pushDebugStep(jobId, {
-          category,
-          query: `Find ALL events happening on ${date} in ${city} of the category: ${category}. also check all venues of category ${category}. also check relevant webpages of ${category}. Also expand the query to find aditional events of category ${category}. the goal is to return a comprehensive list of all events of the category ${category} happening on ${date} in ${city}. `,
-          response: categoryResult.response,
-          parsedCount,
-          addedCount,
-          totalAfter: allEvents.length
-        });
-      } else {
-        // All attempts failed for this category, add final debug step and continue
-        console.error(`All ${maxAttempts} attempts failed for category ${category}, continuing with other categories`);
-        
-        await jobStore.pushDebugStep(jobId, {
-          category,
-          query: `Events in ${category} for ${city} on ${date}`,
-          response: `Error: All ${maxAttempts} attempts failed`,
-          parsedCount: 0,
-          addedCount: 0,
-          totalAfter: allEvents.length
-        });
+        // Always push debug step, even for processing errors
+        if (categoryResult) {
+          await jobStore.pushDebugStep(jobId, {
+            category,
+            query: `Find ALL events happening on ${date} in ${city} of the category: ${category}. also check all venues of category ${category}. also check relevant webpages of ${category}. Also expand the query to find aditional events of category ${category}. the goal is to return a comprehensive list of all events of the category ${category} happening on ${date} in ${city}. `,
+            response: categoryResult.response,
+            parsedCount,
+            addedCount,
+            totalAfter: allEvents.length
+          });
+        } else {
+          // All attempts failed for this category, add final debug step and continue
+          console.error(`All ${maxAttempts} attempts failed for category ${category}, continuing with other categories`);
+          
+          await jobStore.pushDebugStep(jobId, {
+            category,
+            query: `Events in ${category} for ${city} on ${date}`,
+            response: `Error: All ${maxAttempts} attempts failed`,
+            parsedCount: 0,
+            addedCount: 0,
+            totalAfter: allEvents.length
+          });
+        }
+      } catch (debugError: any) {
+        // Even debug step pushing failed, but don't let this crash the worker
+        console.error(`Failed to push debug step for category ${category}:`, debugError.message);
       }
       
       completedCategories++;
@@ -310,14 +327,20 @@ async function fetchPerplexityInBackground(
     // Wait for all workers to complete
     await Promise.all(processingPromises);
 
-    // Cache the final results with dynamic TTL based on event timings
-    const cacheKey = InMemoryCache.createKey(city, date, effectiveCategories);
-    const ttlSeconds = computeTTLSecondsForEvents(allEvents);
-    eventsCache.set(cacheKey, allEvents, ttlSeconds);
+    console.log(`Background job complete: found ${allEvents.length} events total`);
 
-    console.log(`Background job complete: cached ${allEvents.length} events with TTL: ${ttlSeconds} seconds`);
+    // Always finalize the job with status 'done', even if we have 0 events
+    try {
+      // Cache the final results with dynamic TTL based on event timings
+      const cacheKey = InMemoryCache.createKey(city, date, effectiveCategories);
+      const ttlSeconds = computeTTLSecondsForEvents(allEvents);
+      eventsCache.set(cacheKey, allEvents, ttlSeconds);
+      console.log(`Cached ${allEvents.length} events with TTL: ${ttlSeconds} seconds`);
+    } catch (cacheError) {
+      console.error('Failed to cache results, but continuing:', cacheError);
+    }
 
-    // Update job with final status
+    // Update job with final status - this must succeed to prevent UI timeout
     await jobStore.updateJob(jobId, {
       status: 'done',
       events: allEvents
@@ -325,9 +348,14 @@ async function fetchPerplexityInBackground(
 
   } catch (error) {
     console.error('Background job error for:', jobId, error);
-    await jobStore.updateJob(jobId, {
-      status: 'error',
-      error: 'Fehler beim Verarbeiten der Anfrage'
-    });
+    // Ensure job is always finalized, even on error
+    try {
+      await jobStore.updateJob(jobId, {
+        status: 'error',
+        error: 'Fehler beim Verarbeiten der Anfrage'
+      });
+    } catch (updateError) {
+      console.error('Failed to update job status to error - this may cause UI timeout:', updateError);
+    }
   }
 }
