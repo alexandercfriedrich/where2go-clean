@@ -22,6 +22,27 @@ UPSTASH_REDIS_REST_TOKEN=your_redis_token_here
 - This ensures progressive results work reliably across serverless route contexts
 - Without Redis, job state uses in-memory storage which doesn't persist across serverless function invocations
 
+### Architecture: Vercel Background Functions
+
+The application uses **Vercel Background Functions** to ensure reliable job processing that continues after HTTP responses are returned. This solves the issue where background tasks could be terminated prematurely on serverless platforms.
+
+**How it works:**
+1. **Main Route (`/api/events`)**: Creates job, schedules background worker
+2. **Background Worker (`/api/events/process`)**: Performs actual processing with 300s timeout
+3. **Scheduling**: Uses internal HTTP request with `x-vercel-background: 1` header
+4. **Local Development**: Falls back to direct HTTP requests for dev simplicity
+
+**Key Benefits:**
+- ✅ **Reliable Processing**: Jobs are guaranteed to complete or fail, never stuck in "pending"
+- ✅ **Progressive Updates**: Events appear as categories complete
+- ✅ **Error Handling**: All jobs finalized with 'done' or 'error' status
+- ✅ **Production Ready**: Leverages Vercel's infrastructure for background work
+
+**Testing the Implementation:**
+- Enable debug mode with `?debug=1` in URL
+- Monitor Redis for job updates (`job:*` keys) and debug info (`debug:*` keys)
+- Verify progressive events appear and job transitions from 'pending' to 'done'
+
 ### Installation
 
 ```bash
@@ -97,13 +118,16 @@ The application supports progressive loading of search results:
 ### API
 
 #### Asynchronous Events API (existing)
-- `POST /api/events` - Submit search request, returns job ID
-- `GET /api/jobs/[jobId]` - Check job status and get results
+- `POST /api/events` - Submit search request, returns job ID immediately
+- `GET /api/jobs/[jobId]` - Check job status and get progressive results
+- `POST /api/events/process` - **Background worker** (internal, not for direct use)
 
 #### Synchronous Events Search API (new)
 - `POST /api/events/search` - Returns events directly (no job/polling required)
 
-Both endpoints accept the same request body format and use shared caching.
+The asynchronous API now uses Vercel Background Functions for reliable processing. The `/api/events/process` route handles actual job processing with extended timeouts and is automatically called by the main `/api/events` route.
+
+Both public endpoints accept the same request body format and use shared caching.
 
 #### Request Format (both endpoints)
 
