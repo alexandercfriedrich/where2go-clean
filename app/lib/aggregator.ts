@@ -162,7 +162,7 @@ export class EventAggregator {
   /**
    * Deduplicates events using fuzzy matching
    */
-  private deduplicateEvents(events: EventData[]): EventData[] {
+  deduplicateEvents(events: EventData[]): EventData[] {
     const uniqueEvents: EventData[] = [];
     const seenEvents = new Set<string>();
 

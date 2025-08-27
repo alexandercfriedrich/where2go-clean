@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// In-memory job storage (in production, use Redis or database)
+// Type definitions (matching the events route)
 interface JobStatus {
   id: string;
   status: 'pending' | 'done' | 'error';
@@ -9,16 +9,15 @@ interface JobStatus {
   createdAt: Date;
 }
 
-// Global map to store job statuses
-const globalForJobs = global as unknown as { jobMap?: Map<string, JobStatus> };
-if (!globalForJobs.jobMap) {
-  globalForJobs.jobMap = new Map();
-}
-const jobMap = globalForJobs.jobMap!;
+// Access shared maps from global
+const jobMap = (global as any).jobMapForAPI as Map<string, JobStatus>;
+const debugMap = (global as any).debugMapForAPI as Map<string, any>;
 
 export async function GET(request: NextRequest, { params }: { params: { jobId: string } }) {
   try {
     const jobId = params.jobId;
+    const url = new URL(request.url);
+    const debugMode = url.searchParams.get('debug') === '1';
     
     if (!jobId) {
       return NextResponse.json(
@@ -41,15 +40,28 @@ export async function GET(request: NextRequest, { params }: { params: { jobId: s
     for (const [id, jobData] of jobMap.entries()) {
       if (jobData.createdAt < tenMinutesAgo) {
         jobMap.delete(id);
+        // Also clean up debug data
+        debugMap.delete(id);
       }
     }
 
-    return NextResponse.json({
+    const response: any = {
       jobId: job.id,
       status: job.status,
-      ...(job.status === 'done' && job.events ? { events: job.events } : {}),
+      // Return events for both 'pending' and 'done' status
+      ...(job.events ? { events: job.events } : {}),
       ...(job.status === 'error' && job.error ? { error: job.error } : {})
-    });
+    };
+
+    // Include debug data if requested and available
+    if (debugMode) {
+      const debugInfo = debugMap.get(jobId);
+      if (debugInfo) {
+        response.debug = debugInfo;
+      }
+    }
+
+    return NextResponse.json(response);
     
   } catch (error) {
     console.error('Job status API Error:', error);

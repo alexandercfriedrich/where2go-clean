@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 
 interface EventData {
   title: string;
@@ -9,6 +9,14 @@ interface EventData {
   venue: string;
   price: string;
   website: string;
+  // New optional fields for enhanced UI
+  endTime?: string;
+  address?: string;
+  ticketPrice?: string;
+  eventType?: string;
+  description?: string;
+  bookingLink?: string;
+  ageRestrictions?: string;
 }
 
 // Categories matching backend DEFAULT_CATEGORIES
@@ -42,9 +50,24 @@ export default function Home() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [jobStatus, setJobStatus] = useState<'idle' | 'pending' | 'done' | 'error'>('idle');
   const [pollCount, setPollCount] = useState(0);
+  const [newEvents, setNewEvents] = useState<Set<string>>(new Set());
+  const [debugMode, setDebugMode] = useState(false);
+  const [debugData, setDebugData] = useState<any>(null);
+  const [toast, setToast] = useState<{show: boolean, message: string}>({show: false, message: ''});
   
   // To store polling interval id persistently
   const pollInterval = useRef<NodeJS.Timeout | null>(null);
+
+  // Check for debug mode from URL on component mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    setDebugMode(urlParams.get('debug') === '1');
+  }, []);
+
+  // Helper function to create event key for deduplication
+  const createEventKey = (event: EventData): string => {
+    return `${event.title}_${event.date}_${event.venue}`;
+  };
 
   const formatDateForAPI = (): string => {
     const today = new Date();
@@ -75,9 +98,11 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setEvents([]);
+    setNewEvents(new Set());
     setJobId(null);
     setJobStatus('pending');
     setPollCount(0);
+    setDebugData(null);
 
     // Job starten
     try {
@@ -90,7 +115,8 @@ export default function Home() {
           categories: selectedCategories,
           options: { 
             temperature: 0.2, 
-            max_tokens: 1000 
+            max_tokens: 1000,
+            debug: debugMode
           }
         }),
       });
@@ -106,7 +132,7 @@ export default function Home() {
     }
   };
 
-  // Polling-Funktion (jetzt: max 4 Minuten)
+  // Polling-Funktion (jetzt: max 4 Minuten) with progressive updates
   const startPolling = (jobId: string) => {
     if (pollInterval.current) clearInterval(pollInterval.current);
     
@@ -126,22 +152,69 @@ export default function Home() {
       }
 
       try {
-        const res = await fetch(`/api/jobs/${jobId}`);
+        const debugParam = debugMode ? '?debug=1' : '';
+        const res = await fetch(`/api/jobs/${jobId}${debugParam}`);
         if (!res.ok) throw new Error(`Status ${res.status}`);
         
         const job = await res.json();
         
-        if (job.status === 'pending') return;
+        // Handle progressive updates - show events even if still pending
+        if (job.status === 'pending' && job.events && job.events.length > 0) {
+          const currentEventKeys = new Set(events.map(createEventKey));
+          const incomingEvents = job.events;
+          const newEventKeys = new Set<string>();
+          
+          // Find actually new events
+          incomingEvents.forEach((event: EventData) => {
+            const key = createEventKey(event);
+            if (!currentEventKeys.has(key)) {
+              newEventKeys.add(key);
+            }
+          });
+          
+          // Update events
+          setEvents(incomingEvents);
+          
+          // Show toast for new events
+          if (newEventKeys.size > 0) {
+            setNewEvents(newEventKeys);
+            setToast({
+              show: true,
+              message: `${newEventKeys.size} neue Event${newEventKeys.size !== 1 ? 's' : ''} gefunden`
+            });
+            
+            // Hide toast after 3 seconds
+            setTimeout(() => {
+              setToast({show: false, message: ''});
+              setNewEvents(new Set()); // Clear new event markers after a delay
+            }, 3000);
+          }
+          
+          // Update debug data if available
+          if (job.debug) {
+            setDebugData(job.debug);
+          }
+          
+          return; // Continue polling
+        }
         
-        clearInterval(pollInterval.current!);
-        setLoading(false);
-        
-        if (job.status === 'done') {
-          setEvents(job.events);
-          setJobStatus('done');
-        } else {
-          setJobStatus('error');
-          setError(job.error || 'Fehler bei der Eventsuche.');
+        // Handle completion
+        if (job.status !== 'pending') {
+          clearInterval(pollInterval.current!);
+          setLoading(false);
+          
+          if (job.status === 'done') {
+            setEvents(job.events || []);
+            setJobStatus('done');
+            
+            // Update debug data if available
+            if (job.debug) {
+              setDebugData(job.debug);
+            }
+          } else {
+            setJobStatus('error');
+            setError(job.error || 'Fehler bei der Eventsuche.');
+          }
         }
       } catch (err) {
         clearInterval(pollInterval.current!);
@@ -266,7 +339,12 @@ export default function Home() {
         {loading && (
           <div className="loading">
             <div className="loading-spinner"></div>
-            <p>Suche läuft … bitte habe etwas Geduld.</p>
+            <p>
+              {jobStatus === 'pending' && events.length > 0 
+                ? 'Suche läuft – Ergebnisse werden ergänzt' 
+                : 'Suche läuft … bitte habe etwas Geduld.'
+              }
+            </p>
             <p>Abfrage <span className="font-mono">{pollCount}/24</span> (max. 240 sec / 4min)</p>
             <p>KI-Auswertung kann länger dauern!</p>
           </div>
@@ -283,34 +361,145 @@ export default function Home() {
         {/* Events Grid */}
         {!!events.length && (
           <div className="events-grid">
-            {events.map((event, index) => (
-              <div key={index} className="event-card">
-                <div className="event-content">
-                  <h3 className="event-title">{event.title}</h3>
-                  <div className="event-date">{event.date} {event.time && ` • ${event.time}`}</div>
-                  <div className="event-location">📍 {event.venue}</div>
-                  {event.category && (
-                    <div className="event-category">🏷️ {event.category}</div>
-                  )}
-                  {event.price && (
-                    <div className="event-price">💰 {event.price}</div>
-                  )}
-                  {event.website && (
-                    <a 
-                      href={event.website} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="event-link"
-                    >
-                      Mehr Infos →
-                    </a>
-                  )}
+            {events.map((event, index) => {
+              const eventKey = createEventKey(event);
+              const isNew = newEvents.has(eventKey);
+              
+              return (
+                <div key={index} className={`event-card ${isNew ? 'event-card-new' : ''}`}>
+                  {isNew && <div className="badge-new">Neu</div>}
+                  <div className="event-content">
+                    <h3 className="event-title">{event.title}</h3>
+                    
+                    {/* Date and Time */}
+                    <div className="event-date">
+                      {event.date}
+                      {event.time && ` • ${event.time}`}
+                      {event.endTime && ` - ${event.endTime}`}
+                    </div>
+                    
+                    {/* Venue and Address */}
+                    <div className="event-location">
+                      📍 {event.venue}
+                      {event.address && (
+                        <a 
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="event-address-link"
+                          title="Adresse in Google Maps öffnen"
+                        >
+                          <br />📍 {event.address}
+                        </a>
+                      )}
+                    </div>
+                    
+                    {/* Category */}
+                    {event.category && (
+                      <div className="event-category">🏷️ {event.category}</div>
+                    )}
+                    
+                    {/* Event Type */}
+                    {event.eventType && (
+                      <div className="event-type">🎭 {event.eventType}</div>
+                    )}
+                    
+                    {/* Price Information */}
+                    {(event.price || event.ticketPrice) && (
+                      <div className="event-price">
+                        💰 {event.ticketPrice || event.price}
+                      </div>
+                    )}
+                    
+                    {/* Age Restrictions */}
+                    {event.ageRestrictions && (
+                      <div className="event-age">🔞 {event.ageRestrictions}</div>
+                    )}
+                    
+                    {/* Description */}
+                    {event.description && (
+                      <div className="event-description">{event.description}</div>
+                    )}
+                    
+                    {/* Links */}
+                    <div className="event-links">
+                      {event.website && (
+                        <a 
+                          href={event.website} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="event-link"
+                        >
+                          Website →
+                        </a>
+                      )}
+                      {event.bookingLink && (
+                        <a 
+                          href={event.bookingLink} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="event-link event-booking-link"
+                        >
+                          Tickets →
+                        </a>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className="toast-container">
+          <div className="toast">
+            {toast.message}
+          </div>
+        </div>
+      )}
+
+      {/* Debug Panel */}
+      {debugMode && debugData && (
+        <div className="debug-panel">
+          <div className="debug-header">
+            <h3>Debug Information</h3>
+            <button 
+              className="debug-toggle"
+              onClick={() => setDebugData(null)}
+            >
+              ✕
+            </button>
+          </div>
+          <div className="debug-content">
+            <div className="debug-summary">
+              <p><strong>Stadt:</strong> {debugData.city}</p>
+              <p><strong>Datum:</strong> {debugData.date}</p>
+              <p><strong>Kategorien:</strong> {debugData.categories?.join(', ')}</p>
+              <p><strong>Erstellt:</strong> {new Date(debugData.createdAt).toLocaleString()}</p>
+              <p><strong>Schritte:</strong> {debugData.steps?.length || 0}</p>
+            </div>
+            
+            {debugData.steps && debugData.steps.map((step: any, index: number) => (
+              <div key={index} className="debug-step">
+                <h4>Schritt {index + 1}: {step.category}</h4>
+                <div className="debug-query">
+                  <strong>Query:</strong> {step.query}
+                </div>
+                <div className="debug-parsed">
+                  <strong>Gefundene Events:</strong> {step.parsedCount}
+                </div>
+                <details className="debug-response">
+                  <summary>Rohdaten anzeigen</summary>
+                  <pre>{step.response}</pre>
+                </details>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="footer">
