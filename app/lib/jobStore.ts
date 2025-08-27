@@ -26,7 +26,7 @@ class RedisJobStore implements JobStore {
   private redis: Redis;
   private jobKeyPrefix = 'job:';
   private debugKeyPrefix = 'debug:';
-  private ttlSeconds = 10 * 60; // 10 minutes
+  private ttlSeconds = 2 * 60 * 60; // 2 hours
 
   constructor(restUrl: string, restToken: string) {
     this.redis = new Redis({
@@ -49,11 +49,33 @@ class RedisJobStore implements JobStore {
     const result = await this.redis.get(key);
     if (!result) return null;
     
-    const parsed = JSON.parse(result as string);
-    return {
-      ...parsed,
-      createdAt: new Date(parsed.createdAt)
-    };
+    try {
+      // Handle the case where result is already an object (not a JSON string)
+      if (typeof result === 'object' && result !== null) {
+        return {
+          ...result as any,
+          createdAt: new Date((result as any).createdAt)
+        };
+      }
+      
+      // Handle the case where result is a string
+      const resultStr = result as string;
+      
+      // Check for corrupted "[object Object]" strings
+      if (resultStr === '[object Object]' || resultStr.startsWith('[object Object]')) {
+        console.warn(`Corrupted job data for ${jobId}: ${resultStr}`);
+        return null;
+      }
+      
+      const parsed = JSON.parse(resultStr);
+      return {
+        ...parsed,
+        createdAt: new Date(parsed.createdAt)
+      };
+    } catch (error) {
+      console.error(`Failed to parse job data for ${jobId}:`, error, 'Raw result:', result);
+      return null;
+    }
   }
 
   async updateJob(jobId: string, updates: Partial<JobStatus>): Promise<void> {
@@ -92,11 +114,33 @@ class RedisJobStore implements JobStore {
     const result = await this.redis.get(key);
     if (!result) return null;
     
-    const parsed = JSON.parse(result as string);
-    return {
-      ...parsed,
-      createdAt: new Date(parsed.createdAt)
-    };
+    try {
+      // Handle the case where result is already an object (not a JSON string)
+      if (typeof result === 'object' && result !== null) {
+        return {
+          ...result as any,
+          createdAt: new Date((result as any).createdAt)
+        };
+      }
+      
+      // Handle the case where result is a string
+      const resultStr = result as string;
+      
+      // Check for corrupted "[object Object]" strings
+      if (resultStr === '[object Object]' || resultStr.startsWith('[object Object]')) {
+        console.warn(`Corrupted debug data for ${jobId}: ${resultStr}`);
+        return null;
+      }
+      
+      const parsed = JSON.parse(resultStr);
+      return {
+        ...parsed,
+        createdAt: new Date(parsed.createdAt)
+      };
+    } catch (error) {
+      console.error(`Failed to parse debug data for ${jobId}:`, error, 'Raw result:', result);
+      return null;
+    }
   }
 
   async pushDebugStep(jobId: string, step: DebugStep): Promise<void> {
@@ -116,11 +160,37 @@ class InMemoryJobStore implements JobStore {
   private debugInfo = new Map<string, DebugInfo>();
 
   async setJob(jobId: string, job: JobStatus): Promise<void> {
-    this.jobs.set(jobId, job);
+    // Serialize and deserialize to ensure consistency with Redis store
+    const serialized = JSON.stringify({
+      ...job,
+      createdAt: job.createdAt.toISOString()
+    });
+    const parsed = JSON.parse(serialized);
+    this.jobs.set(jobId, {
+      ...parsed,
+      createdAt: new Date(parsed.createdAt)
+    });
   }
 
   async getJob(jobId: string): Promise<JobStatus | null> {
-    return this.jobs.get(jobId) || null;
+    const job = this.jobs.get(jobId);
+    if (!job) return null;
+    
+    // Ensure consistent format by re-serializing/deserializing
+    try {
+      const serialized = JSON.stringify({
+        ...job,
+        createdAt: job.createdAt.toISOString()
+      });
+      const parsed = JSON.parse(serialized);
+      return {
+        ...parsed,
+        createdAt: new Date(parsed.createdAt)
+      };
+    } catch (error) {
+      console.error(`Failed to serialize/deserialize job ${jobId}:`, error);
+      return null;
+    }
   }
 
   async updateJob(jobId: string, updates: Partial<JobStatus>): Promise<void> {
@@ -136,10 +206,10 @@ class InMemoryJobStore implements JobStore {
   }
 
   async cleanupOldJobs(): Promise<void> {
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000); // 2 hours
     
     for (const [jobId, job] of this.jobs.entries()) {
-      if (job.createdAt < tenMinutesAgo) {
+      if (job.createdAt < twoHoursAgo) {
         this.jobs.delete(jobId);
         this.debugInfo.delete(jobId);
       }
@@ -147,11 +217,37 @@ class InMemoryJobStore implements JobStore {
   }
 
   async setDebugInfo(jobId: string, debugInfo: DebugInfo): Promise<void> {
-    this.debugInfo.set(jobId, debugInfo);
+    // Serialize and deserialize to ensure consistency with Redis store
+    const serialized = JSON.stringify({
+      ...debugInfo,
+      createdAt: debugInfo.createdAt.toISOString()
+    });
+    const parsed = JSON.parse(serialized);
+    this.debugInfo.set(jobId, {
+      ...parsed,
+      createdAt: new Date(parsed.createdAt)
+    });
   }
 
   async getDebugInfo(jobId: string): Promise<DebugInfo | null> {
-    return this.debugInfo.get(jobId) || null;
+    const debug = this.debugInfo.get(jobId);
+    if (!debug) return null;
+    
+    // Ensure consistent format by re-serializing/deserializing
+    try {
+      const serialized = JSON.stringify({
+        ...debug,
+        createdAt: debug.createdAt.toISOString()
+      });
+      const parsed = JSON.parse(serialized);
+      return {
+        ...parsed,
+        createdAt: new Date(parsed.createdAt)
+      };
+    } catch (error) {
+      console.error(`Failed to serialize/deserialize debug info ${jobId}:`, error);
+      return null;
+    }
   }
 
   async pushDebugStep(jobId: string, step: DebugStep): Promise<void> {
