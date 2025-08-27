@@ -134,7 +134,7 @@ Wenn keine Events gefunden wurden, schreibe "Keine passenden Events gefunden".
   }
 
   /**
-   * Executes multiple queries with rate limiting
+   * Executes multiple queries with rate limiting and category-level retry
    */
   async executeMultiQuery(
     city: string, 
@@ -149,15 +149,9 @@ Wenn keine Events gefunden wurden, schreibe "Keine passenden Events gefunden".
     for (let i = 0; i < queries.length; i += this.batchSize) {
       const batch = queries.slice(i, i + this.batchSize);
       
-      // Execute batch in parallel
+      // Execute batch in parallel with category-level retry
       const batchPromises = batch.map(async (query) => {
-        const response = await this.callPerplexity(query, options);
-        return {
-          query,
-          response,
-          events: [], // Will be populated by aggregator
-          timestamp: Date.now()
-        };
+        return await this.executeQueryWithRetry(query, options);
       });
 
       const batchResults = await Promise.all(batchPromises);
@@ -170,6 +164,49 @@ Wenn keine Events gefunden wurden, schreibe "Keine passenden Events gefunden".
     }
 
     return results;
+  }
+
+  /**
+   * Executes a single query with exponential backoff retry
+   */
+  private async executeQueryWithRetry(
+    query: string,
+    options?: QueryOptions,
+    maxRetries = 3
+  ): Promise<PerplexityResult> {
+    let lastError: Error | null = null;
+    
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const response = await this.callPerplexity(query, options);
+        return {
+          query,
+          response,
+          events: [], // Will be populated by aggregator
+          timestamp: Date.now()
+        };
+      } catch (error: any) {
+        lastError = error;
+        console.error(`Query attempt ${attempt + 1}/${maxRetries} failed for query:`, query.substring(0, 100) + '...', error.message);
+        
+        // Don't retry on last attempt
+        if (attempt < maxRetries - 1) {
+          // Exponential backoff: 500ms -> 1000ms -> 2000ms
+          const delay = 500 * Math.pow(2, attempt);
+          console.log(`Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+
+    // If all retries failed, return error result
+    console.error(`All ${maxRetries} attempts failed for query:`, query.substring(0, 100) + '...');
+    return {
+      query,
+      response: `Error after ${maxRetries} attempts: ${lastError?.message || 'Unknown error'}`,
+      events: [],
+      timestamp: Date.now()
+    };
   }
 
   /**

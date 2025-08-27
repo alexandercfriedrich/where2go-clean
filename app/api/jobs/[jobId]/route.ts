@@ -1,29 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getJobStore } from '@/lib/jobStore';
 
 // Explicit runtime configuration for clarity
 export const runtime = 'nodejs';
 
-// Type definitions (matching the events route)
-interface JobStatus {
-  id: string;
-  status: 'pending' | 'done' | 'error';
-  events?: any[];
-  error?: string;
-  createdAt: Date;
-}
-
-// Lazily initialize global maps to prevent runtime crashes
-const globalForJobs = global as unknown as { jobMapForAPI?: Map<string, JobStatus> };
-if (!globalForJobs.jobMapForAPI) {
-  globalForJobs.jobMapForAPI = new Map();
-}
-const jobMap = globalForJobs.jobMapForAPI!;
-
-const globalForDebug = global as unknown as { debugMapForAPI?: Map<string, any> };
-if (!globalForDebug.debugMapForAPI) {
-  globalForDebug.debugMapForAPI = new Map();
-}
-const debugMap = globalForDebug.debugMapForAPI!;
+// Get JobStore instance for accessing job state
+const jobStore = getJobStore();
 
 export async function GET(request: NextRequest, { params }: { params: { jobId: string } }) {
   try {
@@ -38,7 +20,7 @@ export async function GET(request: NextRequest, { params }: { params: { jobId: s
       );
     }
 
-    const job = jobMap.get(jobId);
+    const job = await jobStore.getJob(jobId);
     
     if (!job) {
       return NextResponse.json(
@@ -47,17 +29,8 @@ export async function GET(request: NextRequest, { params }: { params: { jobId: s
       );
     }
 
-    // Clean up old jobs (older than 10 minutes)
-    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
-    for (const [id, jobData] of jobMap.entries()) {
-      if (jobData.createdAt < tenMinutesAgo) {
-        jobMap.delete(id);
-        // Also clean up debug data if available
-        if (debugMap) {
-          debugMap.delete(id);
-        }
-      }
-    }
+    // Clean up old jobs (JobStore handles this automatically for Redis, but run anyway)
+    await jobStore.cleanupOldJobs();
 
     const response: any = {
       jobId: job.id,
@@ -68,8 +41,8 @@ export async function GET(request: NextRequest, { params }: { params: { jobId: s
     };
 
     // Include debug data if requested and available
-    if (debugMode && debugMap) {
-      const debugInfo = debugMap.get(jobId);
+    if (debugMode) {
+      const debugInfo = await jobStore.getDebugInfo(jobId);
       if (debugInfo) {
         response.debug = debugInfo;
       }
