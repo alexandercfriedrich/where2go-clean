@@ -65,6 +65,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  try {
+    const body: ProcessingRequest = await req.json();
+    const { jobId, city, date, categories, options } = body;
+
+    if (!jobId || !city || !date) {
+      return NextResponse.json(
+        { error: 'Missing required parameters: jobId, city, date' },
+        { status: 400 }
+      );
+    }
+
     console.log('Processing job:', { jobId, city, date, categories: categories?.length || 0 });
 
     // Run the background processing
