@@ -4,6 +4,7 @@ import { eventsCache } from '@/lib/cache';
 import InMemoryCache from '@/lib/cache';
 import { createPerplexityService } from '@/lib/perplexity';
 import { eventAggregator } from '@/lib/aggregator';
+import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
 
 // Global map to store job statuses (shared with jobs API)
 const globalForJobs = global as unknown as { jobMap?: Map<string, JobStatus> };
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check cache first (5-minute TTL)
+    // Check cache first (dynamic TTL based on event timing)
     const cacheKey = InMemoryCache.createKey(city, date, categories);
     const cachedEvents = eventsCache.get<EventData[]>(cacheKey);
     
@@ -131,9 +132,12 @@ async function fetchPerplexityInBackground(
     // Categorize events
     events = eventAggregator.categorizeEvents(events);
 
-    // Cache the results for 5 minutes
+    // Cache the results with dynamic TTL based on event timings
     const cacheKey = InMemoryCache.createKey(city, date, categories);
-    eventsCache.set(cacheKey, events, 5 * 60); // 5 minutes TTL
+    const ttlSeconds = computeTTLSecondsForEvents(events);
+    eventsCache.set(cacheKey, events, ttlSeconds);
+
+    console.log(`Background job cached ${events.length} events with TTL: ${ttlSeconds} seconds`);
 
     // Update job with results
     job.status = 'done';

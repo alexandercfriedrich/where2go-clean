@@ -8,6 +8,7 @@ export interface EventData {
   venue: string;
   price: string;
   website: string;
+  cacheUntil?: string; // Optional ISO date string for cache expiration
 }
 
 export interface PerplexityResult {
