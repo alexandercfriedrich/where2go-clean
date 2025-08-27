@@ -198,7 +198,7 @@ async function fetchPerplexityInBackground(
           if (debugInfo) {
             const debugStep: DebugStep = {
               category,
-              query: `Events in ${category} for ${city} on ${date}`, // Transparent query description
+              query: `Find ALL events happening on ${date} in ${city} of the category: ${category}. also check all venues of category ${category}. also check relevant webpages of ${category}. Also expand the query to find aditional events of category ${category}. the goal is to return a comprehensive list of all events of the category ${category} happening on ${date} in ${city}. `, // Transparent query description
               response: result.response,
               parsedCount: result.events.length
             };
