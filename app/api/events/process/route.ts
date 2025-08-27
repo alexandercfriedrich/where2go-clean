@@ -6,6 +6,7 @@ import { createPerplexityService } from '@/lib/perplexity';
 import { eventAggregator } from '@/lib/aggregator';
 import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
 import { getJobStore } from '@/lib/jobStore';
+import { NextRequest, NextResponse } from 'next/server';
 
 // Serverless configuration for background processing
 export const runtime = 'nodejs';
@@ -52,21 +53,17 @@ interface ProcessingRequest {
   options?: any;
 }
 
-export async function POST(request: NextRequest) {
-  try {
-    console.log('Background processing started');
-    
-    const body: ProcessingRequest = await request.json();
-    const { jobId, city, date, categories, options } = body;
+export async function POST(req: NextRequest) {
+  const isVercel = process.env.VERCEL === '1';
+  const isBackground = req.headers.get('x-vercel-background') === '1';
+  const hasInternalSecret =
+    process.env.INTERNAL_API_SECRET &&
+    req.headers.get('x-internal-secret') === process.env.INTERNAL_API_SECRET;
 
-    // Validate required inputs
-    if (!jobId || !city || !date) {
-      console.error('Missing required parameters:', { jobId, city, date });
-      return NextResponse.json(
-        { error: 'Missing required parameters: jobId, city, date' },
-        { status: 400 }
-      );
-    }
+  // If you want to keep a guard, allow either background header or your secret
+  if (isVercel && !isBackground && !hasInternalSecret) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
 
     console.log('Processing job:', { jobId, city, date, categories: categories?.length || 0 });
 
