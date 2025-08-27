@@ -37,13 +37,6 @@ const DEFAULT_PPLX_OPTIONS = {
   max_tokens: 5000
 };
 
-// TODO: Ideas to get more events from raw data
-// - Loosen prompt/parsing (e.g. make parser more tolerant of partial data; fallback rules for missing times)
-// - Increase max_tokens or paginated follow-up queries per category (currently kept at 1000, optionally configurable via options)  
-// - Add iterative subgenre queries per category (e.g. the listed subcategories)
-// - Adjust deduplication (fuzzy match with Levenshtein instead of hard equality)
-// - Optional: second aggregation pass with "loose" heuristics to not discard entries without website/price
-
 // Get JobStore instance for persisting job state
 const jobStore = getJobStore();
 
@@ -70,9 +63,10 @@ async function scheduleBackgroundProcessing(
   const isVercel = process.env.VERCEL === '1';
   
   if (isVercel) {
-    // Construct absolute URL for background function
-    const protocol = request.headers.get('x-forwarded-proto') || 'https';
-    const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
+    // Prefer exact deployment URL to ensure we hit the same deployment in preview
+    const deploymentUrl = request.headers.get('x-vercel-deployment-url');
+    const host = deploymentUrl || request.headers.get('x-forwarded-host') || request.headers.get('host');
+    const protocol = 'https'; // Vercel preview/prod are https
     
     if (!host) {
       throw new Error('Unable to determine host for background processing');
@@ -81,14 +75,29 @@ async function scheduleBackgroundProcessing(
     const backgroundUrl = `${protocol}://${host}/api/events/process`;
     
     console.log('Scheduling background processing via Vercel Background Functions:', backgroundUrl);
+
+    // Optional protection bypass for Preview Deployments Protection
+    // Set PROTECTION_BYPASS_TOKEN in Vercel Project Settings > Environment Variables
+    const protectionBypass = process.env.PROTECTION_BYPASS_TOKEN;
+
+    // Optional internal secret if your worker route expects it
+    const internalSecret = process.env.INTERNAL_API_SECRET;
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-vercel-background': '1',
+    };
+    if (protectionBypass) {
+      headers['x-vercel-protection-bypass'] = protectionBypass;
+    }
+    if (internalSecret) {
+      headers['x-internal-secret'] = internalSecret;
+    }
     
     // Make internal HTTP request to background processor with special header
     const response = await fetch(backgroundUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-vercel-background': '1'
-      },
+      headers,
       body: JSON.stringify({
         jobId,
         city,
