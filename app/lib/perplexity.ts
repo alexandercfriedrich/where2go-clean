@@ -17,13 +17,9 @@ export class PerplexityService {
    */
   private buildCategoryPrompt(city: string, date: string, category: string): string {
     return `
-Finde für die Stadt ${city} am ${date} ALLE tatsächlich existierenden Events in der Kategorie "${category}".
+Finde für die Stadt ${city} am ${date} ALLE tatsächlich existierenden Events in der Kategorie "${category}". Erweitere die Suche auch auf lokale websiten von ${city} nach Events der Kategorie ${category} .
 
-Gib die Ausgabe ausschließlich als reine Markdown-Tabelle mit folgenden Spalten zurück:
-"title" | "category" | "date" | "time" | "venue" | "price" | "website"
-
-Fülle jedes Feld so exakt wie möglich aus, lasse Preis/Website nur leer, wenn wirklich nicht verfügbar (dann „k.A.").
-Antworte AUSSCHLIESSLICH mit dieser Tabelle (kein Fließtext, keine Fantasieevents, keine Beispiele, keine Werbung, keine weiteren Erklärungen).
+Antworte AUSSCHLIESSLICH mit einer Tabelle (kein Fließtext, keine Fantasieevents, keine Beispiele, keine Werbung, keine weiteren Erklärungen).
 Wenn keine Events gefunden wurden, schreibe "Keine passenden Events gefunden".
 `;
   }
@@ -45,9 +41,7 @@ Finde für die Stadt ${city} am ${date} ALLE tatsächlich existierenden Events i
 9. Universitäts- & Studentenevents
 10. Szene-Events & Underground Events & Alternative Events
 
-Gib die Ausgabe ausschließlich eine reine Markdown-Tabelle **Tabelle** mit folgenden Spalten zurück:
-"title" | "category" | "date" | "time" | "venue" | "price" | "website" (Quellen-URL)  
-Fülle jedes Feld so exakt wie möglich aus, lasse Preis/Website nur leer, wenn wirklich nicht verfügbar (dann „k.A.").
+
 Antworte AUSSCHLIESSLICH mit dieser Tabelle (kein Fließtext, keine Fantasieevents, keine Beispiele, keine Werbung, keine weiteren Erklärungen).
 Wenn keine Events gefunden wurden, schreibe "Keine passenden Events gefunden".
 `;
