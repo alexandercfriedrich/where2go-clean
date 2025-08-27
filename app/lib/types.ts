@@ -61,6 +61,10 @@ export interface QueryOptions {
   accessibility?: string;
   temperature?: number;
   max_tokens?: number;
+  debug?: boolean;
+  categoryConcurrency?: number;
+  categoryTimeoutMs?: number | { [key: string]: number };
+  maxAttempts?: number;
 }
 
 export interface DebugStep {
@@ -68,6 +72,8 @@ export interface DebugStep {
   query: string;
   response: string;
   parsedCount: number;
+  addedCount?: number;
+  totalAfter?: number;
 }
 
 export interface DebugInfo {

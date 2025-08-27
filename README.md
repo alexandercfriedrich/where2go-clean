@@ -34,14 +34,18 @@ The application will start on `http://localhost:3000`.
 ### Features
 
 - Event search by city and date
+- **Parallel category processing** - Configurable concurrency for faster searches
 - Multi-query Perplexity search with smart aggregation
+- **Per-category timeouts** - Configurable timeout with retries and exponential backoff + jitter
+- **Extended serverless duration** - 300s maxDuration for long-running searches
 - Dynamic caching with TTL based on event timings (instead of fixed 5-minute caching)
 - Automatic event categorization and deduplication
 - No UI changes required - fully backward compatible
 - New synchronous search endpoint for immediate results
 - **Progressive loading** - Shows events as they are found during search
-- **Debug mode** - Add `?debug=1` to URL for detailed search insights
+- **Enhanced debug mode** - Add `?debug=1` to URL for detailed search insights with raw responses and counts
 - **Real-time updates** - Progressive results with new event notifications and toast messages
+- **Conservative deduplication** - Avoids over-filtering events with missing fields
 
 ### Debug Mode
 
@@ -49,9 +53,35 @@ To enable debug mode, add `?debug=1` to the URL (e.g., `http://localhost:3000?de
 
 Debug mode provides:
 - Detailed search query information per category
-- Raw API responses for troubleshooting
-- Parsed event counts per search step
+- Raw API responses for troubleshooting  
+- **Enhanced metrics**: Parsed event counts, added counts, and total counts per search step
 - Complete search timeline and performance metrics
+- **Phase statistics**: Shows how many events are parsed, merged, and deduplicated at each step
+
+The debug panel appears at the bottom of the page when debug mode is active and shows comprehensive information about each search step.
+
+### Configuration Options
+
+The following options can be configured by modifying the request in `page.tsx`:
+
+- **`categoryConcurrency`** (default: 5): Number of categories to process in parallel
+- **`categoryTimeoutMs`** (default: 45000): Timeout per category in milliseconds, can be a number or object mapping categories to timeouts
+- **`maxAttempts`** (default: 5): Maximum retry attempts per category with exponential backoff + jitter
+- **Polling window**: Extended to 8 minutes (48 polls × 10s) to handle longer processing times
+
+### Progressive Updates
+
+The application now provides reliable progressive updates:
+- Results are pushed to the job store after each category completes
+- Events appear in the UI as they are found, not just at the end
+- "Neu" badges indicate newly found events
+- Toast notifications show progress with event counts
+- Enhanced Event Cards remain visible with clickable addresses and multiple link types
+- Detailed search query information per category
+- Raw API responses for troubleshooting  
+- **Enhanced metrics**: Parsed event counts, added counts, and total counts per search step
+- Complete search timeline and performance metrics
+- **Phase statistics**: Shows how many events are parsed, merged, and deduplicated at each step
 
 The debug panel appears at the bottom of the page when debug mode is active and shows comprehensive information about each search step.
 
