@@ -15,12 +15,30 @@ PERPLEXITY_API_KEY=your_perplexity_api_key_here
 # When not set, uses in-memory storage (dev/local only)
 UPSTASH_REDIS_REST_URL=https://your-redis-url.upstash.io
 UPSTASH_REDIS_REST_TOKEN=your_redis_token_here
+
+# Preview Deployments: Required for background processing on Vercel Preview deployments
+# Get this token from Vercel Project > Settings > Protection
+PROTECTION_BYPASS_TOKEN=your_protection_bypass_token_here
+
+# Optional: Additional security for background worker route
+INTERNAL_API_SECRET=your_internal_secret_here
 ```
 
 **Redis Configuration (Production):**
 - In production environments (e.g., Vercel), configure Upstash Redis environment variables for durable job state persistence
 - This ensures progressive results work reliably across serverless route contexts
 - Without Redis, job state uses in-memory storage which doesn't persist across serverless function invocations
+
+**Preview Protection Configuration:**
+- Vercel Preview Deployments with Protection enabled block internal API calls by default
+- The `PROTECTION_BYPASS_TOKEN` allows background processing to work on Preview deployments
+- **To set up:**
+  1. Go to Vercel Project > Settings > Protection
+  2. Copy the "Protection Bypass Token" 
+  3. Add it as `PROTECTION_BYPASS_TOKEN` in Environment Variables
+  4. Apply to Preview deployments specifically
+- The `INTERNAL_API_SECRET` provides additional hardening for the background worker route
+- Without proper configuration, background processing will fail with 401 Unauthorized on Preview deployments
 
 ### Architecture: Vercel Background Functions
 
