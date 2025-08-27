@@ -1,0 +1,98 @@
+// Simple in-memory cache with TTL
+
+import { CacheEntry } from './types';
+
+class InMemoryCache {
+  private cache = new Map<string, CacheEntry<any>>();
+
+  /**
+   * Sets a value in the cache with TTL in seconds
+   */
+  set<T>(key: string, value: T, ttlSeconds: number = 300): void {
+    const entry: CacheEntry<T> = {
+      data: value,
+      timestamp: Date.now(),
+      ttl: ttlSeconds * 1000, // Convert to milliseconds
+    };
+    this.cache.set(key, entry);
+  }
+
+  /**
+   * Gets a value from the cache if not expired
+   */
+  get<T>(key: string): T | null {
+    const entry = this.cache.get(key);
+    if (!entry) {
+      return null;
+    }
+
+    const now = Date.now();
+    if (now - entry.timestamp > entry.ttl) {
+      // Entry has expired, remove it
+      this.cache.delete(key);
+      return null;
+    }
+
+    return entry.data as T;
+  }
+
+  /**
+   * Checks if a key exists and is not expired
+   */
+  has(key: string): boolean {
+    return this.get(key) !== null;
+  }
+
+  /**
+   * Removes a key from the cache
+   */
+  delete(key: string): boolean {
+    return this.cache.delete(key);
+  }
+
+  /**
+   * Clears all expired entries from the cache
+   */
+  cleanup(): void {
+    const now = Date.now();
+    for (const [key, entry] of this.cache.entries()) {
+      if (now - entry.timestamp > entry.ttl) {
+        this.cache.delete(key);
+      }
+    }
+  }
+
+  /**
+   * Gets the current cache size
+   */
+  size(): number {
+    return this.cache.size;
+  }
+
+  /**
+   * Clears all entries from the cache
+   */
+  clear(): void {
+    this.cache.clear();
+  }
+
+  /**
+   * Creates a cache key from city, date, and optional categories
+   */
+  static createKey(city: string, date: string, categories?: string[]): string {
+    const categoriesStr = categories && categories.length > 0 
+      ? categories.sort().join(',') 
+      : 'all';
+    return `${city.toLowerCase()}_${date}_${categoriesStr}`;
+  }
+}
+
+// Export a singleton instance for global use
+export const eventsCache = new InMemoryCache();
+
+// Run cleanup every 10 minutes
+setInterval(() => {
+  eventsCache.cleanup();
+}, 10 * 60 * 1000);
+
+export default InMemoryCache;
