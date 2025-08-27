@@ -6,7 +6,6 @@ import { createPerplexityService } from '@/lib/perplexity';
 import { eventAggregator } from '@/lib/aggregator';
 import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
 import { getJobStore } from '@/lib/jobStore';
-import { NextRequest, NextResponse } from 'next/server';
 
 // Serverless configuration for background processing
 export const runtime = 'nodejs';

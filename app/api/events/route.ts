@@ -122,6 +122,7 @@ async function scheduleBackgroundProcessing(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'x-vercel-background': '1', // Add auth header for local dev
       },
       body: JSON.stringify({
         jobId,
