@@ -49,4 +49,6 @@ export interface QueryOptions {
   maxResults?: number;
   priceRange?: string;
   accessibility?: string;
+  temperature?: number;
+  max_tokens?: number;
 }

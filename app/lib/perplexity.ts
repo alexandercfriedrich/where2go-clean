@@ -88,7 +88,7 @@ Wenn keine Events gefunden wurden, schreibe "Keine passenden Events gefunden".
   /**
    * Makes a single API call to Perplexity
    */
-  private async callPerplexity(prompt: string, retries = 2): Promise<string> {
+  private async callPerplexity(prompt: string, options?: QueryOptions, retries = 2): Promise<string> {
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt < retries; attempt++) {
@@ -107,8 +107,8 @@ Wenn keine Events gefunden wurden, schreibe "Keine passenden Events gefunden".
                 content: prompt
               }
             ],
-            max_tokens: 20000,
-            temperature: 0.2,
+            max_tokens: options?.max_tokens || 20000,
+            temperature: options?.temperature || 0.2,
             stream: false
           })
         });
@@ -151,7 +151,7 @@ Wenn keine Events gefunden wurden, schreibe "Keine passenden Events gefunden".
       
       // Execute batch in parallel
       const batchPromises = batch.map(async (query) => {
-        const response = await this.callPerplexity(query);
+        const response = await this.callPerplexity(query, options);
         return {
           query,
           response,
@@ -175,9 +175,9 @@ Wenn keine Events gefunden wurden, schreibe "Keine passenden Events gefunden".
   /**
    * Executes a single query (for backward compatibility)
    */
-  async executeSingleQuery(city: string, date: string): Promise<PerplexityResult> {
+  async executeSingleQuery(city: string, date: string, options?: QueryOptions): Promise<PerplexityResult> {
     const prompt = this.buildGeneralPrompt(city, date);
-    const response = await this.callPerplexity(prompt);
+    const response = await this.callPerplexity(prompt, options);
     
     return {
       query: prompt,
