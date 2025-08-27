@@ -9,6 +9,14 @@ export interface EventData {
   price: string;
   website: string;
   cacheUntil?: string; // Optional ISO date string for cache expiration
+  // New optional fields for enhanced UI
+  endTime?: string;
+  address?: string;
+  ticketPrice?: string;
+  eventType?: string;
+  description?: string;
+  bookingLink?: string;
+  ageRestrictions?: string;
 }
 
 export interface PerplexityResult {
@@ -27,6 +35,7 @@ export interface RequestBody {
     maxResults?: number;
     priceRange?: string;
     accessibility?: string;
+    debug?: boolean; // New debug flag
   };
 }
 
@@ -36,6 +45,7 @@ export interface JobStatus {
   events?: EventData[];
   error?: string;
   createdAt: Date;
+  debug?: DebugInfo; // New debug info
 }
 
 export interface CacheEntry<T> {
@@ -51,4 +61,20 @@ export interface QueryOptions {
   accessibility?: string;
   temperature?: number;
   max_tokens?: number;
+}
+
+export interface DebugStep {
+  category: string;
+  query: string;
+  response: string;
+  parsedCount: number;
+}
+
+export interface DebugInfo {
+  createdAt: Date;
+  city: string;
+  date: string;
+  categories: string[];
+  options?: any;
+  steps: DebugStep[];
 }

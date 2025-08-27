@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { RequestBody, EventData, JobStatus } from '@/lib/types';
+import { RequestBody, EventData, JobStatus, DebugInfo, DebugStep } from '@/lib/types';
 import { eventsCache } from '@/lib/cache';
 import InMemoryCache from '@/lib/cache';
 import { createPerplexityService } from '@/lib/perplexity';
@@ -32,12 +32,30 @@ const DEFAULT_PPLX_OPTIONS = {
   max_tokens: 1000
 };
 
+// TODO: Ideas to get more events from raw data
+// - Loosen prompt/parsing (e.g. make parser more tolerant of partial data; fallback rules for missing times)
+// - Increase max_tokens or paginated follow-up queries per category (currently kept at 1000, optionally configurable via options)  
+// - Add iterative subgenre queries per category (e.g. the listed subcategories)
+// - Adjust deduplication (fuzzy match with Levenshtein instead of hard equality)
+// - Optional: second aggregation pass with "loose" heuristics to not discard entries without website/price
+
 // Global map to store job statuses (shared with jobs API)
 const globalForJobs = global as unknown as { jobMap?: Map<string, JobStatus> };
 if (!globalForJobs.jobMap) {
   globalForJobs.jobMap = new Map();
 }
 const jobMap = globalForJobs.jobMap!;
+
+// Global map to store debug information
+const globalForDebug = global as unknown as { debugMap?: Map<string, DebugInfo> };
+if (!globalForDebug.debugMap) {
+  globalForDebug.debugMap = new Map();
+}
+const debugMap = globalForDebug.debugMap!;
+
+// Export maps for use in jobs API - using global approach
+(global as any).jobMapForAPI = jobMap;
+(global as any).debugMapForAPI = debugMap;
 
 export async function POST(request: NextRequest) {
   try {
@@ -89,6 +107,19 @@ export async function POST(request: NextRequest) {
 
     jobMap.set(jobId, job);
 
+    // Initialize debug info if debug mode is enabled
+    if (options?.debug) {
+      const debugInfo: DebugInfo = {
+        createdAt: new Date(),
+        city,
+        date,
+        categories: effectiveCategories,
+        options: mergedOptions,
+        steps: []
+      };
+      debugMap.set(jobId, debugInfo);
+    }
+
     // Start background job (don't await)
     fetchPerplexityInBackground(jobId, city, date, effectiveCategories, mergedOptions);
 
@@ -107,7 +138,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Background function to fetch from Perplexity
+// Background function to fetch from Perplexity with progressive updates
 async function fetchPerplexityInBackground(
   jobId: string, 
   city: string, 
@@ -142,33 +173,84 @@ async function fetchPerplexityInBackground(
     }
 
     const job = jobMap.get(jobId);
+    const debugInfo = debugMap.get(jobId);
     if (!job) return; // Job might have been cleaned up
 
-    let events: EventData[] = [];
+    let allEvents: EventData[] = [];
 
-    // Always use multi-query approach across all categories
-    const results = await perplexityService.executeMultiQuery(city, date, effectiveCategories, options);
-    
-    // Parse events from all results and aggregate them
-    for (const result of results) {
-      result.events = eventAggregator.parseEventsFromResponse(result.response);
+    // Process categories one by one (progressive updates)
+    for (let i = 0; i < effectiveCategories.length; i++) {
+      const category = effectiveCategories[i];
+      
+      try {
+        console.log(`Processing category ${i + 1}/${effectiveCategories.length}: ${category}`);
+        
+        // Execute query for single category
+        const results = await perplexityService.executeMultiQuery(city, date, [category], options);
+        
+        if (results.length > 0) {
+          const result = results[0];
+          
+          // Parse events from this category result
+          result.events = eventAggregator.parseEventsFromResponse(result.response);
+          
+          // Add to debug info if enabled
+          if (debugInfo) {
+            const debugStep: DebugStep = {
+              category,
+              query: `Events in ${category} for ${city} on ${date}`, // Transparent query description
+              response: result.response,
+              parsedCount: result.events.length
+            };
+            debugInfo.steps.push(debugStep);
+          }
+          
+          // Aggregate new events with existing ones
+          const newResults = [{ ...result, events: result.events }];
+          const categoryEvents = eventAggregator.aggregateResults(newResults);
+          
+          // Merge with existing events and deduplicate
+          const combinedEvents = [...allEvents, ...categoryEvents];
+          allEvents = eventAggregator.deduplicateEvents(combinedEvents);
+          
+          // Categorize all events
+          allEvents = eventAggregator.categorizeEvents(allEvents);
+          
+          // Update job with current results (status remains 'pending')
+          job.events = allEvents;
+          
+          console.log(`Category ${category} complete: ${result.events.length} new events, ${allEvents.length} total`);
+        }
+        
+      } catch (categoryError) {
+        console.error(`Error processing category ${category}:`, categoryError);
+        
+        // Add failed step to debug info
+        if (debugInfo) {
+          const debugStep: DebugStep = {
+            category,
+            query: `Events in ${category} for ${city} on ${date}`,
+            response: `Error: ${categoryError instanceof Error ? categoryError.message : 'Unknown error'}`,
+            parsedCount: 0
+          };
+          debugInfo.steps.push(debugStep);
+        }
+        
+        // Continue with other categories instead of failing entire job
+        continue;
+      }
     }
-    
-    events = eventAggregator.aggregateResults(results);
 
-    // Categorize events
-    events = eventAggregator.categorizeEvents(events);
-
-    // Cache the results with dynamic TTL based on event timings
+    // Cache the final results with dynamic TTL based on event timings
     const cacheKey = InMemoryCache.createKey(city, date, effectiveCategories);
-    const ttlSeconds = computeTTLSecondsForEvents(events);
-    eventsCache.set(cacheKey, events, ttlSeconds);
+    const ttlSeconds = computeTTLSecondsForEvents(allEvents);
+    eventsCache.set(cacheKey, allEvents, ttlSeconds);
 
-    console.log(`Background job cached ${events.length} events with TTL: ${ttlSeconds} seconds`);
+    console.log(`Background job complete: cached ${allEvents.length} events with TTL: ${ttlSeconds} seconds`);
 
-    // Update job with results
+    // Update job with final status
     job.status = 'done';
-    job.events = events;
+    job.events = allEvents;
 
   } catch (error) {
     console.error('Background job error for:', jobId, error);
