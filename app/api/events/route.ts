@@ -5,6 +5,7 @@ import InMemoryCache from '@/lib/cache';
 import { createPerplexityService } from '@/lib/perplexity';
 import { eventAggregator } from '@/lib/aggregator';
 import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
+import { getJobStore } from '@/lib/jobStore';
 
 // Default categories used when request.categories is empty/missing
 const DEFAULT_CATEGORIES = [
@@ -39,23 +40,8 @@ const DEFAULT_PPLX_OPTIONS = {
 // - Adjust deduplication (fuzzy match with Levenshtein instead of hard equality)
 // - Optional: second aggregation pass with "loose" heuristics to not discard entries without website/price
 
-// Global map to store job statuses (shared with jobs API)
-const globalForJobs = global as unknown as { jobMap?: Map<string, JobStatus> };
-if (!globalForJobs.jobMap) {
-  globalForJobs.jobMap = new Map();
-}
-const jobMap = globalForJobs.jobMap!;
-
-// Global map to store debug information
-const globalForDebug = global as unknown as { debugMap?: Map<string, DebugInfo> };
-if (!globalForDebug.debugMap) {
-  globalForDebug.debugMap = new Map();
-}
-const debugMap = globalForDebug.debugMap!;
-
-// Export maps for use in jobs API - using global approach
-(global as any).jobMapForAPI = jobMap;
-(global as any).debugMapForAPI = debugMap;
+// Get JobStore instance for persisting job state
+const jobStore = getJobStore();
 
 export async function POST(request: NextRequest) {
   try {
@@ -87,7 +73,7 @@ export async function POST(request: NextRequest) {
         events: cachedEvents,
         createdAt: new Date()
       };
-      jobMap.set(jobId, job);
+      await jobStore.setJob(jobId, job);
       
       return NextResponse.json({
         jobId,
@@ -105,7 +91,7 @@ export async function POST(request: NextRequest) {
       createdAt: new Date()
     };
 
-    jobMap.set(jobId, job);
+    await jobStore.setJob(jobId, job);
 
     // Initialize debug info if debug mode is enabled
     if (options?.debug) {
@@ -117,7 +103,7 @@ export async function POST(request: NextRequest) {
         options: mergedOptions,
         steps: []
       };
-      debugMap.set(jobId, debugInfo);
+      await jobStore.setDebugInfo(jobId, debugInfo);
     }
 
     // Start background job (don't await)
@@ -149,11 +135,10 @@ async function fetchPerplexityInBackground(
   try {
     const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
     if (!PERPLEXITY_API_KEY) {
-      const job = jobMap.get(jobId);
-      if (job) {
-        job.status = 'error';
-        job.error = 'Perplexity API Key ist nicht konfiguriert';
-      }
+      await jobStore.updateJob(jobId, {
+        status: 'error',
+        error: 'Perplexity API Key ist nicht konfiguriert'
+      });
       return;
     }
 
@@ -164,16 +149,14 @@ async function fetchPerplexityInBackground(
 
     const perplexityService = createPerplexityService(PERPLEXITY_API_KEY);
     if (!perplexityService) {
-      const job = jobMap.get(jobId);
-      if (job) {
-        job.status = 'error';
-        job.error = 'Failed to create Perplexity service';
-      }
+      await jobStore.updateJob(jobId, {
+        status: 'error',
+        error: 'Failed to create Perplexity service'
+      });
       return;
     }
 
-    const job = jobMap.get(jobId);
-    const debugInfo = debugMap.get(jobId);
+    const job = await jobStore.getJob(jobId);
     if (!job) return; // Job might have been cleaned up
 
     let allEvents: EventData[] = [];
@@ -191,50 +174,49 @@ async function fetchPerplexityInBackground(
         if (results.length > 0) {
           const result = results[0];
           
-          // Parse events from this category result
-          result.events = eventAggregator.parseEventsFromResponse(result.response);
+          // Check if result has error (from retry failure)
+          const isErrorResult = result.response.startsWith('Error after');
           
-          // Add to debug info if enabled
-          if (debugInfo) {
-            const debugStep: DebugStep = {
-              category,
-              query: `Find ALL events happening on ${date} in ${city} of the category: ${category}. also check all venues of category ${category}. also check relevant webpages of ${category}. Also expand the query to find aditional events of category ${category}. the goal is to return a comprehensive list of all events of the category ${category} happening on ${date} in ${city}. `, // Transparent query description
-              response: result.response,
-              parsedCount: result.events.length
-            };
-            debugInfo.steps.push(debugStep);
+          if (!isErrorResult) {
+            // Parse events from this category result
+            result.events = eventAggregator.parseEventsFromResponse(result.response);
+            
+            // Aggregate new events with existing ones
+            const newResults = [{ ...result, events: result.events }];
+            const categoryEvents = eventAggregator.aggregateResults(newResults);
+            
+            // Merge with existing events and deduplicate
+            const combinedEvents = [...allEvents, ...categoryEvents];
+            allEvents = eventAggregator.deduplicateEvents(combinedEvents);
+            
+            // Categorize all events
+            allEvents = eventAggregator.categorizeEvents(allEvents);
+            
+            // Update job with current results (status remains 'pending')
+            await jobStore.updateJob(jobId, { events: allEvents });
+            
+            console.log(`Category ${category} complete: ${result.events.length} new events, ${allEvents.length} total`);
           }
           
-          // Aggregate new events with existing ones
-          const newResults = [{ ...result, events: result.events }];
-          const categoryEvents = eventAggregator.aggregateResults(newResults);
-          
-          // Merge with existing events and deduplicate
-          const combinedEvents = [...allEvents, ...categoryEvents];
-          allEvents = eventAggregator.deduplicateEvents(combinedEvents);
-          
-          // Categorize all events
-          allEvents = eventAggregator.categorizeEvents(allEvents);
-          
-          // Update job with current results (status remains 'pending')
-          job.events = allEvents;
-          
-          console.log(`Category ${category} complete: ${result.events.length} new events, ${allEvents.length} total`);
+          // Add to debug info if enabled (even for errors)
+          await jobStore.pushDebugStep(jobId, {
+            category,
+            query: `Find ALL events happening on ${date} in ${city} of the category: ${category}. also check all venues of category ${category}. also check relevant webpages of ${category}. Also expand the query to find aditional events of category ${category}. the goal is to return a comprehensive list of all events of the category ${category} happening on ${date} in ${city}. `, // Transparent query description
+            response: result.response,
+            parsedCount: isErrorResult ? 0 : result.events.length
+          });
         }
         
       } catch (categoryError) {
         console.error(`Error processing category ${category}:`, categoryError);
         
         // Add failed step to debug info
-        if (debugInfo) {
-          const debugStep: DebugStep = {
-            category,
-            query: `Events in ${category} for ${city} on ${date}`,
-            response: `Error: ${categoryError instanceof Error ? categoryError.message : 'Unknown error'}`,
-            parsedCount: 0
-          };
-          debugInfo.steps.push(debugStep);
-        }
+        await jobStore.pushDebugStep(jobId, {
+          category,
+          query: `Events in ${category} for ${city} on ${date}`,
+          response: `Error: ${categoryError instanceof Error ? categoryError.message : 'Unknown error'}`,
+          parsedCount: 0
+        });
         
         // Continue with other categories instead of failing entire job
         continue;
@@ -249,15 +231,16 @@ async function fetchPerplexityInBackground(
     console.log(`Background job complete: cached ${allEvents.length} events with TTL: ${ttlSeconds} seconds`);
 
     // Update job with final status
-    job.status = 'done';
-    job.events = allEvents;
+    await jobStore.updateJob(jobId, {
+      status: 'done',
+      events: allEvents
+    });
 
   } catch (error) {
     console.error('Background job error for:', jobId, error);
-    const job = jobMap.get(jobId);
-    if (job) {
-      job.status = 'error';
-      job.error = 'Fehler beim Verarbeiten der Anfrage';
-    }
+    await jobStore.updateJob(jobId, {
+      status: 'error',
+      error: 'Fehler beim Verarbeiten der Anfrage'
+    });
   }
 }

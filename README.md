@@ -5,11 +5,22 @@ Saubere Neuentwicklung der Eventsuchseite für Städte- und Zeitraumfilter.
 
 ### Environment Variables
 
-Create a `.env.local` file in the root directory and add your Perplexity API key:
+Create a `.env.local` file in the root directory and add your configuration:
 
 ```
+# Required: Perplexity API Key
 PERPLEXITY_API_KEY=your_perplexity_api_key_here
+
+# Optional: Upstash Redis for durable job state (production recommended)
+# When not set, uses in-memory storage (dev/local only)
+UPSTASH_REDIS_REST_URL=https://your-redis-url.upstash.io
+UPSTASH_REDIS_REST_TOKEN=your_redis_token_here
 ```
+
+**Redis Configuration (Production):**
+- In production environments (e.g., Vercel), configure Upstash Redis environment variables for durable job state persistence
+- This ensures progressive results work reliably across serverless route contexts
+- Without Redis, job state uses in-memory storage which doesn't persist across serverless function invocations
 
 ### Installation
 
