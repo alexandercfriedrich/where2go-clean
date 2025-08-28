@@ -34,7 +34,7 @@ const DEFAULT_CATEGORIES = [
 // Default Perplexity options
 const DEFAULT_PPLX_OPTIONS = {
   temperature: 0.2,
-  max_tokens: 5000
+  max_tokens: 10000
 };
 
 // Get JobStore instance for persisting job state
