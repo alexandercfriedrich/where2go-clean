@@ -190,10 +190,15 @@ async function processJobInBackground(
           
           // Execute query for single category with robust timeout
           const perCategoryTimeout = (() => {
-            if (typeof categoryTimeoutMs === 'object') return categoryTimeoutMs[category] || 90000;
+            if (typeof categoryTimeoutMs === 'object' && categoryTimeoutMs !== null) {
+              const categoryTimeout = categoryTimeoutMs[category];
+              return Math.max(typeof categoryTimeout === 'number' ? categoryTimeout : 90000, 60000);
+            }
             if (typeof categoryTimeoutMs === 'number') return Math.max(categoryTimeoutMs, 60000);
             return 90000;
           })();
+          
+          console.log(`Category ${category}: using timeout ${perCategoryTimeout}ms`);
 
           const queryPromise = perplexityService.executeMultiQuery(city, date, [category], options);
           const res = await withTimeout(queryPromise, perCategoryTimeout);
@@ -251,6 +256,7 @@ async function processJobInBackground(
               
               // Progressive update
               await jobStore.updateJob(jobId, { events: allEvents });
+              console.log(`Progressive update: ${allEvents.length} total events committed for category ${category} (step ${i + 1}/${results.length})`);
               
               // Push debug step with actual query
               await jobStore.pushDebugStep(jobId, {
