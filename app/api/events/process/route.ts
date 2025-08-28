@@ -228,7 +228,9 @@ async function processJobInBackground(
         if (categoryResult) {
           await jobStore.pushDebugStep(jobId, {
             category,
-            query: `Find ALL events happening on ${date} in ${city} of the category: ${category}. also check all venues of category ${category}. also check relevant webpages of ${category}. Also expand the query to find aditional events of category ${category}. the goal is to return a comprehensive list of all events of the category ${category} happening on ${date} in ${city}. `,
+            query: `Perform an ultra exhaustive search of all ${category} events in ${city} on ${date} across official venues and local event platforms and specialized ${category} websites. Find as many sources as possible through all channels. return a comprehensive list of events with the columns:exact title|start time|end time|venue name|full address|ticket price|event type|description|website|booking link or source. 
+            Gib eine allumfassende und vollständige Liste zurück von allen ${category}-Veranstaltungen in ${city} am ${date} mit den Spalten:Titel der Veranstaltung|Startzeit|Endzeit|Name des Veranstaltungsortes|Adresse des Veranstaltungsortes|Ticketpreis|Event Typ|Beschreibung|website|Buchungslink oder Quelle. Gib keine zusätzliche Informationen, Werbung oder Text zurück. 
+            Wenn keine Events gefunden wurden, schreibe "Keine passenden Events gefunden".`,
             response: categoryResult.response,
             parsedCount,
             addedCount,
