@@ -11,7 +11,9 @@ export class EventAggregator {
 
     // Parse events from each result
     for (const result of results) {
-      const events = this.parseEventsFromResponse(result.response);
+      // Try to extract category from query for better parsing context
+      const queryCategory = this.extractCategoryFromQuery(result.query);
+      const events = this.parseEventsFromResponse(result.response, queryCategory);
       allEvents.push(...events);
     }
 
@@ -20,29 +22,100 @@ export class EventAggregator {
   }
 
   /**
-   * Parses events from a single response text
-   * TODO: Make parser more tolerant of partial data and add fallback rules for missing times
-   * TODO: Consider implementing fuzzy matching for event deduplication using Levenshtein distance
+   * Helper method to extract category context from query text
    */
-  parseEventsFromResponse(responseText: string): EventData[] {
+  private extractCategoryFromQuery(query: string): string | undefined {
+    const categoryMap: { [key: string]: string } = {
+      'dj sets': 'DJ Sets/Electronic',
+      'electronic': 'DJ Sets/Electronic',
+      'clubs': 'Clubs/Discos',
+      'discos': 'Clubs/Discos',
+      'konzerte': 'Live-Konzerte',
+      'musik': 'Live-Konzerte',
+      'open air': 'Open Air',
+      'festival': 'Open Air',
+      'museen': 'Museen',
+      'ausstellung': 'Museen',
+      'lgbtq': 'LGBTQ+',
+      'queer': 'LGBTQ+',
+      'pride': 'LGBTQ+',
+      'comedy': 'Comedy/Kabarett',
+      'kabarett': 'Comedy/Kabarett',
+      'theater': 'Theater/Performance',
+      'performance': 'Theater/Performance',
+      'film': 'Film',
+      'kino': 'Film',
+      'food': 'Food/Culinary',
+      'culinary': 'Food/Culinary',
+      'sport': 'Sport',
+      'familie': 'Familien/Kids',
+      'kinder': 'Familien/Kids',
+      'kunst': 'Kunst/Design',
+      'design': 'Kunst/Design',
+      'wellness': 'Wellness/Spirituell',
+      'spirituell': 'Wellness/Spirituell',
+      'networking': 'Networking/Business',
+      'business': 'Networking/Business',
+      'natur': 'Natur/Outdoor',
+      'outdoor': 'Natur/Outdoor'
+    };
+
+    const lowerQuery = query.toLowerCase();
+    for (const [keyword, category] of Object.entries(categoryMap)) {
+      if (lowerQuery.includes(keyword)) {
+        return category;
+      }
+    }
+    
+    return undefined;
+  }
+
+  /**
+   * Parses events from a single response text with JSON-first approach
+   */
+  parseEventsFromResponse(responseText: string, requestCategory?: string, requestDate?: string): EventData[] {
     const events: EventData[] = [];
 
     try {
-      // First try to parse markdown tables with pipe-separated content
-      const markdownEvents = this.parseMarkdownTable(responseText);
-      if (markdownEvents.length > 0) {
-        events.push(...markdownEvents);
+      // Handle empty or "no events found" responses first
+      const trimmedResponse = responseText.trim();
+      if (!trimmedResponse || 
+          trimmedResponse.toLowerCase().includes('keine passenden events gefunden') ||
+          trimmedResponse.toLowerCase().includes('keine events gefunden') ||
+          trimmedResponse.toLowerCase().includes('no events found')) {
+        return [];
       }
 
-      // If no markdown table found, try JSON parsing
-      if (events.length === 0) {
-        const jsonEvents = this.parseJsonEvents(responseText);
+      // First try to parse as complete JSON array
+      try {
+        const jsonData = JSON.parse(trimmedResponse);
+        if (Array.isArray(jsonData)) {
+          const parsedEvents = this.parseJsonArray(jsonData, requestCategory, requestDate);
+          if (parsedEvents.length > 0) {
+            return parsedEvents;
+          }
+        }
+      } catch (error) {
+        // Not a complete JSON array, continue with other parsing methods
+      }
+
+      // Try to parse JSON objects line by line
+      const jsonEvents = this.parseJsonEvents(trimmedResponse, requestCategory, requestDate);
+      if (jsonEvents.length > 0) {
         events.push(...jsonEvents);
       }
 
-      // Falls keine Events gefunden wurden, erstelle Fallback-Daten
+      // If no JSON found, try markdown table parsing as fallback
       if (events.length === 0) {
-        const keywordEvents = this.extractKeywordBasedEvents(responseText);
+        const markdownEvents = this.parseMarkdownTable(trimmedResponse, requestCategory, requestDate);
+        if (markdownEvents.length > 0) {
+          events.push(...markdownEvents);
+        }
+      }
+
+      // Last resort: keyword-based extraction
+      if (events.length === 0) {
+        const keywordEvents = this.extractKeywordBasedEvents(trimmedResponse, requestCategory, requestDate);
         events.push(...keywordEvents);
       }
 
@@ -54,9 +127,9 @@ export class EventAggregator {
   }
 
   /**
-   * Parses markdown table format
+   * Parses markdown table format with fallback support
    */
-  private parseMarkdownTable(responseText: string): EventData[] {
+  private parseMarkdownTable(responseText: string, requestCategory?: string, requestDate?: string): EventData[] {
     const events: EventData[] = [];
     const lines = responseText.split('\n');
 
@@ -70,12 +143,16 @@ export class EventAggregator {
       return events; // Not enough lines for a table
     }
 
-    // Skip header line and separator line if present
-    let startIndex = 0;
-    if (tableLines.length > 1 && tableLines[1].includes('-')) {
-      startIndex = 2; // header + separator
-    } else {
-      startIndex = 1;
+    // Determine start index - skip header and separator if present
+    let startIndex = 1; // Start from second line by default (skip header)
+    
+    // Check if second line is a markdown table separator (mostly dashes and pipes)
+    if (tableLines.length > 1) {
+      const secondLine = tableLines[1].trim();
+      const isDashSeparator = /^\|[\s\-\|]+\|$/.test(secondLine) || secondLine.split('|').every(col => col.trim() === '' || /^[\-\s]*$/.test(col.trim()));
+      if (isDashSeparator) {
+        startIndex = 2; // Skip header + separator
+      }
     }
 
     // Parse data rows
@@ -87,25 +164,71 @@ export class EventAggregator {
         .map(col => col.trim())
         .filter((col, idx, arr) => !(idx === 0 && col === '') && !(idx === arr.length - 1 && col === ''));
 
-      // More tolerant parsing - accept tables with at least 3 columns (title, date, venue minimum)
+      // More tolerant parsing - accept tables with at least 3 columns
       if (columns.length >= 3) {
-        const event: EventData = {
-          title: columns[0] || '',
-          category: columns[1] || '',
-          date: columns[2] || '',
-          time: columns[3] || '',
-          venue: columns[4] || '',
-          price: columns[5] || '',
-          website: columns[6] || '',
-          // Enhanced optional fields
-          endTime: columns[7] || undefined,
-          address: columns[8] || undefined,
-          ticketPrice: columns[9] || columns[5] || undefined, // fallback to price
-          eventType: columns[10] || undefined,
-          description: columns[11] || undefined,
-          bookingLink: columns[12] || columns[6] || undefined, // fallback to website
-          ageRestrictions: columns[13] || undefined,
-        };
+        // Smart column mapping based on number of columns and content
+        let event: EventData;
+        
+        if (columns.length === 3) {
+          // Assume Title|Time|Venue or Title|Date|Venue format
+          const secondCol = columns[1];
+          const isTime = /^\d{1,2}:\d{2}/.test(secondCol);
+          const isDate = /^\d{4}-\d{2}-\d{2}/.test(secondCol) || /^\d{1,2}\.\d{1,2}\.\d{4}/.test(secondCol);
+          
+          if (isTime) {
+            // Title|Time|Venue
+            event = {
+              title: columns[0] || '',
+              category: requestCategory || '',
+              date: requestDate || '',
+              time: columns[1] || '',
+              venue: columns[2] || '',
+              price: '',
+              website: ''
+            };
+          } else if (isDate) {
+            // Title|Date|Venue
+            event = {
+              title: columns[0] || '',
+              category: requestCategory || '',
+              date: columns[1] || requestDate || '',
+              time: '',
+              venue: columns[2] || '',
+              price: '',
+              website: ''
+            };
+          } else {
+            // Fallback: Title|Category|Date
+            event = {
+              title: columns[0] || '',
+              category: columns[1] || requestCategory || '',
+              date: columns[2] || requestDate || '',
+              time: '',
+              venue: '',
+              price: '',
+              website: ''
+            };
+          }
+        } else {
+          // Standard full column mapping for 4+ columns
+          event = {
+            title: columns[0] || '',
+            category: columns[1] || requestCategory || '',
+            date: columns[2] || requestDate || '',
+            time: columns[3] || '',
+            venue: columns[4] || '',
+            price: columns[5] || '',
+            website: columns[6] || '',
+            // Enhanced optional fields
+            endTime: columns[7] || undefined,
+            address: columns[8] || undefined,
+            ticketPrice: columns[9] || columns[5] || undefined, // fallback to price
+            eventType: columns[10] || undefined,
+            description: columns[11] || undefined,
+            bookingLink: columns[12] || columns[6] || undefined, // fallback to website
+            ageRestrictions: columns[13] || undefined,
+          };
+        }
         
         // Only require title to be present
         if (event.title.length > 0) {
@@ -118,9 +241,27 @@ export class EventAggregator {
   }
 
   /**
+   * Parses a complete JSON array of events
+   */
+  private parseJsonArray(jsonArray: any[], requestCategory?: string, requestDate?: string): EventData[] {
+    const events: EventData[] = [];
+
+    for (const rawEvent of jsonArray) {
+      if (typeof rawEvent === 'object' && rawEvent !== null) {
+        const event = this.createEventFromObject(rawEvent, requestCategory, requestDate);
+        if (event.title && event.title.length > 0) {
+          events.push(event);
+        }
+      }
+    }
+
+    return events;
+  }
+
+  /**
    * Parses JSON format events with enhanced field support
    */
-  private parseJsonEvents(responseText: string): EventData[] {
+  private parseJsonEvents(responseText: string, requestCategory?: string, requestDate?: string): EventData[] {
     const events: EventData[] = [];
     const lines = responseText.split('\n');
     
@@ -129,25 +270,7 @@ export class EventAggregator {
       if (trimmedLine.startsWith('{') && trimmedLine.endsWith('}')) {
         try {
           const rawEvent = JSON.parse(trimmedLine);
-          
-          // Map various field names to our unified structure
-          const event: EventData = {
-            title: this.extractField(rawEvent, ['title', 'name', 'event', 'eventName']) || '',
-            category: this.extractField(rawEvent, ['category', 'type', 'genre']) || '',
-            date: this.extractField(rawEvent, ['date', 'eventDate', 'day']) || '',
-            time: this.extractField(rawEvent, ['time', 'startTime', 'start', 'begin', 'doors']) || '',
-            venue: this.extractField(rawEvent, ['venue', 'location', 'place']) || '',
-            price: this.extractField(rawEvent, ['price', 'cost', 'ticketPrice', 'entry']) || '',
-            website: this.extractField(rawEvent, ['website', 'url', 'link']) || '',
-            // Enhanced optional fields
-            endTime: this.extractField(rawEvent, ['endTime', 'end', 'finish']),
-            address: this.extractField(rawEvent, ['address', 'location', 'venueAddress']),
-            ticketPrice: this.extractField(rawEvent, ['ticketPrice', 'price', 'cost', 'entry']),
-            eventType: this.extractField(rawEvent, ['eventType', 'type', 'category']),
-            description: this.extractField(rawEvent, ['description', 'details', 'info']),
-            bookingLink: this.extractField(rawEvent, ['bookingLink', 'ticketLink', 'tickets', 'booking']),
-            ageRestrictions: this.extractField(rawEvent, ['ageRestrictions', 'age', 'ageLimit', 'restrictions']),
-          };
+          const event = this.createEventFromObject(rawEvent, requestCategory, requestDate);
           
           // Only require title to be present
           if (event.title && event.title.length > 0) {
@@ -160,6 +283,29 @@ export class EventAggregator {
     }
 
     return events;
+  }
+
+  /**
+   * Creates an EventData object from a raw object with field mapping and defaults
+   */
+  private createEventFromObject(rawEvent: any, requestCategory?: string, requestDate?: string): EventData {
+    return {
+      title: this.extractField(rawEvent, ['title', 'name', 'event', 'eventName']) || '',
+      category: this.extractField(rawEvent, ['category', 'type', 'genre']) || requestCategory || '',
+      date: this.extractField(rawEvent, ['date', 'eventDate', 'day']) || requestDate || '',
+      time: this.extractField(rawEvent, ['time', 'startTime', 'start', 'begin', 'doors']) || '',
+      venue: this.extractField(rawEvent, ['venue', 'location', 'place']) || '',
+      price: this.extractField(rawEvent, ['price', 'cost', 'ticketPrice', 'entry']) || '',
+      website: this.extractField(rawEvent, ['website', 'url', 'link']) || '',
+      // Enhanced optional fields - prioritize specific field names to avoid conflicts
+      endTime: this.extractField(rawEvent, ['endTime', 'end', 'finish']),
+      address: this.extractField(rawEvent, ['address', 'venueAddress']), // Remove 'location' to avoid venue conflict
+      ticketPrice: this.extractField(rawEvent, ['ticketPrice', 'cost', 'entry']), // Remove 'price' to avoid main price conflict
+      eventType: this.extractField(rawEvent, ['eventType']), // Remove 'type', 'category' to avoid conflicts
+      description: this.extractField(rawEvent, ['description', 'details', 'info']),
+      bookingLink: this.extractField(rawEvent, ['bookingLink', 'ticketLink', 'tickets', 'booking']),
+      ageRestrictions: this.extractField(rawEvent, ['ageRestrictions', 'age', 'ageLimit', 'restrictions']),
+    };
   }
 
   /**
@@ -177,7 +323,7 @@ export class EventAggregator {
   /**
    * Extracts events using keyword-based extraction as fallback with enhanced tolerance
    */
-  private extractKeywordBasedEvents(responseText: string): EventData[] {
+  private extractKeywordBasedEvents(responseText: string, requestCategory?: string, requestDate?: string): EventData[] {
     const events: EventData[] = [];
     
     // Split by multiple delimiters to be more tolerant
@@ -197,7 +343,7 @@ export class EventAggregator {
       }
 
       // Try to extract structured information from the sentence
-      const eventData = this.parseEventFromText(sentence);
+      const eventData = this.parseEventFromText(sentence, requestCategory, requestDate);
       if (eventData.title) {
         events.push(eventData);
       }
@@ -209,7 +355,7 @@ export class EventAggregator {
   /**
    * Attempts to parse structured event data from a text line
    */
-  private parseEventFromText(text: string): EventData {
+  private parseEventFromText(text: string, requestCategory?: string, requestDate?: string): EventData {
     // Basic pattern recognition for common event formats
     const timePattern = /(\d{1,2}:\d{2}|\d{1,2}\s*Uhr)/i;
     const datePattern = /(\d{1,2}\.?\d{1,2}\.?\d{2,4})/;
@@ -221,8 +367,8 @@ export class EventAggregator {
 
     return {
       title: text.trim(),
-      category: 'Event',
-      date: dateMatch ? dateMatch[1] : '',
+      category: requestCategory || 'Event',
+      date: dateMatch ? dateMatch[1] : (requestDate || ''),
       time: timeMatch ? timeMatch[1] : '',
       venue: '', // Cannot reliably extract from sentence
       price: priceMatch ? priceMatch[1] : '',

@@ -13,24 +13,48 @@ export class PerplexityService {
   }
 
   /**
-   * Builds a query prompt for a specific category
+   * Builds a query prompt for a specific category with strict JSON schema
    */
   private buildCategoryPrompt(city: string, date: string, category: string): string {
     return `
-Perform an ultra exhaustive search of all ${category} events in ${city} on ${date} across official venues and local event platforms and specialized ${category} websites. Find as many sources as possible through all channels. return a comprehensive list of events with the columns:exact title|start time|end time|venue name|full address|ticket price|event type|description|website|booking link or source. 
-Gib eine allumfassende und vollständige Liste zurück von allen ${category}-Veranstaltungen in ${city} am ${date} mit den Spalten:Titel der Veranstaltung|Startzeit|Endzeit|Name des Veranstaltungsortes|Adresse des Veranstaltungsortes|Ticketpreis|Event Typ|Beschreibung|website|Buchungslink oder Quelle. Gib keine zusätzliche Informationen, Werbung oder Text zurück. 
-Wenn keine Events gefunden wurden, schreibe "Keine passenden Events gefunden".
+Search for all ${category} events in ${city} on ${date}. Return ONLY a valid JSON array of event objects.
+
+REQUIRED: Return ONLY valid JSON. Do not include any explanatory text, markdown formatting, code fences, or additional content. 
+
+Each event object must have these exact field names:
+{
+  "title": "string - event name",
+  "date": "string - YYYY-MM-DD format",
+  "time": "string - HH:MM format (optional)",
+  "endTime": "string - HH:MM format (optional)", 
+  "venue": "string - venue name",
+  "address": "string - full address like 'Straße Hausnr, PLZ Stadt, Land' (optional)",
+  "category": "string - must be one of: DJ Sets/Electronic, Clubs/Discos, Live-Konzerte, Open Air, Museen, LGBTQ+, Comedy/Kabarett, Theater/Performance, Film, Food/Culinary, Sport, Familien/Kids, Kunst/Design, Wellness/Spirituell, Networking/Business, Natur/Outdoor",
+  "eventType": "string - specific event type (optional)",
+  "price": "string - entry price (optional)",
+  "ticketPrice": "string - ticket price (optional)",
+  "ageRestrictions": "string - age requirements (optional)",
+  "description": "string - short description (optional)",
+  "website": "string - event website URL",
+  "bookingLink": "string - ticket booking URL (optional)"
+}
+
+If no events are found, return: []
+
+WICHTIG: Suche nach allen ${category}-Veranstaltungen in ${city} am ${date}. Antworte NUR mit gültigem JSON Array. Keine Erklärungen, kein Markdown, keine Code-Blöcke.
+
+Falls keine Events gefunden: []
 `;
   }
 
   /**
-   * Builds a general query prompt (fallback to original behavior)
+   * Builds a general query prompt with strict JSON schema
    */
   private buildGeneralPrompt(city: string, date: string): string {
     return `
-Finde für die Stadt ${city} am ${date} ALLE tatsächlich existierenden Events in den kategorien:
+Search for all events in ${city} on ${date} across these categories:
 1. Konzerte & Musik (Klassik, Rock, Pop, Jazz, Elektronik)
-2. Theater & Kabarett & Comedy & Musicals
+2. Theater & Kabarett & Comedy & Musicals  
 3. Museen & Ausstellungen & Galerien (auch Sonderausstellungen)
 4. Clubs & DJ-Sets & Partys & Electronic Music Events
 5. Bars & Rooftop Events & Afterwork Events
@@ -40,9 +64,31 @@ Finde für die Stadt ${city} am ${date} ALLE tatsächlich existierenden Events i
 9. Universitäts- & Studentenevents
 10. Szene-Events & Underground Events & Alternative Events
 
+REQUIRED: Return ONLY a valid JSON array of event objects. Do not include any explanatory text, markdown formatting, code fences, or additional content.
 
-Antworte AUSSCHLIESSLICH mit dieser Tabelle (kein Fließtext, keine Fantasieevents, keine Beispiele, keine Werbung, keine weiteren Erklärungen).
-Wenn keine Events gefunden wurden, schreibe "Keine passenden Events gefunden".
+Each event object must have these exact field names:
+{
+  "title": "string - event name",
+  "date": "string - YYYY-MM-DD format", 
+  "time": "string - HH:MM format (optional)",
+  "endTime": "string - HH:MM format (optional)",
+  "venue": "string - venue name",
+  "address": "string - full address like 'Straße Hausnr, PLZ Stadt, Land' (optional)",
+  "category": "string - must be one of: DJ Sets/Electronic, Clubs/Discos, Live-Konzerte, Open Air, Museen, LGBTQ+, Comedy/Kabarett, Theater/Performance, Film, Food/Culinary, Sport, Familien/Kids, Kunst/Design, Wellness/Spirituell, Networking/Business, Natur/Outdoor",
+  "eventType": "string - specific event type (optional)",
+  "price": "string - entry price (optional)", 
+  "ticketPrice": "string - ticket price (optional)",
+  "ageRestrictions": "string - age requirements (optional)",
+  "description": "string - short description (optional)",
+  "website": "string - event website URL",
+  "bookingLink": "string - ticket booking URL (optional)"
+}
+
+If no events are found, return: []
+
+WICHTIG: Suche nach ALLEN Events in ${city} am ${date}. Antworte AUSSCHLIESSLICH mit gültigem JSON Array. Keine Erklärungen, kein Fließtext, kein Markdown, keine Code-Blöcke.
+
+Falls keine Events gefunden: []
 `;
   }
 
@@ -139,9 +185,12 @@ Wenn keine Events gefunden wurden, schreibe "Keine passenden Events gefunden".
     const queries = this.createQueries(city, date, categories);
     const results: PerplexityResult[] = [];
     
-    // Extract timeout from options, default to 90s
-    const timeoutMs = typeof options?.categoryTimeoutMs === 'number' ? 
+    // Extract timeout from options, ensure minimum of 60s, default to 90s
+    const rawTimeout = typeof options?.categoryTimeoutMs === 'number' ? 
       options.categoryTimeoutMs : 90000;
+    const timeoutMs = Math.max(rawTimeout, 60000); // Enforce minimum 60s
+
+    console.log(`Using category timeout: ${timeoutMs}ms (requested: ${rawTimeout}ms)`);
 
     // Process queries in batches with rate limiting
     for (let i = 0; i < queries.length; i += this.batchSize) {
