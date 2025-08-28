@@ -161,9 +161,12 @@ export async function POST(request: NextRequest) {
     const effectiveCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
     const mergedOptions = { ...DEFAULT_PPLX_OPTIONS, ...options };
 
-    // Check cache first (dynamic TTL based on event timing)
+    // Determine if cache should be bypassed
+    const disableCache = mergedOptions?.disableCache === true || mergedOptions?.debug === true;
+
+    // Check cache first (dynamic TTL based on event timing) - unless cache is disabled
     const cacheKey = InMemoryCache.createKey(city, date, effectiveCategories);
-    const cachedEvents = eventsCache.get<EventData[]>(cacheKey);
+    const cachedEvents = disableCache ? null : eventsCache.get<EventData[]>(cacheKey);
     
     if (cachedEvents) {
       console.log('Cache hit for:', cacheKey);
@@ -181,6 +184,12 @@ export async function POST(request: NextRequest) {
         jobId,
         status: 'pending' // Still return pending to maintain API compatibility
       });
+    }
+
+    if (disableCache) {
+      console.log('Cache bypass enabled (debug mode or disableCache flag)');
+    } else {
+      console.log('Cache miss for:', cacheKey);
     }
 
     // Generate unique job ID

@@ -36,6 +36,7 @@ export interface RequestBody {
     priceRange?: string;
     accessibility?: string;
     debug?: boolean; // New debug flag
+    disableCache?: boolean; // Cache bypass flag
   };
 }
 
