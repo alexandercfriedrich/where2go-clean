@@ -169,6 +169,7 @@ useEffect(() => {
             temperature: 0.2, 
             max_tokens: 10000,
             debug: debugMode,
+            disableCache: debugMode,
             categoryConcurrency: 5,
             categoryTimeoutMs: 90000, // Increased from 45s to 90s per category
             overallTimeoutMs: 240000, // 4 minutes overall timeout
