@@ -244,19 +244,26 @@ async function processJobInBackground(
               const newResults = [{ ...r, events: r.events }];
               const categoryEvents = eventAggregator.aggregateResults(newResults);
               
-              // Merge with existing events and deduplicate
-              const beforeCount = allEvents.length;
-              const combinedEvents = [...allEvents, ...categoryEvents];
-              allEvents = eventAggregator.deduplicateEvents(combinedEvents);
+              // Get current job state to ensure we have the latest events
+              const currentJob = await jobStore.getJob(jobId);
+              const currentEvents = currentJob?.events || [];
+              
+              // Merge with current events and deduplicate
+              const beforeCount = currentEvents.length;
+              const combinedEvents = [...currentEvents, ...categoryEvents];
+              const updatedEvents = eventAggregator.deduplicateEvents(combinedEvents);
               
               // Categorize all events
-              allEvents = eventAggregator.categorizeEvents(allEvents);
+              const finalEvents = eventAggregator.categorizeEvents(updatedEvents);
               
-              const addedCount = allEvents.length - beforeCount;
+              const addedCount = finalEvents.length - beforeCount;
               
-              // Progressive update
-              await jobStore.updateJob(jobId, { events: allEvents });
-              console.log(`Progressive update: ${allEvents.length} total events committed for category ${category} (step ${i + 1}/${results.length})`);
+              // Update local tracking variable for this worker
+              allEvents = finalEvents;
+              
+              // Progressive update with the latest merged events
+              await jobStore.updateJob(jobId, { events: finalEvents });
+              console.log(`Progressive update: ${finalEvents.length} total events committed for category ${category} (step ${i + 1}/${results.length})`);
               
               // Push debug step with actual query
               await jobStore.pushDebugStep(jobId, {
@@ -265,7 +272,7 @@ async function processJobInBackground(
                 response: r.response,
                 parsedCount,
                 addedCount,
-                totalAfter: allEvents.length
+                totalAfter: finalEvents.length
               });
               
             } catch (processingError: any) {
@@ -324,10 +331,16 @@ async function processJobInBackground(
         })
       ]);
       
-      console.log(`Background job complete: found ${allEvents.length} events total`);
+      // Get final events count from JobStore for accurate logging
+      const finalJob = await jobStore.getJob(jobId);
+      const finalEventCount = finalJob?.events?.length || 0;
+      console.log(`Background job complete: found ${finalEventCount} events total`);
     } catch (timeoutError: any) {
       if (timeoutError.message.includes('Overall timeout')) {
-        console.log(`Job ${jobId} stopped due to overall timeout of ${overallTimeoutMs}ms. Found ${allEvents.length} events so far.`);
+        // Get current events count from JobStore
+        const currentJob = await jobStore.getJob(jobId);
+        const currentEventCount = currentJob?.events?.length || 0;
+        console.log(`Job ${jobId} stopped due to overall timeout of ${overallTimeoutMs}ms. Found ${currentEventCount} events so far.`);
         // Continue to finalization with partial results
       } else {
         throw timeoutError; // Re-throw other errors
@@ -339,19 +352,27 @@ async function processJobInBackground(
 
     // Always finalize the job with status 'done', even if we have 0 events
     try {
+      // Get the final events from the JobStore (they may have been updated by workers)
+      const finalJob = await jobStore.getJob(jobId);
+      const finalEvents = finalJob?.events || allEvents || [];
+      
       // Cache the final results with dynamic TTL based on event timings
       const cacheKey = InMemoryCache.createKey(city, date, effectiveCategories);
-      const ttlSeconds = computeTTLSecondsForEvents(allEvents);
-      eventsCache.set(cacheKey, allEvents, ttlSeconds);
-      console.log(`Cached ${allEvents.length} events with TTL: ${ttlSeconds} seconds`);
+      const ttlSeconds = computeTTLSecondsForEvents(finalEvents);
+      eventsCache.set(cacheKey, finalEvents, ttlSeconds);
+      console.log(`Cached ${finalEvents.length} events with TTL: ${ttlSeconds} seconds`);
     } catch (cacheError) {
       console.error('Failed to cache results, but continuing:', cacheError);
     }
 
     // Update job with final status - this must succeed to prevent UI timeout
+    // Get current events from JobStore to ensure we don't overwrite progressive updates
+    const finalJob = await jobStore.getJob(jobId);
+    const finalEvents = finalJob?.events || [];
+    
     await jobStore.updateJob(jobId, {
       status: 'done',
-      events: allEvents
+      events: finalEvents
     });
 
   } catch (error) {
