@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getJobStore } from '@/lib/jobStore';
+import { normalizeEvents } from '@/lib/event-normalizer';
 
 // Explicit runtime configuration for clarity
 export const runtime = 'nodejs';
@@ -55,7 +56,8 @@ export async function GET(request: NextRequest, { params }: { params: { jobId: s
       jobId: job.id,
       status: job.status,
       // Always include events array if present, even for pending jobs
-      ...(job.events ? { events: job.events } : {}),
+      // Apply normalization to ensure consistent field names for the UI
+      ...(job.events ? { events: normalizeEvents(job.events) } : {}),
       ...(job.status === 'error' && job.error ? { error: job.error } : {})
     };
 
