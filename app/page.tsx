@@ -55,8 +55,8 @@ export default function Home() {
   const [debugData, setDebugData] = useState<any>(null);
   const [toast, setToast] = useState<{show: boolean, message: string}>({show: false, message: ''});
   
-  // To store polling interval id persistently
-  const pollInterval = useRef<NodeJS.Timeout | null>(null);
+  // To store polling interval id persistently - browser-safe type
+  const pollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   
   // To store latest events for polling comparison (fixes stale closure issue)
   const eventsRef = useRef<EventData[]>([]);
@@ -172,12 +172,13 @@ export default function Home() {
     let count = 0;
     const maxPolls = 48; // 48 x 10s = 480s = 8 Minuten
     
-    pollInterval.current = setInterval(async () => {
+    // Define polling function to avoid duplication
+    const performPoll = async (): Promise<void> => {
       count++;
       setPollCount(count);
       
       if (count > maxPolls) { // nach 8 Minuten abbrechen
-        clearInterval(pollInterval.current!);
+        if (pollInterval.current) clearInterval(pollInterval.current);
         setLoading(false);
         setJobStatus('error');
         setError('Die Suche dauert zu lange (Timeout nach 8 Minuten). Bitte versuche es später erneut.');
@@ -233,7 +234,7 @@ export default function Home() {
         
         // Handle completion
         if (job.status !== 'pending') {
-          clearInterval(pollInterval.current!);
+          if (pollInterval.current) clearInterval(pollInterval.current);
           setLoading(false);
           
           if (job.status === 'done') {
@@ -280,7 +281,13 @@ export default function Home() {
           setToast({show: false, message: ''});
         }, 3000);
       }
-    }, 10000); // alle 10 Sekunden pollen
+    };
+    
+    // Perform first poll immediately
+    performPoll();
+    
+    // Then set up interval for subsequent polls - using browser-safe type
+    pollInterval.current = setInterval(performPoll, 10000);
   };
 
   return (
