@@ -137,7 +137,8 @@ export default function Home() {
             max_tokens: 5000,
             debug: debugMode,
             categoryConcurrency: 5,
-            categoryTimeoutMs: 45000, // 45 seconds per category
+            categoryTimeoutMs: 90000, // Increased from 45s to 90s per category
+            overallTimeoutMs: 240000, // 4 minutes overall timeout
             maxAttempts: 5
           }
         }),
