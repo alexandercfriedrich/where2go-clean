@@ -46,6 +46,11 @@ export interface JobStatus {
   error?: string;
   createdAt: Date;
   debug?: DebugInfo; // New debug info
+  progress?: {
+    completedCategories: number;
+    totalCategories: number;
+  };
+  lastUpdateAt?: string; // ISO date string
 }
 
 export interface CacheEntry<T> {
