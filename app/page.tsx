@@ -134,7 +134,7 @@ export default function Home() {
           categories: selectedCategories,
           options: { 
             temperature: 0.2, 
-            max_tokens: 5000,
+            max_tokens: 10000,
             debug: debugMode,
             categoryConcurrency: 5,
             categoryTimeoutMs: 90000, // Increased from 45s to 90s per category
