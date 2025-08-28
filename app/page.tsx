@@ -102,11 +102,13 @@ useEffect(() => {
     eventsRef.current = events;
   }, [events]);
 
-  // Cleanup polling interval on component unmount
+  // Cleanup polling interval/timeout on component unmount
   useEffect(() => {
     return () => {
       if (pollInterval.current) {
+        // Handle both setInterval and setTimeout cleanup
         clearInterval(pollInterval.current);
+        clearTimeout(pollInterval.current);
         pollInterval.current = null;
       }
     };
@@ -196,13 +198,20 @@ useEffect(() => {
     }
   };
 
-  // Polling-Funktion (jetzt: max 8 Minuten) with progressive updates
+  // Polling-Funktion with progressive updates and adaptive intervals
   const startPolling = (jobId: string) => {
-    if (pollInterval.current) clearInterval(pollInterval.current);
+    if (pollInterval.current) {
+      clearInterval(pollInterval.current);
+      clearTimeout(pollInterval.current);
+    }
     
     // Reset poll count using ref to avoid closure issues
     pollCountRef.current = 0;
-    const maxPolls = 48; // 48 x 10s = 480s = 8 Minuten
+    
+    // Calculate maxPolls for ~8 minutes total:
+    // First 20 polls at 3s = 60s, remaining polls at 5s
+    // For 8 minutes (480s): 60s + (420s / 5s) = 20 + 84 = 104 total polls
+    const maxPolls = 104;
     
     // Define polling function to avoid duplication
     const performPoll = async (): Promise<void> => {
@@ -212,7 +221,10 @@ useEffect(() => {
       console.log(`Poll tick #${pollCountRef.current} for job ${jobId}`);
       
       if (pollCountRef.current > maxPolls) { // nach 8 Minuten abbrechen
-        if (pollInterval.current) clearInterval(pollInterval.current);
+        if (pollInterval.current) {
+          clearInterval(pollInterval.current);
+          clearTimeout(pollInterval.current);
+        }
         setLoading(false);
         setJobStatus('error');
         setError('Die Suche dauert zu lange (Timeout nach 8 Minuten). Bitte versuche es später erneut.');
@@ -245,8 +257,8 @@ useEffect(() => {
             }
           });
           
-          // Update events
-          setEvents(incomingEvents);
+          // Update events with spread operator to force rerenders
+          setEvents([...incomingEvents]);
           
           // Show toast for new events
           if (newEventKeys.size > 0) {
@@ -268,12 +280,24 @@ useEffect(() => {
             setDebugData(job.debug);
           }
           
+          // Set up next poll with adaptive interval
+          if (pollInterval.current) {
+            clearInterval(pollInterval.current);
+            clearTimeout(pollInterval.current);
+          }
+          const nextIntervalMs = pollCountRef.current < 20 ? 3000 : 5000;
+          console.log(`Next poll in ${nextIntervalMs}ms (adaptive interval based on poll count: ${pollCountRef.current})`);
+          pollInterval.current = setTimeout(performPoll, nextIntervalMs);
+          
           return; // Continue polling
         }
         
         // Handle completion
         if (job.status !== 'pending') {
-          if (pollInterval.current) clearInterval(pollInterval.current);
+          if (pollInterval.current) {
+            clearInterval(pollInterval.current);
+            clearTimeout(pollInterval.current);
+          }
           setLoading(false);
           
           if (job.status === 'done') {
@@ -295,7 +319,8 @@ useEffect(() => {
               }, 3000);
             }
             
-            setEvents(incomingEvents);
+            // Update events with spread operator to force rerenders
+            setEvents([...incomingEvents]);
             setJobStatus('done');
             
             // Update debug data if available
@@ -306,6 +331,15 @@ useEffect(() => {
             setJobStatus('error');
             setError(job.error || 'Fehler bei der Eventsuche.');
           }
+        } else {
+          // Still pending but no events yet - continue polling with adaptive interval
+          if (pollInterval.current) {
+            clearInterval(pollInterval.current);
+            clearTimeout(pollInterval.current);
+          }
+          const nextIntervalMs = pollCountRef.current < 20 ? 3000 : 5000;
+          console.log(`Still pending, next poll in ${nextIntervalMs}ms (adaptive interval based on poll count: ${pollCountRef.current})`);
+          pollInterval.current = setTimeout(performPoll, nextIntervalMs);
         }
       } catch (err) {
         // Show non-blocking toast for transient errors, continue polling
@@ -319,14 +353,20 @@ useEffect(() => {
         setTimeout(() => {
           setToast({show: false, message: ''});
         }, 3000);
+        
+        // Continue polling with adaptive interval after error
+        if (pollInterval.current) {
+          clearInterval(pollInterval.current);
+          clearTimeout(pollInterval.current);
+        }
+        const nextIntervalMs = pollCountRef.current < 20 ? 3000 : 5000;
+        console.log(`Error occurred, retrying in ${nextIntervalMs}ms (adaptive interval based on poll count: ${pollCountRef.current})`);
+        pollInterval.current = setTimeout(performPoll, nextIntervalMs);
       }
     };
     
     // Perform first poll immediately
     performPoll();
-    
-    // Then set up interval for subsequent polls - using browser-safe type
-    pollInterval.current = setInterval(performPoll, 10000);
   };
 
   return (
