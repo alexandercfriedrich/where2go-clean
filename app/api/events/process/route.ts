@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { EventData, DebugStep } from '@/lib/types';
+import { EventData } from '@/lib/types';
 import { eventsCache } from '@/lib/cache';
 import InMemoryCache from '@/lib/cache';
 import { createPerplexityService } from '@/lib/perplexity';
@@ -112,12 +112,16 @@ async function processJobInBackground(
     // Default to DEFAULT_CATEGORIES when categories is missing or empty
     const effectiveCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
     
-    // Extract options with defaults - increased timeouts to prevent 30s cutoff
+    // Extract options with defaults - increased timeouts to prevent premature cutoff
     const categoryConcurrency = options?.categoryConcurrency || 5;
     
-    // Default categoryTimeoutMs to 90s (90000ms), minimum 60s on Vercel to reduce flakiness
+    // Default categoryTimeoutMs to 90s (90000ms), enforce minimum 60s (esp. on Vercel)
     const isVercel = process.env.VERCEL === '1';
-    const defaultCategoryTimeout = isVercel ? Math.max(options?.categoryTimeoutMs || 90000, 60000) : (options?.categoryTimeoutMs || 90000);
+    const requestedCategoryTimeout =
+      typeof options?.categoryTimeoutMs === 'number' ? options.categoryTimeoutMs : 90000;
+    const defaultCategoryTimeout = isVercel
+      ? Math.max(requestedCategoryTimeout, 60000)
+      : requestedCategoryTimeout;
     const categoryTimeoutMs = defaultCategoryTimeout;
     
     // Overall timeout defaults to 4 minutes (240000ms), configurable via env var
@@ -151,26 +155,50 @@ async function processJobInBackground(
     let allEvents: EventData[] = [];
     let completedCategories = 0;
 
+    // Process categories in parallel with controlled concurrency, respecting overall timeout
+    const processingPromises: Promise<void>[] = [];
+    let currentIndex = 0;
+
+    // Create worker function that processes categories from the queue
+    const worker = async (): Promise<void> => {
+      while (currentIndex < effectiveCategories.length && !overallAbortController.signal.aborted) {
+        const categoryIndex = currentIndex++;
+        if (categoryIndex >= effectiveCategories.length) break;
+        
+        const category = effectiveCategories[categoryIndex];
+        
+        // Check if overall timeout was reached before processing each category
+        if (overallAbortController.signal.aborted) {
+          console.log(`Overall timeout reached, skipping category: ${category}`);
+          break;
+        }
+        
+        await processCategory(category, categoryIndex);
+      }
+    };
+
     // Create a worker function for processing a single category
     const processCategory = async (category: string, categoryIndex: number): Promise<void> => {
-      let categoryResult = null;
       let attempts = 0;
+      let results: Array<{ query: string; response: string; events: EventData[]; timestamp: number; }> | null = null;
       
-      while (attempts < maxAttempts && !categoryResult) {
+      while (attempts < maxAttempts && !results) {
         attempts++;
         
         try {
           console.log(`Processing category ${categoryIndex + 1}/${effectiveCategories.length}: ${category} (attempt ${attempts}/${maxAttempts})`);
           
-          // Execute query for single category with timeout
-          const categoryTimeout = typeof categoryTimeoutMs === 'object' ? 
-            categoryTimeoutMs[category] || 45000 : categoryTimeoutMs;
-          
+          // Execute query for single category with robust timeout
+          const perCategoryTimeout = (() => {
+            if (typeof categoryTimeoutMs === 'object') return categoryTimeoutMs[category] || 90000;
+            if (typeof categoryTimeoutMs === 'number') return Math.max(categoryTimeoutMs, 60000);
+            return 90000;
+          })();
+
           const queryPromise = perplexityService.executeMultiQuery(city, date, [category], options);
-          const results = await withTimeout(queryPromise, categoryTimeout);
-          
-          if (results.length > 0) {
-            categoryResult = results[0];
+          const res = await withTimeout(queryPromise, perCategoryTimeout);
+          if (res && res.length > 0) {
+            results = res;
           }
           
         } catch (categoryError: any) {
@@ -197,24 +225,18 @@ async function processJobInBackground(
         }
       }
       
-      // Process the result if we got one - wrap everything in try/catch to prevent escaping exceptions
-      let parsedCount = 0;
-      let addedCount = 0;
-      let processedSuccessfully = false;
-      
+      // Process all sub-results if we got some - wrap in try/catch to prevent escaping exceptions
       try {
-        if (categoryResult) {
-          // Check if result has error (from retry failure)
-          const isErrorResult = categoryResult.response.startsWith('Error after');
-          
-          if (!isErrorResult) {
+        if (results && results.length > 0) {
+          for (let i = 0; i < results.length; i++) {
+            const r = results[i];
             try {
-              // Parse events from this category result
-              categoryResult.events = eventAggregator.parseEventsFromResponse(categoryResult.response);
-              parsedCount = categoryResult.events.length;
+              // Parse events from this sub-result
+              r.events = eventAggregator.parseEventsFromResponse(r.response);
+              const parsedCount = r.events.length;
               
-              // Aggregate new events with existing ones
-              const newResults = [{ ...categoryResult, events: categoryResult.events }];
+              // Aggregate new events from this sub-result
+              const newResults = [{ ...r, events: r.events }];
               const categoryEvents = eventAggregator.aggregateResults(newResults);
               
               // Merge with existing events and deduplicate
@@ -225,74 +247,57 @@ async function processJobInBackground(
               // Categorize all events
               allEvents = eventAggregator.categorizeEvents(allEvents);
               
-              addedCount = allEvents.length - beforeCount;
+              const addedCount = allEvents.length - beforeCount;
               
-              // Update job with current results (status remains 'pending') - progressive updates
+              // Progressive update
               await jobStore.updateJob(jobId, { events: allEvents });
               
-              console.log(`Category ${category} complete: ${parsedCount} parsed, ${addedCount} added, ${allEvents.length} total`);
-              processedSuccessfully = true;
+              // Push debug step with actual query
+              await jobStore.pushDebugStep(jobId, {
+                category,
+                query: r.query,
+                response: r.response,
+                parsedCount,
+                addedCount,
+                totalAfter: allEvents.length
+              });
+              
             } catch (processingError: any) {
-              console.error(`Error processing results for category ${category}:`, processingError.message);
-              // Keep parsedCount from successful parsing, but reset addedCount
-              addedCount = 0;
-              // Update categoryResult to reflect the error
-              categoryResult.response = `Processing error: ${processingError.message}`;
+              console.error(`Error processing sub-result ${i + 1}/${results.length} for category ${category}:`, processingError.message);
+              await jobStore.pushDebugStep(jobId, {
+                category,
+                query: r?.query || `Events in ${category} for ${city} on ${date} (sub-result ${i + 1})`,
+                response: `Processing error: ${processingError.message}`,
+                parsedCount: 0,
+                addedCount: 0,
+                totalAfter: allEvents.length
+              });
             }
           }
-        }
-        
-        // Always push debug step, even for processing errors
-        if (categoryResult) {
-          await jobStore.pushDebugStep(jobId, {
-            category,
-            query: `Perform an exhaustive search of all ${category} events in ${city} on ${date} across official venues and local event platforms and specialized ${category} websites. Find as many sources as possible through all channels. return a comprehensive list of events including: exact title | start time | end time  |venue name | clickable venue address | ticket price | event type |description |website | clickable booking link or clickable sourcelink.`,
-            response: categoryResult.response,
-            parsedCount,
-            addedCount,
-            totalAfter: allEvents.length
-          });
         } else {
-          // All attempts failed for this category, add final debug step and continue
-          console.error(`All ${maxAttempts} attempts failed for category ${category}, continuing with other categories`);
-          
+          // No results returned after all attempts
           await jobStore.pushDebugStep(jobId, {
             category,
             query: `Events in ${category} for ${city} on ${date}`,
-            response: `Error: All ${maxAttempts} attempts failed`,
+            response: `No results returned`,
             parsedCount: 0,
             addedCount: 0,
             totalAfter: allEvents.length
           });
         }
-      } catch (debugError: any) {
-        // Even debug step pushing failed, but don't let this crash the worker
-        console.error(`Failed to push debug step for category ${category}:`, debugError.message);
+      } catch (outerProcessingError: any) {
+        console.error(`Error processing results array for category ${category}:`, outerProcessingError.message);
+        await jobStore.pushDebugStep(jobId, {
+          category,
+          query: `Events in ${category} for ${city} on ${date}`,
+          response: `Processing error: ${outerProcessingError.message}`,
+          parsedCount: 0,
+          addedCount: 0,
+          totalAfter: allEvents.length
+        });
       }
-      
+
       completedCategories++;
-    };
-
-    // Process categories in parallel with controlled concurrency, respecting overall timeout
-    const processingPromises: Promise<void>[] = [];
-    let currentIndex = 0;
-
-    // Create worker function that processes categories from the queue
-    const worker = async (): Promise<void> => {
-      while (currentIndex < effectiveCategories.length && !overallAbortController.signal.aborted) {
-        const categoryIndex = currentIndex++;
-        if (categoryIndex >= effectiveCategories.length) break;
-        
-        const category = effectiveCategories[categoryIndex];
-        
-        // Check if overall timeout was reached before processing each category
-        if (overallAbortController.signal.aborted) {
-          console.log(`Overall timeout reached, skipping category: ${category}`);
-          break;
-        }
-        
-        await processCategory(category, categoryIndex);
-      }
     };
 
     // Start workers (up to concurrency limit)
