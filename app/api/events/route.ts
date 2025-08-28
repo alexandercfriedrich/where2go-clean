@@ -95,6 +95,7 @@ async function scheduleBackgroundProcessing(
     }
     
     // Make internal HTTP request to background processor with special header
+    console.log(`Scheduling background processing: ${backgroundUrl}`);
     const response = await fetch(backgroundUrl, {
       method: 'POST',
       headers,
@@ -115,10 +116,11 @@ async function scheduleBackgroundProcessing(
     
   } else {
     // Local development fallback - make local HTTP request without awaiting
-    console.log('Running in local development, making async request to background processor');
+    const localUrl = 'http://localhost:3000/api/events/process';
+    console.log(`Running in local development, making async request to background processor: ${localUrl}`);
     
     // Fire and forget request for local development
-    fetch(`http://localhost:3000/api/events/process`, {
+    fetch(localUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

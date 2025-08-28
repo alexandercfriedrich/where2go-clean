@@ -262,8 +262,15 @@ async function processJobInBackground(
               allEvents = finalEvents;
               
               // Progressive update with the latest merged events
-              await jobStore.updateJob(jobId, { events: finalEvents });
-              console.log(`Progressive update: ${finalEvents.length} total events committed for category ${category} (step ${i + 1}/${results.length})`);
+              await jobStore.updateJob(jobId, { 
+                events: finalEvents,
+                progress: { 
+                  completedCategories, 
+                  totalCategories: effectiveCategories.length 
+                },
+                lastUpdateAt: new Date().toISOString()
+              });
+              console.log(`Progressive update: ${finalEvents.length} total events committed for category ${category} (step ${i + 1}/${results.length}), progress: ${completedCategories}/${effectiveCategories.length} categories, parsed: ${parsedCount}, added: ${addedCount}`);
               
               // Push debug step with actual query
               await jobStore.pushDebugStep(jobId, {
@@ -372,7 +379,12 @@ async function processJobInBackground(
     
     await jobStore.updateJob(jobId, {
       status: 'done',
-      events: finalEvents
+      events: finalEvents,
+      progress: { 
+        completedCategories: effectiveCategories.length, 
+        totalCategories: effectiveCategories.length 
+      },
+      lastUpdateAt: new Date().toISOString()
     });
 
   } catch (error) {

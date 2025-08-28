@@ -50,6 +50,7 @@ export default function Home() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [jobStatus, setJobStatus] = useState<'idle' | 'pending' | 'done' | 'error'>('idle');
   const [pollCount, setPollCount] = useState(0);
+  const [progress, setProgress] = useState<{completedCategories: number, totalCategories: number} | null>(null);
   const [newEvents, setNewEvents] = useState<Set<string>>(new Set());
   const [debugMode, setDebugMode] = useState(false);
   const [debugData, setDebugData] = useState<any>(null);
@@ -60,6 +61,9 @@ export default function Home() {
   
   // To store latest events for polling comparison (fixes stale closure issue)
   const eventsRef = useRef<EventData[]>([]);
+
+  // To store poll count persistently to avoid closure resets
+  const pollCountRef = useRef<number>(0);
 
   // Check for debug mode from URL on component mount
   useEffect(() => {
@@ -121,6 +125,7 @@ export default function Home() {
     setJobId(null);
     setJobStatus('pending');
     setPollCount(0);
+    setProgress(null);
     setDebugData(null);
 
     // Job starten
@@ -169,15 +174,18 @@ export default function Home() {
   const startPolling = (jobId: string) => {
     if (pollInterval.current) clearInterval(pollInterval.current);
     
-    let count = 0;
+    // Reset poll count using ref to avoid closure issues
+    pollCountRef.current = 0;
     const maxPolls = 48; // 48 x 10s = 480s = 8 Minuten
     
     // Define polling function to avoid duplication
     const performPoll = async (): Promise<void> => {
-      count++;
-      setPollCount(count);
+      pollCountRef.current++;
+      setPollCount(pollCountRef.current);
       
-      if (count > maxPolls) { // nach 8 Minuten abbrechen
+      console.log(`Poll tick #${pollCountRef.current} for job ${jobId}`);
+      
+      if (pollCountRef.current > maxPolls) { // nach 8 Minuten abbrechen
         if (pollInterval.current) clearInterval(pollInterval.current);
         setLoading(false);
         setJobStatus('error');
@@ -191,6 +199,11 @@ export default function Home() {
         if (!res.ok) throw new Error(`Status ${res.status}`);
         
         const job = await res.json();
+        
+        // Update progress if available
+        if (job.progress) {
+          setProgress(job.progress);
+        }
         
         // Handle progressive updates - show events even if still pending
         if (job.status === 'pending' && job.events && job.events.length > 0) {
@@ -270,10 +283,10 @@ export default function Home() {
         }
       } catch (err) {
         // Show non-blocking toast for transient errors, continue polling
-        console.warn(`Polling attempt ${count} failed:`, err);
+        console.warn(`Polling attempt ${pollCountRef.current} failed:`, err);
         setToast({
           show: true,
-          message: `Netzwerkfehler (Versuch ${count}) - Suche läuft weiter...`
+          message: `Netzwerkfehler (Versuch ${pollCountRef.current}) - Suche läuft weiter...`
         });
         
         // Hide toast after 3 seconds but don't stop polling
@@ -411,6 +424,9 @@ export default function Home() {
               }
             </p>
             <p>Abfrage <span className="font-mono">{pollCount}/48</span> (max. 480 sec / 8min)</p>
+            {jobStatus === 'pending' && progress && (
+              <p>Kategorien: <span className="font-mono">{progress.completedCategories}/{progress.totalCategories}</span> abgeschlossen</p>
+            )}
             <p>KI-Auswertung kann länger dauern!</p>
           </div>
         )}

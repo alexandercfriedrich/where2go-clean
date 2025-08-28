@@ -58,8 +58,14 @@ export async function GET(request: NextRequest, { params }: { params: { jobId: s
       // Always include events array if present, even for pending jobs
       // Apply normalization to ensure consistent field names for the UI
       ...(job.events ? { events: normalizeEvents(job.events) } : {}),
-      ...(job.status === 'error' && job.error ? { error: job.error } : {})
+      ...(job.status === 'error' && job.error ? { error: job.error } : {}),
+      // Include progress fields when available
+      ...(job.progress ? { progress: job.progress } : {}),
+      ...(job.lastUpdateAt ? { lastUpdateAt: job.lastUpdateAt } : {})
     };
+
+    // Add lightweight request logging for debugging
+    console.log(`Job status request: ${jobId}, status: ${job.status}, hasEvents: ${!!job.events}, hasProgress: ${!!job.progress}`);
 
     // Include debug data if requested and available
     if (debugMode) {
