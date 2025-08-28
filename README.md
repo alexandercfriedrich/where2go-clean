@@ -215,6 +215,41 @@ Both public endpoints accept the same request body format and use shared caching
 }
 ```
 
+### Diagnostics
+
+#### JobStore Diagnostics Endpoint
+
+To verify Redis configuration and connectivity, use the diagnostics endpoint:
+
+```bash
+# Development (no authentication required)
+GET /api/diagnostics/jobstore
+
+# Production (requires x-internal-secret header)
+curl -H "x-internal-secret: your-secret" https://yourdomain.com/api/diagnostics/jobstore
+```
+
+**Response Format:**
+```json
+{
+  "timestamp": "2025-01-20T15:00:00Z",
+  "environment": "production",
+  "usingRedis": true,
+  "setGetOk": true,
+  "error": null
+}
+```
+
+**Response Fields:**
+- `usingRedis`: Whether Redis environment variables are configured and JobStore is using Redis
+- `setGetOk`: Whether set/get/delete operations succeed (tests actual Redis connectivity)
+- `error`: Error message if diagnostics fail, null if successful
+
+**Use Cases:**
+- Verify Redis is properly configured in production
+- Troubleshoot progressive update issues (Redis connectivity problems prevent incremental results)
+- Confirm job state persistence is working correctly
+
 ### Caching Policy
 
 The application uses intelligent caching with dynamic TTL (Time To Live) based on event timing:
