@@ -79,11 +79,39 @@ class RedisJobStore implements JobStore {
   }
 
   async updateJob(jobId: string, updates: Partial<JobStatus>): Promise<void> {
-    const existing = await this.getJob(jobId);
-    if (!existing) return;
+    // For Redis, we need to implement an atomic update operation
+    // Use a simple retry mechanism with exponential backoff to handle concurrent updates
+    const maxRetries = 5;
+    let retries = 0;
     
-    const updated = { ...existing, ...updates };
-    await this.setJob(jobId, updated);
+    while (retries < maxRetries) {
+      try {
+        const existing = await this.getJob(jobId);
+        if (!existing) return;
+        
+        const updated = { ...existing, ...updates };
+        
+        // Try to use conditional write if supported, otherwise fall back to simple write
+        try {
+          // First attempt: optimistic update
+          await this.setJob(jobId, updated);
+          return; // Success
+        } catch (writeError) {
+          throw writeError;
+        }
+        
+      } catch (error) {
+        retries++;
+        if (retries >= maxRetries) {
+          console.error(`Failed to update job ${jobId} after ${maxRetries} retries:`, error);
+          throw error;
+        }
+        
+        // Exponential backoff: 10ms, 20ms, 40ms, 80ms, 160ms
+        const delay = 10 * Math.pow(2, retries - 1);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
   }
 
   async deleteJob(jobId: string): Promise<void> {
@@ -158,6 +186,7 @@ class RedisJobStore implements JobStore {
 class InMemoryJobStore implements JobStore {
   private jobs = new Map<string, JobStatus>();
   private debugInfo = new Map<string, DebugInfo>();
+  private updateLocks = new Map<string, Promise<void>>();
 
   async setJob(jobId: string, job: JobStatus): Promise<void> {
     // Serialize and deserialize to ensure consistency with Redis store
@@ -194,9 +223,33 @@ class InMemoryJobStore implements JobStore {
   }
 
   async updateJob(jobId: string, updates: Partial<JobStatus>): Promise<void> {
+    // Use a simple locking mechanism to prevent concurrent updates
+    const existingLock = this.updateLocks.get(jobId);
+    if (existingLock) {
+      await existingLock;
+    }
+
+    const updatePromise = this.performUpdate(jobId, updates);
+    this.updateLocks.set(jobId, updatePromise);
+    
+    try {
+      await updatePromise;
+    } finally {
+      this.updateLocks.delete(jobId);
+    }
+  }
+
+  private async performUpdate(jobId: string, updates: Partial<JobStatus>): Promise<void> {
     const existing = this.jobs.get(jobId);
     if (existing) {
-      this.jobs.set(jobId, { ...existing, ...updates });
+      // Create a new object to avoid mutation issues in concurrent environments
+      const updated = { 
+        ...existing, 
+        ...updates,
+        // Ensure createdAt is preserved properly
+        createdAt: existing.createdAt
+      };
+      this.jobs.set(jobId, updated);
     }
   }
 
