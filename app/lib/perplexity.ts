@@ -17,8 +17,8 @@ export class PerplexityService {
    */
   private buildCategoryPrompt(city: string, date: string, category: string): string {
     return `
-Perform an ultra exhaustive research of all ${category} events in ${city} on ${date} across official venues and local event platforms and specialized ${category} websites. find ultra many sources as possible through all channels. ultimate goal is to return a comprehensive list of events and no additional infos or ads or text. Include ALL details: exact title, start time, end time, venue name, full address, ticket price, event type, description, website, booking link. 
-Führen Sie eine äußerst umfassende Recherche aller ${category}-Veranstaltungen in ${city} am ${date} an offiziellen Veranstaltungsorten, lokalen Veranstaltungsplattformen und spezialisierten ${category}-Websites durch. Finden Sie so viele Quellen wie möglich über alle Kanäle. Das ultimative Ziel ist es, eine umfassende Liste der Veranstaltungen ohne zusätzliche Informationen, Werbung oder Text zurückzugeben. Geben Sie ALLE Details an: genauer Titel, Startzeit, Endzeit, Name des Veranstaltungsortes, vollständige Adresse, Ticketpreis, Veranstaltungstyp, Beschreibung, Website, Buchungslink.
+Perform an ultra exhaustive search of all ${category} events in ${city} on ${date} across official venues and local event platforms and specialized ${category} websites. Find as many sources as possible through all channels. return a comprehensive list of events with the columns:exact title|start time|end time|venue name|full address|ticket price|event type|description|website|booking link or source. 
+Gib eine allumfassende und vollständige Liste zurück von allen ${category}-Veranstaltungen in ${city} am ${date} mit den Spalten:Titel der Veranstaltung|Startzeit|Endzeit|Name des Veranstaltungsortes|Adresse des Veranstaltungsortes|Ticketpreis|Event Typ|Beschreibung|website|Buchungslink oder Quelle. Gib keine zusätzliche Informationen, Werbung oder Text zurück. 
 Wenn keine Events gefunden wurden, schreibe "Keine passenden Events gefunden".
 `;
   }
