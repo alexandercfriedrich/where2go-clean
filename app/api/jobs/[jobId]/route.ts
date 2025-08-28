@@ -81,7 +81,11 @@ export async function GET(request: NextRequest, { params }: { params: { jobId: s
     }
 
     return NextResponse.json(response, {
-      headers: { 'Cache-Control': 'no-store' }
+      headers: { 
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      }
     });
     
   } catch (error) {
