@@ -307,7 +307,9 @@ async function processJobInBackground(
     };
 
     // Start workers (up to concurrency limit)
-    for (let i = 0; i < Math.min(categoryConcurrency, effectiveCategories.length); i++) {
+    const workerCount = Math.min(categoryConcurrency, effectiveCategories.length);
+    console.log(`Starting ${workerCount} parallel workers for ${effectiveCategories.length} categories`);
+    for (let i = 0; i < workerCount; i++) {
       processingPromises.push(worker());
     }
 
