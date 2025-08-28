@@ -65,6 +65,32 @@ export default function Home() {
   // To store poll count persistently to avoid closure resets
   const pollCountRef = useRef<number>(0);
 
+  
+  // app/page.tsx – ADD this useEffect near your other useEffects
+useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const design = params.get('design');
+  const id = 'w2g-design-css';
+  const existing = document.getElementById(id) as HTMLLinkElement | null;
+
+  const isValid = design === '1' || design === '2' || design === '3';
+  if (isValid) {
+    const href = `/designs/design${design}.css`;
+    if (existing) {
+      if (existing.getAttribute('href') !== href) existing.setAttribute('href', href);
+    } else {
+      const link = document.createElement('link');
+      link.id = id;
+      link.rel = 'stylesheet';
+      link.href = href;
+      document.head.appendChild(link);
+    }
+  } else {
+    if (existing) existing.remove(); // fall back to globals.css
+  }
+}, []);
+
+  
   // Check for debug mode from URL on component mount
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
