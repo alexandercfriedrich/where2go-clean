@@ -22,6 +22,9 @@ PROTECTION_BYPASS_TOKEN=your_protection_bypass_token_here
 
 # Optional: Additional security for background worker route
 INTERNAL_API_SECRET=your_internal_secret_here
+
+# Optional: Overall processing timeout (default: 240000ms = 4 minutes)
+OVERALL_TIMEOUT_MS=240000
 ```
 
 **Redis Configuration (Production):**
@@ -60,6 +63,13 @@ The application uses **Vercel Background Functions** to ensure reliable job proc
 - Enable debug mode with `?debug=1` in URL
 - Monitor Redis for job updates (`job:*` keys) and debug info (`debug:*` keys)
 - Verify progressive events appear and job transitions from 'pending' to 'done'
+
+**Timeout Configuration:**
+- **Overall Timeout**: Configurable via `overallTimeoutMs` option (default 4 minutes) or `OVERALL_TIMEOUT_MS` environment variable
+- **Category Timeout**: Increased default from 45s to 90s, minimum 60s on Vercel for external API reliability
+- **Background Function**: Configured for 300s `maxDuration` with proper `x-vercel-background` headers
+- **AbortController**: Used for clean timeout handling in both overall processing and individual HTTP requests
+- **No 30s Cutoffs**: All artificial timeout limitations removed to allow full processing duration
 
 ### Installation
 
@@ -104,9 +114,16 @@ The debug panel appears at the bottom of the page when debug mode is active and 
 The following options can be configured by modifying the request in `page.tsx`:
 
 - **`categoryConcurrency`** (default: 5): Number of categories to process in parallel
-- **`categoryTimeoutMs`** (default: 45000): Timeout per category in milliseconds, can be a number or object mapping categories to timeouts
+- **`categoryTimeoutMs`** (default: 90000): Timeout per category in milliseconds, can be a number or object mapping categories to timeouts. **Increased from 45s to 90s to prevent premature termination on Vercel.**
+- **`overallTimeoutMs`** (default: 240000): Overall timeout for entire job processing in milliseconds (4 minutes). Configurable via `OVERALL_TIMEOUT_MS` environment variable.
 - **`maxAttempts`** (default: 5): Maximum retry attempts per category with exponential backoff + jitter
 - **Polling window**: Extended to 8 minutes (48 polls × 10s) to handle longer processing times
+
+**Vercel Background Function Settings:**
+- **`runtime`**: 'nodejs' (configured)
+- **`maxDuration`**: 300 seconds (configured)
+- **Background processing**: Uses `x-vercel-background: '1'` header for reliable execution
+- **Minimum timeout on Vercel**: 60 seconds per category to reduce flakiness with external APIs
 
 ### Progressive Updates
 
@@ -158,7 +175,11 @@ Both public endpoints accept the same request body format and use shared caching
     "includeNearbyEvents": true,
     "maxResults": 50,
     "priceRange": "free",
-    "accessibility": "wheelchair"
+    "accessibility": "wheelchair",
+    "categoryTimeoutMs": 90000, // timeout per category (default: 90s, min 60s on Vercel)
+    "overallTimeoutMs": 240000, // overall job timeout (default: 4min)
+    "categoryConcurrency": 5, // parallel processing limit
+    "maxAttempts": 5 // retry attempts per category
   }
 }
 ```

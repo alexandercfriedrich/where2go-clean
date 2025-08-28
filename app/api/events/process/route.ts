@@ -97,6 +97,8 @@ async function processJobInBackground(
   categories?: string[], 
   options?: any
 ) {
+  let overallTimeoutId: NodeJS.Timeout | undefined;
+  
   try {
     const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
     if (!PERPLEXITY_API_KEY) {
@@ -110,13 +112,29 @@ async function processJobInBackground(
     // Default to DEFAULT_CATEGORIES when categories is missing or empty
     const effectiveCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
     
-    // Extract options with defaults
+    // Extract options with defaults - increased timeouts to prevent 30s cutoff
     const categoryConcurrency = options?.categoryConcurrency || 5;
-    const categoryTimeoutMs = options?.categoryTimeoutMs || 45000; // 45 seconds default
+    
+    // Default categoryTimeoutMs to 90s (90000ms), minimum 60s on Vercel to reduce flakiness
+    const isVercel = process.env.VERCEL === '1';
+    const defaultCategoryTimeout = isVercel ? Math.max(options?.categoryTimeoutMs || 90000, 60000) : (options?.categoryTimeoutMs || 90000);
+    const categoryTimeoutMs = defaultCategoryTimeout;
+    
+    // Overall timeout defaults to 4 minutes (240000ms), configurable via env var
+    const defaultOverallTimeout = parseInt(process.env.OVERALL_TIMEOUT_MS || '240000', 10);
+    const overallTimeoutMs = options?.overallTimeoutMs || defaultOverallTimeout;
+    
     const maxAttempts = options?.maxAttempts || 5;
     
     console.log('Background job starting for:', jobId, city, date, effectiveCategories);
-    console.log('Parallelization config:', { categoryConcurrency, categoryTimeoutMs, maxAttempts });
+    console.log('Parallelization config:', { categoryConcurrency, categoryTimeoutMs, overallTimeoutMs, maxAttempts });
+
+    // Set up overall timeout using AbortController to prevent jobs from running indefinitely
+    const overallAbortController = new AbortController();
+    overallTimeoutId = setTimeout(() => {
+      console.log(`Overall timeout of ${overallTimeoutMs}ms reached for job ${jobId}`);
+      overallAbortController.abort();
+    }, overallTimeoutMs);
 
     const perplexityService = createPerplexityService(PERPLEXITY_API_KEY);
     if (!perplexityService) {
@@ -255,17 +273,24 @@ async function processJobInBackground(
       completedCategories++;
     };
 
-    // Process categories in parallel with controlled concurrency
+    // Process categories in parallel with controlled concurrency, respecting overall timeout
     const processingPromises: Promise<void>[] = [];
     let currentIndex = 0;
 
     // Create worker function that processes categories from the queue
     const worker = async (): Promise<void> => {
-      while (currentIndex < effectiveCategories.length) {
+      while (currentIndex < effectiveCategories.length && !overallAbortController.signal.aborted) {
         const categoryIndex = currentIndex++;
         if (categoryIndex >= effectiveCategories.length) break;
         
         const category = effectiveCategories[categoryIndex];
+        
+        // Check if overall timeout was reached before processing each category
+        if (overallAbortController.signal.aborted) {
+          console.log(`Overall timeout reached, skipping category: ${category}`);
+          break;
+        }
+        
         await processCategory(category, categoryIndex);
       }
     };
@@ -275,10 +300,29 @@ async function processJobInBackground(
       processingPromises.push(worker());
     }
 
-    // Wait for all workers to complete
-    await Promise.all(processingPromises);
-
-    console.log(`Background job complete: found ${allEvents.length} events total`);
+    try {
+      // Wait for all workers to complete or overall timeout
+      await Promise.race([
+        Promise.all(processingPromises),
+        new Promise<void>((_, reject) => {
+          overallAbortController.signal.addEventListener('abort', () => {
+            reject(new Error(`Overall timeout of ${overallTimeoutMs}ms exceeded`));
+          });
+        })
+      ]);
+      
+      console.log(`Background job complete: found ${allEvents.length} events total`);
+    } catch (timeoutError: any) {
+      if (timeoutError.message.includes('Overall timeout')) {
+        console.log(`Job ${jobId} stopped due to overall timeout of ${overallTimeoutMs}ms. Found ${allEvents.length} events so far.`);
+        // Continue to finalization with partial results
+      } else {
+        throw timeoutError; // Re-throw other errors
+      }
+    } finally {
+      // Clean up overall timeout
+      clearTimeout(overallTimeoutId);
+    }
 
     // Always finalize the job with status 'done', even if we have 0 events
     try {
@@ -299,6 +343,16 @@ async function processJobInBackground(
 
   } catch (error) {
     console.error('Background job error for:', jobId, error);
+    
+    // Clean up overall timeout in case of error
+    try {
+      if (overallTimeoutId) {
+        clearTimeout(overallTimeoutId);
+      }
+    } catch {
+      // Ignore cleanup errors
+    }
+    
     // Ensure job is always finalized, even on error
     try {
       await jobStore.updateJob(jobId, {

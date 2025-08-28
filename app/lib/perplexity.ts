@@ -81,7 +81,7 @@ Wenn keine Events gefunden wurden, schreibe "Keine passenden Events gefunden".
   /**
    * Makes a single API call to Perplexity
    */
-  private async callPerplexity(prompt: string, options?: QueryOptions, retries = 2): Promise<string> {
+  private async callPerplexity(prompt: string, options?: QueryOptions, retries = 2, signal?: AbortSignal): Promise<string> {
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt < retries; attempt++) {
@@ -103,7 +103,8 @@ Wenn keine Events gefunden wurden, schreibe "Keine passenden Events gefunden".
             max_tokens: options?.max_tokens || 20000,
             temperature: options?.temperature || 0.2,
             stream: false
-          })
+          }),
+          signal // Use AbortSignal for timeout handling
         });
 
         if (!response.ok) {
@@ -137,14 +138,18 @@ Wenn keine Events gefunden wurden, schreibe "Keine passenden Events gefunden".
   ): Promise<PerplexityResult[]> {
     const queries = this.createQueries(city, date, categories);
     const results: PerplexityResult[] = [];
+    
+    // Extract timeout from options, default to 90s
+    const timeoutMs = typeof options?.categoryTimeoutMs === 'number' ? 
+      options.categoryTimeoutMs : 90000;
 
     // Process queries in batches with rate limiting
     for (let i = 0; i < queries.length; i += this.batchSize) {
       const batch = queries.slice(i, i + this.batchSize);
       
-      // Execute batch in parallel with category-level retry
+      // Execute batch in parallel with category-level retry and timeout
       const batchPromises = batch.map(async (query) => {
-        return await this.executeQueryWithRetry(query, options);
+        return await this.executeQueryWithRetry(query, options, 3, timeoutMs);
       });
 
       const batchResults = await Promise.all(batchPromises);
@@ -160,36 +165,52 @@ Wenn keine Events gefunden wurden, schreibe "Keine passenden Events gefunden".
   }
 
   /**
-   * Executes a single query with exponential backoff retry
+   * Executes a single query with exponential backoff retry and timeout support
    */
   private async executeQueryWithRetry(
     query: string,
     options?: QueryOptions,
-    maxRetries = 3
+    maxRetries = 3,
+    timeoutMs = 90000
   ): Promise<PerplexityResult> {
     let lastError: Error | null = null;
     
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      try {
-        const response = await this.callPerplexity(query, options);
-        return {
-          query,
-          response,
-          events: [], // Will be populated by aggregator
-          timestamp: Date.now()
-        };
-      } catch (error: any) {
-        lastError = error;
-        console.error(`Query attempt ${attempt + 1}/${maxRetries} failed for query:`, query.substring(0, 100) + '...', error.message);
-        
-        // Don't retry on last attempt
-        if (attempt < maxRetries - 1) {
-          // Exponential backoff: 500ms -> 1000ms -> 2000ms
-          const delay = 500 * Math.pow(2, attempt);
-          console.log(`Retrying in ${delay}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
+    // Create AbortController for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    
+    try {
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
+        try {
+          const response = await this.callPerplexity(query, options, 2, controller.signal);
+          clearTimeout(timeoutId);
+          return {
+            query,
+            response,
+            events: [], // Will be populated by aggregator
+            timestamp: Date.now()
+          };
+        } catch (error: any) {
+          lastError = error;
+          
+          // If aborted due to timeout, don't retry
+          if (controller.signal.aborted) {
+            throw new Error(`Query timed out after ${timeoutMs}ms`);
+          }
+          
+          console.error(`Query attempt ${attempt + 1}/${maxRetries} failed for query:`, query.substring(0, 100) + '...', error.message);
+          
+          // Don't retry on last attempt
+          if (attempt < maxRetries - 1) {
+            // Exponential backoff: 500ms -> 1000ms -> 2000ms
+            const delay = 500 * Math.pow(2, attempt);
+            console.log(`Retrying in ${delay}ms...`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+          }
         }
       }
+    } finally {
+      clearTimeout(timeoutId);
     }
 
     // If all retries failed, return error result

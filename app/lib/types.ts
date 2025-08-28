@@ -64,6 +64,7 @@ export interface QueryOptions {
   debug?: boolean;
   categoryConcurrency?: number;
   categoryTimeoutMs?: number | { [key: string]: number };
+  overallTimeoutMs?: number; // Overall timeout for entire processing job
   maxAttempts?: number;
 }
 
