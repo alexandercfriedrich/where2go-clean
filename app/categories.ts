@@ -55,7 +55,7 @@ export const CATEGORY_MAP: Record<string, string[]> = {
     "Märkte/Shopping", "Flohmarkt/Flea Markets", "Vintage Markets", "Handmade Markets", "Antique Fairs", "Shopping Events", "Pop-up Shops", "Designer Markets", "Book Markets", "Record Fairs", "Seasonal Markets"
   ],
   "Bildung/Lernen": [
-    "Bildung/Lernen", "Workshops", "Kurse/Classes", "Seminare/Seminars", "Lectures/Vorträge", "Language Exchange", "Book Clubs", "Study Groups", "Academic Conferences", "Skill Sharing", "DIY Workshops" "Conferences"
+    "Bildung/Lernen", "Workshops", "Kurse/Classes", "Seminare/Seminars", "Lectures/Vorträge", "Language Exchange", "Book Clubs", "Study Groups", "Academic Conferences", "Skill Sharing", "DIY Workshops", "Conferences"
   ],
   "Soziales/Community": [
     "Soziales/Community", "Community Events", "Volunteer Activities", "Charity Events", "Social Causes", "Neighborhood Meetings", "Cultural Exchange", "Senior Events", "Expat Events", "Local Initiatives"
