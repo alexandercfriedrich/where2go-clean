@@ -91,3 +91,27 @@ export interface DebugInfo {
   options?: any;
   steps: DebugStep[];
 }
+
+// Hot Cities feature types
+export interface HotCityWebsite {
+  id: string;
+  name: string;
+  url: string;
+  categories: string[]; // Which categories this website covers
+  description?: string;
+  searchQuery?: string; // Custom search query for this website
+  priority: number; // Higher priority websites are searched first
+  isActive: boolean;
+}
+
+export interface HotCity {
+  id: string;
+  name: string;
+  country: string;
+  isActive: boolean;
+  websites: HotCityWebsite[];
+  defaultSearchQuery?: string; // Default search query for this city
+  customPrompt?: string; // Custom prompt additions for this city
+  createdAt: Date;
+  updatedAt: Date;
+}

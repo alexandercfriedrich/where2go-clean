@@ -1,6 +1,7 @@
 // Perplexity API integration with multi-query support and rate limiting
 
 import { EventData, PerplexityResult, QueryOptions } from './types';
+import { getCityWebsitesForCategories, getHotCity } from './hotCityStore';
 
 export class PerplexityService {
   private readonly apiKey: string;
@@ -15,11 +16,38 @@ export class PerplexityService {
   /**
    * Builds a query prompt for a specific category with strict JSON schema
    */
-  private buildCategoryPrompt(city: string, date: string, category: string): string {
-    return `
+  private async buildCategoryPrompt(city: string, date: string, category: string): Promise<string> {
+    // Get hot city configuration and specific websites
+    const hotCity = await getHotCity(city);
+    const cityWebsites = await getCityWebsitesForCategories(city, [category]);
+    
+    let websiteSection = `
+Search multiple sources including:
+- Local event platforms for ${city}
+- Official venue websites and social media  
+- ${city} tourism and culture sites
+- Ticketing platforms active in ${city}
+- Entertainment and nightlife directories of ${city}
+- Category-specific platforms for ${category}`;
 
+    // Add specific websites if this is a hot city
+    if (cityWebsites.length > 0) {
+      websiteSection += `
+- PRIORITY SOURCES for ${city}:`;
+      cityWebsites.forEach(website => {
+        websiteSection += `\n  * ${website.name} (${website.url})${website.description ? ' - ' + website.description : ''}`;
+      });
+    }
+
+    // Add custom search query if available
+    let customQuerySection = '';
+    if (hotCity?.defaultSearchQuery) {
+      customQuerySection = `\nCustom search context for ${city}: ${hotCity.defaultSearchQuery}`;
+    }
+
+    return `
     "IMPORTANT: Search for comprehensive ${category} events in ${city} on ${date} across multiple sources.
-    WICHTIG: Suche nach allen ${category}-Veranstaltungen und Events in ${city} am ${date}. 
+    WICHTIG: Suche nach allen ${category}-Veranstaltungen und Events in ${city} am ${date}. ${customQuerySection}
 
     MANDATORY JSON FORMAT: Return ONLY a valid JSON array with NO explanations, markdown, or code blocks. 
     Each event object must include these EXACT fields:
@@ -40,14 +68,7 @@ export class PerplexityService {
   \"website\": \"string - event URL\",
   \"bookingLink\": \"string - ticket URL (optional)\"
 }
-
-Search multiple sources including:
-- Local event platforms for ${city}
-- Official venue websites and social media  
-- ${city} tourism and culture sites
-- Ticketing platforms active in ${city}
-- Entertainment and nightlife directories of ${city}
-- Category-specific platforms for ${category}
+${websiteSection}
 
 Perform thorough multi-source search for maximum event discovery!!!
 If no events found, return: []
@@ -105,7 +126,7 @@ Falls keine Events gefunden: []
   /**
    * Creates query prompts based on categories or uses general prompt
    */
-  private createQueries(city: string, date: string, categories?: string[]): string[] {
+  private async createQueries(city: string, date: string, categories?: string[]): Promise<string[]> {
     if (!categories || categories.length === 0) {
       // Use the original general query
       return [this.buildGeneralPrompt(city, date)];
@@ -128,7 +149,8 @@ Falls keine Events gefunden: []
     const queries: string[] = [];
     for (const category of categories) {
       const categoryName = categoryMap[category.toLowerCase()] || category;
-      queries.push(this.buildCategoryPrompt(city, date, categoryName));
+      const prompt = await this.buildCategoryPrompt(city, date, categoryName);
+      queries.push(prompt);
     }
 
     return queries;
@@ -192,7 +214,7 @@ Falls keine Events gefunden: []
     categories?: string[], 
     options?: QueryOptions
   ): Promise<PerplexityResult[]> {
-    const queries = this.createQueries(city, date, categories);
+    const queries = await this.createQueries(city, date, categories);
     const results: PerplexityResult[] = [];
     
     // Extract timeout from options, ensure minimum of 60s, default to 90s
