@@ -4,7 +4,7 @@ export const CATEGORY_MAP: Record<string, string[]> = {
     "DJ Sets/Electronic", "Techno/House/EDM", "Drum & Bass", "Trance/Progressive", "Ambient/Downtempo", "Experimental Electronic", "Disco/Nu-Disco", "Minimal/Deep House", "Hardstyle/Hardcore", "Breakbeat"
   ],
   "Clubs/Discos": [
-    "Clubs/Discos", "Nightclubs", "Dance Clubs", "Underground Venues", "Rooftop Parties", "Beach Clubs", "After-Hours", "Club Nights", "Party Events", "Rave Culture", "Social Dancing", "Singles Events", "VIP Events"
+    "Clubs/Discos", "Nightclubs", "Dance Clubs", "Underground Venues", "Rooftop Parties", "Beach Clubs", "After-Hour", "Club Nights", "Party Events", "Rave", "Social Dancing", "VIP Events"
   ],
   "Live-Konzerte": [
     "Live-Konzerte", "Klassische Musik/Classical", "Rock/Pop/Alternative", "Jazz/Blues", "Folk/Singer-Songwriter", "Hip-Hop/Rap", "Metal/Hardcore", "Indie/Alternative", "World Music", "Country/Americana", "R&B/Soul"
@@ -16,7 +16,7 @@ export const CATEGORY_MAP: Record<string, string[]> = {
     "Museen", "Kunstgalerien/Art Galleries", "Ausstellungen/Exhibitions", "Kulturelle Institutionen", "Historische Stätten", "Architektur Tours", "Science Museums", "Interactive Exhibitions", "Private Collections"
   ],
   "LGBTQ+": [
-    "LGBTQ+", "Pride Events", "Queer Parties", "Drag Shows", "LGBTQ+ Clubs", "Community Events", "Support Groups", "Diversity Celebrations", "Inclusive Events", "Rainbow Events", "Trans Events", "Lesbian Events", "Gay Events"
+    "LGBTQ+", "Pride Event", "Queer Partie", "Drag Show", "LGBTQ+ Club", "Community Event", "Support Group", "Diversity Celebrations", "Inclusive Events", "Rainbow Events", "Trans Events", "Lesbian Events", "Gay Events"
   ],
   "Comedy/Kabarett": [
     "Comedy/Kabarett", "Stand-up Comedy", "Improvisational Theater", "Satirical Shows", "Variety Shows", "Comedy Clubs", "Humor Events", "Roast Shows", "Open Mic Comedy", "Political Satire", "Musical Comedy"
