@@ -20,7 +20,7 @@ interface EventData {
 }
 
 const ALL_SUPER_CATEGORIES = Object.keys(CATEGORY_MAP);
-const MAX_CATEGORY_SELECTION = 3;
+const MAX_CATEGORY_SELECTION: number = 3;
 
 export default function Home() {
   const [city, setCity] = useState('');
@@ -378,9 +378,7 @@ export default function Home() {
                     setCategoryLimitError(null);
                   }}
                 >
-                  {MAX_CATEGORY_SELECTION === 1
-                    ? "Eine auswählen"
-                    : `Max. ${MAX_CATEGORY_SELECTION} auswählen`}
+                  {`Max. ${MAX_CATEGORY_SELECTION} auswählen`}
                 </button>
                 <button
                   type="button"
