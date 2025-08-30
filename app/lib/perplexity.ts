@@ -17,33 +17,41 @@ export class PerplexityService {
    */
   private buildCategoryPrompt(city: string, date: string, category: string): string {
     return `
-Search for all ${category} events in ${city} on ${date}. Return ONLY a valid JSON array of event objects.
 
-REQUIRED: Return ONLY valid JSON. Do not include any explanatory text, markdown formatting, code fences, or additional content. 
+    "IMPORTANT: Search for comprehensive ${category} events in ${city} on ${date} across multiple sources.
+    WICHTIG: Suche nach allen ${category}-Veranstaltungen und Events in ${city} am ${date}. 
 
-Each event object must have these exact field names:
+    MANDATORY JSON FORMAT: Return ONLY a valid JSON array with NO explanations, markdown, or code blocks. 
+    Each event object must include these EXACT fields:
+
 {
-  "title": "string - event name",
-  "date": "string - YYYY-MM-DD format",
-  "time": "string - HH:MM format (optional)",
-  "endTime": "string - HH:MM format (optional)", 
-  "venue": "string - venue name",
-  "address": "string - full address like 'Straße Hausnr, PLZ Stadt, Land' (optional)",
-  "category": "string - must be one of: DJ Sets/Electronic, Clubs/Discos, Live-Konzerte, Open Air, Museen, LGBTQ+, Comedy/Kabarett, Theater/Performance, Film, Food/Culinary, Sport, Familien/Kids, Kunst/Design, Wellness/Spirituell, Networking/Business, Natur/Outdoor",
-  "eventType": "string - specific event type (optional)",
-  "price": "string - entry price (optional)",
-  "ticketPrice": "string - ticket price (optional)",
-  "ageRestrictions": "string - age requirements (optional)",
-  "description": "string - short description (optional)",
-  "website": "string - event website URL",
-  "bookingLink": "string - ticket booking URL (optional)"
+  \"title\": \"string - event name\",
+  \"date\": \"string - YYYY-MM-DD format\", 
+  \"time\": \"string - HH:MM format (optional)\",
+  \"endTime\": \"string - HH:MM format (optional)\",
+  \"venue\": \"string - venue name\",
+  \"address\": \"string - complete address as 'Street Number, ZIP City, Country' (optional)\",
+  \"category\": \"string - ${category}\",
+  \"eventType\": \"string - specific subcategory (optional)\",
+  \"price\": \"string - entry cost (optional)\",
+  \"ticketPrice\": \"string - ticket cost (optional)\",
+  \"ageRestrictions\": \"string - age requirements (optional)\",
+  \"description\": \"string - brief description (optional)\",
+  \"website\": \"string - event URL\",
+  \"bookingLink\": \"string - ticket URL (optional)\"
 }
 
-If no events are found, return: []
+Search multiple sources including:
+- Local event platforms for ${city}
+- Official venue websites and social media  
+- ${city} tourism and culture sites
+- Ticketing platforms active in ${city}
+- Entertainment and nightlife directories of ${city}
+- Category-specific platforms for ${category}
 
-WICHTIG: Suche nach allen ${category}-Veranstaltungen in ${city} am ${date}. Antworte NUR mit gültigem JSON Array. Keine Erklärungen, kein Markdown, keine Code-Blöcke.
+Perform thorough multi-source search for maximum event discovery!!!
+If no events found, return: []
 
-Falls keine Events gefunden: []
 `;
   }
 
@@ -52,7 +60,9 @@ Falls keine Events gefunden: []
    */
   private buildGeneralPrompt(city: string, date: string): string {
     return `
-Search for all events in ${city} on ${date} across these categories:
+IMPORTANT: Search for comprehensive events in ${city} on ${date} across these categories:
+WICHTIG: Suche nach allen Veranstaltungen und Events in ${city} am ${date} der folgenden Kategorien:
+
 1. Konzerte & Musik (Klassik, Rock, Pop, Jazz, Elektronik)
 2. Theater & Kabarett & Comedy & Musicals  
 3. Museen & Ausstellungen & Galerien (auch Sonderausstellungen)
