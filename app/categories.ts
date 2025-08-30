@@ -49,15 +49,15 @@ export const CATEGORY_MAP: Record<string, string[]> = {
     "Natur/Outdoor", "Hiking/Walking Tours", "Nature Tours", "Wildlife Watching", "Botanical Gardens", "Park Events", "Outdoor Adventures", "Camping Events", "Environmental Education", "Eco-Tours", "Outdoor Yoga"
   ],
   "Kultur/Traditionen": [
-    "Kultur/Traditionen", "Lokale Traditionen", "Kulturelle Feste", "Historische Reenactments", "Volksfeste", "Religiöse Feiern", "Seasonal Celebrations", "Cultural Heritage", "Traditional Crafts", "Folk Music/Dance", "Local Cuisine"
+   "Culture/Traditions", "Local Traditions", "Cultural Festivals", "Historical Reenactments", "Folk Festivals", "Religious Celebrations", "Seasonal Celebrations", "Cultural Heritage", "Traditional Crafts", "Folk Music/Dance", "Local Cuisine"
   ],
   "Märkte/Shopping": [
     "Märkte/Shopping", "Flohmarkt/Flea Markets", "Vintage Markets", "Handmade Markets", "Antique Fairs", "Shopping Events", "Pop-up Shops", "Designer Markets", "Book Markets", "Record Fairs", "Seasonal Markets"
   ],
   "Bildung/Lernen": [
-    "Bildung/Lernen", "Workshops", "Kurse/Classes", "Seminare/Seminars", "Lectures/Vorträge", "Language Exchange", "Book Clubs", "Study Groups", "Academic Conferences", "Skill Sharing", "DIY Workshops"
+    "Bildung/Lernen", "Workshops", "Kurse/Classes", "Seminare/Seminars", "Lectures/Vorträge", "Language Exchange", "Book Clubs", "Study Groups", "Academic Conferences", "Skill Sharing", "DIY Workshops" "Conferences"
   ],
   "Soziales/Community": [
-    "Soziales/Community", "Community Events", "Volunteer Activities", "Charity Events", "Social Causes", "Neighborhood Meetings", "Cultural Exchange", "Senior Events", "Singles Meetups", "Expat Events", "Local Initiatives"
+    "Soziales/Community", "Community Events", "Volunteer Activities", "Charity Events", "Social Causes", "Neighborhood Meetings", "Cultural Exchange", "Senior Events", "Expat Events", "Local Initiatives"
   ],
 };
