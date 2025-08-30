@@ -21,6 +21,7 @@ interface EventData {
 
 const ALL_SUPER_CATEGORIES = Object.keys(CATEGORY_MAP);
 const MAX_CATEGORY_SELECTION: number = 3;
+const MAX_POLLS = 104;
 
 export default function Home() {
   const [city, setCity] = useState('');
@@ -44,32 +45,80 @@ export default function Home() {
   const eventsRef = useRef<EventData[]>([]);
   const pollCountRef = useRef<number>(0);
 
+  // Reactive design switching based on URL params
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const design = params.get('design');
-    const id = 'w2g-design-css';
-    const existing = document.getElementById(id) as HTMLLinkElement | null;
+    const updateFromURL = () => {
+      const params = new URLSearchParams(window.location.search);
+      const design = params.get('design');
+      const id = 'w2g-design-css';
+      const existing = document.getElementById(id) as HTMLLinkElement | null;
 
-    const isValid = design === '1' || design === '2' || design === '3';
-    if (isValid) {
-      const href = `/designs/design${design}.css`;
-      if (existing) {
-        if (existing.getAttribute('href') !== href) existing.setAttribute('href', href);
+      const isValid = design === '1' || design === '2' || design === '3';
+      if (isValid) {
+        const href = `/designs/design${design}.css`;
+        if (existing) {
+          if (existing.getAttribute('href') !== href) existing.setAttribute('href', href);
+        } else {
+          const link = document.createElement('link');
+          link.id = id;
+          link.rel = 'stylesheet';
+          link.href = href;
+          document.head.appendChild(link);
+        }
       } else {
-        const link = document.createElement('link');
-        link.id = id;
-        link.rel = 'stylesheet';
-        link.href = href;
-        document.head.appendChild(link);
+        if (existing) existing.remove();
       }
-    } else {
-      if (existing) existing.remove();
-    }
+    };
+
+    // Initial update
+    updateFromURL();
+
+    // Listen for URL changes (for client-side navigation)
+    const handlePopState = () => {
+      updateFromURL();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    
+    // Also listen for hash/search changes
+    const handleHashChange = () => {
+      updateFromURL();
+    };
+    
+    window.addEventListener('hashchange', handleHashChange);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', handleHashChange);
+    };
   }, []);
 
+  // Reactive debug mode based on URL params
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    setDebugMode(urlParams.get('debug') === '1');
+    const updateDebugMode = () => {
+      const params = new URLSearchParams(window.location.search);
+      setDebugMode(params.get('debug') === '1');
+    };
+
+    // Initial update
+    updateDebugMode();
+
+    // Listen for URL changes
+    const handlePopState = () => {
+      updateDebugMode();
+    };
+
+    const handleHashChange = () => {
+      updateDebugMode();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('hashchange', handleHashChange);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', handleHashChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -181,7 +230,7 @@ export default function Home() {
       clearTimeout(pollInterval.current);
     }
     pollCountRef.current = 0;
-    const maxPolls = 104;
+    const maxPolls = MAX_POLLS;
     const performPoll = async (): Promise<void> => {
       pollCountRef.current++;
       setPollCount(pollCountRef.current);
@@ -422,7 +471,7 @@ export default function Home() {
                 : 'Suche läuft … bitte habe etwas Geduld.'
               }
             </p>
-            <p>Abfrage <span className="font-mono">{pollCount}/48</span> (max. 480 sec / 8min)</p>
+            <p>Abfrage <span className="font-mono">{pollCount}/{MAX_POLLS}</span> (max. 480 sec / 8min)</p>
             {jobStatus === 'pending' && progress && (
               <p>Kategorien: <span className="font-mono">{progress.completedCategories}/{progress.totalCategories}</span> abgeschlossen</p>
             )}
