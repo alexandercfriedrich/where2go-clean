@@ -20,12 +20,14 @@ interface EventData {
 }
 
 const ALL_SUPER_CATEGORIES = Object.keys(CATEGORY_MAP);
+const MAX_CATEGORY_SELECTION = 3;
 
 export default function Home() {
   const [city, setCity] = useState('');
   const [timePeriod, setTimePeriod] = useState('heute');
   const [customDate, setCustomDate] = useState('');
-  const [selectedSuperCategories, setSelectedSuperCategories] = useState<string[]>(ALL_SUPER_CATEGORIES);
+  const [selectedSuperCategories, setSelectedSuperCategories] = useState<string[]>(ALL_SUPER_CATEGORIES.slice(0, MAX_CATEGORY_SELECTION));
+  const [categoryLimitError, setCategoryLimitError] = useState<string | null>(null);
   const [events, setEvents] = useState<EventData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,11 +100,19 @@ export default function Home() {
   };
 
   const toggleSuperCategory = (category: string) => {
-    setSelectedSuperCategories(prev =>
-      prev.includes(category)
-        ? prev.filter(c => c !== category)
-        : [...prev, category]
-    );
+    setCategoryLimitError(null); // Fehler zurücksetzen
+    setSelectedSuperCategories(prev => {
+      if (prev.includes(category)) {
+        // Kategorie abwählen
+        return prev.filter(c => c !== category);
+      } else {
+        if (prev.length >= MAX_CATEGORY_SELECTION) {
+          setCategoryLimitError(`Du kannst maximal ${MAX_CATEGORY_SELECTION} Kategorien auswählen.`);
+          return prev; // Keine weitere Auswahl zulassen
+        }
+        return [...prev, category];
+      }
+    });
   };
 
   // Flaches Array aller Unterkategorien der ausgewählten Überkategorien
@@ -350,6 +360,10 @@ export default function Home() {
                       type="checkbox"
                       checked={selectedSuperCategories.includes(category)}
                       onChange={() => toggleSuperCategory(category)}
+                      disabled={
+                        !selectedSuperCategories.includes(category) &&
+                        selectedSuperCategories.length >= MAX_CATEGORY_SELECTION
+                      }
                     />
                     <span className="category-name">{category}</span>
                   </label>
@@ -359,18 +373,31 @@ export default function Home() {
                 <button
                   type="button"
                   className="btn-secondary"
-                  onClick={() => setSelectedSuperCategories(ALL_SUPER_CATEGORIES)}
+                  onClick={() => {
+                    setSelectedSuperCategories(ALL_SUPER_CATEGORIES.slice(0, MAX_CATEGORY_SELECTION));
+                    setCategoryLimitError(null);
+                  }}
                 >
-                  Alle auswählen
+                  {MAX_CATEGORY_SELECTION === 1
+                    ? "Eine auswählen"
+                    : `Max. ${MAX_CATEGORY_SELECTION} auswählen`}
                 </button>
                 <button
                   type="button"
                   className="btn-secondary"
-                  onClick={() => setSelectedSuperCategories([])}
+                  onClick={() => {
+                    setSelectedSuperCategories([]);
+                    setCategoryLimitError(null);
+                  }}
                 >
                   Alle abwählen
                 </button>
               </div>
+              {categoryLimitError && (
+                <div style={{ color: "red", marginTop: "8px" }}>
+                  {categoryLimitError}
+                </div>
+              )}
             </div>
 
             <button type="submit" className="btn-search">
