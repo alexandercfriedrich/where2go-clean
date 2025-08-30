@@ -19,14 +19,12 @@ interface EventData {
   ageRestrictions?: string;
 }
 
-// Nur Überkategorien für die Auswahl
 const ALL_SUPER_CATEGORIES = Object.keys(CATEGORY_MAP);
 
 export default function Home() {
   const [city, setCity] = useState('');
   const [timePeriod, setTimePeriod] = useState('heute');
   const [customDate, setCustomDate] = useState('');
-  // State für die Überkategorien, Default: alle ausgewählt
   const [selectedSuperCategories, setSelectedSuperCategories] = useState<string[]>(ALL_SUPER_CATEGORIES);
   const [events, setEvents] = useState<EventData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -40,16 +38,10 @@ export default function Home() {
   const [debugData, setDebugData] = useState<any>(null);
   const [toast, setToast] = useState<{show: boolean, message: string}>({show: false, message: ''});
   
-  // To store polling interval id persistently - browser-safe type
   const pollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
-  
-  // To store latest events for polling comparison (fixes stale closure issue)
   const eventsRef = useRef<EventData[]>([]);
-
-  // To store poll count persistently to avoid closure resets
   const pollCountRef = useRef<number>(0);
 
-  // Design CSS Switcher
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const design = params.get('design');
@@ -69,22 +61,19 @@ export default function Home() {
         document.head.appendChild(link);
       }
     } else {
-      if (existing) existing.remove(); // fall back to globals.css
+      if (existing) existing.remove();
     }
   }, []);
 
-  // Check for debug mode from URL on component mount
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     setDebugMode(urlParams.get('debug') === '1');
   }, []);
 
-  // Keep eventsRef in sync with events state to fix stale closure issue
   useEffect(() => {
     eventsRef.current = events;
   }, [events]);
 
-  // Cleanup polling interval/timeout on component unmount
   useEffect(() => {
     return () => {
       if (pollInterval.current) {
@@ -95,7 +84,6 @@ export default function Home() {
     };
   }, []);
 
-  // Helper function to create event key for deduplication
   const createEventKey = (event: EventData): string => {
     return `${event.title}_${event.date}_${event.venue}`;
   };
@@ -109,7 +97,6 @@ export default function Home() {
     else return customDate || today.toISOString().split('T')[0];
   };
 
-  // Toggle SuperCategory selection
   const toggleSuperCategory = (category: string) => {
     setSelectedSuperCategories(prev =>
       prev.includes(category)
@@ -118,11 +105,13 @@ export default function Home() {
     );
   };
 
-  // Alle Unterkategorien der ausgewählten Überkategorien
-  const getSelectedSubcategories = (): string[] =>
-    selectedSuperCategories.flatMap(superCat => CATEGORY_MAP[superCat]);
+  // Pro Hauptkategorie ein Objekt mit allen Unterkategorien
+  const getSelectedCategoryGroups = () =>
+    selectedSuperCategories.map(superCat => ({
+      superCategory: superCat,
+      categories: CATEGORY_MAP[superCat]
+    }));
 
-  // Events suchen mit allen Unterkategorien!
   const searchEvents = async () => {
     if (!city.trim()) {
       setError('Bitte gib eine Stadt ein.');
@@ -146,7 +135,7 @@ export default function Home() {
         body: JSON.stringify({ 
           city: city.trim(), 
           date: formatDateForAPI(),
-          categories: getSelectedSubcategories(),
+          categoryGroups: getSelectedCategoryGroups(),
           options: { 
             temperature: 0.2, 
             max_tokens: 10000,
@@ -473,7 +462,6 @@ export default function Home() {
                       )}
                     </div>
                     
-                    {/* Zeige nur die Überkategorie */}
                     {superCategory && (
                       <div className="event-category">🏷️ {superCategory}</div>
                     )}
