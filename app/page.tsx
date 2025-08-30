@@ -105,12 +105,9 @@ export default function Home() {
     );
   };
 
-  // Pro Hauptkategorie ein Objekt mit allen Unterkategorien
-  const getSelectedCategoryGroups = () =>
-    selectedSuperCategories.map(superCat => ({
-      superCategory: superCat,
-      categories: CATEGORY_MAP[superCat]
-    }));
+  // Flaches Array aller Unterkategorien der ausgewählten Überkategorien
+  const getSelectedSubcategories = (): string[] =>
+    selectedSuperCategories.flatMap(superCat => CATEGORY_MAP[superCat]);
 
   const searchEvents = async () => {
     if (!city.trim()) {
@@ -135,7 +132,7 @@ export default function Home() {
         body: JSON.stringify({ 
           city: city.trim(), 
           date: formatDateForAPI(),
-          categoryGroups: getSelectedCategoryGroups(),
+          categories: getSelectedSubcategories(),
           options: { 
             temperature: 0.2, 
             max_tokens: 10000,
@@ -420,7 +417,6 @@ export default function Home() {
             {events.map((event) => {
               const eventKey = createEventKey(event);
               const isNew = newEvents.has(eventKey);
-              // Zeige die Überkategorie statt Unterkategorie
               const superCategory = ALL_SUPER_CATEGORIES.find(cat =>
                 CATEGORY_MAP[cat].includes(event.category)
               ) || event.category;
