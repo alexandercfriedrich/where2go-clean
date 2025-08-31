@@ -185,8 +185,8 @@ export async function POST(request: NextRequest) {
     const effectiveCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
     
     // Check for Hot City and resolve additional sources
-    let hotCityData = null;
-    let additionalSources = [];
+    let hotCityData: any = null;
+    let additionalSources: any[] = [];
     try {
       hotCityData = await getHotCity(city);
       if (hotCityData) {

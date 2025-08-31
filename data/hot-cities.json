@@ -1,1 +1,343 @@
-[]
+[
+  {
+    "id": "city-1756638227369-w04hkkaq5",
+    "name": "Wien",
+    "country": "Austria",
+    "isActive": true,
+    "defaultSearchQuery": "Wien Vienna events Veranstaltungen heute today",
+    "customPrompt": "Focus on Vienna's rich cultural scene including classical music, museums, and traditional Austrian venues.",
+    "websites": [
+      {
+        "id": "website-1756638227369-m8riu0anx",
+        "name": "Wien.gv.at Events",
+        "url": "https://www.wien.gv.at/kultur/abteilung/veranstaltungen/",
+        "categories": [],
+        "description": "Official Vienna city events",
+        "priority": 10,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227369-j24diofeg",
+        "name": "Wiener Staatsoper",
+        "url": "https://www.wiener-staatsoper.at",
+        "categories": [
+          "Live-Konzerte",
+          "Theater/Performance",
+          "Kultur/Traditionen"
+        ],
+        "description": "Vienna State Opera performances",
+        "priority": 9,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227369-fnzda5h3g",
+        "name": "Wiener Konzerthaus",
+        "url": "https://konzerthaus.at",
+        "categories": [
+          "Live-Konzerte",
+          "Kultur/Traditionen"
+        ],
+        "description": "Vienna Concert House events",
+        "priority": 9,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227369-i02ozorvq",
+        "name": "Flex Wien",
+        "url": "https://flex.at",
+        "categories": [
+          "DJ Sets/Electronic",
+          "Clubs/Discos",
+          "Live-Konzerte"
+        ],
+        "description": "Electronic music and club events",
+        "priority": 8,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227369-zs5rjxhpg",
+        "name": "Belvedere Museum",
+        "url": "https://www.belvedere.at",
+        "categories": [
+          "Museen",
+          "Kunst/Design"
+        ],
+        "description": "Art exhibitions and cultural events",
+        "priority": 8,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227369-yynwqanj4",
+        "name": "Vienna Tourist Board",
+        "url": "https://www.vienna.info",
+        "categories": [],
+        "description": "Tourist events and attractions",
+        "priority": 7,
+        "isActive": true
+      }
+    ],
+    "createdAt": "2025-08-31T11:03:47.369Z",
+    "updatedAt": "2025-08-31T11:03:47.369Z"
+  },
+  {
+    "id": "city-1756638227369-m1uv4gzy4",
+    "name": "Linz",
+    "country": "Austria",
+    "isActive": true,
+    "defaultSearchQuery": "Linz events Veranstaltungen heute today",
+    "customPrompt": "Focus on Linz as UNESCO City of Media Arts with emphasis on technology, arts, and cultural events.",
+    "websites": [
+      {
+        "id": "website-1756638227370-pc6mj0bho",
+        "name": "Linz.at Events",
+        "url": "https://www.linz.at/kultur/",
+        "categories": [],
+        "description": "Official Linz city cultural events",
+        "priority": 10,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227370-o3hxckpat",
+        "name": "Ars Electronica",
+        "url": "https://ars.electronica.art",
+        "categories": [
+          "Kunst/Design",
+          "Bildung/Lernen",
+          "DJ Sets/Electronic"
+        ],
+        "description": "Digital arts and technology events",
+        "priority": 9,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227370-lgu36k2ql",
+        "name": "Brucknerhaus",
+        "url": "https://www.brucknerhaus.at",
+        "categories": [
+          "Live-Konzerte",
+          "Kultur/Traditionen"
+        ],
+        "description": "Concert hall and classical music",
+        "priority": 9,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227370-8j4a4wuhd",
+        "name": "Lentos Kunstmuseum",
+        "url": "https://www.lentos.at",
+        "categories": [
+          "Museen",
+          "Kunst/Design"
+        ],
+        "description": "Modern and contemporary art",
+        "priority": 8,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227370-zjqj3hzvj",
+        "name": "Posthof Linz",
+        "url": "https://www.posthof.at",
+        "categories": [
+          "Live-Konzerte",
+          "Theater/Performance",
+          "DJ Sets/Electronic"
+        ],
+        "description": "Cultural center with diverse events",
+        "priority": 8,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227370-bdeuk9j4m",
+        "name": "Tourism Linz",
+        "url": "https://www.linztourismus.at",
+        "categories": [],
+        "description": "Tourist events and city attractions",
+        "priority": 7,
+        "isActive": true
+      }
+    ],
+    "createdAt": "2025-08-31T11:03:47.370Z",
+    "updatedAt": "2025-08-31T11:03:47.370Z"
+  },
+  {
+    "id": "city-1756638227370-ludnwzswc",
+    "name": "Ibiza",
+    "country": "Spain",
+    "isActive": true,
+    "defaultSearchQuery": "Ibiza events parties clubs today hoy",
+    "customPrompt": "Focus on Ibiza's world-famous electronic music scene, beach clubs, and nightlife events.",
+    "websites": [
+      {
+        "id": "website-1756638227370-501f5eknu",
+        "name": "Ibiza Spotlight",
+        "url": "https://www.ibiza-spotlight.com",
+        "categories": [],
+        "description": "Comprehensive Ibiza events and club listings",
+        "priority": 10,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227370-yd9u7trlz",
+        "name": "Amnesia Ibiza",
+        "url": "https://www.amnesia.es",
+        "categories": [
+          "DJ Sets/Electronic",
+          "Clubs/Discos"
+        ],
+        "description": "World-famous superclub events",
+        "priority": 9,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227370-fa8ygkyu4",
+        "name": "Pacha Ibiza",
+        "url": "https://www.pacha.com",
+        "categories": [
+          "DJ Sets/Electronic",
+          "Clubs/Discos"
+        ],
+        "description": "Iconic club with international DJs",
+        "priority": 9,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227370-5v9qk42er",
+        "name": "Ushuaïa Ibiza",
+        "url": "https://www.ushuaiabeachhotel.com",
+        "categories": [
+          "DJ Sets/Electronic",
+          "Open Air"
+        ],
+        "description": "Beach club and outdoor parties",
+        "priority": 9,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227370-xo1f072c3",
+        "name": "DC10 Ibiza",
+        "url": "https://www.dc10ibiza.com",
+        "categories": [
+          "DJ Sets/Electronic",
+          "Clubs/Discos"
+        ],
+        "description": "Underground techno club",
+        "priority": 8,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227370-us4hss970",
+        "name": "Ibiza Official Tourism",
+        "url": "https://www.ibiza.travel",
+        "categories": [],
+        "description": "Official tourism events and attractions",
+        "priority": 7,
+        "isActive": true
+      }
+    ],
+    "createdAt": "2025-08-31T11:03:47.370Z",
+    "updatedAt": "2025-08-31T11:03:47.370Z"
+  },
+  {
+    "id": "city-1756638227370-oiefjvk6j",
+    "name": "Berlin",
+    "country": "Germany",
+    "isActive": true,
+    "defaultSearchQuery": "Berlin events Veranstaltungen heute today",
+    "customPrompt": "Focus on Berlin's diverse cultural scene including techno clubs, galleries, alternative venues, and cultural institutions.",
+    "websites": [
+      {
+        "id": "website-1756638227370-rc1pjwo4d",
+        "name": "Berlin.de Events",
+        "url": "https://www.berlin.de/kultur-und-tickets/",
+        "categories": [],
+        "description": "Official Berlin city events portal",
+        "priority": 10,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227370-x6y5sgyyl",
+        "name": "Berghain",
+        "url": "https://www.berghain.berlin",
+        "categories": [
+          "DJ Sets/Electronic",
+          "Clubs/Discos"
+        ],
+        "description": "World-famous techno club",
+        "priority": 9,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227370-pmfe22jxn",
+        "name": "Watergate",
+        "url": "https://water-gate.de",
+        "categories": [
+          "DJ Sets/Electronic",
+          "Clubs/Discos"
+        ],
+        "description": "Techno and electronic music club",
+        "priority": 8,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227370-i95typljw",
+        "name": "Berlin Philharmonic",
+        "url": "https://www.berliner-philharmoniker.de",
+        "categories": [
+          "Live-Konzerte",
+          "Kultur/Traditionen"
+        ],
+        "description": "Classical music and orchestra performances",
+        "priority": 9,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227370-g0jq0eezj",
+        "name": "Museum Island Berlin",
+        "url": "https://www.smb.museum/museumsinsel-berlin/",
+        "categories": [
+          "Museen",
+          "Kunst/Design"
+        ],
+        "description": "Museum exhibitions and cultural events",
+        "priority": 8,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227370-z8sh8i3q3",
+        "name": "SO36 Berlin",
+        "url": "https://www.so36.com",
+        "categories": [
+          "Live-Konzerte",
+          "LGBTQ+",
+          "Kultur/Traditionen"
+        ],
+        "description": "Alternative venue for punk, indie, and LGBTQ+ events",
+        "priority": 8,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227370-191ljn0je",
+        "name": "Visit Berlin",
+        "url": "https://www.visitberlin.de",
+        "categories": [],
+        "description": "Tourist events and attractions",
+        "priority": 7,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227370-zuiwluwig",
+        "name": "Resident Advisor Berlin",
+        "url": "https://ra.co/events/de/berlin",
+        "categories": [
+          "DJ Sets/Electronic",
+          "Clubs/Discos"
+        ],
+        "description": "Electronic music events listing",
+        "priority": 8,
+        "isActive": true
+      }
+    ],
+    "createdAt": "2025-08-31T11:03:47.370Z",
+    "updatedAt": "2025-08-31T11:03:47.370Z"
+  }
+]
