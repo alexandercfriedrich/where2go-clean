@@ -1,0 +1,90 @@
+/* Kategorien-Grid: 3 Spalten */
+.w2g-cat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+/* Collapsible Container für Kategorien */
+.w2g-cat-collapsible {
+  overflow: hidden;
+  transition: max-height 320ms ease, opacity 220ms ease, margin 200ms ease;
+  will-change: max-height, opacity;
+}
+.w2g-cat-collapsible.is-collapsed {
+  max-height: 0 !important;
+  opacity: 0;
+  margin-bottom: 0 !important;
+}
+
+/* Suche-Button unterhalb der Kategorien */
+.w2g-search-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 14px;
+}
+
+/* Stadt-Eingabe (Platzhalter wie Screenshot) */
+.w2g-city-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #e1e4ea;
+  border-radius: 12px;
+  background: #f7f8fa;
+  color: #111;
+  font-size: 16px;
+}
+.w2g-city-input::placeholder {
+  color: #9aa3af;
+}
+
+/* Orbit-Hintergrund */
+.w2g-orbit-bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  background: radial-gradient(ellipse at center, rgba(255,255,255,0.06), transparent 60%);
+}
+
+.w2g-orbit-center {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 1px;
+  height: 1px;
+  transform: translate(-50%, -50%);
+}
+
+.w2g-orbit-dot {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  filter: blur(var(--blur));
+  background: radial-gradient(circle at 35% 35%, var(--colorA), var(--colorB));
+  transform: rotate(var(--angle)) translateX(var(--radius)) rotate(calc(-1 * var(--angle)));
+  animation: w2g-orbit var(--duration) linear infinite;
+  animation-delay: var(--delay);
+}
+
+/* „Alle drehen sich im Kreis“ um das Zentrum; unterschiedliche Geschwindigkeiten via var(--duration) */
+@keyframes w2g-orbit {
+  from {
+    transform: rotate(0deg) translateX(var(--radius)) rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg) translateX(var(--radius)) rotate(-360deg);
+  }
+}
+
+/* Kleine Responsivität: unter 900px auf 2 Spalten, unter 560px auf 1 Spalte */
+@media (max-width: 900px) {
+  .w2g-cat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 560px) {
+  .w2g-cat-grid { grid-template-columns: 1fr; }
+}
