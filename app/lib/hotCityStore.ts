@@ -1,10 +1,57 @@
-// Hot Cities data store - simple file-based storage for now
+// Hot Cities data store with Upstash Redis when configured, otherwise file-based storage
 import { promises as fs } from 'fs';
 import path from 'path';
+import { Redis } from '@upstash/redis';
 import { HotCity, HotCityWebsite } from './types';
+
+// Helper function to create URL-friendly slugs
+export function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '') // Remove special chars
+    .replace(/[\s_-]+/g, '-') // Replace spaces and underscores with hyphens
+    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+}
+
+// Helper function to create empty city
+export function createEmptyCity(): Omit<HotCity, 'id' | 'createdAt' | 'updatedAt'> {
+  return {
+    name: '',
+    country: '',
+    isActive: true,
+    websites: [],
+    defaultSearchQuery: '',
+    customPrompt: '',
+  };
+}
+
+// Helper function to create empty website
+export function createSite(): Omit<HotCityWebsite, 'id'> {
+  return {
+    name: '',
+    url: '',
+    categories: [],
+    description: '',
+    searchQuery: '',
+    priority: 5,
+    isActive: true,
+  };
+}
 
 const DATA_DIR = path.join(process.cwd(), 'data');
 const HOT_CITIES_FILE = path.join(DATA_DIR, 'hot-cities.json');
+const REDIS_KEY = 'hot-cities';
+
+// Initialize Redis client if environment variables are present
+const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+  ? new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    })
+  : null;
+
+console.log(redis ? 'Using Redis for Hot Cities storage' : 'Using file-based storage for Hot Cities');
 
 // Ensure data directory exists
 async function ensureDataDir(): Promise<void> {
@@ -15,28 +62,44 @@ async function ensureDataDir(): Promise<void> {
   }
 }
 
-// Load hot cities from file
+// Load hot cities from Redis or file
 export async function loadHotCities(): Promise<HotCity[]> {
   try {
-    await ensureDataDir();
-    const data = await fs.readFile(HOT_CITIES_FILE, 'utf-8');
-    const cities = JSON.parse(data) as HotCity[];
-    // Convert date strings back to Date objects
-    return cities.map(city => ({
-      ...city,
-      createdAt: new Date(city.createdAt),
-      updatedAt: new Date(city.updatedAt)
-    }));
+    if (redis) {
+      const data = await redis.get<HotCity[]>(REDIS_KEY);
+      if (data) {
+        // Convert date strings back to Date objects
+        return data.map(city => ({
+          ...city,
+          createdAt: new Date(city.createdAt),
+          updatedAt: new Date(city.updatedAt)
+        }));
+      }
+    } else {
+      await ensureDataDir();
+      const data = await fs.readFile(HOT_CITIES_FILE, 'utf-8');
+      const cities = JSON.parse(data) as HotCity[];
+      // Convert date strings back to Date objects
+      return cities.map(city => ({
+        ...city,
+        createdAt: new Date(city.createdAt),
+        updatedAt: new Date(city.updatedAt)
+      }));
+    }
   } catch (error) {
-    console.log('No hot cities file found, returning empty array');
-    return [];
+    console.log('No hot cities data found, returning empty array');
   }
+  return [];
 }
 
-// Save hot cities to file
+// Save hot cities to Redis or file
 export async function saveHotCities(cities: HotCity[]): Promise<void> {
-  await ensureDataDir();
-  await fs.writeFile(HOT_CITIES_FILE, JSON.stringify(cities, null, 2));
+  if (redis) {
+    await redis.set(REDIS_KEY, cities);
+  } else {
+    await ensureDataDir();
+    await fs.writeFile(HOT_CITIES_FILE, JSON.stringify(cities, null, 2));
+  }
 }
 
 // Get a specific hot city by name (case-insensitive)
@@ -44,6 +107,14 @@ export async function getHotCity(cityName: string): Promise<HotCity | null> {
   const cities = await loadHotCities();
   return cities.find(city => 
     city.name.toLowerCase() === cityName.toLowerCase() && city.isActive
+  ) || null;
+}
+
+// Get a specific hot city by slug
+export async function getHotCityBySlug(slug: string): Promise<HotCity | null> {
+  const cities = await loadHotCities();
+  return cities.find(city => 
+    slugify(city.name) === slug
   ) || null;
 }
 

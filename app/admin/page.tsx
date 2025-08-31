@@ -17,7 +17,7 @@ export default function AdminPage() {
   const loadCities = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/cities');
+      const response = await fetch('/api/admin/hot-cities');
       if (!response.ok) throw new Error('Failed to load cities');
       const data = await response.json();
       setCities(data.cities);
@@ -51,9 +51,8 @@ export default function AdminPage() {
 
   const handleSaveCity = async (city: HotCity) => {
     try {
-      const isNew = isCreating;
-      const response = await fetch('/api/admin/cities', {
-        method: isNew ? 'POST' : 'PUT',
+      const response = await fetch('/api/admin/hot-cities', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(city)
       });
@@ -66,7 +65,7 @@ export default function AdminPage() {
       await loadCities();
       setEditingCity(null);
       setIsCreating(false);
-      alert(`City ${isNew ? 'created' : 'updated'} successfully!`);
+      alert(`City ${isCreating ? 'created' : 'updated'} successfully!`);
     } catch (err: any) {
       alert(`Error: ${err.message}`);
     }
@@ -76,7 +75,11 @@ export default function AdminPage() {
     if (!confirm(`Are you sure you want to delete "${cityName}"?`)) return;
 
     try {
-      const response = await fetch(`/api/admin/cities?id=${cityId}`, {
+      const city = cities.find(c => c.id === cityId);
+      if (!city) throw new Error('City not found');
+      
+      const slug = city.name.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, '');
+      const response = await fetch(`/api/admin/hot-cities/${slug}`, {
         method: 'DELETE'
       });
       

@@ -25,7 +25,23 @@ INTERNAL_API_SECRET=your_internal_secret_here
 
 # Optional: Overall processing timeout (default: 240000ms = 4 minutes)
 OVERALL_TIMEOUT_MS=240000
+
+# Admin Area Credentials (Required for /admin access)
+# Set these to enable Basic Auth protection for admin pages
+ADMIN_USER=alexander.c.friedrich
+ADMIN_PASS=Where2go?Lufthansa736.
 ```
+
+**Admin Area Configuration:**
+- The admin area (`/admin/*` and `/api/admin/*`) is protected by HTTP Basic Auth
+- **Required Environment Variables:**
+  - `ADMIN_USER`: Username for admin access
+  - `ADMIN_PASS`: Password for admin access
+- **Example credentials** (set these in your deployment environment):
+  - `ADMIN_USER=alexander.c.friedrich`
+  - `ADMIN_PASS=Where2go?Lufthansa736.`
+- Without these credentials, admin pages will return "Admin credentials not configured" error
+- Legacy `ADMIN_SECRET` header authentication is still supported for API calls as an alternative
 
 **Redis Configuration (Production):**
 - In production environments (e.g., Vercel), configure Upstash Redis environment variables for durable job state persistence
@@ -95,6 +111,42 @@ The application will start on `http://localhost:3000`.
 - **Enhanced debug mode** - Add `?debug=1` to URL for detailed search insights with raw responses and counts
 - **Real-time updates** - Progressive results with new event notifications and toast messages
 - **Conservative deduplication** - Avoids over-filtering events with missing fields
+- **Hot Cities Management** - Admin area for managing city-specific event sources with priority targeting
+
+### Hot Cities Feature
+
+The Hot Cities feature allows administrators to configure city-specific event sources that get prioritized during searches, improving the quality and relevance of results for popular destinations.
+
+**Key Benefits:**
+- **Targeted Sources**: Each city can have specific websites and event sources configured
+- **Category Filtering**: Websites can be tagged with categories they cover best  
+- **Priority Ordering**: Sources are ranked by priority for better result quality
+- **Cost Optimization**: Cached results reduce API calls until event end times
+- **Local Knowledge**: Custom search queries and prompts per city
+
+**Admin Management:**
+- Access the admin area at `/admin` (requires Basic Auth)
+- Manage cities and their websites at `/admin/hot-cities`
+- Add, edit, delete, and configure websites for each city
+- Set categories, priorities, and custom search queries per website
+- Enable/disable sources without deleting configuration
+
+**Seeding Initial Data:**
+To populate the system with sample cities (Wien, Linz, Ibiza, Berlin):
+1. Access `/admin/hot-cities`
+2. Click "Seed Sample Cities" button
+3. Sample cities will be created with representative sources across categories
+
+**API Access:**
+- **Public API**: `GET /api/hot-cities` - Returns sanitized city data (no admin access required)
+- **Admin API**: `/api/admin/hot-cities/*` - Full CRUD operations (requires Basic Auth)
+
+**Search Integration:**
+When searching for events, the system automatically:
+1. Checks if the city has Hot Cities configuration
+2. Identifies relevant websites based on requested categories
+3. Provides additional sources to the background worker for prioritized searching
+4. Maintains existing caching behavior to minimize costs
 
 ### Debug Mode
 
@@ -252,7 +304,7 @@ curl -H "x-internal-secret: your-secret" https://yourdomain.com/api/diagnostics/
 
 ### Caching Policy
 
-The application uses intelligent caching with dynamic TTL (Time To Live) based on event timing:
+The application uses intelligent caching with dynamic TTL (Time To Live) based on event timing to minimize costs and improve performance:
 
 - **Cache expiration**: Set to when the earliest event ends
 - **TTL calculation**: 
@@ -262,4 +314,10 @@ The application uses intelligent caching with dynamic TTL (Time To Live) based o
 - **Bounds**: Minimum 1 minute, maximum 24 hours
 - **Fallback**: 5 minutes when event timing cannot be determined
 
-This ensures cache stays fresh while events are current, improving performance and API efficiency.
+**Cost Optimization:**
+- **Smart Caching**: Results are cached until event end times, avoiding repeated queries for the same city/date/categories
+- **Redis Recommended**: Use Redis in production for persistent caching across serverless functions
+- **Shared Cache**: Both Hot Cities and regular searches use the same cache keys for consistency
+- **Dynamic TTL**: Longer cache times for events that haven't started, shorter for ongoing events
+
+This ensures cache stays fresh while events are current, significantly reducing Perplexity API costs for popular destinations.

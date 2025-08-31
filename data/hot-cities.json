@@ -1,6 +1,6 @@
 [
   {
-    "id": "city-1756581507128-iigd7h7ci",
+    "id": "city-1756638227369-w04hkkaq5",
     "name": "Wien",
     "country": "Austria",
     "isActive": true,
@@ -8,7 +8,7 @@
     "customPrompt": "Focus on Vienna's rich cultural scene including classical music, museums, and traditional Austrian venues.",
     "websites": [
       {
-        "id": "website-1756581507128-xsylgpy97",
+        "id": "website-1756638227369-m8riu0anx",
         "name": "Wien.gv.at Events",
         "url": "https://www.wien.gv.at/kultur/abteilung/veranstaltungen/",
         "categories": [],
@@ -17,7 +17,7 @@
         "isActive": true
       },
       {
-        "id": "website-1756581507128-ouwh986pi",
+        "id": "website-1756638227369-j24diofeg",
         "name": "Wiener Staatsoper",
         "url": "https://www.wiener-staatsoper.at",
         "categories": [
@@ -30,7 +30,7 @@
         "isActive": true
       },
       {
-        "id": "website-1756581507128-hhnlfkrtt",
+        "id": "website-1756638227369-fnzda5h3g",
         "name": "Wiener Konzerthaus",
         "url": "https://konzerthaus.at",
         "categories": [
@@ -42,7 +42,7 @@
         "isActive": true
       },
       {
-        "id": "website-1756581507128-77hqb2iuq",
+        "id": "website-1756638227369-i02ozorvq",
         "name": "Flex Wien",
         "url": "https://flex.at",
         "categories": [
@@ -55,7 +55,7 @@
         "isActive": true
       },
       {
-        "id": "website-1756581507128-sroaz8boa",
+        "id": "website-1756638227369-zs5rjxhpg",
         "name": "Belvedere Museum",
         "url": "https://www.belvedere.at",
         "categories": [
@@ -67,7 +67,7 @@
         "isActive": true
       },
       {
-        "id": "website-1756581507128-4nu4b0b08",
+        "id": "website-1756638227369-yynwqanj4",
         "name": "Vienna Tourist Board",
         "url": "https://www.vienna.info",
         "categories": [],
@@ -76,11 +76,11 @@
         "isActive": true
       }
     ],
-    "createdAt": "2025-08-30T19:18:27.128Z",
-    "updatedAt": "2025-08-30T19:18:27.128Z"
+    "createdAt": "2025-08-31T11:03:47.369Z",
+    "updatedAt": "2025-08-31T11:03:47.369Z"
   },
   {
-    "id": "city-1756581507128-baye7fqcn",
+    "id": "city-1756638227369-m1uv4gzy4",
     "name": "Linz",
     "country": "Austria",
     "isActive": true,
@@ -88,7 +88,7 @@
     "customPrompt": "Focus on Linz as UNESCO City of Media Arts with emphasis on technology, arts, and cultural events.",
     "websites": [
       {
-        "id": "website-1756581507128-jrhczpr44",
+        "id": "website-1756638227370-pc6mj0bho",
         "name": "Linz.at Events",
         "url": "https://www.linz.at/kultur/",
         "categories": [],
@@ -97,7 +97,7 @@
         "isActive": true
       },
       {
-        "id": "website-1756581507128-js4t7ig9q",
+        "id": "website-1756638227370-o3hxckpat",
         "name": "Ars Electronica",
         "url": "https://ars.electronica.art",
         "categories": [
@@ -110,7 +110,7 @@
         "isActive": true
       },
       {
-        "id": "website-1756581507128-yin6ednvm",
+        "id": "website-1756638227370-lgu36k2ql",
         "name": "Brucknerhaus",
         "url": "https://www.brucknerhaus.at",
         "categories": [
@@ -122,7 +122,7 @@
         "isActive": true
       },
       {
-        "id": "website-1756581507128-y9pyvga9u",
+        "id": "website-1756638227370-8j4a4wuhd",
         "name": "Lentos Kunstmuseum",
         "url": "https://www.lentos.at",
         "categories": [
@@ -134,7 +134,7 @@
         "isActive": true
       },
       {
-        "id": "website-1756581507128-rz6iz4h71",
+        "id": "website-1756638227370-zjqj3hzvj",
         "name": "Posthof Linz",
         "url": "https://www.posthof.at",
         "categories": [
@@ -147,7 +147,7 @@
         "isActive": true
       },
       {
-        "id": "website-1756581507128-dw98i9wbv",
+        "id": "website-1756638227370-bdeuk9j4m",
         "name": "Tourism Linz",
         "url": "https://www.linztourismus.at",
         "categories": [],
@@ -156,11 +156,11 @@
         "isActive": true
       }
     ],
-    "createdAt": "2025-08-30T19:18:27.128Z",
-    "updatedAt": "2025-08-30T19:18:27.128Z"
+    "createdAt": "2025-08-31T11:03:47.370Z",
+    "updatedAt": "2025-08-31T11:03:47.370Z"
   },
   {
-    "id": "city-1756581507128-hic25bjjo",
+    "id": "city-1756638227370-ludnwzswc",
     "name": "Ibiza",
     "country": "Spain",
     "isActive": true,
@@ -168,7 +168,7 @@
     "customPrompt": "Focus on Ibiza's world-famous electronic music scene, beach clubs, and nightlife events.",
     "websites": [
       {
-        "id": "website-1756581507128-dx3k61kgg",
+        "id": "website-1756638227370-501f5eknu",
         "name": "Ibiza Spotlight",
         "url": "https://www.ibiza-spotlight.com",
         "categories": [],
@@ -177,7 +177,7 @@
         "isActive": true
       },
       {
-        "id": "website-1756581507128-rez428md3",
+        "id": "website-1756638227370-yd9u7trlz",
         "name": "Amnesia Ibiza",
         "url": "https://www.amnesia.es",
         "categories": [
@@ -189,7 +189,7 @@
         "isActive": true
       },
       {
-        "id": "website-1756581507128-7jgnpz9pc",
+        "id": "website-1756638227370-fa8ygkyu4",
         "name": "Pacha Ibiza",
         "url": "https://www.pacha.com",
         "categories": [
@@ -201,7 +201,7 @@
         "isActive": true
       },
       {
-        "id": "website-1756581507128-7yddk5ovq",
+        "id": "website-1756638227370-5v9qk42er",
         "name": "Ushuaïa Ibiza",
         "url": "https://www.ushuaiabeachhotel.com",
         "categories": [
@@ -213,7 +213,7 @@
         "isActive": true
       },
       {
-        "id": "website-1756581507128-j1acm1ije",
+        "id": "website-1756638227370-xo1f072c3",
         "name": "DC10 Ibiza",
         "url": "https://www.dc10ibiza.com",
         "categories": [
@@ -225,7 +225,7 @@
         "isActive": true
       },
       {
-        "id": "website-1756581507128-lejicr4cn",
+        "id": "website-1756638227370-us4hss970",
         "name": "Ibiza Official Tourism",
         "url": "https://www.ibiza.travel",
         "categories": [],
@@ -234,11 +234,11 @@
         "isActive": true
       }
     ],
-    "createdAt": "2025-08-30T19:18:27.128Z",
-    "updatedAt": "2025-08-30T19:18:27.128Z"
+    "createdAt": "2025-08-31T11:03:47.370Z",
+    "updatedAt": "2025-08-31T11:03:47.370Z"
   },
   {
-    "id": "city-1756581507128-bjso1i0j9",
+    "id": "city-1756638227370-oiefjvk6j",
     "name": "Berlin",
     "country": "Germany",
     "isActive": true,
@@ -246,7 +246,7 @@
     "customPrompt": "Focus on Berlin's diverse cultural scene including techno clubs, galleries, alternative venues, and cultural institutions.",
     "websites": [
       {
-        "id": "website-1756581507128-r7ivenv2m",
+        "id": "website-1756638227370-rc1pjwo4d",
         "name": "Berlin.de Events",
         "url": "https://www.berlin.de/kultur-und-tickets/",
         "categories": [],
@@ -255,7 +255,7 @@
         "isActive": true
       },
       {
-        "id": "website-1756581507128-9j3yao0hx",
+        "id": "website-1756638227370-x6y5sgyyl",
         "name": "Berghain",
         "url": "https://www.berghain.berlin",
         "categories": [
@@ -267,7 +267,7 @@
         "isActive": true
       },
       {
-        "id": "website-1756581507128-gonqlaqrm",
+        "id": "website-1756638227370-pmfe22jxn",
         "name": "Watergate",
         "url": "https://water-gate.de",
         "categories": [
@@ -279,7 +279,7 @@
         "isActive": true
       },
       {
-        "id": "website-1756581507128-cdq1m1bj2",
+        "id": "website-1756638227370-i95typljw",
         "name": "Berlin Philharmonic",
         "url": "https://www.berliner-philharmoniker.de",
         "categories": [
@@ -291,7 +291,7 @@
         "isActive": true
       },
       {
-        "id": "website-1756581507128-0r868dn09",
+        "id": "website-1756638227370-g0jq0eezj",
         "name": "Museum Island Berlin",
         "url": "https://www.smb.museum/museumsinsel-berlin/",
         "categories": [
@@ -303,7 +303,7 @@
         "isActive": true
       },
       {
-        "id": "website-1756581507128-fulc356c5",
+        "id": "website-1756638227370-z8sh8i3q3",
         "name": "SO36 Berlin",
         "url": "https://www.so36.com",
         "categories": [
@@ -316,7 +316,7 @@
         "isActive": true
       },
       {
-        "id": "website-1756581507128-qenpd5oht",
+        "id": "website-1756638227370-191ljn0je",
         "name": "Visit Berlin",
         "url": "https://www.visitberlin.de",
         "categories": [],
@@ -325,7 +325,7 @@
         "isActive": true
       },
       {
-        "id": "website-1756581507128-9th0e4f3y",
+        "id": "website-1756638227370-zuiwluwig",
         "name": "Resident Advisor Berlin",
         "url": "https://ra.co/events/de/berlin",
         "categories": [
@@ -337,7 +337,7 @@
         "isActive": true
       }
     ],
-    "createdAt": "2025-08-30T19:18:27.128Z",
-    "updatedAt": "2025-08-30T19:18:27.128Z"
+    "createdAt": "2025-08-31T11:03:47.370Z",
+    "updatedAt": "2025-08-31T11:03:47.370Z"
   }
 ]
