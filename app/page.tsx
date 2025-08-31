@@ -25,9 +25,11 @@ const MAX_POLLS = 104;
 
 export default function Home() {
   const [city, setCity] = useState('');
-  const [timePeriod, setTimePeriod] = useState('heute');
+  const [timePeriod, setTimePeriod] = useState<'heute' | 'morgen' | 'benutzerdefiniert'>('heute');
   const [customDate, setCustomDate] = useState('');
-  const [selectedSuperCategories, setSelectedSuperCategories] = useState<string[]>(ALL_SUPER_CATEGORIES.slice(0, MAX_CATEGORY_SELECTION));
+  const [selectedSuperCategories, setSelectedSuperCategories] = useState<string[]>(
+    ALL_SUPER_CATEGORIES.slice(0, MAX_CATEGORY_SELECTION)
+  );
   const [categoryLimitError, setCategoryLimitError] = useState<string | null>(null);
   const [events, setEvents] = useState<EventData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -35,86 +37,27 @@ export default function Home() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [jobStatus, setJobStatus] = useState<'idle' | 'pending' | 'done' | 'error'>('idle');
   const [pollCount, setPollCount] = useState(0);
-  const [progress, setProgress] = useState<{completedCategories: number, totalCategories: number} | null>(null);
+  const [progress, setProgress] = useState<{ completedCategories: number; totalCategories: number } | null>(null);
   const [newEvents, setNewEvents] = useState<Set<string>>(new Set());
   const [debugMode, setDebugMode] = useState(false);
   const [debugData, setDebugData] = useState<any>(null);
-  const [toast, setToast] = useState<{show: boolean, message: string}>({show: false, message: ''});
-  
+  const [toast, setToast] = useState<{ show: boolean; message: string }>({ show: false, message: '' });
+
   const pollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const eventsRef = useRef<EventData[]>([]);
   const pollCountRef = useRef<number>(0);
 
-  // Reactive design switching based on URL params
-  useEffect(() => {
-    const updateFromURL = () => {
-      const params = new URLSearchParams(window.location.search);
-      const design = params.get('design');
-      const id = 'w2g-design-css';
-      const existing = document.getElementById(id) as HTMLLinkElement | null;
-
-      const isValid = design === '1' || design === '2' || design === '3';
-      if (isValid) {
-        const href = `/designs/design${design}.css`;
-        if (existing) {
-          if (existing.getAttribute('href') !== href) existing.setAttribute('href', href);
-        } else {
-          const link = document.createElement('link');
-          link.id = id;
-          link.rel = 'stylesheet';
-          link.href = href;
-          document.head.appendChild(link);
-        }
-      } else {
-        if (existing) existing.remove();
-      }
-    };
-
-    // Initial update
-    updateFromURL();
-
-    // Listen for URL changes (for client-side navigation)
-    const handlePopState = () => {
-      updateFromURL();
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    
-    // Also listen for hash/search changes
-    const handleHashChange = () => {
-      updateFromURL();
-    };
-    
-    window.addEventListener('hashchange', handleHashChange);
-
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-      window.removeEventListener('hashchange', handleHashChange);
-    };
-  }, []);
-
-  // Reactive debug mode based on URL params
+  // Entfernt: frühere dynamische Designauswahl via ?design=…
   useEffect(() => {
     const updateDebugMode = () => {
       const params = new URLSearchParams(window.location.search);
       setDebugMode(params.get('debug') === '1');
     };
-
-    // Initial update
     updateDebugMode();
-
-    // Listen for URL changes
-    const handlePopState = () => {
-      updateDebugMode();
-    };
-
-    const handleHashChange = () => {
-      updateDebugMode();
-    };
-
+    const handlePopState = () => updateDebugMode();
+    const handleHashChange = () => updateDebugMode();
     window.addEventListener('popstate', handlePopState);
     window.addEventListener('hashchange', handleHashChange);
-
     return () => {
       window.removeEventListener('popstate', handlePopState);
       window.removeEventListener('hashchange', handleHashChange);
@@ -135,42 +78,42 @@ export default function Home() {
     };
   }, []);
 
-  const createEventKey = (event: EventData): string => {
-    return `${event.title}_${event.date}_${event.venue}`;
-  };
+  const createEventKey = (event: EventData): string => `${event.title}_${event.date}_${event.venue}`;
 
   const formatDateForAPI = (): string => {
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
     if (timePeriod === 'heute') return today.toISOString().split('T')[0];
-    else if (timePeriod === 'morgen') return tomorrow.toISOString().split('T')[0];
-    else return customDate || today.toISOString().split('T')[0];
+    if (timePeriod === 'morgen') return tomorrow.toISOString().split('T')[0];
+    return customDate || today.toISOString().split('T')[0];
   };
 
   const toggleSuperCategory = (category: string) => {
-    setCategoryLimitError(null); // Fehler zurücksetzen
-    setSelectedSuperCategories(prev => {
+    setCategoryLimitError(null);
+    setSelectedSuperCategories((prev) => {
       if (prev.includes(category)) {
-        // Kategorie abwählen
-        return prev.filter(c => c !== category);
+        return prev.filter((c) => c !== category);
       } else {
         if (prev.length >= MAX_CATEGORY_SELECTION) {
           setCategoryLimitError(`Du kannst maximal ${MAX_CATEGORY_SELECTION} Kategorien auswählen.`);
-          return prev; // Keine weitere Auswahl zulassen
+          return prev;
         }
         return [...prev, category];
       }
     });
   };
 
-  // Flaches Array aller Unterkategorien der ausgewählten Überkategorien
-  const getSelectedSubcategories = (): string[] =>
-    selectedSuperCategories.flatMap(superCat => CATEGORY_MAP[superCat]);
+  const validateForm = (): string | null => {
+    if (!city.trim()) return 'Bitte gib eine Stadt ein.';
+    if (timePeriod === 'benutzerdefiniert' && !customDate) return 'Bitte wähle ein Datum.';
+    return null;
+  };
 
   const searchEvents = async () => {
-    if (!city.trim()) {
-      setError('Bitte gib eine Stadt ein.');
+    const validation = validateForm();
+    if (validation) {
+      setError(validation);
       return;
     }
 
@@ -188,20 +131,20 @@ export default function Home() {
       const res = await fetch('/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          city: city.trim(), 
+        body: JSON.stringify({
+          city: city.trim(),
           date: formatDateForAPI(),
-          categories: getSelectedSubcategories(),
-          options: { 
-            temperature: 0.2, 
+          categories: selectedSuperCategories.flatMap((superCat) => CATEGORY_MAP[superCat]),
+          options: {
+            temperature: 0.2,
             max_tokens: 10000,
             debug: debugMode,
             disableCache: debugMode,
             categoryConcurrency: 5,
             categoryTimeoutMs: 90000,
             overallTimeoutMs: 240000,
-            maxAttempts: 5
-          }
+            maxAttempts: 5,
+          },
         }),
       });
 
@@ -211,9 +154,7 @@ export default function Home() {
       }
 
       const { jobId } = await res.json();
-      if (!jobId) {
-        throw new Error('Kein Job ID erhalten.');
-      }
+      if (!jobId) throw new Error('Kein Job ID erhalten.');
 
       setJobId(jobId);
       startPolling(jobId);
@@ -234,7 +175,7 @@ export default function Home() {
     const performPoll = async (): Promise<void> => {
       pollCountRef.current++;
       setPollCount(pollCountRef.current);
-      
+
       if (pollCountRef.current > maxPolls) {
         if (pollInterval.current) {
           clearInterval(pollInterval.current);
@@ -264,12 +205,9 @@ export default function Home() {
           setEvents([...incomingEvents]);
           if (newEventKeys.size > 0) {
             setNewEvents(newEventKeys);
-            setToast({
-              show: true,
-              message: `${newEventKeys.size} neue Event${newEventKeys.size !== 1 ? 's' : ''} gefunden`
-            });
+            setToast({ show: true, message: `${newEventKeys.size} neue Event${newEventKeys.size !== 1 ? 's' : ''} gefunden` });
             setTimeout(() => {
-              setToast({show: false, message: ''});
+              setToast({ show: false, message: '' });
               setNewEvents(new Set());
             }, 3000);
           }
@@ -295,12 +233,9 @@ export default function Home() {
             if (eventsRef.current.length === 0 && incomingEvents.length > 0) {
               const allNewEventKeys = new Set(incomingEvents.map(createEventKey));
               setNewEvents(allNewEventKeys);
-              setToast({
-                show: true,
-                message: `${incomingEvents.length} Event${incomingEvents.length !== 1 ? 's' : ''} gefunden`
-              });
+              setToast({ show: true, message: `${incomingEvents.length} Event${incomingEvents.length !== 1 ? 's' : ''} gefunden` });
               setTimeout(() => {
-                setToast({show: false, message: ''});
+                setToast({ show: false, message: '' });
                 setNewEvents(new Set());
               }, 3000);
             }
@@ -319,14 +254,9 @@ export default function Home() {
           const nextIntervalMs = pollCountRef.current < 20 ? 3000 : 5000;
           pollInterval.current = setTimeout(performPoll, nextIntervalMs);
         }
-      } catch (err) {
-        setToast({
-          show: true,
-          message: `Netzwerkfehler (Versuch ${pollCountRef.current}) - Suche läuft weiter...`
-        });
-        setTimeout(() => {
-          setToast({show: false, message: ''});
-        }, 3000);
+      } catch (_err) {
+        setToast({ show: true, message: `Netzwerkfehler (Versuch ${pollCountRef.current}) - Suche läuft weiter...` });
+        setTimeout(() => setToast({ show: false, message: '' }), 3000);
         if (pollInterval.current) {
           clearInterval(pollInterval.current);
           clearTimeout(pollInterval.current);
@@ -338,139 +268,206 @@ export default function Home() {
     performPoll();
   };
 
+  // Canvas für dezente goldene Partikel im Hero
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let raf = 0;
+    const DPR = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    let width = 0;
+    let height = 0;
+    let particles: { x: number; y: number; r: number; s: number; tw: number }[] = [];
+
+    const resize = () => {
+      const rect = canvas.getBoundingClientRect();
+      width = rect.width;
+      height = rect.height;
+      canvas.width = Math.floor(width * DPR);
+      canvas.height = Math.floor(height * DPR);
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      const count = Math.floor((width * height) / 18000);
+      particles = new Array(count).fill(0).map(() => ({
+        x: Math.random() * width,
+        y: Math.random() * height,
+        r: Math.random() * 1.2 + 0.6,
+        s: Math.random() * 0.25 + 0.05,
+        tw: Math.random() * 0.6 + 0.4,
+      }));
+    };
+
+    const draw = () => {
+      ctx.clearRect(0, 0, width, height);
+      const t = performance.now() / 1000;
+      for (const p of particles) {
+        p.x += p.s;
+        p.y -= p.s * 0.6;
+        if (p.x > width + 5) p.x = -5;
+        if (p.y < -5) p.y = height + 5;
+        const alpha = 0.2 + Math.abs(Math.sin(t * p.tw)) * 0.3;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(212, 175, 55, ${alpha})`;
+        ctx.fill();
+      }
+      raf = requestAnimationFrame(draw);
+    };
+
+    const onResize = () => {
+      cancelAnimationFrame(raf);
+      resize();
+      draw();
+    };
+    resize();
+    draw();
+    window.addEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
   return (
     <div className="min-h-screen">
-      {/* Hero Section */}
+      {/* Hero Section mit neuem Design */}
       <section className="hero">
-        <div className="container">
-          <h1>Where2Go</h1>
-          <p>Entdecke die besten Events in deiner Stadt – KI-gestützte Suche für unvergessliche Erlebnisse</p>
+        <div className="hero-bg">
+          <canvas ref={canvasRef} className="hero-canvas" aria-hidden="true" />
         </div>
-      </section>
 
-      {/* Search Section */}
-      <section className="search-section">
-        <div className="container">
-          <form 
-            className="search-form"
-            onSubmit={e => {
+        <div className="container hero-content">
+          <h1 className="hero-title">Entdecke Events in deiner Stadt</h1>
+          <p className="hero-subtitle">Weltweit. Alle Events. Eine Plattform.</p>
+
+          {/* Such-Pill */}
+          <form
+            className="search-pill"
+            onSubmit={(e) => {
               e.preventDefault();
               searchEvents();
             }}
           >
-            <div className="form-row">
-              <div className="form-group">
-                <label htmlFor="city">Stadt</label>
-                <input
-                  className="form-input"
-                  type="text"
-                  id="city"
-                  value={city}
-                  onChange={e => setCity(e.target.value)}
-                  placeholder="z.B. Linz, Berlin, Hamburg ..."
-                />
-              </div>
-              
-              <div className="form-group">
-                <label htmlFor="timePeriod">Zeitraum</label>
-                <select
-                  className="form-input"
-                  id="timePeriod"
-                  value={timePeriod}
-                  onChange={e => setTimePeriod(e.target.value)}
-                >
-                  <option value="heute">Heute</option>
-                  <option value="morgen">Morgen</option>
-                  <option value="benutzerdefiniert">Benutzerdefiniert</option>
-                </select>
-              </div>
+            <div className="field field-city">
+              <input
+                id="cityInput"
+                type="text"
+                placeholder="Stadt wählen..."
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                disabled={loading}
+                aria-label="Stadt eingeben"
+                required
+              />
             </div>
 
-            {timePeriod === 'benutzerdefiniert' && (
-              <div className="form-group">
-                <label htmlFor="customDate">Datum</label>
-                <input
-                  className="form-input"
-                  type="date"
-                  id="customDate"
-                  value={customDate}
-                  onChange={e => setCustomDate(e.target.value)}
-                />
-              </div>
-            )}
+            <div className="field field-date">
+              <select
+                id="timePeriod"
+                value={timePeriod}
+                onChange={(e) => setTimePeriod(e.target.value as any)}
+                disabled={loading}
+                aria-label="Datum auswählen"
+                required
+              >
+                <option value="heute">heute</option>
+                <option value="morgen">morgen</option>
+                <option value="benutzerdefiniert">Datum wählen</option>
+              </select>
 
-            {/* Categories Section */}
-            <div className="categories-section">
-              <label className="categories-label">Kategorien</label>
-              <div className="categories-grid">
-                {ALL_SUPER_CATEGORIES.map((category) => (
-                  <label key={category} className="category-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={selectedSuperCategories.includes(category)}
-                      onChange={() => toggleSuperCategory(category)}
-                      disabled={
-                        !selectedSuperCategories.includes(category) &&
-                        selectedSuperCategories.length >= MAX_CATEGORY_SELECTION
-                      }
-                    />
-                    <span className="category-name">{category}</span>
-                  </label>
-                ))}
-              </div>
-              <div className="categories-actions">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => {
-                    setSelectedSuperCategories(ALL_SUPER_CATEGORIES.slice(0, MAX_CATEGORY_SELECTION));
-                    setCategoryLimitError(null);
-                  }}
-                >
-                  {`Max. ${MAX_CATEGORY_SELECTION} auswählen`}
-                </button>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => {
-                    setSelectedSuperCategories([]);
-                    setCategoryLimitError(null);
-                  }}
-                >
-                  Alle abwählen
-                </button>
-              </div>
-              {categoryLimitError && (
-                <div style={{ color: "red", marginTop: "8px" }}>
-                  {categoryLimitError}
-                </div>
+              {timePeriod === 'benutzerdefiniert' && (
+                <input
+                  id="customDate"
+                  type="date"
+                  value={customDate}
+                  onChange={(e) => setCustomDate(e.target.value)}
+                  disabled={loading}
+                  aria-label="Datum wählen"
+                  required
+                />
               )}
             </div>
 
-            <button type="submit" className="btn-search">
-              Events suchen
+            <button type="submit" className="btn-search-hero" disabled={loading} aria-label="Suche starten">
+              Suchen
             </button>
+
+            {/* Overlay während Suche */}
+            {loading && (
+              <div className="search-overlay" aria-live="polite" aria-busy="true">
+                <div className="search-overlay-inner">
+                  <span className="spinner" aria-hidden="true" />
+                  <span>Suche läuft…</span>
+                </div>
+              </div>
+            )}
           </form>
+
+          {/* Inline-Fehler */}
+          {error && <div className="search-error" role="alert">{error}</div>}
+        </div>
+      </section>
+
+      {/* Kategorien + restliche Inhalte unverändert */}
+      <section className="search-section">
+        <div className="container">
+          <div className="categories-section">
+            <label className="categories-label">Kategorien</label>
+            <div className="categories-grid">
+              {ALL_SUPER_CATEGORIES.map((category) => (
+                <label key={category} className="category-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={selectedSuperCategories.includes(category)}
+                    onChange={() => toggleSuperCategory(category)}
+                    disabled={
+                      !selectedSuperCategories.includes(category) &&
+                      selectedSuperCategories.length >= MAX_CATEGORY_SELECTION
+                    }
+                  />
+                  <span className="category-name">{category}</span>
+                </label>
+              ))}
+            </div>
+            <div className="categories-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setSelectedSuperCategories(ALL_SUPER_CATEGORIES.slice(0, MAX_CATEGORY_SELECTION));
+                  setCategoryLimitError(null);
+                }}
+              >
+                {`Max. ${MAX_CATEGORY_SELECTION} auswählen`}
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setSelectedSuperCategories([]);
+                  setCategoryLimitError(null);
+                }}
+              >
+                Alle abwählen
+              </button>
+            </div>
+            {categoryLimitError && <div style={{ color: 'red', marginTop: 8 }}>{categoryLimitError}</div>}
+          </div>
         </div>
       </section>
 
       {/* Main Content */}
       <main className="container">
-        {error && (
-          <div className="error">
-            {error}
-          </div>
+        {error && !loading && (
+          <div className="error">{error}</div>
         )}
 
         {loading && (
           <div className="loading">
             <div className="loading-spinner"></div>
-            <p>
-              {jobStatus === 'pending' && events.length > 0 
-                ? 'Suche läuft – Ergebnisse werden ergänzt' 
-                : 'Suche läuft … bitte habe etwas Geduld.'
-              }
-            </p>
+            <p>{jobStatus === 'pending' && events.length > 0 ? 'Suche läuft – Ergebnisse werden ergänzt' : 'Suche läuft … bitte habe etwas Geduld.'}</p>
             <p>Abfrage <span className="font-mono">{pollCount}/{MAX_POLLS}</span> (max. 480 sec / 8min)</p>
             {jobStatus === 'pending' && progress && (
               <p>Kategorien: <span className="font-mono">{progress.completedCategories}/{progress.totalCategories}</span> abgeschlossen</p>
@@ -491,26 +488,19 @@ export default function Home() {
             {events.map((event) => {
               const eventKey = createEventKey(event);
               const isNew = newEvents.has(eventKey);
-              const superCategory = ALL_SUPER_CATEGORIES.find(cat =>
-                CATEGORY_MAP[cat].includes(event.category)
-              ) || event.category;
-
+              const superCategory = ALL_SUPER_CATEGORIES.find((cat) => CATEGORY_MAP[cat].includes(event.category)) || event.category;
               return (
                 <div key={eventKey} className={`event-card ${isNew ? 'event-card-new' : ''}`}>
                   {isNew && <div className="badge-new">Neu</div>}
                   <div className="event-content">
                     <h3 className="event-title">{event.title}</h3>
-                    
                     <div className="event-date">
-                      {event.date}
-                      {event.time && ` • ${event.time}`}
-                      {event.endTime && ` - ${event.endTime}`}
+                      {event.date}{event.time && ` • ${event.time}`}{event.endTime && ` - ${event.endTime}`}
                     </div>
-                    
                     <div className="event-location">
                       📍 {event.venue}
                       {event.address ? (
-                        <a 
+                        <a
                           href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address)}`}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -520,7 +510,7 @@ export default function Home() {
                           <br />📍 {event.address}
                         </a>
                       ) : (
-                        <a 
+                        <a
                           href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${event.venue}, ${city}`)}`}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -531,47 +521,19 @@ export default function Home() {
                         </a>
                       )}
                     </div>
-                    
-                    {superCategory && (
-                      <div className="event-category">🏷️ {superCategory}</div>
-                    )}
-                    
-                    {event.eventType && (
-                      <div className="event-type">🎭 {event.eventType}</div>
-                    )}
-                    
-                    {(event.price || event.ticketPrice) && (
-                      <div className="event-price">
-                        💰 {event.ticketPrice || event.price}
-                      </div>
-                    )}
-                    
-                    {event.ageRestrictions && (
-                      <div className="event-age">🔞 {event.ageRestrictions}</div>
-                    )}
-                    
-                    {event.description && (
-                      <div className="event-description">{event.description}</div>
-                    )}
-                    
+                    {superCategory && <div className="event-category">🏷️ {superCategory}</div>}
+                    {event.eventType && <div className="event-type">🎭 {event.eventType}</div>}
+                    {(event.price || event.ticketPrice) && <div className="event-price">💰 {event.ticketPrice || event.price}</div>}
+                    {event.ageRestrictions && <div className="event-age">🔞 {event.ageRestrictions}</div>}
+                    {event.description && <div className="event-description">{event.description}</div>}
                     <div className="event-links">
                       {event.website && (
-                        <a 
-                          href={event.website} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="event-link"
-                        >
+                        <a href={event.website} target="_blank" rel="noopener noreferrer" className="event-link">
                           Website →
                         </a>
                       )}
                       {event.bookingLink && (
-                        <a 
-                          href={event.bookingLink} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="event-link event-booking-link"
-                        >
+                        <a href={event.bookingLink} target="_blank" rel="noopener noreferrer" className="event-link event-booking-link">
                           Tickets →
                         </a>
                       )}
@@ -586,9 +548,7 @@ export default function Home() {
 
       {toast.show && (
         <div className="toast-container">
-          <div className="toast">
-            {toast.message}
-          </div>
+          <div className="toast">{toast.message}</div>
         </div>
       )}
 
@@ -596,12 +556,7 @@ export default function Home() {
         <div className="debug-panel">
           <div className="debug-header">
             <h3>Debug Information</h3>
-            <button 
-              className="debug-toggle"
-              onClick={() => setDebugData(null)}
-            >
-              ✕
-            </button>
+            <button className="debug-toggle" onClick={() => setDebugData(null)}>✕</button>
           </div>
           <div className="debug-content">
             <div className="debug-summary">
@@ -611,13 +566,10 @@ export default function Home() {
               <p><strong>Erstellt:</strong> {new Date(debugData.createdAt).toLocaleString()}</p>
               <p><strong>Schritte:</strong> {debugData.steps?.length || 0}</p>
             </div>
-            
             {debugData.steps && debugData.steps.map((step: any, index: number) => (
               <div key={index} className="debug-step">
                 <h4>Schritt {index + 1}: {step.category}</h4>
-                <div className="debug-query">
-                  <strong>Query:</strong> {step.query}
-                </div>
+                <div className="debug-query"><strong>Query:</strong> {step.query}</div>
                 <div className="debug-metrics">
                   <strong>Parsed Events:</strong> {step.parsedCount || 0} | 
                   <strong> Added to Total:</strong> {step.addedCount || 0} | 
