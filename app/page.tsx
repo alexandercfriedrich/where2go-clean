@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { CATEGORY_MAP } from './categories';
+import AnimatedBackground from './lib/AnimatedBackground';
 
 interface EventData {
   title: string;
@@ -24,10 +25,13 @@ const MAX_CATEGORY_SELECTION: number = 3;
 const MAX_POLLS = 104;
 
 export default function Home() {
-  const [city, setCity] = useState('');
+  // Stadtfeld vorausgefüllt (kannst du bei Bedarf auf '' setzen)
+  const [city, setCity] = useState('Linz');
   const [timePeriod, setTimePeriod] = useState('heute');
   const [customDate, setCustomDate] = useState('');
-  const [selectedSuperCategories, setSelectedSuperCategories] = useState<string[]>(ALL_SUPER_CATEGORIES.slice(0, MAX_CATEGORY_SELECTION));
+  const [selectedSuperCategories, setSelectedSuperCategories] = useState<string[]>(
+    ALL_SUPER_CATEGORIES.slice(0, MAX_CATEGORY_SELECTION)
+  );
   const [categoryLimitError, setCategoryLimitError] = useState<string | null>(null);
   const [events, setEvents] = useState<EventData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -35,15 +39,34 @@ export default function Home() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [jobStatus, setJobStatus] = useState<'idle' | 'pending' | 'done' | 'error'>('idle');
   const [pollCount, setPollCount] = useState(0);
-  const [progress, setProgress] = useState<{completedCategories: number, totalCategories: number} | null>(null);
+  const [progress, setProgress] = useState<{ completedCategories: number; totalCategories: number } | null>(null);
   const [newEvents, setNewEvents] = useState<Set<string>>(new Set());
   const [debugMode, setDebugMode] = useState(false);
   const [debugData, setDebugData] = useState<any>(null);
-  const [toast, setToast] = useState<{show: boolean, message: string}>({show: false, message: ''});
-  
-  const pollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [toast, setToast] = useState<{ show: boolean; message: string }>({ show: false, message: '' });
+
+  const pollInterval = useRef<ReturnType<typeof setTimeout> | null>(null);
   const eventsRef = useRef<EventData[]>([]);
   const pollCountRef = useRef<number>(0);
+
+  // Kategorien-Collapse
+  const [catsCollapsed, setCatsCollapsed] = useState(false);
+  const catRef = useRef<HTMLDivElement | null>(null);
+  const [catHeight, setCatHeight] = useState(0);
+
+  useEffect(() => {
+    if (!catRef.current) return;
+    const measure = () => setCatHeight(catRef.current!.scrollHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(catRef.current);
+    const onResize = () => measure();
+    window.addEventListener('resize', onResize);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', onResize);
+    };
+  }, []);
 
   // Reactive design switching based on URL params
   useEffect(() => {
@@ -79,12 +102,12 @@ export default function Home() {
     };
 
     window.addEventListener('popstate', handlePopState);
-    
+
     // Also listen for hash/search changes
     const handleHashChange = () => {
       updateFromURL();
     };
-    
+
     window.addEventListener('hashchange', handleHashChange);
 
     return () => {
@@ -165,8 +188,7 @@ export default function Home() {
   };
 
   // Flaches Array aller Unterkategorien der ausgewählten Überkategorien
-  const getSelectedSubcategories = (): string[] =>
-    selectedSuperCategories.flatMap(superCat => CATEGORY_MAP[superCat]);
+  const getSelectedSubcategories = (): string[] => selectedSuperCategories.flatMap(superCat => CATEGORY_MAP[superCat]);
 
   const searchEvents = async () => {
     if (!city.trim()) {
@@ -188,12 +210,12 @@ export default function Home() {
       const res = await fetch('/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          city: city.trim(), 
+        body: JSON.stringify({
+          city: city.trim(),
           date: formatDateForAPI(),
           categories: getSelectedSubcategories(),
-          options: { 
-            temperature: 0.2, 
+          options: {
+            temperature: 0.2,
             max_tokens: 10000,
             debug: debugMode,
             disableCache: debugMode,
@@ -202,7 +224,7 @@ export default function Home() {
             overallTimeoutMs: 240000,
             maxAttempts: 5
           }
-        }),
+        })
       });
 
       if (!res.ok) {
@@ -234,7 +256,7 @@ export default function Home() {
     const performPoll = async (): Promise<void> => {
       pollCountRef.current++;
       setPollCount(pollCountRef.current);
-      
+
       if (pollCountRef.current > maxPolls) {
         if (pollInterval.current) {
           clearInterval(pollInterval.current);
@@ -269,7 +291,7 @@ export default function Home() {
               message: `${newEventKeys.size} neue Event${newEventKeys.size !== 1 ? 's' : ''} gefunden`
             });
             setTimeout(() => {
-              setToast({show: false, message: ''});
+              setToast({ show: false, message: '' });
               setNewEvents(new Set());
             }, 3000);
           }
@@ -300,7 +322,7 @@ export default function Home() {
                 message: `${incomingEvents.length} Event${incomingEvents.length !== 1 ? 's' : ''} gefunden`
               });
               setTimeout(() => {
-                setToast({show: false, message: ''});
+                setToast({ show: false, message: '' });
                 setNewEvents(new Set());
               }, 3000);
             }
@@ -325,7 +347,7 @@ export default function Home() {
           message: `Netzwerkfehler (Versuch ${pollCountRef.current}) - Suche läuft weiter...`
         });
         setTimeout(() => {
-          setToast({show: false, message: ''});
+          setToast({ show: false, message: '' });
         }, 3000);
         if (pollInterval.current) {
           clearInterval(pollInterval.current);
@@ -340,6 +362,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
+      {/* Animierter Hintergrund (goldene Punkte) */}
+      <AnimatedBackground points={140} />
+
       {/* Hero Section */}
       <section className="hero">
         <div className="container">
@@ -351,10 +376,12 @@ export default function Home() {
       {/* Search Section */}
       <section className="search-section">
         <div className="container">
-          <form 
+          <form
             className="search-form"
             onSubmit={e => {
               e.preventDefault();
+              // Kategorien sofort einklappen
+              setCatsCollapsed(true);
               searchEvents();
             }}
           >
@@ -370,7 +397,7 @@ export default function Home() {
                   placeholder="z.B. Linz, Berlin, Hamburg ..."
                 />
               </div>
-              
+
               <div className="form-group">
                 <label htmlFor="timePeriod">Zeitraum</label>
                 <select
@@ -399,56 +426,59 @@ export default function Home() {
               </div>
             )}
 
-            {/* Categories Section */}
+            {/* Categories Section (kollabierbar) */}
             <div className="categories-section">
-              <label className="categories-label">Kategorien</label>
-              <div className="categories-grid">
-                {ALL_SUPER_CATEGORIES.map((category) => (
-                  <label key={category} className="category-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={selectedSuperCategories.includes(category)}
-                      onChange={() => toggleSuperCategory(category)}
-                      disabled={
-                        !selectedSuperCategories.includes(category) &&
-                        selectedSuperCategories.length >= MAX_CATEGORY_SELECTION
-                      }
-                    />
-                    <span className="category-name">{category}</span>
-                  </label>
-                ))}
-              </div>
-              <div className="categories-actions">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => {
-                    setSelectedSuperCategories(ALL_SUPER_CATEGORIES.slice(0, MAX_CATEGORY_SELECTION));
-                    setCategoryLimitError(null);
-                  }}
-                >
-                  {`Max. ${MAX_CATEGORY_SELECTION} auswählen`}
-                </button>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => {
-                    setSelectedSuperCategories([]);
-                    setCategoryLimitError(null);
-                  }}
-                >
-                  Alle abwählen
-                </button>
-              </div>
-              {categoryLimitError && (
-                <div style={{ color: "red", marginTop: "8px" }}>
-                  {categoryLimitError}
+              <div
+                ref={catRef}
+                className={`w2g-cat-collapsible ${catsCollapsed ? 'is-collapsed' : ''}`}
+                style={{ maxHeight: catsCollapsed ? 0 : catHeight, marginBottom: catsCollapsed ? 0 : 15 }}
+              >
+                <label className="categories-label">Kategorien</label>
+                <div className="categories-grid">
+                  {ALL_SUPER_CATEGORIES.map(category => (
+                    <label key={category} className="category-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={selectedSuperCategories.includes(category)}
+                        onChange={() => toggleSuperCategory(category)}
+                        disabled={
+                          !selectedSuperCategories.includes(category) &&
+                          selectedSuperCategories.length >= MAX_CATEGORY_SELECTION
+                        }
+                      />
+                      <span className="category-name">{category}</span>
+                    </label>
+                  ))}
                 </div>
-              )}
+                <div className="categories-actions">
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => {
+                      setSelectedSuperCategories(ALL_SUPER_CATEGORIES.slice(0, MAX_CATEGORY_SELECTION));
+                      setCategoryLimitError(null);
+                    }}
+                  >
+                    {`Max. ${MAX_CATEGORY_SELECTION} auswählen`}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => {
+                      setSelectedSuperCategories([]);
+                      setCategoryLimitError(null);
+                    }}
+                  >
+                    Alle abwählen
+                  </button>
+                </div>
+                {categoryLimitError && <div style={{ color: 'red', marginTop: '8px' }}>{categoryLimitError}</div>}
+              </div>
             </div>
 
+            {/* Suche-Button UNTERHALB der Kategorien */}
             <button type="submit" className="btn-search">
-              Events suchen
+              Suche
             </button>
           </form>
         </div>
@@ -456,24 +486,24 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="container">
-        {error && (
-          <div className="error">
-            {error}
-          </div>
-        )}
+        {error && <div className="error">{error}</div>}
 
         {loading && (
           <div className="loading">
             <div className="loading-spinner"></div>
             <p>
-              {jobStatus === 'pending' && events.length > 0 
-                ? 'Suche läuft – Ergebnisse werden ergänzt' 
-                : 'Suche läuft … bitte habe etwas Geduld.'
-              }
+              {jobStatus === 'pending' && events.length > 0
+                ? 'Suche läuft – Ergebnisse werden ergänzt'
+                : 'Suche läuft … bitte habe etwas Geduld.'}
             </p>
-            <p>Abfrage <span className="font-mono">{pollCount}/{MAX_POLLS}</span> (max. 480 sec / 8min)</p>
+            <p>
+              Abfrage <span className="font-mono">{pollCount}/{MAX_POLLS}</span> (max. 480 sec / 8min)
+            </p>
             {jobStatus === 'pending' && progress && (
-              <p>Kategorien: <span className="font-mono">{progress.completedCategories}/{progress.totalCategories}</span> abgeschlossen</p>
+              <p>
+                Kategorien: <span className="font-mono">{progress.completedCategories}/{progress.totalCategories}</span>{' '}
+                abgeschlossen
+              </p>
             )}
             <p>KI-Auswertung kann länger dauern!</p>
           </div>
@@ -488,29 +518,28 @@ export default function Home() {
 
         {!!events.length && (
           <div className="events-grid">
-            {events.map((event) => {
+            {events.map(event => {
               const eventKey = createEventKey(event);
               const isNew = newEvents.has(eventKey);
-              const superCategory = ALL_SUPER_CATEGORIES.find(cat =>
-                CATEGORY_MAP[cat].includes(event.category)
-              ) || event.category;
+              const superCategory =
+                ALL_SUPER_CATEGORIES.find(cat => CATEGORY_MAP[cat].includes(event.category)) || event.category;
 
               return (
                 <div key={eventKey} className={`event-card ${isNew ? 'event-card-new' : ''}`}>
                   {isNew && <div className="badge-new">Neu</div>}
                   <div className="event-content">
                     <h3 className="event-title">{event.title}</h3>
-                    
+
                     <div className="event-date">
                       {event.date}
                       {event.time && ` • ${event.time}`}
                       {event.endTime && ` - ${event.endTime}`}
                     </div>
-                    
+
                     <div className="event-location">
                       📍 {event.venue}
                       {event.address ? (
-                        <a 
+                        <a
                           href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address)}`}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -520,7 +549,7 @@ export default function Home() {
                           <br />📍 {event.address}
                         </a>
                       ) : (
-                        <a 
+                        <a
                           href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${event.venue}, ${city}`)}`}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -531,45 +560,30 @@ export default function Home() {
                         </a>
                       )}
                     </div>
-                    
-                    {superCategory && (
-                      <div className="event-category">🏷️ {superCategory}</div>
-                    )}
-                    
-                    {event.eventType && (
-                      <div className="event-type">🎭 {event.eventType}</div>
-                    )}
-                    
+
+                    {superCategory && <div className="event-category">🏷️ {superCategory}</div>}
+
+                    {event.eventType && <div className="event-type">🎭 {event.eventType}</div>}
+
                     {(event.price || event.ticketPrice) && (
-                      <div className="event-price">
-                        💰 {event.ticketPrice || event.price}
-                      </div>
+                      <div className="event-price">💰 {event.ticketPrice || event.price}</div>
                     )}
-                    
-                    {event.ageRestrictions && (
-                      <div className="event-age">🔞 {event.ageRestrictions}</div>
-                    )}
-                    
-                    {event.description && (
-                      <div className="event-description">{event.description}</div>
-                    )}
-                    
+
+                    {event.ageRestrictions && <div className="event-age">🔞 {event.ageRestrictions}</div>}
+
+                    {event.description && <div className="event-description">{event.description}</div>}
+
                     <div className="event-links">
                       {event.website && (
-                        <a 
-                          href={event.website} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="event-link"
-                        >
+                        <a href={event.website} target="_blank" rel="noopener noreferrer" className="event-link">
                           Website →
                         </a>
                       )}
                       {event.bookingLink && (
-                        <a 
-                          href={event.bookingLink} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
+                        <a
+                          href={event.bookingLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="event-link event-booking-link"
                         >
                           Tickets →
@@ -586,9 +600,7 @@ export default function Home() {
 
       {toast.show && (
         <div className="toast-container">
-          <div className="toast">
-            {toast.message}
-          </div>
+          <div className="toast">{toast.message}</div>
         </div>
       )}
 
@@ -596,39 +608,46 @@ export default function Home() {
         <div className="debug-panel">
           <div className="debug-header">
             <h3>Debug Information</h3>
-            <button 
-              className="debug-toggle"
-              onClick={() => setDebugData(null)}
-            >
+            <button className="debug-toggle" onClick={() => setDebugData(null)}>
               ✕
             </button>
           </div>
           <div className="debug-content">
             <div className="debug-summary">
-              <p><strong>Stadt:</strong> {debugData.city}</p>
-              <p><strong>Datum:</strong> {debugData.date}</p>
-              <p><strong>Kategorien:</strong> {debugData.categories?.join(', ')}</p>
-              <p><strong>Erstellt:</strong> {new Date(debugData.createdAt).toLocaleString()}</p>
-              <p><strong>Schritte:</strong> {debugData.steps?.length || 0}</p>
+              <p>
+                <strong>Stadt:</strong> {debugData.city}
+              </p>
+              <p>
+                <strong>Datum:</strong> {debugData.date}
+              </p>
+              <p>
+                <strong>Kategorien:</strong> {debugData.categories?.join(', ')}
+              </p>
+              <p>
+                <strong>Erstellt:</strong> {new Date(debugData.createdAt).toLocaleString()}
+              </p>
+              <p>
+                <strong>Schritte:</strong> {debugData.steps?.length || 0}
+              </p>
             </div>
-            
-            {debugData.steps && debugData.steps.map((step: any, index: number) => (
-              <div key={index} className="debug-step">
-                <h4>Schritt {index + 1}: {step.category}</h4>
-                <div className="debug-query">
-                  <strong>Query:</strong> {step.query}
+
+            {debugData.steps &&
+              debugData.steps.map((step: any, index: number) => (
+                <div key={index} className="debug-step">
+                  <h4>Schritt {index + 1}: {step.category}</h4>
+                  <div className="debug-query">
+                    <strong>Query:</strong> {step.query}
+                  </div>
+                  <div className="debug-metrics">
+                    <strong>Parsed Events:</strong> {step.parsedCount || 0} | <strong> Added to Total:</strong>{' '}
+                    {step.addedCount || 0} | <strong> Total After:</strong> {step.totalAfter || 0}
+                  </div>
+                  <details className="debug-response">
+                    <summary>Rohdaten anzeigen</summary>
+                    <pre>{step.response}</pre>
+                  </details>
                 </div>
-                <div className="debug-metrics">
-                  <strong>Parsed Events:</strong> {step.parsedCount || 0} | 
-                  <strong> Added to Total:</strong> {step.addedCount || 0} | 
-                  <strong> Total After:</strong> {step.totalAfter || 0}
-                </div>
-                <details className="debug-response">
-                  <summary>Rohdaten anzeigen</summary>
-                  <pre>{step.response}</pre>
-                </details>
-              </div>
-            ))}
+              ))}
           </div>
         </div>
       )}
