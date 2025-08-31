@@ -67,6 +67,96 @@
         "isActive": true
       },
       {
+        "id": "website-1756638227369-mumok001",
+        "name": "MUMOK (Museum moderner Kunst Stiftung Ludwig Wien)",
+        "url": "https://www.mumok.at",
+        "categories": ["Museen", "Kunst/Design"],
+        "description": "Modern and contemporary art exhibitions",
+        "priority": 8,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227369-mak00001",
+        "name": "MAK – Museum für angewandte Kunst",
+        "url": "https://www.mak.at",
+        "categories": ["Museen", "Kunst/Design"],
+        "description": "Applied arts and design museum",
+        "priority": 8,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227369-secession",
+        "name": "Secession",
+        "url": "https://www.secession.at",
+        "categories": ["Museen", "Kunst/Design"],
+        "description": "Viennese Secession exhibition hall",
+        "priority": 8,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227369-wienmuseum",
+        "name": "Wien Museum",
+        "url": "https://www.wienmuseum.at",
+        "categories": ["Museen"],
+        "description": "Vienna city history and culture",
+        "priority": 8,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227369-jewishmuseum",
+        "name": "Jewish Museum Vienna",
+        "url": "https://www.jmw.at",
+        "categories": ["Museen"],
+        "description": "Jewish history and culture in Vienna",
+        "priority": 8,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227369-freudmuseum",
+        "name": "Sigmund Freud Museum",
+        "url": "https://www.freud-museum.at",
+        "categories": ["Museen"],
+        "description": "Sigmund Freud's life and work",
+        "priority": 8,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227369-techmuseum",
+        "name": "Technical Museum Vienna",
+        "url": "https://www.technischesmuseum.at",
+        "categories": ["Museen"],
+        "description": "Science and technology exhibitions",
+        "priority": 8,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227369-kunsthaus",
+        "name": "Kunst Haus Wien",
+        "url": "https://www.kunsthauswien.com",
+        "categories": ["Museen", "Kunst/Design"],
+        "description": "Hundertwasser museum and contemporary art",
+        "priority": 8,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227369-treasury",
+        "name": "Imperial Treasury",
+        "url": "https://www.kaiserliche-schatzkammer.at",
+        "categories": ["Museen"],
+        "description": "Imperial treasures and crown jewels",
+        "priority": 8,
+        "isActive": true
+      },
+      {
+        "id": "website-1756638227369-albertinamodern",
+        "name": "Albertina Modern",
+        "url": "https://www.albertina.at/albertina-modern",
+        "categories": ["Museen", "Kunst/Design"],
+        "description": "Modern and contemporary art from Albertina collection",
+        "priority": 8,
+        "isActive": true
+      },
+      {
         "id": "website-1756638227369-yynwqanj4",
         "name": "Vienna Tourist Board",
         "url": "https://www.vienna.info",
