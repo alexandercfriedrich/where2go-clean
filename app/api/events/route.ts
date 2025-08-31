@@ -6,6 +6,7 @@ import { createPerplexityService } from '@/lib/perplexity';
 import { eventAggregator } from '@/lib/aggregator';
 import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
 import { getJobStore } from '@/lib/jobStore';
+import { getHotCity, getCityWebsitesForCategories } from '@/lib/hotCityStore';
 
 // Serverless configuration  
 export const runtime = 'nodejs';
@@ -182,7 +183,30 @@ export async function POST(request: NextRequest) {
 
     // Compute effective categories and merge options with defaults
     const effectiveCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
-    const mergedOptions = { ...DEFAULT_PPLX_OPTIONS, ...options };
+    
+    // Check for Hot City and resolve additional sources
+    let hotCityData = null;
+    let additionalSources = [];
+    try {
+      hotCityData = await getHotCity(city);
+      if (hotCityData) {
+        console.log(`Found Hot City data for: ${city}`);
+        // Get websites for the requested categories
+        additionalSources = await getCityWebsitesForCategories(city, effectiveCategories);
+        console.log(`Found ${additionalSources.length} additional sources for ${city}`);
+      }
+    } catch (error) {
+      console.error('Error fetching Hot City data:', error);
+      // Continue without Hot City data - don't fail the entire request
+    }
+
+    // Merge options with Hot City data and defaults
+    const mergedOptions = { 
+      ...DEFAULT_PPLX_OPTIONS, 
+      ...options,
+      hotCity: hotCityData,
+      additionalSources
+    };
 
     // Determine if cache should be bypassed
     const disableCache = mergedOptions?.disableCache === true || mergedOptions?.debug === true;
