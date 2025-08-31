@@ -40,57 +40,30 @@ export default function Home() {
   const [debugMode, setDebugMode] = useState(false);
   const [debugData, setDebugData] = useState<any>(null);
   const [toast, setToast] = useState<{show: boolean, message: string}>({show: false, message: ''});
+  const [categoriesExpanded, setCategoriesExpanded] = useState(false);
   
   const pollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const eventsRef = useRef<EventData[]>([]);
   const pollCountRef = useRef<number>(0);
 
-  // Reactive design switching based on URL params
+  // Load new streamlined design
   useEffect(() => {
-    const updateFromURL = () => {
-      const params = new URLSearchParams(window.location.search);
-      const design = params.get('design');
-      const id = 'w2g-design-css';
-      const existing = document.getElementById(id) as HTMLLinkElement | null;
-
-      const isValid = design === '1' || design === '2' || design === '3';
-      if (isValid) {
-        const href = `/designs/design${design}.css`;
-        if (existing) {
-          if (existing.getAttribute('href') !== href) existing.setAttribute('href', href);
-        } else {
-          const link = document.createElement('link');
-          link.id = id;
-          link.rel = 'stylesheet';
-          link.href = href;
-          document.head.appendChild(link);
-        }
-      } else {
-        if (existing) existing.remove();
+    const id = 'w2g-design-css';
+    const existing = document.getElementById(id) as HTMLLinkElement | null;
+    
+    // Always load the new design4.css
+    const href = `/designs/design4.css`;
+    if (existing) {
+      if (existing.getAttribute('href') !== href) {
+        existing.setAttribute('href', href);
       }
-    };
-
-    // Initial update
-    updateFromURL();
-
-    // Listen for URL changes (for client-side navigation)
-    const handlePopState = () => {
-      updateFromURL();
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    
-    // Also listen for hash/search changes
-    const handleHashChange = () => {
-      updateFromURL();
-    };
-    
-    window.addEventListener('hashchange', handleHashChange);
-
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-      window.removeEventListener('hashchange', handleHashChange);
-    };
+    } else {
+      const link = document.createElement('link');
+      link.id = id;
+      link.rel = 'stylesheet';
+      link.href = href;
+      document.head.appendChild(link);
+    }
   }, []);
 
   // Reactive debug mode based on URL params
@@ -348,19 +321,19 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Search Section */}
+      {/* Streamlined Search Section */}
       <section className="search-section">
-        <div className="container">
-          <form 
-            className="search-form"
-            onSubmit={e => {
-              e.preventDefault();
-              searchEvents();
-            }}
-          >
-            <div className="form-row">
+        <form 
+          className="search-form"
+          onSubmit={e => {
+            e.preventDefault();
+            searchEvents();
+          }}
+        >
+          <div className="search-main">
+            <div className="search-primary">
               <div className="form-group">
-                <label htmlFor="city">Stadt</label>
+                <label htmlFor="city">Stadt eingeben</label>
                 <input
                   className="form-input"
                   type="text"
@@ -372,7 +345,7 @@ export default function Home() {
               </div>
               
               <div className="form-group">
-                <label htmlFor="timePeriod">Zeitraum</label>
+                <label htmlFor="timePeriod">Datum wählen</label>
                 <select
                   className="form-input"
                   id="timePeriod"
@@ -387,20 +360,40 @@ export default function Home() {
             </div>
 
             {timePeriod === 'benutzerdefiniert' && (
-              <div className="form-group">
-                <label htmlFor="customDate">Datum</label>
-                <input
-                  className="form-input"
-                  type="date"
-                  id="customDate"
-                  value={customDate}
-                  onChange={e => setCustomDate(e.target.value)}
-                />
+              <div className="custom-date">
+                <div className="form-group">
+                  <label htmlFor="customDate">Datum</label>
+                  <input
+                    className="form-input"
+                    type="date"
+                    id="customDate"
+                    value={customDate}
+                    onChange={e => setCustomDate(e.target.value)}
+                  />
+                </div>
               </div>
             )}
 
-            {/* Categories Section */}
-            <div className="categories-section">
+            <button type="submit" className="btn-search">
+              Events suchen
+            </button>
+          </div>
+
+          {/* Collapsible Categories Section */}
+          <div className="categories-section">
+            <button 
+              type="button"
+              className="categories-toggle"
+              onClick={() => setCategoriesExpanded(!categoriesExpanded)}
+              aria-expanded={categoriesExpanded}
+            >
+              Kategorien auswählen (optional)
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="6 9 12 15 18 9"></polyline>
+              </svg>
+            </button>
+            
+            <div className={`categories-content ${categoriesExpanded ? 'expanded' : ''}`}>
               <label className="categories-label">Kategorien</label>
               <div className="categories-grid">
                 {ALL_SUPER_CATEGORIES.map((category) => (
@@ -446,12 +439,8 @@ export default function Home() {
                 </div>
               )}
             </div>
-
-            <button type="submit" className="btn-search">
-              Events suchen
-            </button>
-          </form>
-        </div>
+          </div>
+        </form>
       </section>
 
       {/* Main Content */}
