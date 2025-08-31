@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Where2Go - Entdecke Events in deiner Stadt!</title>
+    <meta name="description" content="Entdecke Events in deiner Stadt - Alle Events. Weltweit. Eine Plattform.">
+    <meta name="keywords" content="events, stadt, veranstaltungen, event finder, where2go">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="min-h-screen">
+        <!-- Hero Section -->
+        <section class="hero">
+            <div class="container">
+                <h1>Where2Go</h1>
+                <p>Entdecke die besten Events in deiner Stadt – KI-gestützte Suche für unvergessliche Erlebnisse</p>
+            </div>
+        </section>
+
+        <!-- Search Section -->
+        <section class="search-section">
+            <div class="container">
+                <form class="search-form" id="searchForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="city">Stadt</label>
+                            <input
+                                class="form-input"
+                                type="text"
+                                id="city"
+                                name="city"
+                                placeholder="z.B. Linz, Berlin, Hamburg ..."
+                                required
+                            />
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="timePeriod">Zeitraum</label>
+                            <select class="form-input" id="timePeriod" name="timePeriod">
+                                <option value="heute">Heute</option>
+                                <option value="morgen">Morgen</option>
+                                <option value="benutzerdefiniert">Benutzerdefiniert</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group custom-date-group" id="customDateGroup" style="display: none;">
+                        <label for="customDate">Datum</label>
+                        <input
+                            class="form-input"
+                            type="date"
+                            id="customDate"
+                            name="customDate"
+                        />
+                    </div>
+
+                    <!-- Categories Section -->
+                    <div class="categories-section">
+                        <label class="categories-label">Kategorien</label>
+                        <div class="categories-grid" id="categoriesGrid">
+                            <label class="category-checkbox">
+                                <input type="checkbox" name="category" value="DJ Sets/Electronic" checked />
+                                <span class="category-name">DJ Sets/Electronic</span>
+                            </label>
+                            <label class="category-checkbox">
+                                <input type="checkbox" name="category" value="Clubs/Discos" checked />
+                                <span class="category-name">Clubs/Discos</span>
+                            </label>
+                            <label class="category-checkbox">
+                                <input type="checkbox" name="category" value="Live-Konzerte" checked />
+                                <span class="category-name">Live-Konzerte</span>
+                            </label>
+                            <label class="category-checkbox">
+                                <input type="checkbox" name="category" value="Open Air" />
+                                <span class="category-name">Open Air</span>
+                            </label>
+                            <label class="category-checkbox">
+                                <input type="checkbox" name="category" value="Museen" />
+                                <span class="category-name">Museen</span>
+                            </label>
+                            <label class="category-checkbox">
+                                <input type="checkbox" name="category" value="LGBTQ+" />
+                                <span class="category-name">LGBTQ+</span>
+                            </label>
+                            <label class="category-checkbox">
+                                <input type="checkbox" name="category" value="Comedy/Kabarett" />
+                                <span class="category-name">Comedy/Kabarett</span>
+                            </label>
+                            <label class="category-checkbox">
+                                <input type="checkbox" name="category" value="Theater/Performance" />
+                                <span class="category-name">Theater/Performance</span>
+                            </label>
+                            <label class="category-checkbox">
+                                <input type="checkbox" name="category" value="Film" />
+                                <span class="category-name">Film</span>
+                            </label>
+                            <label class="category-checkbox">
+                                <input type="checkbox" name="category" value="Food/Culinary" />
+                                <span class="category-name">Food/Culinary</span>
+                            </label>
+                            <label class="category-checkbox">
+                                <input type="checkbox" name="category" value="Sport" />
+                                <span class="category-name">Sport</span>
+                            </label>
+                            <label class="category-checkbox">
+                                <input type="checkbox" name="category" value="Familien/Kids" />
+                                <span class="category-name">Familien/Kids</span>
+                            </label>
+                            <label class="category-checkbox">
+                                <input type="checkbox" name="category" value="Kunst/Design" />
+                                <span class="category-name">Kunst/Design</span>
+                            </label>
+                            <label class="category-checkbox">
+                                <input type="checkbox" name="category" value="Wellness/Spirituell" />
+                                <span class="category-name">Wellness/Spirituell</span>
+                            </label>
+                            <label class="category-checkbox">
+                                <input type="checkbox" name="category" value="Networking/Business" />
+                                <span class="category-name">Networking/Business</span>
+                            </label>
+                            <label class="category-checkbox">
+                                <input type="checkbox" name="category" value="Natur/Outdoor" />
+                                <span class="category-name">Natur/Outdoor</span>
+                            </label>
+                            <label class="category-checkbox">
+                                <input type="checkbox" name="category" value="Kultur/Traditionen" />
+                                <span class="category-name">Kultur/Traditionen</span>
+                            </label>
+                            <label class="category-checkbox">
+                                <input type="checkbox" name="category" value="Märkte/Shopping" />
+                                <span class="category-name">Märkte/Shopping</span>
+                            </label>
+                            <label class="category-checkbox">
+                                <input type="checkbox" name="category" value="Bildung/Lernen" />
+                                <span class="category-name">Bildung/Lernen</span>
+                            </label>
+                            <label class="category-checkbox">
+                                <input type="checkbox" name="category" value="Soziales/Community" />
+                                <span class="category-name">Soziales/Community</span>
+                            </label>
+                        </div>
+                        <div class="categories-actions">
+                            <button type="button" class="btn-secondary" id="selectMaxBtn">
+                                Max. 3 auswählen
+                            </button>
+                            <button type="button" class="btn-secondary" id="unselectAllBtn">
+                                Alle abwählen
+                            </button>
+                        </div>
+                        <div class="category-error" id="categoryError" style="display: none;">
+                            Du kannst maximal 3 Kategorien auswählen.
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-search">
+                        Events suchen
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Main Content -->
+        <main class="container">
+            <div class="error" id="errorMessage" style="display: none;"></div>
+
+            <div class="loading" id="loadingState" style="display: none;">
+                <div class="loading-spinner"></div>
+                <p>Suche läuft … bitte habe etwas Geduld.</p>
+                <p>KI-Auswertung kann länger dauern!</p>
+            </div>
+
+            <div class="empty-state" id="emptyState">
+                <h3>Bereit für dein nächstes Abenteuer?</h3>
+                <p>Starte eine Suche, um die besten Events in deiner Stadt zu entdecken.</p>
+            </div>
+
+            <div class="events-grid" id="eventsGrid" style="display: none;">
+                <!-- Events will be populated here -->
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="container">
+                <p>© 2025 Where2Go - Entdecke deine Stadt neu</p>
+            </div>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
