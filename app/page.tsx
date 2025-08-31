@@ -47,7 +47,7 @@ export default function Home() {
   const eventsRef = useRef<EventData[]>([]);
   const pollCountRef = useRef<number>(0);
 
-  // Entfernt: frühere dynamische Designauswahl via ?design=…
+  // Debug-Mode via URL-Param ?debug=1
   useEffect(() => {
     const updateDebugMode = () => {
       const params = new URLSearchParams(window.location.search);
@@ -367,7 +367,9 @@ export default function Home() {
               <select
                 id="timePeriod"
                 value={timePeriod}
-                onChange={(e) => setTimePeriod(e.target.value as any)}
+                onChange={(e) =>
+                  setTimePeriod(e.target.value as 'heute' | 'morgen' | 'benutzerdefiniert')
+                }
                 disabled={loading}
                 aria-label="Datum auswählen"
                 required
@@ -410,7 +412,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Kategorien + restliche Inhalte unverändert */}
+      {/* Kategorien-Abschnitt (Form-Teile für Stadt/Datum sind im Hero) */}
       <section className="search-section">
         <div className="container">
           <div className="categories-section">
