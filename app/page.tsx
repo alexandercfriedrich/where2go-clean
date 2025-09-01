@@ -55,12 +55,12 @@ export default function Home() {
   useEffect(() => {
     const updateFromURL = () => {
       const params = new URLSearchParams(window.location.search);
-      const design = params.get('design');
+      const design = params.get('design') || '1'; // Default to design 1 if no parameter
       const id = 'w2g-design-css';
       const existing = document.getElementById(id) as HTMLLinkElement | null;
 
       const isValid = design === '1' || design === '2' || design === '3';
-      setIsDesign1(!design || design === '1'); // true wenn KEIN parameter ODER "1"
+      setIsDesign1(design === '1'); // true wenn design ist "1"
       
       if (isValid) {
         const href = `/designs/design${design}.css`;
@@ -74,8 +74,18 @@ export default function Home() {
           document.head.appendChild(link);
         }
       } else {
-        if (existing) existing.remove();
-        setIsDesign1(false);
+        // Fallback to design 1 if invalid parameter
+        const href = `/designs/design1.css`;
+        if (existing) {
+          if (existing.getAttribute('href') !== href) existing.setAttribute('href', href);
+        } else {
+          const link = document.createElement('link');
+          link.id = id;
+          link.rel = 'stylesheet';
+          link.href = href;
+          document.head.appendChild(link);
+        }
+        setIsDesign1(true);
       }
     };
 
@@ -719,11 +729,10 @@ export default function Home() {
                 : 'Suche läuft … bitte habe etwas Geduld.'
               }
             </p>
-            <p>Abfrage <span className="font-mono">{pollCount}/{MAX_POLLS}</span> (max. 480 sec / 8min)</p>
+            <p>Abfrage <span className="font-mono">{pollCount}/{MAX_POLLS}</span> (max 60 Sekunden)</p>
             {jobStatus === 'pending' && progress && (
               <p>Kategorien: <span className="font-mono">{progress.completedCategories}/{progress.totalCategories}</span> abgeschlossen</p>
             )}
-            <p>KI-Auswertung kann länger dauern!</p>
           </div>
         )}
 
@@ -754,9 +763,11 @@ export default function Home() {
                       <>
                         <div className="event-datetime">
                           <div className="event-date-d1">
-                            <svg className="icon-clock" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <circle cx="12" cy="12" r="10"/>
-                              <polyline points="12,6 12,12 16,14"/>
+                            <svg className="icon-date" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                              <line x1="16" y1="2" x2="16" y2="6"/>
+                              <line x1="8" y1="2" x2="8" y2="6"/>
+                              <line x1="3" y1="10" x2="21" y2="10"/>
                             </svg>
                             {(() => {
                               const { date, time } = formatEventDateTime(event.date, event.time);
@@ -783,18 +794,22 @@ export default function Home() {
                             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
                             <circle cx="12" cy="10" r="3"/>
                           </svg>
-                          {event.venue}
-                          {event.address && (
+                          <div className="event-location-content">
                             <a 
-                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address)}`}
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address || event.venue)}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="event-address-link"
-                              title="Adresse in Google Maps öffnen"
+                              className="event-venue-link"
+                              title="Venue in Google Maps öffnen"
                             >
-                              <br />{event.address}
+                              {event.venue}
                             </a>
-                          )}
+                            {event.address && (
+                              <div className="event-address">
+                                {event.address}
+                              </div>
+                            )}
+                          </div>
                         </div>
                         
                         {superCategory && (
