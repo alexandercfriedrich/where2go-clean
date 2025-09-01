@@ -1,12 +1,29 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getBrowserLanguage, getTranslation, type SupportedLanguage, type Translations } from './i18n';
+import { getTranslation, type SupportedLanguage, type Translations } from './i18n';
+
+// Browser language detection - only call on client side
+function getBrowserLanguage(): SupportedLanguage {
+  if (typeof window === 'undefined') return 'de';
+  
+  try {
+    const language = navigator.language || 'de';
+    const langCode = language.split('-')[0] as SupportedLanguage;
+    
+    // Return supported language or fallback to German
+    return ['de', 'en'].includes(langCode) ? langCode : 'de';
+  } catch {
+    return 'de';
+  }
+}
 
 export function useTranslation() {
   const [language, setLanguage] = useState<SupportedLanguage>('de');
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    setIsClient(true);
     const detectedLanguage = getBrowserLanguage();
     setLanguage(detectedLanguage);
   }, []);
@@ -16,13 +33,21 @@ export function useTranslation() {
   };
 
   const formatDate = (date: Date, options?: Intl.DateTimeFormatOptions): string => {
-    const locale = language === 'de' ? 'de-DE' : 'en-US';
-    return date.toLocaleDateString(locale, options);
+    const locale = language === 'en' ? 'en-US' : 'de-DE';
+    try {
+      return date.toLocaleDateString(locale, options);
+    } catch {
+      return date.toLocaleDateString('de-DE', options);
+    }
   };
 
   const formatTime = (date: Date, options?: Intl.DateTimeFormatOptions): string => {
-    const locale = language === 'de' ? 'de-DE' : 'en-US';
-    return date.toLocaleTimeString(locale, options);
+    const locale = language === 'en' ? 'en-US' : 'de-DE';
+    try {
+      return date.toLocaleTimeString(locale, options);
+    } catch {
+      return date.toLocaleTimeString('de-DE', options);
+    }
   };
 
   // Helper to format date strings for events
@@ -76,6 +101,7 @@ export function useTranslation() {
     formatDate,
     formatTime,
     formatEventDate,
-    formatEventTime
+    formatEventTime,
+    isClient
   };
 }

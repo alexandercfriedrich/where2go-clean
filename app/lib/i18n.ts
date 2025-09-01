@@ -1,5 +1,3 @@
-'use client';
-
 // Translation keys and their values
 export interface Translations {
   // Page metadata
@@ -149,17 +147,6 @@ const translations = {
 
 // Supported languages
 export type SupportedLanguage = keyof typeof translations;
-
-// Get browser language
-export function getBrowserLanguage(): SupportedLanguage {
-  if (typeof window === 'undefined') return 'de'; // Default for SSR
-  
-  const language = navigator.language || 'de';
-  const langCode = language.split('-')[0] as SupportedLanguage;
-  
-  // Return supported language or fallback to German
-  return translations[langCode] ? langCode : 'de';
-}
 
 // Get translations for a language
 export function getTranslations(language: SupportedLanguage): Translations {
