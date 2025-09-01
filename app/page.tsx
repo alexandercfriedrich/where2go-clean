@@ -182,6 +182,17 @@ export default function Home() {
     return `${event.title}_${event.date}_${event.venue}`;
   };
 
+  // Helper function to detect if an event is likely at a venue (simplified heuristic)
+  const isLikelyVenue = (event: EventData): boolean => {
+    const venueIndicators = [
+      'club', 'bar', 'restaurant', 'hotel', 'theater', 'opera', 'hall', 'center', 'arena', 'stadium', 
+      'gallery', 'museum', 'lounge', 'café', 'cafe', 'bistro', 'venue', 'location', 'space'
+    ];
+    
+    const venueLower = event.venue.toLowerCase();
+    return venueIndicators.some(indicator => venueLower.includes(indicator));
+  };
+
   // Helper function to format date and time for Design 1
   const formatEventDateTime = (date: string, time?: string, endTime?: string) => {
     if (!isDesign1) {
@@ -925,8 +936,10 @@ export default function Home() {
                 ? searchedSuperCategories.find(cat => CATEGORY_MAP[cat]?.includes(event.category)) || event.category
                 : ALL_SUPER_CATEGORIES.find(cat => CATEGORY_MAP[cat].includes(event.category)) || event.category;
 
+              const isVenueEvent = isLikelyVenue(event);
+
               return (
-                <div key={eventKey} className={`event-card ${isNew ? 'event-card-new' : ''}`}>
+                <div key={eventKey} className={`event-card ${isNew ? 'event-card-new' : ''} ${isVenueEvent ? 'event-card-venue' : ''}`}>
                   {isNew && <div className="badge-new">Neu</div>}
                   <div className="event-content">
                     <h3 className="event-title">{event.title}</h3>

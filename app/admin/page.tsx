@@ -259,8 +259,14 @@ export default function AdminPage() {
       <div className="admin-header">
         <h1 className="admin-title">Admin Dashboard</h1>
         <div>
+          <a href="/admin/hot-cities-stats" className="btn btn-secondary">
+            View Statistics
+          </a>
           <a href="/admin/static-pages" className="btn btn-secondary">
             Manage Static Pages
+          </a>
+          <a href="/admin/affiliates" className="btn btn-secondary">
+            Manage Affiliates
           </a>
           <button className="btn btn-primary" onClick={handleCreateCity}>
             Add New City
