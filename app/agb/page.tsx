@@ -29,7 +29,7 @@ export default function AGB() {
             <div style={{ marginBottom: '2rem' }}>
               <h3 style={{ marginBottom: '1rem', color: '#404040' }}>§ 1 Geltungsbereich</h3>
               <p style={{ marginBottom: '1rem', lineHeight: '1.6' }}>
-                Diese Allgemeinen Geschäftsbedingungen (nachfolgend "AGB") gelten für alle Verträge zwischen Where2Go und den Nutzern der Website where2go.example.com.
+                Diese Allgemeinen Geschäftsbedingungen (nachfolgend &quot;AGB&quot;) gelten für alle Verträge zwischen Where2Go und den Nutzern der Website where2go.example.com.
               </p>
             </div>
 

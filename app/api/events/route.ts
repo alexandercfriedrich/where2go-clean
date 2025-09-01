@@ -223,7 +223,12 @@ export async function POST(request: NextRequest) {
         id: jobId,
         status: 'done',
         events: cachedEvents,
-        createdAt: new Date()
+        createdAt: new Date(),
+        cacheInfo: {
+          fromCache: true,
+          totalEvents: cachedEvents.length,
+          cachedEvents: cachedEvents.length
+        }
       };
       await jobStore.setJob(jobId, job);
       

@@ -47,6 +47,11 @@ export interface JobStatus {
   error?: string;
   createdAt: Date;
   debug?: DebugInfo; // New debug info
+  cacheInfo?: {
+    fromCache: boolean;
+    totalEvents: number;
+    cachedEvents: number;
+  };
   progress?: {
     completedCategories: number;
     totalCategories: number;

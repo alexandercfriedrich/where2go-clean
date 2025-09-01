@@ -42,6 +42,7 @@ export default function Home() {
   const [debugMode, setDebugMode] = useState(false);
   const [debugData, setDebugData] = useState<any>(null);
   const [toast, setToast] = useState<{show: boolean, message: string}>({show: false, message: ''});
+  const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean, totalEvents: number, cachedEvents: number} | null>(null);
   
   // Design 1 specific state
   const [isDesign1, setIsDesign1] = useState(false);
@@ -507,6 +508,7 @@ export default function Home() {
     setPollCount(0);
     setProgress(null);
     setDebugData(null);
+    setCacheInfo(null);
     
     // Design 1: Set search state
     if (isDesign1) {
@@ -605,6 +607,7 @@ export default function Home() {
             if (!currentEventKeys.has(key)) newEventKeys.add(key);
           });
           setEvents([...incomingEvents]);
+          if (job.cacheInfo) setCacheInfo(job.cacheInfo);
           if (newEventKeys.size > 0) {
             setNewEvents(newEventKeys);
             setToast({
@@ -648,6 +651,7 @@ export default function Home() {
               }, 3000);
             }
             setEvents([...incomingEvents]);
+            if (job.cacheInfo) setCacheInfo(job.cacheInfo);
             setJobStatus('done');
             if (job.debug) setDebugData(job.debug);
           } else {
@@ -897,6 +901,22 @@ export default function Home() {
         )}
 
         {!!displayedEvents.length && (
+          <>
+            {cacheInfo && (
+              <div style={{ 
+                textAlign: 'center', 
+                marginBottom: '20px', 
+                color: '#666', 
+                fontWeight: '300',
+                fontSize: '0.9rem'
+              }}>
+                {cacheInfo.fromCache ? (
+                  <span>📁 {cacheInfo.cachedEvents} Events aus dem Cache geladen</span>
+                ) : (
+                  <span>🔄 {cacheInfo.totalEvents} Events frisch geladen</span>
+                )}
+              </div>
+            )}
           <div className="events-grid" ref={eventsGridRef}>
             {displayedEvents.map((event) => {
               const eventKey = createEventKey(event);
@@ -1119,6 +1139,7 @@ export default function Home() {
               );
             })}
           </div>
+          </>
         )}
           </main>
         </div>
