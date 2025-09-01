@@ -148,13 +148,157 @@ export default function Home() {
     return `${event.title}_${event.date}_${event.venue}`;
   };
 
+  // Helper function to format date and time for Design 1
+  const formatEventDateTime = (date: string, time?: string) => {
+    if (!isDesign1) {
+      return { 
+        date: time ? `${date} • ${time}` : date,
+        time: null 
+      };
+    }
+
+    // Parse the date
+    const dateObj = new Date(date);
+    const options: Intl.DateTimeFormatOptions = { 
+      weekday: 'short', 
+      day: 'numeric', 
+      month: 'short', 
+      year: 'numeric' 
+    };
+    
+    // Format like "Fr 31st Dec. 2025"
+    const formattedDate = dateObj.toLocaleDateString('en-GB', options)
+      .replace(/(\d+)/, (match) => {
+        const day = parseInt(match);
+        const suffix = day === 1 || day === 21 || day === 31 ? 'st' :
+                      day === 2 || day === 22 ? 'nd' :
+                      day === 3 || day === 23 ? 'rd' : 'th';
+        return `${day}${suffix}`;
+      })
+      .replace(',', '.');
+
+    // Format time if available
+    let formattedTime = null;
+    if (time) {
+      // Convert 24h to 12h format if needed
+      const timeMatch = time.match(/(\d{1,2}):(\d{2})/);
+      if (timeMatch) {
+        const hours = parseInt(timeMatch[1]);
+        const minutes = timeMatch[2];
+        const ampm = hours >= 12 ? 'pm' : 'am';
+        const displayHours = hours % 12 || 12;
+        formattedTime = `${displayHours}:${minutes} ${ampm}`;
+      } else {
+        formattedTime = time;
+      }
+    }
+
+    return { date: formattedDate, time: formattedTime };
+  };
+
+  // Helper function to format price for Design 1
+  const formatEventPrice = (event: EventData) => {
+    if (!isDesign1) return null;
+    
+    const price = event.ticketPrice || event.price;
+    if (!price) return null;
+    
+    // Extract price and add currency if needed
+    const priceText = price.toString();
+    if (priceText.includes('€') || priceText.includes('EUR')) {
+      return priceText;
+    }
+    
+    // Assume Euro if no currency specified
+    return `${priceText} €`;
+  };
+
+  // For testing Design 1 - inject sample events when on ?design=1&test=1
+  const getSampleEvents = (): EventData[] => {
+    if (!isDesign1) return [];
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('test') !== '1') return [];
+    
+    return [
+      {
+        title: "Electronic Music Night",
+        category: "DJ Sets/Electronic",
+        date: "2025-01-03",
+        time: "23:30",
+        venue: "Hï Ibiza",
+        price: "35 €",
+        website: "https://example.com",
+        bookingLink: "https://tickets.example.com",
+        description: "Eine unvergessliche Nacht mit den besten DJs der Welt."
+      },
+      {
+        title: "Jazz Live Concert",
+        category: "Live-Konzerte", 
+        date: "2025-01-04",
+        time: "20:00",
+        venue: "Blue Note",
+        price: "45",
+        website: "https://example.com",
+        address: "131 W 3rd St, New York, NY 10012",
+        description: "Authentischer Jazz in gemütlicher Atmosphäre."
+      }
+    ];
+  };
+
   const formatDateForAPI = (): string => {
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
+    
     if (timePeriod === 'heute') return today.toISOString().split('T')[0];
     else if (timePeriod === 'morgen') return tomorrow.toISOString().split('T')[0];
+    else if (timePeriod === 'kommendes-wochenende') {
+      // Find the next Friday (start of weekend)
+      const nextFriday = new Date(today);
+      const daysUntilFriday = (5 - today.getDay() + 7) % 7; // 5 = Friday
+      if (daysUntilFriday === 0 && today.getDay() === 5) {
+        // If today is Friday, use today
+        return today.toISOString().split('T')[0];
+      } else {
+        nextFriday.setDate(today.getDate() + (daysUntilFriday === 0 ? 7 : daysUntilFriday));
+        return nextFriday.toISOString().split('T')[0];
+      }
+    }
     else return customDate || today.toISOString().split('T')[0];
+  };
+
+  // Helper function to get weekend dates (Friday, Saturday, Sunday)
+  const getWeekendDates = (): string[] => {
+    const today = new Date();
+    const nextFriday = new Date(today);
+    const daysUntilFriday = (5 - today.getDay() + 7) % 7; // 5 = Friday
+    
+    if (daysUntilFriday === 0 && today.getDay() === 5) {
+      // If today is Friday, start from today
+      nextFriday.setDate(today.getDate());
+    } else {
+      nextFriday.setDate(today.getDate() + (daysUntilFriday === 0 ? 7 : daysUntilFriday));
+    }
+    
+    const saturday = new Date(nextFriday);
+    saturday.setDate(nextFriday.getDate() + 1);
+    
+    const sunday = new Date(nextFriday);
+    sunday.setDate(nextFriday.getDate() + 2);
+    
+    return [
+      nextFriday.toISOString().split('T')[0],
+      saturday.toISOString().split('T')[0],
+      sunday.toISOString().split('T')[0]
+    ];
+  };
+
+  // Filter events by weekend when applicable
+  const filterEventsByTimePeriod = (eventList: EventData[]): EventData[] => {
+    if (timePeriod !== 'kommendes-wochenende') return eventList;
+    
+    const weekendDates = getWeekendDates();
+    return eventList.filter(event => weekendDates.includes(event.date));
   };
 
   const toggleSuperCategory = (category: string) => {
@@ -179,7 +323,7 @@ export default function Home() {
 
   // Design 1: Compute displayed events based on active filter
   const displayedEvents = isDesign1 && searchSubmitted ? 
-    (activeFilter === 'Alle' ? events : events.filter(event => {
+    filterEventsByTimePeriod(activeFilter === 'Alle' ? events : events.filter(event => {
       const eventSuperCategory = searchedSuperCategories.find(cat =>
         CATEGORY_MAP[cat]?.includes(event.category)
       );
@@ -434,6 +578,7 @@ export default function Home() {
                 >
                   <option value="heute">Heute</option>
                   <option value="morgen">Morgen</option>
+                  <option value="kommendes-wochenende">Kommendes Wochenende</option>
                   <option value="benutzerdefiniert">Benutzerdefiniert</option>
                 </select>
               </div>
@@ -508,56 +653,57 @@ export default function Home() {
       </section>
 
       {/* Main Content */}
-      <main className="container">
-        {/* Design 1: Filter Sidebar */}
-        {isDesign1 && searchSubmitted && (
-          <aside className="filter-sidebar">
-            <h3 className="sidebar-title">Filter & Kategorien</h3>
-            <div className="filter-chips">
-              {/* All filter chip */}
-              <button
-                className={`filter-chip ${activeFilter === 'Alle' ? 'filter-chip-active' : ''}`}
-                onClick={() => setActiveFilter('Alle')}
-                role="button"
-                aria-pressed={activeFilter === 'Alle'}
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setActiveFilter('Alle');
-                  }
-                }}
-              >
-                Alle
-                <span className="filter-count">{getCategoryCounts()['Alle']}</span>
-              </button>
-              
-              {/* Category filter chips */}
-              {searchedSuperCategories.map(category => (
+      <div className="container">
+        <div className={isDesign1 && searchSubmitted ? "content-with-sidebar" : ""}>
+          {/* Design 1: Filter Sidebar */}
+          {isDesign1 && searchSubmitted && (
+            <aside className="filter-sidebar">
+              <h3 className="sidebar-title">Filter & Kategorien</h3>
+              <div className="filter-chips">
+                {/* All filter chip */}
                 <button
-                  key={category}
-                  className={`filter-chip ${activeFilter === category ? 'filter-chip-active' : ''}`}
-                  onClick={() => setActiveFilter(category)}
+                  className={`filter-chip ${activeFilter === 'Alle' ? 'filter-chip-active' : ''}`}
+                  onClick={() => setActiveFilter('Alle')}
                   role="button"
-                  aria-pressed={activeFilter === category}
+                  aria-pressed={activeFilter === 'Alle'}
                   tabIndex={0}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      setActiveFilter(category);
+                      setActiveFilter('Alle');
                     }
                   }}
                 >
-                  {category}
-                  <span className="filter-count">{getCategoryCounts()[category] || 0}</span>
+                  Alle
+                  <span className="filter-count">{getCategoryCounts()['Alle']}</span>
                 </button>
-              ))}
-            </div>
-          </aside>
-        )}
+                
+                {/* Category filter chips */}
+                {searchedSuperCategories.map(category => (
+                  <button
+                    key={category}
+                    className={`filter-chip ${activeFilter === category ? 'filter-chip-active' : ''}`}
+                    onClick={() => setActiveFilter(category)}
+                    role="button"
+                    aria-pressed={activeFilter === category}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setActiveFilter(category);
+                      }
+                    }}
+                  >
+                    {category}
+                    <span className="filter-count">{getCategoryCounts()[category] || 0}</span>
+                  </button>
+                ))}
+              </div>
+            </aside>
+          )}
 
-        {/* Main Content Area */}
-        <div className={isDesign1 && searchSubmitted ? "main-content" : ""}>
+          {/* Main Content Area */}
+          <main className={isDesign1 && searchSubmitted ? "main-content" : ""}>
         {error && (
           <div className="error">
             {error}
@@ -603,89 +749,199 @@ export default function Home() {
                   <div className="event-content">
                     <h3 className="event-title">{event.title}</h3>
                     
-                    <div className="event-date">
-                      {event.date}
-                      {event.time && ` • ${event.time}`}
-                      {event.endTime && ` - ${event.endTime}`}
-                    </div>
-                    
-                    <div className="event-location">
-                      📍 {event.venue}
-                      {event.address ? (
-                        <a 
-                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="event-address-link"
-                          title="Adresse in Google Maps öffnen"
-                        >
-                          <br />📍 {event.address}
-                        </a>
-                      ) : (
-                        <a 
-                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${event.venue}, ${city}`)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="event-address-link"
-                          title="Venue in Google Maps öffnen"
-                        >
-                          <br />🗺️ In Maps öffnen
-                        </a>
-                      )}
-                    </div>
-                    
-                    {superCategory && (
-                      <div className="event-category">🏷️ {superCategory}</div>
+                    {isDesign1 ? (
+                      // Design 1: New format with icons
+                      <>
+                        <div className="event-datetime">
+                          <div className="event-date-d1">
+                            <svg className="icon-clock" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <circle cx="12" cy="12" r="10"/>
+                              <polyline points="12,6 12,12 16,14"/>
+                            </svg>
+                            {(() => {
+                              const { date, time } = formatEventDateTime(event.date, event.time);
+                              return (
+                                <>
+                                  {date}
+                                  {time && (
+                                    <>
+                                      <svg className="icon-time" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <circle cx="12" cy="12" r="10"/>
+                                        <polyline points="12,6 12,12 16,14"/>
+                                      </svg>
+                                      {time}
+                                    </>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                        
+                        <div className="event-location-d1">
+                          <svg className="icon-location" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                            <circle cx="12" cy="10" r="3"/>
+                          </svg>
+                          {event.venue}
+                          {event.address && (
+                            <a 
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="event-address-link"
+                              title="Adresse in Google Maps öffnen"
+                            >
+                              <br />{event.address}
+                            </a>
+                          )}
+                        </div>
+                        
+                        {superCategory && (
+                          <div className="event-category">🏷️ {superCategory}</div>
+                        )}
+                        
+                        {event.eventType && (
+                          <div className="event-type">🎭 {event.eventType}</div>
+                        )}
+                        
+                        {event.ageRestrictions && (
+                          <div className="event-age">🔞 {event.ageRestrictions}</div>
+                        )}
+                        
+                        {event.description && (
+                          <div className="event-description">{event.description}</div>
+                        )}
+                        
+                        {/* Bottom row with price and action buttons */}
+                        <div className="event-bottom-row">
+                          <div className="event-price-d1">
+                            {formatEventPrice(event)}
+                          </div>
+                          <div className="event-actions">
+                            {event.website && (
+                              <a 
+                                href={event.website} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="event-action-btn event-info-btn"
+                              >
+                                <svg className="icon-info" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <circle cx="12" cy="12" r="10"/>
+                                  <line x1="12" y1="16" x2="12" y2="12"/>
+                                  <line x1="12" y1="8" x2="12.01" y2="8"/>
+                                </svg>
+                                more Info
+                              </a>
+                            )}
+                            {event.bookingLink && (
+                              <a 
+                                href={event.bookingLink} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="event-action-btn event-tickets-btn"
+                              >
+                                <svg className="icon-tickets" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                  <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/>
+                                  <path d="M13 5v2"/>
+                                  <path d="M13 17v2"/>
+                                  <path d="M13 11v2"/>
+                                </svg>
+                                Tickets
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      // Default design: keep existing structure
+                      <>
+                        <div className="event-date">
+                          {event.date}
+                          {event.time && ` • ${event.time}`}
+                          {event.endTime && ` - ${event.endTime}`}
+                        </div>
+                        
+                        <div className="event-location">
+                          📍 {event.venue}
+                          {event.address ? (
+                            <a 
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="event-address-link"
+                              title="Adresse in Google Maps öffnen"
+                            >
+                              <br />📍 {event.address}
+                            </a>
+                          ) : (
+                            <a 
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${event.venue}, ${city}`)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="event-address-link"
+                              title="Venue in Google Maps öffnen"
+                            >
+                              <br />🗺️ In Maps öffnen
+                            </a>
+                          )}
+                        </div>
+                        
+                        {superCategory && (
+                          <div className="event-category">🏷️ {superCategory}</div>
+                        )}
+                        
+                        {event.eventType && (
+                          <div className="event-type">🎭 {event.eventType}</div>
+                        )}
+                        
+                        {(event.price || event.ticketPrice) && (
+                          <div className="event-price">
+                            💰 {event.ticketPrice || event.price}
+                          </div>
+                        )}
+                        
+                        {event.ageRestrictions && (
+                          <div className="event-age">🔞 {event.ageRestrictions}</div>
+                        )}
+                        
+                        {event.description && (
+                          <div className="event-description">{event.description}</div>
+                        )}
+                        
+                        <div className="event-links">
+                          {event.website && (
+                            <a 
+                              href={event.website} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="event-link"
+                            >
+                              Website →
+                            </a>
+                          )}
+                          {event.bookingLink && (
+                            <a 
+                              href={event.bookingLink} 
+                              target="_blank" 
+                              rel="noopener noreferrer" 
+                              className="event-link event-booking-link"
+                            >
+                              Tickets →
+                            </a>
+                          )}
+                        </div>
+                      </>
                     )}
-                    
-                    {event.eventType && (
-                      <div className="event-type">🎭 {event.eventType}</div>
-                    )}
-                    
-                    {(event.price || event.ticketPrice) && (
-                      <div className="event-price">
-                        💰 {event.ticketPrice || event.price}
-                      </div>
-                    )}
-                    
-                    {event.ageRestrictions && (
-                      <div className="event-age">🔞 {event.ageRestrictions}</div>
-                    )}
-                    
-                    {event.description && (
-                      <div className="event-description">{event.description}</div>
-                    )}
-                    
-                    <div className="event-links">
-                      {event.website && (
-                        <a 
-                          href={event.website} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="event-link"
-                        >
-                          Website →
-                        </a>
-                      )}
-                      {event.bookingLink && (
-                        <a 
-                          href={event.bookingLink} 
-                          target="_blank" 
-                          rel="noopener noreferrer" 
-                          className="event-link event-booking-link"
-                        >
-                          Tickets →
-                        </a>
-                      )}
-                    </div>
                   </div>
                 </div>
               );
             })}
           </div>
         )}
+          </main>
         </div>
-      </main>
+      </div>
 
       {toast.show && (
         <div className="toast-container">
