@@ -703,7 +703,7 @@ export default function Home() {
         <header className="design1-header">
           <div className="header-container">
             <div className="header-logo">
-              <img src="/logo.svg" alt="Where2Go" className="logo" />
+              <img src="/where2go-logo.svg" alt="Where2Go" className="logo" />
             </div>
             <div className="header-actions">
               <a href="#premium" className="premium-link">
