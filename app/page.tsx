@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { CATEGORY_MAP } from './categories';
+import AnimatedBackground from './lib/AnimatedBackground';
 
 interface EventData {
   title: string;
@@ -40,6 +41,7 @@ export default function Home() {
   const [debugMode, setDebugMode] = useState(false);
   const [debugData, setDebugData] = useState<any>(null);
   const [toast, setToast] = useState<{show: boolean, message: string}>({show: false, message: ''});
+  const [categoriesCollapsed, setCategoriesCollapsed] = useState(false);
   
   const pollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const eventsRef = useRef<EventData[]>([]);
@@ -173,6 +175,9 @@ export default function Home() {
       setError('Bitte gib eine Stadt ein.');
       return;
     }
+
+    // Collapse categories immediately on submit
+    setCategoriesCollapsed(true);
 
     setLoading(true);
     setError(null);
@@ -340,6 +345,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
+      <AnimatedBackground points={80} />
       {/* Hero Section */}
       <section className="hero">
         <div className="container">
@@ -400,55 +406,57 @@ export default function Home() {
             )}
 
             {/* Categories Section */}
-            <div className="categories-section">
-              <label className="categories-label">Kategorien</label>
-              <div className="categories-grid">
-                {ALL_SUPER_CATEGORIES.map((category) => (
-                  <label key={category} className="category-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={selectedSuperCategories.includes(category)}
-                      onChange={() => toggleSuperCategory(category)}
-                      disabled={
-                        !selectedSuperCategories.includes(category) &&
-                        selectedSuperCategories.length >= MAX_CATEGORY_SELECTION
-                      }
-                    />
-                    <span className="category-name">{category}</span>
-                  </label>
-                ))}
-              </div>
-              <div className="categories-actions">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => {
-                    setSelectedSuperCategories(ALL_SUPER_CATEGORIES.slice(0, MAX_CATEGORY_SELECTION));
-                    setCategoryLimitError(null);
-                  }}
-                >
-                  {`Max. ${MAX_CATEGORY_SELECTION} auswählen`}
-                </button>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => {
-                    setSelectedSuperCategories([]);
-                    setCategoryLimitError(null);
-                  }}
-                >
-                  Alle abwählen
-                </button>
-              </div>
-              {categoryLimitError && (
-                <div style={{ color: "red", marginTop: "8px" }}>
-                  {categoryLimitError}
+            {!categoriesCollapsed && (
+              <div className="categories-section">
+                <label className="categories-label">Kategorien</label>
+                <div className="categories-grid">
+                  {ALL_SUPER_CATEGORIES.map((category) => (
+                    <label key={category} className="category-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={selectedSuperCategories.includes(category)}
+                        onChange={() => toggleSuperCategory(category)}
+                        disabled={
+                          !selectedSuperCategories.includes(category) &&
+                          selectedSuperCategories.length >= MAX_CATEGORY_SELECTION
+                        }
+                      />
+                      <span className="category-name">{category}</span>
+                    </label>
+                  ))}
                 </div>
-              )}
-            </div>
+                <div className="categories-actions">
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => {
+                      setSelectedSuperCategories(ALL_SUPER_CATEGORIES.slice(0, MAX_CATEGORY_SELECTION));
+                      setCategoryLimitError(null);
+                    }}
+                  >
+                    {`Max. ${MAX_CATEGORY_SELECTION} auswählen`}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => {
+                      setSelectedSuperCategories([]);
+                      setCategoryLimitError(null);
+                    }}
+                  >
+                    Alle abwählen
+                  </button>
+                </div>
+                {categoryLimitError && (
+                  <div style={{ color: "red", marginTop: "8px" }}>
+                    {categoryLimitError}
+                  </div>
+                )}
+              </div>
+            )}
 
             <button type="submit" className="btn-search">
-              Events suchen
+              Suche
             </button>
           </form>
         </div>
