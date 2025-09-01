@@ -42,6 +42,7 @@ export default function Home() {
   const [debugMode, setDebugMode] = useState(false);
   const [debugData, setDebugData] = useState<any>(null);
   const [toast, setToast] = useState<{show: boolean, message: string}>({show: false, message: ''});
+  const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean, totalEvents: number, cachedEvents: number} | null>(null);
   
   // Design 1 specific state
   const [isDesign1, setIsDesign1] = useState(false);
@@ -52,6 +53,7 @@ export default function Home() {
   const pollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const eventsRef = useRef<EventData[]>([]);
   const pollCountRef = useRef<number>(0);
+  const eventsGridRef = useRef<HTMLDivElement>(null);
 
   // Reactive design switching based on URL params
   useEffect(() => {
@@ -164,8 +166,31 @@ export default function Home() {
     };
   }, []);
 
+  // Scroll to events grid when events are found and search is submitted
+  useEffect(() => {
+    if (isDesign1 && searchSubmitted && events.length > 0 && eventsGridRef.current) {
+      setTimeout(() => {
+        eventsGridRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }, 100); // Small delay to ensure rendering is complete
+    }
+  }, [isDesign1, searchSubmitted, events.length]);
+
   const createEventKey = (event: EventData): string => {
     return `${event.title}_${event.date}_${event.venue}`;
+  };
+
+  // Helper function to detect if an event is likely at a venue (simplified heuristic)
+  const isLikelyVenue = (event: EventData): boolean => {
+    const venueIndicators = [
+      'club', 'bar', 'restaurant', 'hotel', 'theater', 'opera', 'hall', 'center', 'arena', 'stadium', 
+      'gallery', 'museum', 'lounge', 'café', 'cafe', 'bistro', 'venue', 'location', 'space'
+    ];
+    
+    const venueLower = event.venue.toLowerCase();
+    return venueIndicators.some(indicator => venueLower.includes(indicator));
   };
 
   // Helper function to format date and time for Design 1
@@ -494,6 +519,7 @@ export default function Home() {
     setPollCount(0);
     setProgress(null);
     setDebugData(null);
+    setCacheInfo(null);
     
     // Design 1: Set search state
     if (isDesign1) {
@@ -592,6 +618,7 @@ export default function Home() {
             if (!currentEventKeys.has(key)) newEventKeys.add(key);
           });
           setEvents([...incomingEvents]);
+          if (job.cacheInfo) setCacheInfo(job.cacheInfo);
           if (newEventKeys.size > 0) {
             setNewEvents(newEventKeys);
             setToast({
@@ -635,6 +662,7 @@ export default function Home() {
               }, 3000);
             }
             setEvents([...incomingEvents]);
+            if (job.cacheInfo) setCacheInfo(job.cacheInfo);
             setJobStatus('done');
             if (job.debug) setDebugData(job.debug);
           } else {
@@ -675,7 +703,7 @@ export default function Home() {
         <header className="design1-header">
           <div className="header-container">
             <div className="header-logo">
-              <img src="/logo.svg" alt="Where2Go" className="logo" />
+              <img src="/where2go-logo.svg" alt="Where2Go" className="logo" />
             </div>
             <div className="header-actions">
               <a href="#premium" className="premium-link">
@@ -696,7 +724,7 @@ export default function Home() {
       </section>
 
       {/* Search Section */}
-      <section className={`search-section ${isDesign1 && searchSubmitted ? 'search-section-collapsed' : ''}`}>
+      <section className="search-section">
         <div className="container">
           <form 
             className="search-form"
@@ -884,7 +912,23 @@ export default function Home() {
         )}
 
         {!!displayedEvents.length && (
-          <div className="events-grid">
+          <>
+            {cacheInfo && (
+              <div style={{ 
+                textAlign: 'center', 
+                marginBottom: '20px', 
+                color: '#666', 
+                fontWeight: '300',
+                fontSize: '0.9rem'
+              }}>
+                {cacheInfo.fromCache ? (
+                  <span>📁 {cacheInfo.cachedEvents} Events aus dem Cache geladen</span>
+                ) : (
+                  <span>🔄 {cacheInfo.totalEvents} Events frisch geladen</span>
+                )}
+              </div>
+            )}
+          <div className="events-grid" ref={eventsGridRef}>
             {displayedEvents.map((event) => {
               const eventKey = createEventKey(event);
               const isNew = newEvents.has(eventKey);
@@ -892,8 +936,10 @@ export default function Home() {
                 ? searchedSuperCategories.find(cat => CATEGORY_MAP[cat]?.includes(event.category)) || event.category
                 : ALL_SUPER_CATEGORIES.find(cat => CATEGORY_MAP[cat].includes(event.category)) || event.category;
 
+              const isVenueEvent = isLikelyVenue(event);
+
               return (
-                <div key={eventKey} className={`event-card ${isNew ? 'event-card-new' : ''}`}>
+                <div key={eventKey} className={`event-card ${isNew ? 'event-card-new' : ''} ${isVenueEvent ? 'event-card-venue' : ''}`}>
                   {isNew && <div className="badge-new">Neu</div>}
                   <div className="event-content">
                     <h3 className="event-title">{event.title}</h3>
@@ -1106,6 +1152,7 @@ export default function Home() {
               );
             })}
           </div>
+          </>
         )}
           </main>
         </div>

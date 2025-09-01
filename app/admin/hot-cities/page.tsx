@@ -49,6 +49,8 @@ export default function HotCitiesDetailPage() {
       searchQuery: '',
       priority: 5,
       isActive: true,
+      isVenue: false,
+      isVenuePrioritized: false,
     };
     setEditingWebsite(newWebsite);
     setIsCreatingWebsite(true);
@@ -311,6 +313,14 @@ export default function HotCitiesDetailPage() {
           background: #f8d7da;
           color: #721c24;
         }
+        .venue-badge {
+          background: #28a745;
+          color: white;
+          padding: 2px 6px;
+          border-radius: 3px;
+          font-size: 0.8rem;
+          font-weight: bold;
+        }
         .categories-list {
           display: flex;
           flex-wrap: wrap;
@@ -465,6 +475,11 @@ export default function HotCitiesDetailPage() {
                     <span className={`status-badge ${website.isActive ? 'status-active' : 'status-inactive'}`}>
                       {website.isActive ? 'Active' : 'Inactive'}
                     </span>
+                    {website.isVenue && (
+                      <span className="venue-badge">
+                        📍 Venue{website.isVenuePrioritized ? ' (Prioritized)' : ''}
+                      </span>
+                    )}
                   </div>
 
                   {website.categories.length > 0 && (
@@ -596,6 +611,32 @@ export default function HotCitiesDetailPage() {
                 Active
               </label>
             </div>
+
+            <div className="form-group">
+              <label className="form-label">
+                <input
+                  type="checkbox"
+                  className="form-checkbox"
+                  checked={editingWebsite.isVenue || false}
+                  onChange={e => setEditingWebsite({...editingWebsite, isVenue: e.target.checked})}
+                />
+                Is Venue (Physical Location)
+              </label>
+            </div>
+
+            {editingWebsite.isVenue && (
+              <div className="form-group">
+                <label className="form-label">
+                  <input
+                    type="checkbox"
+                    className="form-checkbox"
+                    checked={editingWebsite.isVenuePrioritized || false}
+                    onChange={e => setEditingWebsite({...editingWebsite, isVenuePrioritized: e.target.checked})}
+                  />
+                  Prioritize Venue (Show with special highlighting when events found)
+                </label>
+              </div>
+            )}
 
             <div className="form-actions">
               <button className="btn btn-secondary" onClick={() => setEditingWebsite(null)}>

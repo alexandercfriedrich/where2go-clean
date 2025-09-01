@@ -257,10 +257,26 @@ export default function AdminPage() {
       `}</style>
       
       <div className="admin-header">
-        <h1 className="admin-title">Hot Cities Admin</h1>
-        <button className="btn btn-primary" onClick={handleCreateCity}>
-          Add New City
-        </button>
+        <h1 className="admin-title">Admin Dashboard</h1>
+        <div>
+          <a href="/admin/hot-cities-stats" className="btn btn-secondary">
+            View Statistics
+          </a>
+          <a href="/admin/static-pages" className="btn btn-secondary">
+            Manage Static Pages
+          </a>
+          <a href="/admin/affiliates" className="btn btn-secondary">
+            Manage Affiliates
+          </a>
+          <button className="btn btn-primary" onClick={handleCreateCity}>
+            Add New City
+          </button>
+        </div>
+      </div>
+
+      <div style={{ marginBottom: '30px' }}>
+        <h2 style={{ color: '#333', fontSize: '1.8rem' }}>Hot Cities Management</h2>
+        <p style={{ color: '#666' }}>Manage city-specific event sources and configurations</p>
       </div>
 
       <div className="cities-grid">

@@ -229,6 +229,45 @@ body {
   box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
 }
 
+/* Venue Glow Effect */
+.event-card-venue {
+  position: relative;
+  overflow: visible;
+  animation: venueGlow 3s ease-in-out infinite;
+}
+
+@keyframes venueGlow {
+  0%, 100% {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+  }
+  50% {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1), 0 0 20px rgba(200, 200, 200, 0.4);
+  }
+}
+
+.event-card-venue::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, transparent, rgba(200, 200, 200, 0.3), transparent);
+  border-radius: 18px;
+  z-index: -1;
+  opacity: 0;
+  animation: venueGlowBorder 3s ease-in-out infinite;
+}
+
+@keyframes venueGlowBorder {
+  0%, 100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 .event-image {
   width: 100%;
   height: 200px;

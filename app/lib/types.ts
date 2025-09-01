@@ -47,6 +47,11 @@ export interface JobStatus {
   error?: string;
   createdAt: Date;
   debug?: DebugInfo; // New debug info
+  cacheInfo?: {
+    fromCache: boolean;
+    totalEvents: number;
+    cachedEvents: number;
+  };
   progress?: {
     completedCategories: number;
     totalCategories: number;
@@ -102,6 +107,8 @@ export interface HotCityWebsite {
   searchQuery?: string; // Custom search query for this website
   priority: number; // Higher priority websites are searched first
   isActive: boolean;
+  isVenue?: boolean; // Whether this website represents a physical venue
+  isVenuePrioritized?: boolean; // Whether this venue should be prioritized when events are found
 }
 
 export interface HotCity {

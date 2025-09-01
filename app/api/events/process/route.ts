@@ -405,6 +405,11 @@ async function processJobInBackground(
     await jobStore.updateJob(jobId, {
       status: 'done',
       events: finalEvents,
+      cacheInfo: {
+        fromCache: false,
+        totalEvents: finalEvents.length,
+        cachedEvents: 0
+      },
       progress: { 
         completedCategories: effectiveCategories.length, 
         totalCategories: effectiveCategories.length 
