@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { CATEGORY_MAP } from './categories';
+import { useTranslation } from './lib/useTranslation';
 
 interface EventData {
   title: string;
@@ -24,6 +25,7 @@ const MAX_CATEGORY_SELECTION: number = 3;
 const MAX_POLLS = 104;
 
 export default function Home() {
+  const { t, formatEventDate, formatEventTime } = useTranslation();
   const [city, setCity] = useState('');
   const [timePeriod, setTimePeriod] = useState('heute');
   const [customDate, setCustomDate] = useState('');
@@ -187,9 +189,9 @@ export default function Home() {
     
     let formattedDate;
     if (isToday) {
-      formattedDate = 'today';
+      formattedDate = t('event.today');
     } else if (isTomorrow) {
-      formattedDate = 'tomorrow';
+      formattedDate = t('event.tomorrow');
     } else {
       // Format like "Fr 31st Dec. 2025"
       const options: Intl.DateTimeFormatOptions = { 
@@ -337,7 +339,7 @@ export default function Home() {
     if (!isDesign1) return null;
     
     const price = event.ticketPrice || event.price;
-    if (!price) return "prices vary";
+    if (!price) return t('event.pricesVary');
     
     // Extract price and add currency if needed
     const priceText = price.toString();
@@ -689,7 +691,7 @@ export default function Home() {
       <section className={`hero ${isDesign1 && searchSubmitted ? 'hero-collapsed' : ''}`}>
         <div className="container">
           <h1>Where2Go</h1>
-          <p>Entdecke die besten Events in deiner Stadt!</p>
+          <p>{t('page.tagline')}</p>
         </div>
       </section>
 
@@ -705,29 +707,29 @@ export default function Home() {
           >
             <div className="form-row">
               <div className="form-group">
-                <label htmlFor="city">Stadt</label>
+                <label htmlFor="city">{t('form.city')}</label>
                 <input
                   className="form-input"
                   type="text"
                   id="city"
                   value={city}
                   onChange={e => setCity(e.target.value)}
-                  placeholder="z.B. Linz, Berlin, Hamburg ..."
+                  placeholder={t('form.cityPlaceholder')}
                 />
               </div>
               
               <div className="form-group">
-                <label htmlFor="timePeriod">Zeitraum</label>
+                <label htmlFor="timePeriod">{t('form.timePeriod')}</label>
                 <select
                   className="form-input"
                   id="timePeriod"
                   value={timePeriod}
                   onChange={e => setTimePeriod(e.target.value)}
                 >
-                  <option value="heute">Heute</option>
-                  <option value="morgen">Morgen</option>
-                  <option value="kommendes-wochenende">Kommendes Wochenende</option>
-                  <option value="benutzerdefiniert">Benutzerdefiniert</option>
+                  <option value="heute">{t('time.today')}</option>
+                  <option value="morgen">{t('time.tomorrow')}</option>
+                  <option value="kommendes-wochenende">{t('time.upcomingWeekend')}</option>
+                  <option value="benutzerdefiniert">{t('time.custom')}</option>
                 </select>
               </div>
             </div>
@@ -794,7 +796,7 @@ export default function Home() {
             </div>
 
             <button type="submit" className="btn-search">
-              Events suchen
+              {t('button.searchEvents')}
             </button>
           </form>
         </div>
@@ -988,7 +990,7 @@ export default function Home() {
                                   <line x1="12" y1="16" x2="12" y2="12"/>
                                   <line x1="12" y1="8" x2="12.01" y2="8"/>
                                 </svg>
-                                More info
+                                {t('button.moreInfo')}
                               </a>
                             )}
                             {event.bookingLink && (

@@ -1,9 +1,14 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import { getBrowserLanguage, getTranslations } from './lib/i18n';
+
+// Get translations for metadata (defaults to German for SSR)
+const language = typeof window !== 'undefined' ? getBrowserLanguage() : 'de';
+const translations = getTranslations(language);
 
 export const metadata: Metadata = {
-  title: 'Where2Go - Entdecke Events in deiner Stadt!',
-  description: 'Entdecke Events in deiner Stadt - Alle Events. Weltweit. Eine Plattform.',
+  title: translations['meta.title'],
+  description: translations['meta.description'],
   keywords: ['events', 'stadt', 'veranstaltungen', 'event finder', 'where2go'],
   authors: [{ name: 'Where2Go Team' }],
   creator: 'Where2Go',
@@ -14,16 +19,16 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: 'website',
-    locale: 'de_DE',
+    locale: language === 'de' ? 'de_DE' : 'en_US',
     url: 'https://where2go.example.com',
-    title: 'Where2Go - Alle Events. Weltweit. Eine Plattform.',
-    description: 'Finde Events in deiner Stadt',
+    title: translations['meta.title'],
+    description: translations['meta.description'],
     siteName: 'Where2Go',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Where2Go - Alle Events. Weltweit. Eine Plattform.',
-    description: 'Finde Events in deiner Stadt',
+    title: translations['meta.title'],
+    description: translations['meta.description'],
   },
 };
 
@@ -33,7 +38,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="de" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+    <html lang={language} style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
       <body className="antialiased">
         {children}
       </body>
