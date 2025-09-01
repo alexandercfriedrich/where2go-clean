@@ -26,16 +26,39 @@ function getCacheStatsForCity(cityName: string): { cachedSearches: number; total
   if (cache && cache instanceof Map) {
     for (const [key, entry] of cache.entries()) {
       // Cache keys format: "city_date_categories"
-      const keyParts = key.split('_');
-      if (keyParts.length >= 2 && keyParts[0].toLowerCase() === cityName.toLowerCase()) {
-        cachedSearches++;
-        const events = entry.data || [];
-        totalEvents += events.length;
-        
-        // Track the most recent cache entry
-        if (!lastSearched || entry.timestamp > new Date(lastSearched).getTime()) {
-          lastSearched = new Date(entry.timestamp).toISOString();
-        }
+      // Since city names can contain underscores, we need to find the date pattern first
+      // and work backwards to determine the city name
+      
+      // Look for the date pattern (YYYY-MM-DD) in the key
+      const datePattern = /\d{4}-\d{2}-\d{2}/;
+      const dateMatch = key.match(datePattern);
+      
+      if (!dateMatch) continue; // Invalid date format
+      
+      const dateStartIndex = dateMatch.index!;
+      
+      // The city should end just before the underscore that precedes the date
+      // Find the underscore immediately before the date
+      const underscoreBeforeDateIndex = key.lastIndexOf('_', dateStartIndex - 1);
+      
+      if (underscoreBeforeDateIndex === -1) continue; // Invalid format
+      
+      const city = key.substring(0, underscoreBeforeDateIndex);
+      
+      if (city.toLowerCase() !== cityName.toLowerCase()) continue;
+      
+      // Check that there's an underscore after the date (separating date from categories)
+      const dateEndIndex = dateStartIndex + 10; // YYYY-MM-DD is 10 characters
+      if (dateEndIndex >= key.length || key[dateEndIndex] !== '_') continue; // Invalid format
+      
+      // We have a valid cache key for this city
+      cachedSearches++;
+      const events = entry.data || [];
+      totalEvents += events.length;
+      
+      // Track the most recent cache entry
+      if (!lastSearched || entry.timestamp > new Date(lastSearched).getTime()) {
+        lastSearched = new Date(entry.timestamp).toISOString();
       }
     }
   }
