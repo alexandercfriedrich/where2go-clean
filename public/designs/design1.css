@@ -193,7 +193,8 @@ a:hover {
 }
 
 .hero-collapsed {
-  padding: calc(60px + var(--space-8)) 0 var(--space-8);
+  padding: calc(60px + var(--space-4)) 0 var(--space-4);
+  transform: scale(0.9);
 }
 
 .hero h1 {
@@ -230,10 +231,13 @@ a:hover {
 }
 
 .search-section-collapsed {
-  transform: translateY(-20px);
-  opacity: 0.8;
-  margin-bottom: var(--space-6);
-  padding: var(--space-4);
+  transform: translateY(-60px) scale(0.9);
+  opacity: 0.6;
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  max-width: 600px;
+  z-index: 10;
+  position: relative;
 }
 
 .search-form {

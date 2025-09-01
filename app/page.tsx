@@ -508,56 +508,57 @@ export default function Home() {
       </section>
 
       {/* Main Content */}
-      <main className="container">
-        {/* Design 1: Filter Sidebar */}
-        {isDesign1 && searchSubmitted && (
-          <aside className="filter-sidebar">
-            <h3 className="sidebar-title">Filter & Kategorien</h3>
-            <div className="filter-chips">
-              {/* All filter chip */}
-              <button
-                className={`filter-chip ${activeFilter === 'Alle' ? 'filter-chip-active' : ''}`}
-                onClick={() => setActiveFilter('Alle')}
-                role="button"
-                aria-pressed={activeFilter === 'Alle'}
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setActiveFilter('Alle');
-                  }
-                }}
-              >
-                Alle
-                <span className="filter-count">{getCategoryCounts()['Alle']}</span>
-              </button>
-              
-              {/* Category filter chips */}
-              {searchedSuperCategories.map(category => (
+      <div className="container">
+        <div className={isDesign1 && searchSubmitted ? "content-with-sidebar" : ""}>
+          {/* Design 1: Filter Sidebar */}
+          {isDesign1 && searchSubmitted && (
+            <aside className="filter-sidebar">
+              <h3 className="sidebar-title">Filter & Kategorien</h3>
+              <div className="filter-chips">
+                {/* All filter chip */}
                 <button
-                  key={category}
-                  className={`filter-chip ${activeFilter === category ? 'filter-chip-active' : ''}`}
-                  onClick={() => setActiveFilter(category)}
+                  className={`filter-chip ${activeFilter === 'Alle' ? 'filter-chip-active' : ''}`}
+                  onClick={() => setActiveFilter('Alle')}
                   role="button"
-                  aria-pressed={activeFilter === category}
+                  aria-pressed={activeFilter === 'Alle'}
                   tabIndex={0}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      setActiveFilter(category);
+                      setActiveFilter('Alle');
                     }
                   }}
                 >
-                  {category}
-                  <span className="filter-count">{getCategoryCounts()[category] || 0}</span>
+                  Alle
+                  <span className="filter-count">{getCategoryCounts()['Alle']}</span>
                 </button>
-              ))}
-            </div>
-          </aside>
-        )}
+                
+                {/* Category filter chips */}
+                {searchedSuperCategories.map(category => (
+                  <button
+                    key={category}
+                    className={`filter-chip ${activeFilter === category ? 'filter-chip-active' : ''}`}
+                    onClick={() => setActiveFilter(category)}
+                    role="button"
+                    aria-pressed={activeFilter === category}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setActiveFilter(category);
+                      }
+                    }}
+                  >
+                    {category}
+                    <span className="filter-count">{getCategoryCounts()[category] || 0}</span>
+                  </button>
+                ))}
+              </div>
+            </aside>
+          )}
 
-        {/* Main Content Area */}
-        <div className={isDesign1 && searchSubmitted ? "main-content" : ""}>
+          {/* Main Content Area */}
+          <main className={isDesign1 && searchSubmitted ? "main-content" : ""}>
         {error && (
           <div className="error">
             {error}
@@ -684,8 +685,9 @@ export default function Home() {
             })}
           </div>
         )}
+          </main>
         </div>
-      </main>
+      </div>
 
       {toast.show && (
         <div className="toast-container">
