@@ -334,7 +334,7 @@ a:hover {
 
 .category-checkbox input[type="checkbox"]:checked + .category-name {
   font-weight: var(--font-weight-medium);
-  color: var(--color-accent);
+  color: var(--color-gray-700);
 }
 
 .categories-actions {

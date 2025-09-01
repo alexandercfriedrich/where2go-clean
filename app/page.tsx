@@ -27,7 +27,7 @@ export default function Home() {
   const [city, setCity] = useState('');
   const [timePeriod, setTimePeriod] = useState('heute');
   const [customDate, setCustomDate] = useState('');
-  const [selectedSuperCategories, setSelectedSuperCategories] = useState<string[]>(ALL_SUPER_CATEGORIES.slice(0, MAX_CATEGORY_SELECTION));
+  const [selectedSuperCategories, setSelectedSuperCategories] = useState<string[]>([]);
   const [categoryLimitError, setCategoryLimitError] = useState<string | null>(null);
   const [events, setEvents] = useState<EventData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -167,7 +167,7 @@ export default function Home() {
   };
 
   // Helper function to format date and time for Design 1
-  const formatEventDateTime = (date: string, time?: string) => {
+  const formatEventDateTime = (date: string, time?: string, endTime?: string) => {
     if (!isDesign1) {
       return { 
         date: time ? `${date} • ${time}` : date,
@@ -177,37 +177,59 @@ export default function Home() {
 
     // Parse the date
     const dateObj = new Date(date);
-    const options: Intl.DateTimeFormatOptions = { 
-      weekday: 'short', 
-      day: 'numeric', 
-      month: 'short', 
-      year: 'numeric' 
-    };
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
     
-    // Format like "Fr 31st Dec. 2025"
-    const formattedDate = dateObj.toLocaleDateString('en-GB', options)
-      .replace(/(\d+)/, (match) => {
-        const day = parseInt(match);
-        const suffix = day === 1 || day === 21 || day === 31 ? 'st' :
-                      day === 2 || day === 22 ? 'nd' :
-                      day === 3 || day === 23 ? 'rd' : 'th';
-        return `${day}${suffix}`;
-      })
-      .replace(',', '.');
+    // Check if date is today or tomorrow
+    const isToday = dateObj.toDateString() === today.toDateString();
+    const isTomorrow = dateObj.toDateString() === tomorrow.toDateString();
+    
+    let formattedDate;
+    if (isToday) {
+      formattedDate = 'today';
+    } else if (isTomorrow) {
+      formattedDate = 'tomorrow';
+    } else {
+      // Format like "Fr 31st Dec. 2025"
+      const options: Intl.DateTimeFormatOptions = { 
+        weekday: 'short', 
+        day: 'numeric', 
+        month: 'short', 
+        year: 'numeric' 
+      };
+      
+      formattedDate = dateObj.toLocaleDateString('en-GB', options)
+        .replace(/(\d+)/, (match) => {
+          const day = parseInt(match);
+          const suffix = day === 1 || day === 21 || day === 31 ? 'st' :
+                        day === 2 || day === 22 ? 'nd' :
+                        day === 3 || day === 23 ? 'rd' : 'th';
+          return `${day}${suffix}`;
+        })
+        .replace(',', '.');
+    }
 
     // Format time if available
-    let formattedTime = null;
-    if (time) {
-      // Convert 24h to 12h format if needed
-      const timeMatch = time.match(/(\d{1,2}):(\d{2})/);
+    const formatTime = (timeStr: string) => {
+      const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
       if (timeMatch) {
         const hours = parseInt(timeMatch[1]);
         const minutes = timeMatch[2];
         const ampm = hours >= 12 ? 'pm' : 'am';
         const displayHours = hours % 12 || 12;
-        formattedTime = `${displayHours}:${minutes} ${ampm}`;
+        return `${displayHours}:${minutes} ${ampm}`;
+      }
+      return timeStr;
+    };
+
+    let formattedTime = null;
+    if (time) {
+      if (endTime) {
+        // Show time range: "1:00 pm - 3:00 am"
+        formattedTime = `${formatTime(time)} - ${formatTime(endTime)}`;
       } else {
-        formattedTime = time;
+        formattedTime = formatTime(time);
       }
     }
 
@@ -315,7 +337,7 @@ export default function Home() {
     if (!isDesign1) return null;
     
     const price = event.ticketPrice || event.price;
-    if (!price) return null;
+    if (!price) return "prices vary";
     
     // Extract price and add currency if needed
     const priceText = price.toString();
@@ -476,6 +498,18 @@ export default function Home() {
       setSearchSubmitted(true);
       setSearchedSuperCategories([...selectedSuperCategories]);
       setActiveFilter('Alle');
+      
+      // Scroll down to hide categories after a short delay
+      setTimeout(() => {
+        const searchSection = document.querySelector('.search-section');
+        if (searchSection) {
+          const searchSectionBottom = searchSection.getBoundingClientRect().bottom + window.scrollY;
+          window.scrollTo({
+            top: searchSectionBottom,
+            behavior: 'smooth'
+          });
+        }
+      }, 100);
     }
 
     try {
@@ -874,7 +908,7 @@ export default function Home() {
                               <line x1="3" y1="10" x2="21" y2="10"/>
                             </svg>
                             {(() => {
-                              const { date, time } = formatEventDateTime(event.date, event.time);
+                              const { date, time } = formatEventDateTime(event.date, event.time, event.endTime);
                               return (
                                 <>
                                   {date}
@@ -908,11 +942,6 @@ export default function Home() {
                             >
                               {event.venue}
                             </a>
-                            {event.address && (
-                              <div className="event-address">
-                                {event.address}
-                              </div>
-                            )}
                           </div>
                         </div>
                         
@@ -959,7 +988,7 @@ export default function Home() {
                                   <line x1="12" y1="16" x2="12" y2="12"/>
                                   <line x1="12" y1="8" x2="12.01" y2="8"/>
                                 </svg>
-                                more Info
+                                More info
                               </a>
                             )}
                             {event.bookingLink && (
