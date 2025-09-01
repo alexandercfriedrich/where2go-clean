@@ -509,93 +509,225 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="container">
-        {/* Design 1: Filter Sidebar */}
-        {isDesign1 && searchSubmitted && (
-          <aside className="filter-sidebar">
-            <h3 className="sidebar-title">Filter & Kategorien</h3>
-            <div className="filter-chips">
-              {/* All filter chip */}
-              <button
-                className={`filter-chip ${activeFilter === 'Alle' ? 'filter-chip-active' : ''}`}
-                onClick={() => setActiveFilter('Alle')}
-                role="button"
-                aria-pressed={activeFilter === 'Alle'}
-                tabIndex={0}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setActiveFilter('Alle');
-                  }
-                }}
-              >
-                Alle
-                <span className="filter-count">{getCategoryCounts()['Alle']}</span>
-              </button>
-              
-              {/* Category filter chips */}
-              {searchedSuperCategories.map(category => (
+        {/* Design 1: Content with Sidebar Layout */}
+        {isDesign1 && searchSubmitted ? (
+          <div className="content-with-sidebar">
+            {/* Filter Sidebar */}
+            <aside className="filter-sidebar">
+              <h3 className="sidebar-title">Filter & Kategorien</h3>
+              <div className="filter-chips">
+                {/* All filter chip */}
                 <button
-                  key={category}
-                  className={`filter-chip ${activeFilter === category ? 'filter-chip-active' : ''}`}
-                  onClick={() => setActiveFilter(category)}
+                  className={`filter-chip ${activeFilter === 'Alle' ? 'filter-chip-active' : ''}`}
+                  onClick={() => setActiveFilter('Alle')}
                   role="button"
-                  aria-pressed={activeFilter === category}
+                  aria-pressed={activeFilter === 'Alle'}
                   tabIndex={0}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      setActiveFilter(category);
+                      setActiveFilter('Alle');
                     }
                   }}
                 >
-                  {category}
-                  <span className="filter-count">{getCategoryCounts()[category] || 0}</span>
+                  Alle
+                  <span className="filter-count">{getCategoryCounts()['Alle']}</span>
                 </button>
-              ))}
+                
+                {/* Category filter chips */}
+                {searchedSuperCategories.map(category => (
+                  <button
+                    key={category}
+                    className={`filter-chip ${activeFilter === category ? 'filter-chip-active' : ''}`}
+                    onClick={() => setActiveFilter(category)}
+                    role="button"
+                    aria-pressed={activeFilter === category}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setActiveFilter(category);
+                      }
+                    }}
+                  >
+                    {category}
+                    <span className="filter-count">{getCategoryCounts()[category] || 0}</span>
+                  </button>
+                ))}
+              </div>
+            </aside>
+
+            {/* Main Content Area */}
+            <div className="main-content">
+              {error && (
+                <div className="error">
+                  {error}
+                </div>
+              )}
+
+              {loading && (
+                <div className="loading">
+                  <div className="loading-spinner"></div>
+                  <p>
+                    {jobStatus === 'pending' && events.length > 0 
+                      ? 'Suche läuft – Ergebnisse werden ergänzt' 
+                      : 'Suche läuft … bitte habe etwas Geduld.'
+                    }
+                  </p>
+                  <p>Abfrage <span className="font-mono">{pollCount}/{MAX_POLLS}</span> (max. 480 sec / 8min)</p>
+                  {jobStatus === 'pending' && progress && (
+                    <p>Kategorien: <span className="font-mono">{progress.completedCategories}/{progress.totalCategories}</span> abgeschlossen</p>
+                  )}
+                  <p>KI-Auswertung kann länger dauern!</p>
+                </div>
+              )}
+
+              {!loading && !displayedEvents.length && !error && (
+                <div className="empty-state">
+                  <h3>Keine Events gefunden</h3>
+                  <p>Versuche andere Filter oder starte eine neue Suche.</p>
+                </div>
+              )}
+
+              {!!displayedEvents.length && (
+                <div className="events-grid">
+                  {displayedEvents.map((event) => {
+                    const eventKey = createEventKey(event);
+                    const isNew = newEvents.has(eventKey);
+                    const superCategory = searchedSuperCategories.find(cat =>
+                      CATEGORY_MAP[cat]?.includes(event.category)
+                    ) || event.category;
+
+                    return (
+                      <div key={eventKey} className={`event-card ${isNew ? 'event-card-new' : ''}`}>
+                        {isNew && <div className="badge-new">Neu</div>}
+                        <div className="event-content">
+                          <h3 className="event-title">{event.title}</h3>
+                          
+                          <div className="event-date">
+                            {event.date}
+                            {event.time && ` • ${event.time}`}
+                            {event.endTime && ` - ${event.endTime}`}
+                          </div>
+                          
+                          <div className="event-location">
+                            📍 {event.venue}
+                            {event.address ? (
+                              <a 
+                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="event-address-link"
+                                title="Adresse in Google Maps öffnen"
+                              >
+                                <br />📍 {event.address}
+                              </a>
+                            ) : (
+                              <a 
+                                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${event.venue}, ${city}`)}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="event-address-link"
+                                title="Venue in Google Maps öffnen"
+                              >
+                                <br />🗺️ In Maps öffnen
+                              </a>
+                            )}
+                          </div>
+                          
+                          {superCategory && (
+                            <div className="event-category">🏷️ {superCategory}</div>
+                          )}
+                          
+                          {event.eventType && (
+                            <div className="event-type">🎭 {event.eventType}</div>
+                          )}
+                          
+                          {(event.price || event.ticketPrice) && (
+                            <div className="event-price">
+                              💰 {event.ticketPrice || event.price}
+                            </div>
+                          )}
+                          
+                          {event.ageRestrictions && (
+                            <div className="event-age">🔞 {event.ageRestrictions}</div>
+                          )}
+                          
+                          {event.description && (
+                            <div className="event-description">{event.description}</div>
+                          )}
+                          
+                          <div className="event-links">
+                            {event.website && (
+                              <a 
+                                href={event.website} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="event-link"
+                              >
+                                Website →
+                              </a>
+                            )}
+                            {event.bookingLink && (
+                              <a 
+                                href={event.bookingLink} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="event-link event-booking-link"
+                              >
+                                Tickets →
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          </aside>
-        )}
-
-        {/* Main Content Area */}
-        <div className={isDesign1 && searchSubmitted ? "main-content" : ""}>
-        {error && (
-          <div className="error">
-            {error}
           </div>
-        )}
-
-        {loading && (
-          <div className="loading">
-            <div className="loading-spinner"></div>
-            <p>
-              {jobStatus === 'pending' && events.length > 0 
-                ? 'Suche läuft – Ergebnisse werden ergänzt' 
-                : 'Suche läuft … bitte habe etwas Geduld.'
-              }
-            </p>
-            <p>Abfrage <span className="font-mono">{pollCount}/{MAX_POLLS}</span> (max. 480 sec / 8min)</p>
-            {jobStatus === 'pending' && progress && (
-              <p>Kategorien: <span className="font-mono">{progress.completedCategories}/{progress.totalCategories}</span> abgeschlossen</p>
+        ) : (
+          // Default layout for other designs
+          <>
+            {error && (
+              <div className="error">
+                {error}
+              </div>
             )}
-            <p>KI-Auswertung kann länger dauern!</p>
-          </div>
-        )}
 
-        {!loading && !displayedEvents.length && !error && (
-          <div className="empty-state">
-            <h3>{isDesign1 && searchSubmitted ? 'Keine Events gefunden' : 'Bereit für dein nächstes Abenteuer?'}</h3>
-            <p>{isDesign1 && searchSubmitted ? 'Versuche andere Filter oder starte eine neue Suche.' : 'Starte eine Suche, um die besten Events in deiner Stadt zu entdecken.'}</p>
-          </div>
-        )}
+            {loading && (
+              <div className="loading">
+                <div className="loading-spinner"></div>
+                <p>
+                  {jobStatus === 'pending' && events.length > 0 
+                    ? 'Suche läuft – Ergebnisse werden ergänzt' 
+                    : 'Suche läuft … bitte habe etwas Geduld.'
+                  }
+                </p>
+                <p>Abfrage <span className="font-mono">{pollCount}/{MAX_POLLS}</span> (max. 480 sec / 8min)</p>
+                {jobStatus === 'pending' && progress && (
+                  <p>Kategorien: <span className="font-mono">{progress.completedCategories}/{progress.totalCategories}</span> abgeschlossen</p>
+                )}
+                <p>KI-Auswertung kann länger dauern!</p>
+              </div>
+            )}
 
-        {!!displayedEvents.length && (
-          <div className="events-grid">
-            {displayedEvents.map((event) => {
+            {!loading && !events.length && !error && (
+              <div className="empty-state">
+                <h3>Bereit für dein nächstes Abenteuer?</h3>
+                <p>Starte eine Suche, um die besten Events in deiner Stadt zu entdecken.</p>
+              </div>
+            )}
+
+            {!!events.length && (
+              <div className="events-grid">
+                {events.map((event) => {
               const eventKey = createEventKey(event);
               const isNew = newEvents.has(eventKey);
-              const superCategory = isDesign1 && searchSubmitted 
-                ? searchedSuperCategories.find(cat => CATEGORY_MAP[cat]?.includes(event.category)) || event.category
-                : ALL_SUPER_CATEGORIES.find(cat => CATEGORY_MAP[cat].includes(event.category)) || event.category;
+              const superCategory = ALL_SUPER_CATEGORIES.find(cat =>
+                CATEGORY_MAP[cat].includes(event.category)
+              ) || event.category;
 
               return (
                 <div key={eventKey} className={`event-card ${isNew ? 'event-card-new' : ''}`}>
@@ -682,9 +814,15 @@ export default function Home() {
                 </div>
               );
             })}
-          </div>
-        )}
-        </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
       </main>
 
       {toast.show && (
