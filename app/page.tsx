@@ -60,7 +60,7 @@ export default function Home() {
       const existing = document.getElementById(id) as HTMLLinkElement | null;
 
       const isValid = design === '1' || design === '2' || design === '3';
-      setIsDesign1(design === '1');
+      setIsDesign1(!design || design === '1'); // true wenn KEIN parameter ODER "1"
       
       if (isValid) {
         const href = `/designs/design${design}.css`;
