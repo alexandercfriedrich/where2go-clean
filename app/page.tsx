@@ -52,6 +52,7 @@ export default function Home() {
   const pollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const eventsRef = useRef<EventData[]>([]);
   const pollCountRef = useRef<number>(0);
+  const eventsGridRef = useRef<HTMLDivElement>(null);
 
   // Reactive design switching based on URL params
   useEffect(() => {
@@ -163,6 +164,18 @@ export default function Home() {
       }
     };
   }, []);
+
+  // Scroll to events grid when events are found and search is submitted
+  useEffect(() => {
+    if (isDesign1 && searchSubmitted && events.length > 0 && eventsGridRef.current) {
+      setTimeout(() => {
+        eventsGridRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }, 100); // Small delay to ensure rendering is complete
+    }
+  }, [isDesign1, searchSubmitted, events.length]);
 
   const createEventKey = (event: EventData): string => {
     return `${event.title}_${event.date}_${event.venue}`;
@@ -696,7 +709,7 @@ export default function Home() {
       </section>
 
       {/* Search Section */}
-      <section className={`search-section ${isDesign1 && searchSubmitted ? 'search-section-collapsed' : ''}`}>
+      <section className="search-section">
         <div className="container">
           <form 
             className="search-form"
@@ -884,7 +897,7 @@ export default function Home() {
         )}
 
         {!!displayedEvents.length && (
-          <div className="events-grid">
+          <div className="events-grid" ref={eventsGridRef}>
             {displayedEvents.map((event) => {
               const eventKey = createEventKey(event);
               const isNew = newEvents.has(eventKey);
