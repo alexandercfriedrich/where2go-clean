@@ -1,6 +1,7 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
 import { CATEGORY_MAP } from './categories';
+import { useTranslation } from './lib/useTranslation';
 
 interface EventData {
   title: string;
@@ -24,10 +25,11 @@ const MAX_CATEGORY_SELECTION: number = 3;
 const MAX_POLLS = 104;
 
 export default function Home() {
+  const { t, formatEventDate, formatEventTime } = useTranslation();
   const [city, setCity] = useState('');
   const [timePeriod, setTimePeriod] = useState('heute');
   const [customDate, setCustomDate] = useState('');
-  const [selectedSuperCategories, setSelectedSuperCategories] = useState<string[]>(ALL_SUPER_CATEGORIES.slice(0, MAX_CATEGORY_SELECTION));
+  const [selectedSuperCategories, setSelectedSuperCategories] = useState<string[]>([]);
   const [categoryLimitError, setCategoryLimitError] = useState<string | null>(null);
   const [events, setEvents] = useState<EventData[]>([]);
   const [loading, setLoading] = useState(false);
@@ -55,12 +57,12 @@ export default function Home() {
   useEffect(() => {
     const updateFromURL = () => {
       const params = new URLSearchParams(window.location.search);
-      const design = params.get('design');
+      const design = params.get('design') || '1'; // Default to design 1 if no parameter
       const id = 'w2g-design-css';
       const existing = document.getElementById(id) as HTMLLinkElement | null;
 
       const isValid = design === '1' || design === '2' || design === '3';
-      setIsDesign1(!design || design === '1'); // true wenn KEIN parameter ODER "1"
+      setIsDesign1(design === '1'); // true wenn design ist "1"
       
       if (isValid) {
         const href = `/designs/design${design}.css`;
@@ -74,8 +76,18 @@ export default function Home() {
           document.head.appendChild(link);
         }
       } else {
-        if (existing) existing.remove();
-        setIsDesign1(false);
+        // Fallback to design 1 if invalid parameter
+        const href = `/designs/design1.css`;
+        if (existing) {
+          if (existing.getAttribute('href') !== href) existing.setAttribute('href', href);
+        } else {
+          const link = document.createElement('link');
+          link.id = id;
+          link.rel = 'stylesheet';
+          link.href = href;
+          document.head.appendChild(link);
+        }
+        setIsDesign1(true);
       }
     };
 
@@ -134,6 +146,14 @@ export default function Home() {
     eventsRef.current = events;
   }, [events]);
 
+  // Inject sample events when in test mode
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (isDesign1 && urlParams.get('test') === '1' && events.length === 0) {
+      setEvents(getSampleEvents());
+    }
+  }, [isDesign1]);
+
   useEffect(() => {
     return () => {
       if (pollInterval.current) {
@@ -149,7 +169,7 @@ export default function Home() {
   };
 
   // Helper function to format date and time for Design 1
-  const formatEventDateTime = (date: string, time?: string) => {
+  const formatEventDateTime = (date: string, time?: string, endTime?: string) => {
     if (!isDesign1) {
       return { 
         date: time ? `${date} • ${time}` : date,
@@ -159,49 +179,167 @@ export default function Home() {
 
     // Parse the date
     const dateObj = new Date(date);
-    const options: Intl.DateTimeFormatOptions = { 
-      weekday: 'short', 
-      day: 'numeric', 
-      month: 'short', 
-      year: 'numeric' 
-    };
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
     
-    // Format like "Fr 31st Dec. 2025"
-    const formattedDate = dateObj.toLocaleDateString('en-GB', options)
-      .replace(/(\d+)/, (match) => {
-        const day = parseInt(match);
-        const suffix = day === 1 || day === 21 || day === 31 ? 'st' :
-                      day === 2 || day === 22 ? 'nd' :
-                      day === 3 || day === 23 ? 'rd' : 'th';
-        return `${day}${suffix}`;
-      })
-      .replace(',', '.');
+    // Check if date is today or tomorrow
+    const isToday = dateObj.toDateString() === today.toDateString();
+    const isTomorrow = dateObj.toDateString() === tomorrow.toDateString();
+    
+    let formattedDate;
+    if (isToday) {
+      formattedDate = t('event.today');
+    } else if (isTomorrow) {
+      formattedDate = t('event.tomorrow');
+    } else {
+      // Format like "Fr 31st Dec. 2025"
+      const options: Intl.DateTimeFormatOptions = { 
+        weekday: 'short', 
+        day: 'numeric', 
+        month: 'short', 
+        year: 'numeric' 
+      };
+      
+      formattedDate = dateObj.toLocaleDateString('en-GB', options)
+        .replace(/(\d+)/, (match) => {
+          const day = parseInt(match);
+          const suffix = day === 1 || day === 21 || day === 31 ? 'st' :
+                        day === 2 || day === 22 ? 'nd' :
+                        day === 3 || day === 23 ? 'rd' : 'th';
+          return `${day}${suffix}`;
+        })
+        .replace(',', '.');
+    }
 
     // Format time if available
-    let formattedTime = null;
-    if (time) {
-      // Convert 24h to 12h format if needed
-      const timeMatch = time.match(/(\d{1,2}):(\d{2})/);
+    const formatTime = (timeStr: string) => {
+      const timeMatch = timeStr.match(/(\d{1,2}):(\d{2})/);
       if (timeMatch) {
         const hours = parseInt(timeMatch[1]);
         const minutes = timeMatch[2];
         const ampm = hours >= 12 ? 'pm' : 'am';
         const displayHours = hours % 12 || 12;
-        formattedTime = `${displayHours}:${minutes} ${ampm}`;
+        return `${displayHours}:${minutes} ${ampm}`;
+      }
+      return timeStr;
+    };
+
+    let formattedTime = null;
+    if (time) {
+      if (endTime) {
+        // Show time range: "1:00 pm - 3:00 am"
+        formattedTime = `${formatTime(time)} - ${formatTime(endTime)}`;
       } else {
-        formattedTime = time;
+        formattedTime = formatTime(time);
       }
     }
 
     return { date: formattedDate, time: formattedTime };
   };
 
-  // Helper function to format price for Design 1
+  // Helper function to get category icon
+  const getCategoryIcon = (category: string) => {
+    const iconStyle = { width: '16px', height: '16px', strokeWidth: '2' };
+    
+    switch (category) {
+      case 'DJ Sets/Electronic':
+      case 'Clubs/Discos':
+        return (
+          <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M9 18V5l12-2v13"/>
+            <circle cx="6" cy="18" r="3"/>
+            <circle cx="18" cy="16" r="3"/>
+          </svg>
+        );
+      case 'Live-Konzerte':
+        return (
+          <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M12 3v18"/>
+            <path d="M8 21l4-7 4 7"/>
+            <path d="M8 3l4 7 4-7"/>
+          </svg>
+        );
+      case 'Theater/Performance':
+        return (
+          <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M20 9V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2"/>
+            <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V9s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+            <line x1="4" y1="22" x2="4" y2="15"/>
+            <line x1="20" y1="22" x2="20" y2="15"/>
+          </svg>
+        );
+      case 'Museen':
+      case 'Kunst/Design':
+        return (
+          <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <path d="M21 15l-5-5L5 21"/>
+          </svg>
+        );
+      case 'Sport':
+        return (
+          <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
+            <path d="M2 12h20"/>
+          </svg>
+        );
+      case 'Food/Culinary':
+        return (
+          <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
+            <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+            <line x1="6" y1="1" x2="6" y2="4"/>
+            <line x1="10" y1="1" x2="10" y2="4"/>
+            <line x1="14" y1="1" x2="14" y2="4"/>
+          </svg>
+        );
+      case 'Film':
+        return (
+          <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+        );
+      default:
+        return (
+          <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+            <line x1="7" y1="7" x2="7.01" y2="7"/>
+          </svg>
+        );
+    }
+  };
+
+  // Helper function to get event type icon
+  const getEventTypeIcon = () => {
+    return (
+      <svg style={{ width: '16px', height: '16px', strokeWidth: '2' }} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M20 9V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2"/>
+        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V9s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+        <line x1="4" y1="22" x2="4" y2="15"/>
+        <line x1="20" y1="22" x2="20" y2="15"/>
+      </svg>
+    );
+  };
+
+  // Helper function to get age restriction icon
+  const getAgeRestrictionIcon = () => {
+    return (
+      <svg style={{ width: '16px', height: '16px', strokeWidth: '2' }} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+      </svg>
+    );
+  };
   const formatEventPrice = (event: EventData) => {
     if (!isDesign1) return null;
     
     const price = event.ticketPrice || event.price;
-    if (!price) return null;
+    if (!price) return t('event.pricesVary');
     
     // Extract price and add currency if needed
     const priceText = price.toString();
@@ -362,6 +500,18 @@ export default function Home() {
       setSearchSubmitted(true);
       setSearchedSuperCategories([...selectedSuperCategories]);
       setActiveFilter('Alle');
+      
+      // Scroll down to hide categories after a short delay
+      setTimeout(() => {
+        const searchSection = document.querySelector('.search-section');
+        if (searchSection) {
+          const searchSectionBottom = searchSection.getBoundingClientRect().bottom + window.scrollY;
+          window.scrollTo({
+            top: searchSectionBottom,
+            behavior: 'smooth'
+          });
+        }
+      }, 100);
     }
 
     try {
@@ -541,7 +691,7 @@ export default function Home() {
       <section className={`hero ${isDesign1 && searchSubmitted ? 'hero-collapsed' : ''}`}>
         <div className="container">
           <h1>Where2Go</h1>
-          <p>Entdecke die besten Events in deiner Stadt!</p>
+          <p>{t('page.tagline')}</p>
         </div>
       </section>
 
@@ -557,29 +707,29 @@ export default function Home() {
           >
             <div className="form-row">
               <div className="form-group">
-                <label htmlFor="city">Stadt</label>
+                <label htmlFor="city">{t('form.city')}</label>
                 <input
                   className="form-input"
                   type="text"
                   id="city"
                   value={city}
                   onChange={e => setCity(e.target.value)}
-                  placeholder="z.B. Linz, Berlin, Hamburg ..."
+                  placeholder={t('form.cityPlaceholder')}
                 />
               </div>
               
               <div className="form-group">
-                <label htmlFor="timePeriod">Zeitraum</label>
+                <label htmlFor="timePeriod">{t('form.timePeriod')}</label>
                 <select
                   className="form-input"
                   id="timePeriod"
                   value={timePeriod}
                   onChange={e => setTimePeriod(e.target.value)}
                 >
-                  <option value="heute">Heute</option>
-                  <option value="morgen">Morgen</option>
-                  <option value="kommendes-wochenende">Kommendes Wochenende</option>
-                  <option value="benutzerdefiniert">Benutzerdefiniert</option>
+                  <option value="heute">{t('time.today')}</option>
+                  <option value="morgen">{t('time.tomorrow')}</option>
+                  <option value="kommendes-wochenende">{t('time.upcomingWeekend')}</option>
+                  <option value="benutzerdefiniert">{t('time.custom')}</option>
                 </select>
               </div>
             </div>
@@ -646,7 +796,7 @@ export default function Home() {
             </div>
 
             <button type="submit" className="btn-search">
-              Events suchen
+              {t('button.searchEvents')}
             </button>
           </form>
         </div>
@@ -719,11 +869,10 @@ export default function Home() {
                 : 'Suche läuft … bitte habe etwas Geduld.'
               }
             </p>
-            <p>Abfrage <span className="font-mono">{pollCount}/{MAX_POLLS}</span> (max. 480 sec / 8min)</p>
+            <p>Abfrage <span className="font-mono">{pollCount}/{MAX_POLLS}</span> (max 60 Sekunden)</p>
             {jobStatus === 'pending' && progress && (
               <p>Kategorien: <span className="font-mono">{progress.completedCategories}/{progress.totalCategories}</span> abgeschlossen</p>
             )}
-            <p>KI-Auswertung kann länger dauern!</p>
           </div>
         )}
 
@@ -754,12 +903,14 @@ export default function Home() {
                       <>
                         <div className="event-datetime">
                           <div className="event-date-d1">
-                            <svg className="icon-clock" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <circle cx="12" cy="12" r="10"/>
-                              <polyline points="12,6 12,12 16,14"/>
+                            <svg className="icon-date" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                              <line x1="16" y1="2" x2="16" y2="6"/>
+                              <line x1="8" y1="2" x2="8" y2="6"/>
+                              <line x1="3" y1="10" x2="21" y2="10"/>
                             </svg>
                             {(() => {
-                              const { date, time } = formatEventDateTime(event.date, event.time);
+                              const { date, time } = formatEventDateTime(event.date, event.time, event.endTime);
                               return (
                                 <>
                                   {date}
@@ -783,30 +934,38 @@ export default function Home() {
                             <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
                             <circle cx="12" cy="10" r="3"/>
                           </svg>
-                          {event.venue}
-                          {event.address && (
+                          <div className="event-location-content">
                             <a 
-                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address)}`}
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address || event.venue)}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="event-address-link"
-                              title="Adresse in Google Maps öffnen"
+                              className="event-venue-link"
+                              title="Venue in Google Maps öffnen"
                             >
-                              <br />{event.address}
+                              {event.venue}
                             </a>
-                          )}
+                          </div>
                         </div>
                         
                         {superCategory && (
-                          <div className="event-category">🏷️ {superCategory}</div>
+                          <div className="event-category">
+                            {getCategoryIcon(superCategory)}
+                            {superCategory}
+                          </div>
                         )}
                         
                         {event.eventType && (
-                          <div className="event-type">🎭 {event.eventType}</div>
+                          <div className="event-type">
+                            {getEventTypeIcon()}
+                            {event.eventType}
+                          </div>
                         )}
                         
                         {event.ageRestrictions && (
-                          <div className="event-age">🔞 {event.ageRestrictions}</div>
+                          <div className="event-age">
+                            {getAgeRestrictionIcon()}
+                            {event.ageRestrictions}
+                          </div>
                         )}
                         
                         {event.description && (
@@ -831,7 +990,7 @@ export default function Home() {
                                   <line x1="12" y1="16" x2="12" y2="12"/>
                                   <line x1="12" y1="8" x2="12.01" y2="8"/>
                                 </svg>
-                                more Info
+                                {t('button.moreInfo')}
                               </a>
                             )}
                             {event.bookingLink && (
@@ -888,11 +1047,17 @@ export default function Home() {
                         </div>
                         
                         {superCategory && (
-                          <div className="event-category">🏷️ {superCategory}</div>
+                          <div className="event-category">
+                            {getCategoryIcon(superCategory)}
+                            {superCategory}
+                          </div>
                         )}
                         
                         {event.eventType && (
-                          <div className="event-type">🎭 {event.eventType}</div>
+                          <div className="event-type">
+                            {getEventTypeIcon()}
+                            {event.eventType}
+                          </div>
                         )}
                         
                         {(event.price || event.ticketPrice) && (
@@ -902,7 +1067,10 @@ export default function Home() {
                         )}
                         
                         {event.ageRestrictions && (
-                          <div className="event-age">🔞 {event.ageRestrictions}</div>
+                          <div className="event-age">
+                            {getAgeRestrictionIcon()}
+                            {event.ageRestrictions}
+                          </div>
                         )}
                         
                         {event.description && (
@@ -1004,15 +1172,15 @@ export default function Home() {
               <h4>Service</h4>
               <ul>
                 <li><a href="#events">Events</a></li>
-                <li><a href="#premium">Premium</a></li>
+                <li><a href="/premium">Premium</a></li>
                 <li><a href="#api">API</a></li>
               </ul>
             </div>
             <div className="footer-section">
               <h4>Unternehmen</h4>
               <ul>
-                <li><a href="#about">Über uns</a></li>
-                <li><a href="#contact">Kontakt</a></li>
+                <li><a href="/ueber-uns">Über uns</a></li>
+                <li><a href="/kontakt">Kontakt</a></li>
                 <li><a href="#jobs">Jobs</a></li>
               </ul>
             </div>
@@ -1021,7 +1189,7 @@ export default function Home() {
               <ul>
                 <li><a href="#privacy">Datenschutz</a></li>
                 <li><a href="#terms">AGB</a></li>
-                <li><a href="#imprint">Impressum</a></li>
+                <li><a href="/impressum">Impressum</a></li>
               </ul>
             </div>
           </div>

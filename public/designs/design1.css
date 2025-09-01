@@ -334,7 +334,7 @@ a:hover {
 
 .category-checkbox input[type="checkbox"]:checked + .category-name {
   font-weight: var(--font-weight-medium);
-  color: var(--color-accent);
+  color: var(--color-gray-700);
 }
 
 .categories-actions {
@@ -511,7 +511,7 @@ a:hover {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  color: var(--color-accent);
+  color: var(--color-gray-600); /* Changed from accent to dark gray */
   font-weight: var(--font-weight-medium);
   font-size: 0.875rem;
 }
@@ -525,7 +525,51 @@ a:hover {
   font-size: 0.875rem;
 }
 
-.icon-clock,
+.event-location-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.event-venue-link {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--color-accent);
+  padding-bottom: 1px;
+  transition: all var(--transition-fast);
+}
+
+.event-venue-link:hover {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent-hover);
+}
+
+.event-address {
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  margin-top: var(--space-1);
+}
+
+.event-category,
+.event-type,
+.event-age {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.875rem;
+  color: var(--color-gray-600);
+  margin-bottom: var(--space-2);
+}
+
+.event-category svg,
+.event-type svg,
+.event-age svg {
+  flex-shrink: 0;
+  color: var(--color-gray-500);
+}
+
+.icon-date,
 .icon-time,
 .icon-location,
 .icon-info,
@@ -568,15 +612,15 @@ a:hover {
 }
 
 .event-info-btn {
-  background: var(--color-white);
-  border-color: var(--color-gray-700);
+  background: var(--color-gray-100); /* Light gray fill like ticket box */
+  border-color: var(--color-gray-300);
   color: var(--color-gray-700);
 }
 
 .event-info-btn:hover {
-  background: var(--color-gray-50);
-  border-color: var(--color-gray-800);
-  color: var(--color-gray-800);
+  background: var(--color-gray-600); /* Dark gray on hover */
+  border-color: var(--color-gray-700);
+  color: var(--color-white);
 }
 
 .event-tickets-btn {
