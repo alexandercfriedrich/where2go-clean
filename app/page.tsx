@@ -213,6 +213,38 @@ export default function Home() {
     return `${priceText} €`;
   };
 
+  // For testing Design 1 - inject sample events when on ?design=1&test=1
+  const getSampleEvents = (): EventData[] => {
+    if (!isDesign1) return [];
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('test') !== '1') return [];
+    
+    return [
+      {
+        title: "Electronic Music Night",
+        category: "DJ Sets/Electronic",
+        date: "2025-01-03",
+        time: "23:30",
+        venue: "Hï Ibiza",
+        price: "35 €",
+        website: "https://example.com",
+        bookingLink: "https://tickets.example.com",
+        description: "Eine unvergessliche Nacht mit den besten DJs der Welt."
+      },
+      {
+        title: "Jazz Live Concert",
+        category: "Live-Konzerte", 
+        date: "2025-01-04",
+        time: "20:00",
+        venue: "Blue Note",
+        price: "45",
+        website: "https://example.com",
+        address: "131 W 3rd St, New York, NY 10012",
+        description: "Authentischer Jazz in gemütlicher Atmosphäre."
+      }
+    ];
+  };
+
   const formatDateForAPI = (): string => {
     const today = new Date();
     const tomorrow = new Date(today);
@@ -221,13 +253,52 @@ export default function Home() {
     if (timePeriod === 'heute') return today.toISOString().split('T')[0];
     else if (timePeriod === 'morgen') return tomorrow.toISOString().split('T')[0];
     else if (timePeriod === 'kommendes-wochenende') {
-      // Find the next Friday
+      // Find the next Friday (start of weekend)
       const nextFriday = new Date(today);
       const daysUntilFriday = (5 - today.getDay() + 7) % 7; // 5 = Friday
-      nextFriday.setDate(today.getDate() + (daysUntilFriday === 0 ? 7 : daysUntilFriday));
-      return nextFriday.toISOString().split('T')[0];
+      if (daysUntilFriday === 0 && today.getDay() === 5) {
+        // If today is Friday, use today
+        return today.toISOString().split('T')[0];
+      } else {
+        nextFriday.setDate(today.getDate() + (daysUntilFriday === 0 ? 7 : daysUntilFriday));
+        return nextFriday.toISOString().split('T')[0];
+      }
     }
     else return customDate || today.toISOString().split('T')[0];
+  };
+
+  // Helper function to get weekend dates (Friday, Saturday, Sunday)
+  const getWeekendDates = (): string[] => {
+    const today = new Date();
+    const nextFriday = new Date(today);
+    const daysUntilFriday = (5 - today.getDay() + 7) % 7; // 5 = Friday
+    
+    if (daysUntilFriday === 0 && today.getDay() === 5) {
+      // If today is Friday, start from today
+      nextFriday.setDate(today.getDate());
+    } else {
+      nextFriday.setDate(today.getDate() + (daysUntilFriday === 0 ? 7 : daysUntilFriday));
+    }
+    
+    const saturday = new Date(nextFriday);
+    saturday.setDate(nextFriday.getDate() + 1);
+    
+    const sunday = new Date(nextFriday);
+    sunday.setDate(nextFriday.getDate() + 2);
+    
+    return [
+      nextFriday.toISOString().split('T')[0],
+      saturday.toISOString().split('T')[0],
+      sunday.toISOString().split('T')[0]
+    ];
+  };
+
+  // Filter events by weekend when applicable
+  const filterEventsByTimePeriod = (eventList: EventData[]): EventData[] => {
+    if (timePeriod !== 'kommendes-wochenende') return eventList;
+    
+    const weekendDates = getWeekendDates();
+    return eventList.filter(event => weekendDates.includes(event.date));
   };
 
   const toggleSuperCategory = (category: string) => {
@@ -252,7 +323,7 @@ export default function Home() {
 
   // Design 1: Compute displayed events based on active filter
   const displayedEvents = isDesign1 && searchSubmitted ? 
-    (activeFilter === 'Alle' ? events : events.filter(event => {
+    filterEventsByTimePeriod(activeFilter === 'Alle' ? events : events.filter(event => {
       const eventSuperCategory = searchedSuperCategories.find(cat =>
         CATEGORY_MAP[cat]?.includes(event.category)
       );
