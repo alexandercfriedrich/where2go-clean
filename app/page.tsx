@@ -344,7 +344,7 @@ export default function Home() {
       <section className="hero">
         <div className="container">
           <h1>Where2Go</h1>
-          <p>Entdecke die besten Events in deiner Stadt – KI-gestützte Suche für unvergessliche Erlebnisse</p>
+          <p>Entdecke die besten Events in deiner Stadt!</p>
         </div>
       </section>
 
