@@ -551,6 +551,24 @@ a:hover {
   margin-top: var(--space-1);
 }
 
+.event-category,
+.event-type,
+.event-age {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.875rem;
+  color: var(--color-gray-600);
+  margin-bottom: var(--space-2);
+}
+
+.event-category svg,
+.event-type svg,
+.event-age svg {
+  flex-shrink: 0;
+  color: var(--color-gray-500);
+}
+
 .icon-date,
 .icon-time,
 .icon-location,

@@ -144,6 +144,14 @@ export default function Home() {
     eventsRef.current = events;
   }, [events]);
 
+  // Inject sample events when in test mode
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (isDesign1 && urlParams.get('test') === '1' && events.length === 0) {
+      setEvents(getSampleEvents());
+    }
+  }, [isDesign1]);
+
   useEffect(() => {
     return () => {
       if (pollInterval.current) {
@@ -206,7 +214,103 @@ export default function Home() {
     return { date: formattedDate, time: formattedTime };
   };
 
-  // Helper function to format price for Design 1
+  // Helper function to get category icon
+  const getCategoryIcon = (category: string) => {
+    const iconStyle = { width: '16px', height: '16px', strokeWidth: '2' };
+    
+    switch (category) {
+      case 'DJ Sets/Electronic':
+      case 'Clubs/Discos':
+        return (
+          <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M9 18V5l12-2v13"/>
+            <circle cx="6" cy="18" r="3"/>
+            <circle cx="18" cy="16" r="3"/>
+          </svg>
+        );
+      case 'Live-Konzerte':
+        return (
+          <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M12 3v18"/>
+            <path d="M8 21l4-7 4 7"/>
+            <path d="M8 3l4 7 4-7"/>
+          </svg>
+        );
+      case 'Theater/Performance':
+        return (
+          <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M20 9V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2"/>
+            <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V9s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+            <line x1="4" y1="22" x2="4" y2="15"/>
+            <line x1="20" y1="22" x2="20" y2="15"/>
+          </svg>
+        );
+      case 'Museen':
+      case 'Kunst/Design':
+        return (
+          <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <path d="M21 15l-5-5L5 21"/>
+          </svg>
+        );
+      case 'Sport':
+        return (
+          <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/>
+            <path d="M2 12h20"/>
+          </svg>
+        );
+      case 'Food/Culinary':
+        return (
+          <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M18 8h1a4 4 0 0 1 0 8h-1"/>
+            <path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/>
+            <line x1="6" y1="1" x2="6" y2="4"/>
+            <line x1="10" y1="1" x2="10" y2="4"/>
+            <line x1="14" y1="1" x2="14" y2="4"/>
+          </svg>
+        );
+      case 'Film':
+        return (
+          <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"/>
+            <line x1="8" y1="21" x2="16" y2="21"/>
+            <line x1="12" y1="17" x2="12" y2="21"/>
+          </svg>
+        );
+      default:
+        return (
+          <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+            <line x1="7" y1="7" x2="7.01" y2="7"/>
+          </svg>
+        );
+    }
+  };
+
+  // Helper function to get event type icon
+  const getEventTypeIcon = () => {
+    return (
+      <svg style={{ width: '16px', height: '16px', strokeWidth: '2' }} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path d="M20 9V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2"/>
+        <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V9s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+        <line x1="4" y1="22" x2="4" y2="15"/>
+        <line x1="20" y1="22" x2="20" y2="15"/>
+      </svg>
+    );
+  };
+
+  // Helper function to get age restriction icon
+  const getAgeRestrictionIcon = () => {
+    return (
+      <svg style={{ width: '16px', height: '16px', strokeWidth: '2' }} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+      </svg>
+    );
+  };
   const formatEventPrice = (event: EventData) => {
     if (!isDesign1) return null;
     
@@ -813,15 +917,24 @@ export default function Home() {
                         </div>
                         
                         {superCategory && (
-                          <div className="event-category">🏷️ {superCategory}</div>
+                          <div className="event-category">
+                            {getCategoryIcon(superCategory)}
+                            {superCategory}
+                          </div>
                         )}
                         
                         {event.eventType && (
-                          <div className="event-type">🎭 {event.eventType}</div>
+                          <div className="event-type">
+                            {getEventTypeIcon()}
+                            {event.eventType}
+                          </div>
                         )}
                         
                         {event.ageRestrictions && (
-                          <div className="event-age">🔞 {event.ageRestrictions}</div>
+                          <div className="event-age">
+                            {getAgeRestrictionIcon()}
+                            {event.ageRestrictions}
+                          </div>
                         )}
                         
                         {event.description && (
@@ -903,11 +1016,17 @@ export default function Home() {
                         </div>
                         
                         {superCategory && (
-                          <div className="event-category">🏷️ {superCategory}</div>
+                          <div className="event-category">
+                            {getCategoryIcon(superCategory)}
+                            {superCategory}
+                          </div>
                         )}
                         
                         {event.eventType && (
-                          <div className="event-type">🎭 {event.eventType}</div>
+                          <div className="event-type">
+                            {getEventTypeIcon()}
+                            {event.eventType}
+                          </div>
                         )}
                         
                         {(event.price || event.ticketPrice) && (
@@ -917,7 +1036,10 @@ export default function Home() {
                         )}
                         
                         {event.ageRestrictions && (
-                          <div className="event-age">🔞 {event.ageRestrictions}</div>
+                          <div className="event-age">
+                            {getAgeRestrictionIcon()}
+                            {event.ageRestrictions}
+                          </div>
                         )}
                         
                         {event.description && (
