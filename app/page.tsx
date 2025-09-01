@@ -1019,15 +1019,15 @@ export default function Home() {
               <h4>Service</h4>
               <ul>
                 <li><a href="#events">Events</a></li>
-                <li><a href="#premium">Premium</a></li>
+                <li><a href="/premium">Premium</a></li>
                 <li><a href="#api">API</a></li>
               </ul>
             </div>
             <div className="footer-section">
               <h4>Unternehmen</h4>
               <ul>
-                <li><a href="#about">Über uns</a></li>
-                <li><a href="#contact">Kontakt</a></li>
+                <li><a href="/ueber-uns">Über uns</a></li>
+                <li><a href="/kontakt">Kontakt</a></li>
                 <li><a href="#jobs">Jobs</a></li>
               </ul>
             </div>
@@ -1036,7 +1036,7 @@ export default function Home() {
               <ul>
                 <li><a href="#privacy">Datenschutz</a></li>
                 <li><a href="#terms">AGB</a></li>
-                <li><a href="#imprint">Impressum</a></li>
+                <li><a href="/impressum">Impressum</a></li>
               </ul>
             </div>
           </div>
