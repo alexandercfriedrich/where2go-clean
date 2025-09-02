@@ -101,9 +101,13 @@ export async function POST(req: NextRequest) {
 
     console.log('Processing job:', { jobId, city, date, categories: categories?.length || 0 });
 
-    // Run the background processing
-    await processJobInBackground(jobId, city, date, categories, options);
+    // Start background processing asynchronously - DO NOT AWAIT
+    // This allows the HTTP response to return immediately while processing continues
+    processJobInBackground(jobId, city, date, categories, options).catch(error => {
+      console.error('Async background processing error for job', jobId, ':', error);
+    });
 
+    console.log('Background processing started successfully for job:', jobId);
     return NextResponse.json({ success: true });
 
   } catch (error) {

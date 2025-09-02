@@ -268,7 +268,7 @@ export async function POST(request: NextRequest) {
     // Create job entry with cached events
     const job: JobStatus = {
       id: jobId,
-      status: 'processing',
+      status: 'pending',
       events: allCachedEvents,
       createdAt: new Date(),
       cacheInfo: {
@@ -284,6 +284,7 @@ export async function POST(request: NextRequest) {
     };
 
     await jobStore.setJob(jobId, job);
+    console.log(`Job created successfully with ID: ${jobId}, status: ${job.status}, events: ${job.events?.length || 0}`);
 
     // Initialize debug info if debug mode is enabled
     if (options?.debug) {

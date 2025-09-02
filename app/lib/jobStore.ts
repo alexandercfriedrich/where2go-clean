@@ -199,9 +199,11 @@ class InMemoryJobStore implements JobStore {
       ...parsed,
       createdAt: new Date(parsed.createdAt)
     });
+    console.log(`[InMemoryJobStore] Job ${jobId} saved. Total jobs in store: ${this.jobs.size}`);
   }
 
   async getJob(jobId: string): Promise<JobStatus | null> {
+    console.log(`[InMemoryJobStore] Looking for job ${jobId}. Total jobs in store: ${this.jobs.size}. Available jobs: [${Array.from(this.jobs.keys()).join(', ')}]`);
     const job = this.jobs.get(jobId);
     if (!job) return null;
     
