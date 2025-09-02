@@ -105,16 +105,17 @@ export async function POST(req: NextRequest) {
     // This allows the HTTP response to return immediately while processing continues
     
     // Set up a deadman's switch to automatically fail jobs that take too long
+    // Set to 4.5 minutes to ensure it triggers before Vercel's 5-minute timeout
     const deadmanTimeout = setTimeout(() => {
-      console.error(`🚨 DEADMAN SWITCH: Job ${jobId} has been running for more than 6 minutes, marking as failed`);
+      console.error(`🚨 DEADMAN SWITCH: Job ${jobId} has been running for more than 4.5 minutes, marking as failed`);
       jobStore.updateJob(jobId, {
         status: 'error',
-        error: 'Processing timed out - job took longer than expected',
+        error: 'Processing timed out - job took longer than expected (4.5 min limit)',
         lastUpdateAt: new Date().toISOString()
       }).catch(updateError => {
         console.error('Failed to update job status via deadman switch:', updateError);
       });
-    }, 6 * 60 * 1000); // 6 minutes
+    }, 4.5 * 60 * 1000); // 4.5 minutes - before Vercel's 5 minute timeout
     
     processJobInBackground(jobId, city, date, categories, options)
       .then(() => {
@@ -185,7 +186,7 @@ async function processJobInBackground(
       : requestedCategoryTimeout;
     const categoryTimeoutMs = defaultCategoryTimeout;
     
-    // Overall timeout defaults to 3 minutes (180000ms) - reduced from 4 minutes for better user experience
+    // Overall timeout defaults to 3 minutes (180000ms) - well under Vercel's 5-minute limit
     const defaultOverallTimeout = parseInt(process.env.OVERALL_TIMEOUT_MS || '180000', 10);
     const overallTimeoutMs = options?.overallTimeoutMs || defaultOverallTimeout;
     
