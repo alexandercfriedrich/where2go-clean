@@ -51,6 +51,14 @@ export interface JobStatus {
     fromCache: boolean;
     totalEvents: number;
     cachedEvents: number;
+    categoriesFromCache?: string[];     // NEW: Categories that came from cache
+    categoriesSearched?: string[];      // NEW: Categories that were searched
+    cacheBreakdown?: {                  // NEW: Per-category breakdown
+      [category: string]: {
+        fromCache: boolean;
+        eventCount: number;
+      }
+    }
   };
   progress?: {
     completedCategories: number;

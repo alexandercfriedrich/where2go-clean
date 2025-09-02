@@ -85,6 +85,50 @@ class InMemoryCache {
       : 'all';
     return `${city.toLowerCase()}_${date}_${categoriesStr}`;
   }
+
+  /**
+   * Creates a cache key for a single category
+   */
+  static createKeyForCategory(city: string, date: string, category: string): string {
+    return `${city.toLowerCase()}_${date}_${category}`;
+  }
+
+  /**
+   * Gets events for multiple categories, checking cache for each category individually
+   * Returns object with cached events per category and list of missing categories
+   */
+  getEventsByCategories(city: string, date: string, categories: string[]): {
+    cachedEvents: { [category: string]: any[] };
+    missingCategories: string[];
+    cacheInfo: { [category: string]: { fromCache: boolean; eventCount: number } };
+  } {
+    const cachedEvents: { [category: string]: any[] } = {};
+    const missingCategories: string[] = [];
+    const cacheInfo: { [category: string]: { fromCache: boolean; eventCount: number } } = {};
+
+    for (const category of categories) {
+      const cacheKey = InMemoryCache.createKeyForCategory(city, date, category);
+      const events = this.get<any[]>(cacheKey);
+      
+      if (events) {
+        cachedEvents[category] = events;
+        cacheInfo[category] = { fromCache: true, eventCount: events.length };
+      } else {
+        missingCategories.push(category);
+        cacheInfo[category] = { fromCache: false, eventCount: 0 };
+      }
+    }
+
+    return { cachedEvents, missingCategories, cacheInfo };
+  }
+
+  /**
+   * Sets events for a single category
+   */
+  setEventsByCategory(city: string, date: string, category: string, events: any[], ttlSeconds: number = 300): void {
+    const cacheKey = InMemoryCache.createKeyForCategory(city, date, category);
+    this.set(cacheKey, events, ttlSeconds);
+  }
 }
 
 // Export a singleton instance for global use
