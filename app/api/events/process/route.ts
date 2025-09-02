@@ -257,7 +257,7 @@ async function processJobInBackground(
           try {
             await processCategory(category, categoryIndex);
             console.log(`Worker completed category ${categoryIndex + 1}/${effectiveCategories.length}: ${category}`);
-          } catch (categoryError) {
+          } catch (categoryError: any) {
             console.error(`Worker failed to process category ${category}:`, categoryError);
             // Continue processing other categories even if one fails
             
@@ -311,7 +311,7 @@ async function processJobInBackground(
             } else {
               console.log(`⚠️ Category ${category} returned no results`);
             }
-          } catch (timeoutError) {
+          } catch (timeoutError: any) {
             if (timeoutError.message.includes('timed out')) {
               console.error(`⏰ Category ${category} timed out after ${perCategoryTimeout}ms`);
               throw new Error(`Category timeout after ${perCategoryTimeout}ms`);
