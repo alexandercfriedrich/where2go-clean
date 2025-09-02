@@ -81,9 +81,117 @@ class InMemoryCache {
    */
   static createKey(city: string, date: string, categories?: string[]): string {
     const categoriesStr = categories && categories.length > 0 
-      ? categories.sort().join(',') 
+      ? categories.map(cat => this.normalizeCategory(cat)).sort().join(',') 
       : 'all';
-    return `${city.toLowerCase()}_${date}_${categoriesStr}`;
+    return `${city.toLowerCase().trim()}_${date}_${categoriesStr}`;
+  }
+
+  /**
+   * Creates a cache key for a single category
+   */
+  static createKeyForCategory(city: string, date: string, category: string): string {
+    // Normalize city and category to prevent case sensitivity issues
+    return `${city.toLowerCase().trim()}_${date}_${this.normalizeCategory(category)}`;
+  }
+
+  /**
+   * Normalizes category names to prevent case sensitivity issues
+   * Maps common category variations to canonical forms
+   */
+  static normalizeCategory(category: string): string {
+    const normalized = category.trim();
+    
+    // Create a map of case-insensitive category variations to canonical forms
+    const categoryMappings: { [key: string]: string } = {
+      // Clubs/Discos variations
+      'clubs/discos': 'Clubs/Discos',
+      'clubs/disco': 'Clubs/Discos', 
+      'club/disco': 'Clubs/Discos',
+      'club/discos': 'Clubs/Discos',
+      'clubs': 'Clubs/Discos',
+      'discos': 'Clubs/Discos',
+      
+      // DJ Sets/Electronic variations
+      'dj sets/electronic': 'DJ Sets/Electronic',
+      'dj set/electronic': 'DJ Sets/Electronic',
+      'dj/electronic': 'DJ Sets/Electronic',
+      'electronic': 'DJ Sets/Electronic',
+      'dj sets': 'DJ Sets/Electronic',
+      'dj set': 'DJ Sets/Electronic',
+      
+      // Live-Konzerte variations
+      'live-konzerte': 'Live-Konzerte',
+      'live konzerte': 'Live-Konzerte',
+      'livekonzerte': 'Live-Konzerte',
+      'konzerte': 'Live-Konzerte',
+      'live': 'Live-Konzerte',
+      'concerts': 'Live-Konzerte',
+      'live concerts': 'Live-Konzerte',
+      
+      // Theater/Performance variations
+      'theater/performance': 'Theater/Performance',
+      'theater': 'Theater/Performance',
+      'theatre': 'Theater/Performance',
+      'performance': 'Theater/Performance',
+      
+      // Kunst/Design variations
+      'kunst/design': 'Kunst/Design',
+      'kunst': 'Kunst/Design',
+      'design': 'Kunst/Design',
+      'art': 'Kunst/Design',
+      'art/design': 'Kunst/Design',
+      
+      // LGBTQ+ variations
+      'lgbtq+': 'LGBTQ+',
+      'lgbtq': 'LGBTQ+',
+      'lgbt': 'LGBTQ+',
+    };
+    
+    // Check for exact match first (preserves existing behavior)
+    const lowerCase = normalized.toLowerCase();
+    if (categoryMappings[lowerCase]) {
+      return categoryMappings[lowerCase];
+    }
+    
+    // Return original if no mapping found (preserves existing categories)
+    return normalized;
+  }
+
+  /**
+   * Gets events for multiple categories, checking cache for each category individually
+   * Returns object with cached events per category and list of missing categories
+   */
+  getEventsByCategories(city: string, date: string, categories: string[]): {
+    cachedEvents: { [category: string]: any[] };
+    missingCategories: string[];
+    cacheInfo: { [category: string]: { fromCache: boolean; eventCount: number } };
+  } {
+    const cachedEvents: { [category: string]: any[] } = {};
+    const missingCategories: string[] = [];
+    const cacheInfo: { [category: string]: { fromCache: boolean; eventCount: number } } = {};
+
+    for (const category of categories) {
+      const cacheKey = InMemoryCache.createKeyForCategory(city, date, category);
+      const events = this.get<any[]>(cacheKey);
+      
+      if (events) {
+        cachedEvents[category] = events;
+        cacheInfo[category] = { fromCache: true, eventCount: events.length };
+      } else {
+        missingCategories.push(category);
+        cacheInfo[category] = { fromCache: false, eventCount: 0 };
+      }
+    }
+
+    return { cachedEvents, missingCategories, cacheInfo };
+  }
+
+  /**
+   * Sets events for a single category
+   */
+  setEventsByCategory(city: string, date: string, category: string, events: any[], ttlSeconds: number = 300): void {
+    const cacheKey = InMemoryCache.createKeyForCategory(city, date, category);
+    this.set(cacheKey, events, ttlSeconds);
   }
 }
 
