@@ -43,9 +43,10 @@ export interface RequestBody {
 
 export interface JobStatus {
   id: string;
-  status: 'pending' | 'done' | 'error';
+  status: 'pending' | 'done' | 'error' | 'processing';
   events?: EventData[];
   error?: string;
+  message?: string;
   createdAt: Date;
   debug?: DebugInfo; // New debug info
   cacheInfo?: {
@@ -64,6 +65,7 @@ export interface JobStatus {
   progress?: {
     completedCategories: number;
     totalCategories: number;
+    missingCategories?: string[];
   };
   lastUpdateAt?: string; // ISO date string
 }

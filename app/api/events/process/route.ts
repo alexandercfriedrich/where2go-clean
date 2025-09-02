@@ -273,13 +273,13 @@ async function processJobInBackground(
               const currentJob = await jobStore.getJob(jobId);
               const currentEvents = currentJob?.events || [];
               
-              // Merge with current events and deduplicate
+              // Merge with current events and deduplicate properly
               const beforeCount = currentEvents.length;
               const combinedEvents = [...currentEvents, ...categoryEvents];
-              const updatedEvents = eventAggregator.deduplicateEvents(combinedEvents);
+              const deduplicatedEvents = eventAggregator.deduplicateEvents(combinedEvents);
               
               // Categorize all events
-              const finalEvents = eventAggregator.categorizeEvents(updatedEvents);
+              const finalEvents = eventAggregator.categorizeEvents(deduplicatedEvents);
               
               const addedCount = finalEvents.length - beforeCount;
               
@@ -422,7 +422,8 @@ async function processJobInBackground(
         completedCategories: effectiveCategories.length, 
         totalCategories: effectiveCategories.length 
       },
-      lastUpdateAt: new Date().toISOString()
+      lastUpdateAt: new Date().toISOString(),
+      message: `${finalEvents.length} Events gefunden`
     });
 
   } catch (error) {

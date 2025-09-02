@@ -219,10 +219,12 @@ export async function POST(request: NextRequest) {
     if (!disableCache) {
       const cacheResult = eventsCache.getEventsByCategories(city, date, effectiveCategories);
       
-      // Combine all cached events
+      // Combine all cached events and deduplicate immediately
+      const cachedEventsList: EventData[] = [];
       for (const category in cacheResult.cachedEvents) {
-        allCachedEvents.push(...cacheResult.cachedEvents[category]);
+        cachedEventsList.push(...cacheResult.cachedEvents[category]);
       }
+      allCachedEvents = eventAggregator.deduplicateEvents(cachedEventsList);
       
       missingCategories = cacheResult.missingCategories;
       cacheInfo = cacheResult.cacheInfo;
@@ -239,44 +241,44 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // If all categories are cached, return immediately as completed job
-    if (missingCategories.length === 0 && allCachedEvents.length >= 0) {
-      console.log('All categories cached - returning immediately');
-      const jobId = `job_cached_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const job: JobStatus = {
-        id: jobId,
-        status: 'done',
+    // If all categories are cached, return events directly without job polling
+    if (missingCategories.length === 0) {
+      console.log('All categories cached - returning events directly');
+      return NextResponse.json({
         events: allCachedEvents,
-        createdAt: new Date(),
+        status: 'completed',
+        cached: true,
         cacheInfo: {
           fromCache: true,
           totalEvents: allCachedEvents.length,
           cachedEvents: allCachedEvents.length,
           cacheBreakdown: cacheInfo
-        }
-      };
-      await jobStore.setJob(jobId, job);
-      
-      return NextResponse.json({
-        jobId,
-        status: 'pending' // Still return pending to maintain API compatibility
+        },
+        message: allCachedEvents.length > 0 
+          ? `${allCachedEvents.length} Events aus dem Cache geladen`
+          : 'Keine Events gefunden'
       });
     }
 
-    // Generate unique job ID
+    // For mixed scenarios (some cached, some not), return cached events immediately
+    // and start background processing for missing categories
     const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Create job entry with pending status and any cached events
+    // Create job entry with cached events
     const job: JobStatus = {
       id: jobId,
-      status: 'pending',
-      events: allCachedEvents, // Include cached events immediately
+      status: 'processing',
+      events: allCachedEvents,
       createdAt: new Date(),
       cacheInfo: {
         fromCache: allCachedEvents.length > 0,
         totalEvents: allCachedEvents.length,
         cachedEvents: allCachedEvents.length,
         cacheBreakdown: cacheInfo
+      },
+      progress: {
+        completedCategories: effectiveCategories.length - missingCategories.length,
+        totalCategories: effectiveCategories.length
       }
     };
 
@@ -295,14 +297,10 @@ export async function POST(request: NextRequest) {
       await jobStore.setDebugInfo(jobId, debugInfo);
     }
 
-    // Schedule background processing via Vercel Background Functions - only for missing categories
+    // Schedule background processing for missing categories only
     try {
-      if (missingCategories.length > 0) {
-        console.log(`Scheduling background processing for ${missingCategories.length} missing categories:`, missingCategories);
-        await scheduleBackgroundProcessing(request, jobId, city, date, missingCategories, mergedOptions);
-      } else {
-        console.log('No background processing needed - all categories were cached');
-      }
+      console.log(`Scheduling background processing for ${missingCategories.length} missing categories:`, missingCategories);
+      await scheduleBackgroundProcessing(request, jobId, city, date, missingCategories, mergedOptions);
     } catch (scheduleError) {
       console.error('Failed to schedule background processing:', scheduleError);
       // Update job to error state
@@ -316,10 +314,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Return job ID immediately
+    // Return immediate results with job ID for polling remaining categories
     return NextResponse.json({
       jobId,
-      status: 'pending'
+      status: 'partial',
+      events: allCachedEvents,
+      cached: allCachedEvents.length > 0,
+      processing: missingCategories.length > 0,
+      cacheInfo: {
+        fromCache: allCachedEvents.length > 0,
+        totalEvents: allCachedEvents.length,
+        cachedEvents: allCachedEvents.length,
+        cacheBreakdown: cacheInfo
+      },
+      progress: {
+        completedCategories: effectiveCategories.length - missingCategories.length,
+        totalCategories: effectiveCategories.length,
+        missingCategories: missingCategories
+      },
+      message: allCachedEvents.length > 0 
+        ? `${allCachedEvents.length} Events aus dem Cache geladen, ${missingCategories.length} Kategorien werden verarbeitet...`
+        : `${missingCategories.length} Kategorien werden verarbeitet...`
     });
 
   } catch (error) {
