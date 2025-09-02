@@ -11,6 +11,13 @@ export async function POST(request: NextRequest) {
     const body: RequestBody = await request.json();
     const { city, date, categories, options } = body;
 
+    // Debug mode - detailed logging when enabled
+    const debugMode = options?.debug || false;
+    if (debugMode) {
+      console.log('\n=== SEARCH DEBUG MODE ENABLED ===');
+      console.log('Request:', { city, date, categories, options });
+    }
+
     if (!city || !date) {
       return NextResponse.json(
         { error: 'Stadt und Datum sind erforderlich' },
@@ -39,11 +46,21 @@ export async function POST(request: NextRequest) {
       }
     } else {
       // Use per-category cache system for specific categories
-      console.log('Checking per-category cache for:', city, date, categories);
+      if (debugMode) {
+        console.log('DEBUG: Checking per-category cache for:', city, date, categories);
+        console.log('DEBUG: Cache size before check:', eventsCache.size());
+      } else {
+        console.log('Checking per-category cache for:', city, date, categories);
+      }
       
       // First check if we have complete legacy cache for this exact combination
       const legacyCacheKey = InMemoryCache.createKey(city, date, categories);
       const legacyCachedEvents = eventsCache.get<EventData[]>(legacyCacheKey);
+      
+      if (debugMode) {
+        console.log('DEBUG: Legacy cache key:', legacyCacheKey);
+        console.log('DEBUG: Legacy cache result:', legacyCachedEvents ? `${legacyCachedEvents.length} events` : 'NOT FOUND');
+      }
       
       if (legacyCachedEvents) {
         console.log('Legacy cache hit for exact category combination:', legacyCacheKey);
@@ -65,6 +82,21 @@ export async function POST(request: NextRequest) {
       // Check per-category cache
       const cacheResult = eventsCache.getEventsByCategories(city, date, categories);
       
+      if (debugMode) {
+        console.log('DEBUG: Per-category cache result:');
+        console.log('  - Cached events per category:', Object.keys(cacheResult.cachedEvents));
+        console.log('  - Missing categories:', cacheResult.missingCategories);
+        console.log('  - Cache info:', cacheResult.cacheInfo);
+        
+        // Show actual cache keys that were checked
+        console.log('DEBUG: Cache keys checked:');
+        for (const category of categories) {
+          const key = InMemoryCache.createKeyForCategory(city, date, category);
+          const exists = eventsCache.has(key);
+          console.log(`  - "${key}": ${exists ? 'EXISTS' : 'MISSING'}`);
+        }
+      }
+      
       // If all categories are cached, return combined results
       if (cacheResult.missingCategories.length === 0) {
         console.log('Complete per-category cache hit for:', categories);
@@ -72,6 +104,11 @@ export async function POST(request: NextRequest) {
         // Combine all cached events
         const allCachedEvents = Object.values(cacheResult.cachedEvents).flat();
         const totalCachedEvents = allCachedEvents.length;
+        
+        if (debugMode) {
+          console.log('DEBUG: ✅ Returning cached results - no API calls needed');
+          console.log('DEBUG: Total cached events:', totalCachedEvents);
+        }
         
         return NextResponse.json({
           events: allCachedEvents,
@@ -88,9 +125,27 @@ export async function POST(request: NextRequest) {
         });
       }
 
+      // Progressive results: If enabled and we have partial cache hits, 
+      // we could potentially return cached results first
+      if (options?.progressive && Object.keys(cacheResult.cachedEvents).length > 0) {
+        // For now, just log that progressive mode is requested
+        // TODO: Implement actual progressive results with streaming
+        if (debugMode) {
+          console.log('DEBUG: Progressive mode requested with partial cache hit');
+          console.log('DEBUG: Could return cached results first, then add missing categories');
+        }
+      }
+
       // Partial cache hit - proceed with searching missing categories
       if (Object.keys(cacheResult.cachedEvents).length > 0) {
         console.log('Partial cache hit. Cached categories:', Object.keys(cacheResult.cachedEvents), 'Missing:', cacheResult.missingCategories);
+        if (debugMode) {
+          console.log('DEBUG: ⚠️  Will make API calls for missing categories:', cacheResult.missingCategories);
+        }
+      } else {
+        if (debugMode) {
+          console.log('DEBUG: ⚠️  No cached categories found - will make API calls for all categories');
+        }
       }
     }
 
@@ -104,6 +159,10 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('Synchronous search starting for:', city, date, categories);
+    if (debugMode) {
+      console.log('DEBUG: ⚠️  Making API calls - this indicates a cache miss or partial miss');
+      console.log('DEBUG: Perplexity API key available:', !!PERPLEXITY_API_KEY);
+    }
 
     const perplexityService = createPerplexityService(PERPLEXITY_API_KEY);
     if (!perplexityService) {

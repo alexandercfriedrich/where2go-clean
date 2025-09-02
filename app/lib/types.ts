@@ -37,6 +37,7 @@ export interface RequestBody {
     accessibility?: string;
     debug?: boolean; // New debug flag
     disableCache?: boolean; // Cache bypass flag
+    progressive?: boolean; // New progressive results flag
   };
 }
 

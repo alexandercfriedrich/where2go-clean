@@ -81,16 +81,26 @@ class InMemoryCache {
    */
   static createKey(city: string, date: string, categories?: string[]): string {
     const categoriesStr = categories && categories.length > 0 
-      ? categories.sort().join(',') 
+      ? categories.map(cat => this.normalizeCategory(cat)).sort().join(',') 
       : 'all';
-    return `${city.toLowerCase()}_${date}_${categoriesStr}`;
+    return `${city.toLowerCase().trim()}_${date}_${categoriesStr}`;
   }
 
   /**
    * Creates a cache key for a single category
    */
   static createKeyForCategory(city: string, date: string, category: string): string {
-    return `${city.toLowerCase()}_${date}_${category}`;
+    // Normalize city and category to prevent case sensitivity issues
+    return `${city.toLowerCase().trim()}_${date}_${this.normalizeCategory(category)}`;
+  }
+
+  /**
+   * Normalizes category names to prevent case sensitivity issues
+   */
+  static normalizeCategory(category: string): string {
+    return category.trim();
+    // Note: Keep original case for categories to maintain consistency with existing cache entries
+    // If needed for full case-insensitive matching, change to: category.toLowerCase().trim()
   }
 
   /**
