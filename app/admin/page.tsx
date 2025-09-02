@@ -259,6 +259,9 @@ export default function AdminPage() {
       <div className="admin-header">
         <h1 className="admin-title">Admin Dashboard</h1>
         <div>
+          <a href="/admin/events" className="btn btn-secondary">
+            View Events Cache
+          </a>
           <a href="/admin/hot-cities-stats" className="btn btn-secondary">
             View Statistics
           </a>

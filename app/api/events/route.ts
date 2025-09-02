@@ -7,6 +7,7 @@ import { eventAggregator } from '@/lib/aggregator';
 import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
 import { getJobStore } from '@/lib/jobStore';
 import { getHotCity, getCityWebsitesForCategories } from '@/lib/hotCityStore';
+import { getMainCategoriesForAICalls } from '@/categories';
 
 // Serverless configuration  
 export const runtime = 'nodejs';
@@ -298,9 +299,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Schedule background processing for missing categories only
+    // IMPORTANT: Map subcategories to main categories for AI calls
+    // The cache logic checks subcategories, but AI calls should only be made for main categories
+    const mainCategoriesForAI = getMainCategoriesForAICalls(missingCategories);
+    
     try {
-      console.log(`Scheduling background processing for ${missingCategories.length} missing categories:`, missingCategories);
-      await scheduleBackgroundProcessing(request, jobId, city, date, missingCategories, mergedOptions);
+      console.log(`Original missing categories (subcategories): ${missingCategories.length} - [${missingCategories.join(', ')}]`);
+      console.log(`Mapped to main categories for AI calls: ${mainCategoriesForAI.length} - [${mainCategoriesForAI.join(', ')}]`);
+      
+      await scheduleBackgroundProcessing(request, jobId, city, date, mainCategoriesForAI, mergedOptions);
     } catch (scheduleError) {
       console.error('Failed to schedule background processing:', scheduleError);
       // Update job to error state
