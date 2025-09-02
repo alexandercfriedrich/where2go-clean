@@ -49,7 +49,7 @@ export const CATEGORY_MAP: Record<string, string[]> = {
     "Natur/Outdoor", "Hiking/Walking Tours", "Nature Tours", "Wildlife Watching", "Botanical Gardens", "Park Events", "Outdoor Adventures", "Camping Events", "Environmental Education", "Eco-Tours", "Outdoor Yoga"
   ],
   "Kultur/Traditionen": [
-   "Culture/Traditions", "Local Traditions", "Cultural Festivals", "Historical Reenactments", "Folk Festivals", "Religious Celebrations", "Seasonal Celebrations", "Cultural Heritage", "Traditional Crafts", "Folk Music/Dance", "Local Cuisine"
+   "Kultur/Traditionen", "Local Traditions", "Cultural Festivals", "Historical Reenactments", "Folk Festivals", "Religious Celebrations", "Seasonal Celebrations", "Cultural Heritage", "Traditional Crafts", "Folk Music/Dance", "Local Cuisine"
   ],
   "Märkte/Shopping": [
     "Märkte/Shopping", "Flohmarkt/Flea Markets", "Vintage Markets", "Handmade Markets", "Antique Fairs", "Shopping Events", "Pop-up Shops", "Designer Markets", "Book Markets", "Record Fairs", "Seasonal Markets"
@@ -61,3 +61,60 @@ export const CATEGORY_MAP: Record<string, string[]> = {
     "Soziales/Community", "Community Events", "Volunteer Activities", "Charity Events", "Social Causes", "Neighborhood Meetings", "Cultural Exchange", "Senior Events", "Expat Events", "Local Initiatives"
   ],
 };
+
+// Helper functions for category mapping
+
+/**
+ * Gets all main categories (the 20 categories that have AI calls)
+ */
+export function getMainCategories(): string[] {
+  return Object.keys(CATEGORY_MAP);
+}
+
+/**
+ * Maps a subcategory to its main category
+ * Returns the main category if the subcategory belongs to one of the 20 main categories
+ * Returns the subcategory itself if it's already a main category
+ */
+export function getMainCategoryForSubcategory(subcategory: string): string | null {
+  // Normalize input for comparison
+  const normalizedSubcategory = subcategory.trim();
+  
+  // Check if it's already a main category
+  if (CATEGORY_MAP[normalizedSubcategory]) {
+    return normalizedSubcategory;
+  }
+  
+  // Search through all main categories to find which one contains this subcategory
+  for (const [mainCategory, subcategories] of Object.entries(CATEGORY_MAP)) {
+    if (subcategories.some(sub => sub.toLowerCase() === normalizedSubcategory.toLowerCase())) {
+      return mainCategory;
+    }
+  }
+  
+  return null; // Subcategory not found in any main category
+}
+
+/**
+ * Takes a list of categories (may include subcategories) and returns the main categories
+ * that should be used for AI calls. Eliminates duplicates.
+ */
+export function getMainCategoriesForAICalls(categories: string[]): string[] {
+  const mainCategories = new Set<string>();
+  
+  for (const category of categories) {
+    const mainCategory = getMainCategoryForSubcategory(category);
+    if (mainCategory) {
+      mainCategories.add(mainCategory);
+    }
+  }
+  
+  return Array.from(mainCategories);
+}
+
+/**
+ * Gets all subcategories for a given main category
+ */
+export function getSubcategoriesForMainCategory(mainCategory: string): string[] {
+  return CATEGORY_MAP[mainCategory] || [];
+}

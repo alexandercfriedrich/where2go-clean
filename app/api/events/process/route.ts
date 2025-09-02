@@ -6,6 +6,7 @@ import { createPerplexityService } from '@/lib/perplexity';
 import { eventAggregator } from '@/lib/aggregator';
 import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
 import { getJobStore } from '@/lib/jobStore';
+import { getSubcategoriesForMainCategory } from '@/categories';
 
 // Serverless configuration for background processing
 export const runtime = 'nodejs';
@@ -287,10 +288,28 @@ async function processJobInBackground(
               allEvents = finalEvents;
               
               // Cache this category's events immediately for future requests
+              // IMPORTANT: For main categories, cache under all subcategories too
               try {
                 const ttlSeconds = computeTTLSecondsForEvents(categoryEvents);
+                
+                // Always cache under the processed category (whether main or sub)
                 eventsCache.setEventsByCategory(city, date, category, categoryEvents, ttlSeconds);
                 console.log(`Cached ${categoryEvents.length} events for category '${category}' with TTL: ${ttlSeconds} seconds`);
+                
+                // If this is a main category, also cache under all its subcategories
+                // This implements the problem statement: AI calls for main categories, cache for subcategories
+                const subcategories = getSubcategoriesForMainCategory(category);
+                if (subcategories.length > 0) {
+                  console.log(`Main category '${category}' detected. Caching events under ${subcategories.length} subcategories.`);
+                  for (const subcategory of subcategories) {
+                    try {
+                      eventsCache.setEventsByCategory(city, date, subcategory, categoryEvents, ttlSeconds);
+                      console.log(`  → Cached under subcategory: '${subcategory}'`);
+                    } catch (subCacheError) {
+                      console.error(`Failed to cache under subcategory '${subcategory}':`, subCacheError);
+                    }
+                  }
+                }
               } catch (cacheError) {
                 console.error(`Failed to cache category '${category}':`, cacheError);
                 // Continue processing even if caching fails
