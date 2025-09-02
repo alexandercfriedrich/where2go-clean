@@ -27,6 +27,8 @@ function getCacheStatsForCity(cityName: string): { cachedSearches: number; total
   // Access the internal cache map to count entries for this city
   const cache = (eventsCache as any).cache;
   if (cache && cache instanceof Map) {
+    console.log(`[Admin Stats] Checking cache for city: ${cityName}, total cache entries: ${cache.size}`);
+    
     for (const [key, entry] of cache.entries()) {
       // Cache keys format: "city_date_categories"
       // Since city names can contain underscores, we need to find the date pattern first
@@ -36,7 +38,10 @@ function getCacheStatsForCity(cityName: string): { cachedSearches: number; total
       const datePattern = /\d{4}-\d{2}-\d{2}/;
       const dateMatch = key.match(datePattern);
       
-      if (!dateMatch) continue; // Invalid date format
+      if (!dateMatch) {
+        console.log(`[Admin Stats] Skipping invalid cache key (no date): "${key}"`);
+        continue; // Invalid date format
+      }
       
       const dateStartIndex = dateMatch.index!;
       
@@ -44,15 +49,24 @@ function getCacheStatsForCity(cityName: string): { cachedSearches: number; total
       // Find the underscore immediately before the date
       const underscoreBeforeDateIndex = key.lastIndexOf('_', dateStartIndex - 1);
       
-      if (underscoreBeforeDateIndex === -1) continue; // Invalid format
+      if (underscoreBeforeDateIndex === -1) {
+        console.log(`[Admin Stats] Skipping invalid cache key (no city separator): "${key}"`);
+        continue; // Invalid format
+      }
       
       const city = key.substring(0, underscoreBeforeDateIndex);
       
-      if (city.toLowerCase() !== cityName.toLowerCase()) continue;
+      if (city.toLowerCase() !== cityName.toLowerCase()) {
+        // This entry is for a different city, skip silently
+        continue;
+      }
       
       // Check that there's an underscore after the date (separating date from categories)
       const dateEndIndex = dateStartIndex + 10; // YYYY-MM-DD is 10 characters
-      if (dateEndIndex >= key.length || key[dateEndIndex] !== '_') continue; // Invalid format
+      if (dateEndIndex >= key.length || key[dateEndIndex] !== '_') {
+        console.log(`[Admin Stats] Skipping invalid cache key (invalid date format): "${key}"`);
+        continue; // Invalid format
+      }
       
       // Extract the date and category parts for grouping
       const date = key.substring(dateStartIndex, dateEndIndex);
@@ -66,11 +80,16 @@ function getCacheStatsForCity(cityName: string): { cachedSearches: number; total
       const events = entry.data || [];
       totalEvents += events.length;
       
+      console.log(`[Admin Stats] Found cache entry for ${cityName}: "${key}" with ${events.length} events`);
+      
       // Track unique searches - for per-category caches, count each city+date combination once
       // For legacy caches with multiple categories, also count once per city+date combination
       if (!uniqueSearches.has(searchIdentifier)) {
         uniqueSearches.add(searchIdentifier);
         cachedSearches++;
+        console.log(`[Admin Stats] New unique search for ${cityName}: ${searchIdentifier}`);
+      } else {
+        console.log(`[Admin Stats] Duplicate search identifier for ${cityName}: ${searchIdentifier}`);
       }
       
       // Track the most recent cache entry
@@ -78,6 +97,10 @@ function getCacheStatsForCity(cityName: string): { cachedSearches: number; total
         lastSearched = new Date(entry.timestamp).toISOString();
       }
     }
+    
+    console.log(`[Admin Stats] Final stats for ${cityName}: ${cachedSearches} searches, ${totalEvents} events, last searched: ${lastSearched}`);
+  } else {
+    console.log(`[Admin Stats] Cache not accessible for ${cityName}`);
   }
   
   return { cachedSearches, totalEvents, lastSearched };

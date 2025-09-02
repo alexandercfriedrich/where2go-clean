@@ -96,11 +96,65 @@ class InMemoryCache {
 
   /**
    * Normalizes category names to prevent case sensitivity issues
+   * Maps common category variations to canonical forms
    */
   static normalizeCategory(category: string): string {
-    return category.trim();
-    // Note: Keep original case for categories to maintain consistency with existing cache entries
-    // If needed for full case-insensitive matching, change to: category.toLowerCase().trim()
+    const normalized = category.trim();
+    
+    // Create a map of case-insensitive category variations to canonical forms
+    const categoryMappings: { [key: string]: string } = {
+      // Clubs/Discos variations
+      'clubs/discos': 'Clubs/Discos',
+      'clubs/disco': 'Clubs/Discos', 
+      'club/disco': 'Clubs/Discos',
+      'club/discos': 'Clubs/Discos',
+      'clubs': 'Clubs/Discos',
+      'discos': 'Clubs/Discos',
+      
+      // DJ Sets/Electronic variations
+      'dj sets/electronic': 'DJ Sets/Electronic',
+      'dj set/electronic': 'DJ Sets/Electronic',
+      'dj/electronic': 'DJ Sets/Electronic',
+      'electronic': 'DJ Sets/Electronic',
+      'dj sets': 'DJ Sets/Electronic',
+      'dj set': 'DJ Sets/Electronic',
+      
+      // Live-Konzerte variations
+      'live-konzerte': 'Live-Konzerte',
+      'live konzerte': 'Live-Konzerte',
+      'livekonzerte': 'Live-Konzerte',
+      'konzerte': 'Live-Konzerte',
+      'live': 'Live-Konzerte',
+      'concerts': 'Live-Konzerte',
+      'live concerts': 'Live-Konzerte',
+      
+      // Theater/Performance variations
+      'theater/performance': 'Theater/Performance',
+      'theater': 'Theater/Performance',
+      'theatre': 'Theater/Performance',
+      'performance': 'Theater/Performance',
+      
+      // Kunst/Design variations
+      'kunst/design': 'Kunst/Design',
+      'kunst': 'Kunst/Design',
+      'design': 'Kunst/Design',
+      'art': 'Kunst/Design',
+      'art/design': 'Kunst/Design',
+      
+      // LGBTQ+ variations
+      'lgbtq+': 'LGBTQ+',
+      'lgbtq': 'LGBTQ+',
+      'lgbt': 'LGBTQ+',
+    };
+    
+    // Check for exact match first (preserves existing behavior)
+    const lowerCase = normalized.toLowerCase();
+    if (categoryMappings[lowerCase]) {
+      return categoryMappings[lowerCase];
+    }
+    
+    // Return original if no mapping found (preserves existing categories)
+    return normalized;
   }
 
   /**
