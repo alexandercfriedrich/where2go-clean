@@ -139,9 +139,10 @@ async function processJobInBackground(
   try {
     const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
     if (!PERPLEXITY_API_KEY) {
+      console.error('❌ PERPLEXITY_API_KEY environment variable is not set');
       await jobStore.updateJob(jobId, {
         status: 'error',
-        error: 'Perplexity API Key ist nicht konfiguriert'
+        error: 'Perplexity API Key ist nicht konfiguriert. Bitte setze PERPLEXITY_API_KEY in der .env.local Datei.'
       });
       return;
     }
