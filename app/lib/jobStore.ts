@@ -329,12 +329,14 @@ export function createJobStore(): JobStore {
   }
 }
 
-// Singleton instance
-let jobStoreInstance: JobStore | null = null;
+// Use global variable to ensure singleton across serverless execution contexts
+const globalForJobStore = globalThis as unknown as {
+  jobStore: JobStore | undefined
+}
 
 export function getJobStore(): JobStore {
-  if (!jobStoreInstance) {
-    jobStoreInstance = createJobStore();
+  if (!globalForJobStore.jobStore) {
+    globalForJobStore.jobStore = createJobStore();
   }
-  return jobStoreInstance;
+  return globalForJobStore.jobStore;
 }
