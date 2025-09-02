@@ -211,23 +211,48 @@ export async function POST(request: NextRequest) {
     // Determine if cache should be bypassed
     const disableCache = mergedOptions?.disableCache === true || mergedOptions?.debug === true;
 
-    // Check cache first (dynamic TTL based on event timing) - unless cache is disabled
-    const cacheKey = InMemoryCache.createKey(city, date, effectiveCategories);
-    const cachedEvents = disableCache ? null : eventsCache.get<EventData[]>(cacheKey);
-    
-    if (cachedEvents) {
-      console.log('Cache hit for:', cacheKey);
-      // Return cached results immediately as a completed job
+    // Check cache per-category for intelligent cache usage - unless cache is disabled
+    let allCachedEvents: EventData[] = [];
+    let missingCategories: string[] = [];
+    let cacheInfo: { [category: string]: { fromCache: boolean; eventCount: number } } = {};
+
+    if (!disableCache) {
+      const cacheResult = eventsCache.getEventsByCategories(city, date, effectiveCategories);
+      
+      // Combine all cached events
+      for (const category in cacheResult.cachedEvents) {
+        allCachedEvents.push(...cacheResult.cachedEvents[category]);
+      }
+      
+      missingCategories = cacheResult.missingCategories;
+      cacheInfo = cacheResult.cacheInfo;
+      
+      console.log(`Cache analysis: ${Object.keys(cacheResult.cachedEvents).length}/${effectiveCategories.length} categories cached, ${allCachedEvents.length} events from cache`);
+      console.log('Cached categories:', Object.keys(cacheResult.cachedEvents));
+      console.log('Missing categories:', missingCategories);
+    } else {
+      console.log('Cache bypass enabled (debug mode or disableCache flag)');
+      missingCategories = effectiveCategories;
+      // Initialize cacheInfo for all categories as not from cache
+      effectiveCategories.forEach(category => {
+        cacheInfo[category] = { fromCache: false, eventCount: 0 };
+      });
+    }
+
+    // If all categories are cached, return immediately as completed job
+    if (missingCategories.length === 0 && allCachedEvents.length >= 0) {
+      console.log('All categories cached - returning immediately');
       const jobId = `job_cached_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       const job: JobStatus = {
         id: jobId,
         status: 'done',
-        events: cachedEvents,
+        events: allCachedEvents,
         createdAt: new Date(),
         cacheInfo: {
           fromCache: true,
-          totalEvents: cachedEvents.length,
-          cachedEvents: cachedEvents.length
+          totalEvents: allCachedEvents.length,
+          cachedEvents: allCachedEvents.length,
+          cacheBreakdown: cacheInfo
         }
       };
       await jobStore.setJob(jobId, job);
@@ -238,20 +263,21 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    if (disableCache) {
-      console.log('Cache bypass enabled (debug mode or disableCache flag)');
-    } else {
-      console.log('Cache miss for:', cacheKey);
-    }
-
     // Generate unique job ID
     const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Create job entry with pending status
+    // Create job entry with pending status and any cached events
     const job: JobStatus = {
       id: jobId,
       status: 'pending',
-      createdAt: new Date()
+      events: allCachedEvents, // Include cached events immediately
+      createdAt: new Date(),
+      cacheInfo: {
+        fromCache: allCachedEvents.length > 0,
+        totalEvents: allCachedEvents.length,
+        cachedEvents: allCachedEvents.length,
+        cacheBreakdown: cacheInfo
+      }
     };
 
     await jobStore.setJob(jobId, job);
@@ -269,9 +295,14 @@ export async function POST(request: NextRequest) {
       await jobStore.setDebugInfo(jobId, debugInfo);
     }
 
-    // Schedule background processing via Vercel Background Functions
+    // Schedule background processing via Vercel Background Functions - only for missing categories
     try {
-      await scheduleBackgroundProcessing(request, jobId, city, date, effectiveCategories, mergedOptions);
+      if (missingCategories.length > 0) {
+        console.log(`Scheduling background processing for ${missingCategories.length} missing categories:`, missingCategories);
+        await scheduleBackgroundProcessing(request, jobId, city, date, missingCategories, mergedOptions);
+      } else {
+        console.log('No background processing needed - all categories were cached');
+      }
     } catch (scheduleError) {
       console.error('Failed to schedule background processing:', scheduleError);
       // Update job to error state
