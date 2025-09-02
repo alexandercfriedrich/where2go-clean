@@ -21,6 +21,9 @@ function getCacheStatsForCity(cityName: string): { cachedSearches: number; total
   let totalEvents = 0;
   let lastSearched: string | null = null;
   
+  // Track unique search combinations to avoid double-counting
+  const uniqueSearches = new Set<string>();
+  
   // Access the internal cache map to count entries for this city
   const cache = (eventsCache as any).cache;
   if (cache && cache instanceof Map) {
@@ -51,10 +54,24 @@ function getCacheStatsForCity(cityName: string): { cachedSearches: number; total
       const dateEndIndex = dateStartIndex + 10; // YYYY-MM-DD is 10 characters
       if (dateEndIndex >= key.length || key[dateEndIndex] !== '_') continue; // Invalid format
       
+      // Extract the date and category parts for grouping
+      const date = key.substring(dateStartIndex, dateEndIndex);
+      const categories = key.substring(dateEndIndex + 1);
+      
+      // Create a unique identifier for this search (city + date combination)
+      // For per-category caches, we group by city+date, not individual categories
+      const searchIdentifier = `${city}_${date}`;
+      
       // We have a valid cache key for this city
-      cachedSearches++;
       const events = entry.data || [];
       totalEvents += events.length;
+      
+      // Track unique searches - for per-category caches, count each city+date combination once
+      // For legacy caches with multiple categories, also count once per city+date combination
+      if (!uniqueSearches.has(searchIdentifier)) {
+        uniqueSearches.add(searchIdentifier);
+        cachedSearches++;
+      }
       
       // Track the most recent cache entry
       if (!lastSearched || entry.timestamp > new Date(lastSearched).getTime()) {
@@ -64,6 +81,86 @@ function getCacheStatsForCity(cityName: string): { cachedSearches: number; total
   }
   
   return { cachedSearches, totalEvents, lastSearched };
+}
+
+// Enhanced function that provides detailed breakdown of cache statistics
+function getDetailedCacheStatsForCity(cityName: string): {
+  cachedSearches: number;
+  totalEvents: number;
+  lastSearched: string | null;
+  perCategoryEntries: number;
+  legacyEntries: number;
+  categoryBreakdown: { [category: string]: { entries: number; events: number } };
+} {
+  let totalEvents = 0;
+  let lastSearched: string | null = null;
+  let perCategoryEntries = 0;
+  let legacyEntries = 0;
+  const categoryBreakdown: { [category: string]: { entries: number; events: number } } = {};
+  const uniqueSearches = new Set<string>();
+  
+  // Access the internal cache map to count entries for this city
+  const cache = (eventsCache as any).cache;
+  if (cache && cache instanceof Map) {
+    for (const [key, entry] of cache.entries()) {
+      // Cache keys format: "city_date_categories"
+      // Look for the date pattern (YYYY-MM-DD) in the key
+      const datePattern = /\d{4}-\d{2}-\d{2}/;
+      const dateMatch = key.match(datePattern);
+      
+      if (!dateMatch) continue;
+      
+      const dateStartIndex = dateMatch.index!;
+      const underscoreBeforeDateIndex = key.lastIndexOf('_', dateStartIndex - 1);
+      
+      if (underscoreBeforeDateIndex === -1) continue;
+      
+      const city = key.substring(0, underscoreBeforeDateIndex);
+      
+      if (city.toLowerCase() !== cityName.toLowerCase()) continue;
+      
+      const dateEndIndex = dateStartIndex + 10;
+      if (dateEndIndex >= key.length || key[dateEndIndex] !== '_') continue;
+      
+      const date = key.substring(dateStartIndex, dateEndIndex);
+      const categories = key.substring(dateEndIndex + 1);
+      const searchIdentifier = `${city}_${date}`;
+      
+      const events = entry.data || [];
+      totalEvents += events.length;
+      
+      // Determine if this is a per-category cache or legacy cache
+      if (categories.includes(',') || categories === 'all') {
+        // Legacy cache entry (multiple categories or 'all')
+        legacyEntries++;
+      } else {
+        // Per-category cache entry (single category)
+        perCategoryEntries++;
+        
+        // Track category breakdown
+        if (!categoryBreakdown[categories]) {
+          categoryBreakdown[categories] = { entries: 0, events: 0 };
+        }
+        categoryBreakdown[categories].entries++;
+        categoryBreakdown[categories].events += events.length;
+      }
+      
+      uniqueSearches.add(searchIdentifier);
+      
+      if (!lastSearched || entry.timestamp > new Date(lastSearched).getTime()) {
+        lastSearched = new Date(entry.timestamp).toISOString();
+      }
+    }
+  }
+  
+  return {
+    cachedSearches: uniqueSearches.size,
+    totalEvents,
+    lastSearched,
+    perCategoryEntries,
+    legacyEntries,
+    categoryBreakdown
+  };
 }
 
 export async function GET(request: NextRequest) {
