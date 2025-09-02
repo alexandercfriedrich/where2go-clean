@@ -273,18 +273,28 @@ async function processJobInBackground(
               const currentJob = await jobStore.getJob(jobId);
               const currentEvents = currentJob?.events || [];
               
-              // Merge with current events and deduplicate
+              // Merge with current events and deduplicate properly
               const beforeCount = currentEvents.length;
               const combinedEvents = [...currentEvents, ...categoryEvents];
-              const updatedEvents = eventAggregator.deduplicateEvents(combinedEvents);
+              const deduplicatedEvents = eventAggregator.deduplicateEvents(combinedEvents);
               
               // Categorize all events
-              const finalEvents = eventAggregator.categorizeEvents(updatedEvents);
+              const finalEvents = eventAggregator.categorizeEvents(deduplicatedEvents);
               
               const addedCount = finalEvents.length - beforeCount;
               
               // Update local tracking variable for this worker
               allEvents = finalEvents;
+              
+              // Cache this category's events immediately for future requests
+              try {
+                const ttlSeconds = computeTTLSecondsForEvents(categoryEvents);
+                eventsCache.setEventsByCategory(city, date, category, categoryEvents, ttlSeconds);
+                console.log(`Cached ${categoryEvents.length} events for category '${category}' with TTL: ${ttlSeconds} seconds`);
+              } catch (cacheError) {
+                console.error(`Failed to cache category '${category}':`, cacheError);
+                // Continue processing even if caching fails
+              }
               
               // Progressive update with the latest merged events
               await jobStore.updateJob(jobId, { 
@@ -388,13 +398,11 @@ async function processJobInBackground(
       const finalJob = await jobStore.getJob(jobId);
       const finalEvents = finalJob?.events || allEvents || [];
       
-      // Cache the final results with dynamic TTL based on event timings
-      const cacheKey = InMemoryCache.createKey(city, date, effectiveCategories);
-      const ttlSeconds = computeTTLSecondsForEvents(finalEvents);
-      eventsCache.set(cacheKey, finalEvents, ttlSeconds);
-      console.log(`Cached ${finalEvents.length} events with TTL: ${ttlSeconds} seconds`);
+      // Note: Per-category caching is now done immediately during processing
+      // No need for combined caching here as individual categories are already cached
+      console.log(`Job finalized with ${finalEvents.length} total events (per-category caching completed during processing)`);
     } catch (cacheError) {
-      console.error('Failed to cache results, but continuing:', cacheError);
+      console.error('Failed to finalize job, but continuing:', cacheError);
     }
 
     // Update job with final status - this must succeed to prevent UI timeout
@@ -414,7 +422,8 @@ async function processJobInBackground(
         completedCategories: effectiveCategories.length, 
         totalCategories: effectiveCategories.length 
       },
-      lastUpdateAt: new Date().toISOString()
+      lastUpdateAt: new Date().toISOString(),
+      message: `${finalEvents.length} Events gefunden`
     });
 
   } catch (error) {

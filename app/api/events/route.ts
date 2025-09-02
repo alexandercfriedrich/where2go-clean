@@ -211,47 +211,75 @@ export async function POST(request: NextRequest) {
     // Determine if cache should be bypassed
     const disableCache = mergedOptions?.disableCache === true || mergedOptions?.debug === true;
 
-    // Check cache first (dynamic TTL based on event timing) - unless cache is disabled
-    const cacheKey = InMemoryCache.createKey(city, date, effectiveCategories);
-    const cachedEvents = disableCache ? null : eventsCache.get<EventData[]>(cacheKey);
-    
-    if (cachedEvents) {
-      console.log('Cache hit for:', cacheKey);
-      // Return cached results immediately as a completed job
-      const jobId = `job_cached_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const job: JobStatus = {
-        id: jobId,
-        status: 'done',
-        events: cachedEvents,
-        createdAt: new Date(),
-        cacheInfo: {
-          fromCache: true,
-          totalEvents: cachedEvents.length,
-          cachedEvents: cachedEvents.length
-        }
-      };
-      await jobStore.setJob(jobId, job);
+    // Check cache per-category for intelligent cache usage - unless cache is disabled
+    let allCachedEvents: EventData[] = [];
+    let missingCategories: string[] = [];
+    let cacheInfo: { [category: string]: { fromCache: boolean; eventCount: number } } = {};
+
+    if (!disableCache) {
+      const cacheResult = eventsCache.getEventsByCategories(city, date, effectiveCategories);
       
-      return NextResponse.json({
-        jobId,
-        status: 'pending' // Still return pending to maintain API compatibility
+      // Combine all cached events and deduplicate immediately
+      const cachedEventsList: EventData[] = [];
+      for (const category in cacheResult.cachedEvents) {
+        cachedEventsList.push(...cacheResult.cachedEvents[category]);
+      }
+      allCachedEvents = eventAggregator.deduplicateEvents(cachedEventsList);
+      
+      missingCategories = cacheResult.missingCategories;
+      cacheInfo = cacheResult.cacheInfo;
+      
+      console.log(`Cache analysis: ${Object.keys(cacheResult.cachedEvents).length}/${effectiveCategories.length} categories cached, ${allCachedEvents.length} events from cache`);
+      console.log('Cached categories:', Object.keys(cacheResult.cachedEvents));
+      console.log('Missing categories:', missingCategories);
+    } else {
+      console.log('Cache bypass enabled (debug mode or disableCache flag)');
+      missingCategories = effectiveCategories;
+      // Initialize cacheInfo for all categories as not from cache
+      effectiveCategories.forEach(category => {
+        cacheInfo[category] = { fromCache: false, eventCount: 0 };
       });
     }
 
-    if (disableCache) {
-      console.log('Cache bypass enabled (debug mode or disableCache flag)');
-    } else {
-      console.log('Cache miss for:', cacheKey);
+    // If all categories are cached, return events directly without job polling
+    if (missingCategories.length === 0) {
+      console.log('All categories cached - returning events directly');
+      return NextResponse.json({
+        events: allCachedEvents,
+        status: 'completed',
+        cached: true,
+        cacheInfo: {
+          fromCache: true,
+          totalEvents: allCachedEvents.length,
+          cachedEvents: allCachedEvents.length,
+          cacheBreakdown: cacheInfo
+        },
+        message: allCachedEvents.length > 0 
+          ? `${allCachedEvents.length} Events aus dem Cache geladen`
+          : 'Keine Events gefunden'
+      });
     }
 
-    // Generate unique job ID
+    // For mixed scenarios (some cached, some not), return cached events immediately
+    // and start background processing for missing categories
     const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Create job entry with pending status
+    // Create job entry with cached events
     const job: JobStatus = {
       id: jobId,
-      status: 'pending',
-      createdAt: new Date()
+      status: 'processing',
+      events: allCachedEvents,
+      createdAt: new Date(),
+      cacheInfo: {
+        fromCache: allCachedEvents.length > 0,
+        totalEvents: allCachedEvents.length,
+        cachedEvents: allCachedEvents.length,
+        cacheBreakdown: cacheInfo
+      },
+      progress: {
+        completedCategories: effectiveCategories.length - missingCategories.length,
+        totalCategories: effectiveCategories.length
+      }
     };
 
     await jobStore.setJob(jobId, job);
@@ -269,9 +297,10 @@ export async function POST(request: NextRequest) {
       await jobStore.setDebugInfo(jobId, debugInfo);
     }
 
-    // Schedule background processing via Vercel Background Functions
+    // Schedule background processing for missing categories only
     try {
-      await scheduleBackgroundProcessing(request, jobId, city, date, effectiveCategories, mergedOptions);
+      console.log(`Scheduling background processing for ${missingCategories.length} missing categories:`, missingCategories);
+      await scheduleBackgroundProcessing(request, jobId, city, date, missingCategories, mergedOptions);
     } catch (scheduleError) {
       console.error('Failed to schedule background processing:', scheduleError);
       // Update job to error state
@@ -285,10 +314,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Return job ID immediately
+    // Return immediate results with job ID for polling remaining categories
     return NextResponse.json({
       jobId,
-      status: 'pending'
+      status: 'partial',
+      events: allCachedEvents,
+      cached: allCachedEvents.length > 0,
+      processing: missingCategories.length > 0,
+      cacheInfo: {
+        fromCache: allCachedEvents.length > 0,
+        totalEvents: allCachedEvents.length,
+        cachedEvents: allCachedEvents.length,
+        cacheBreakdown: cacheInfo
+      },
+      progress: {
+        completedCategories: effectiveCategories.length - missingCategories.length,
+        totalCategories: effectiveCategories.length,
+        missingCategories: missingCategories
+      },
+      message: allCachedEvents.length > 0 
+        ? `${allCachedEvents.length} Events aus dem Cache geladen, ${missingCategories.length} Kategorien werden verarbeitet...`
+        : `${missingCategories.length} Kategorien werden verarbeitet...`
     });
 
   } catch (error) {

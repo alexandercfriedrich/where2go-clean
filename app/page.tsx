@@ -22,7 +22,7 @@ interface EventData {
 
 const ALL_SUPER_CATEGORIES = Object.keys(CATEGORY_MAP);
 const MAX_CATEGORY_SELECTION: number = 3;
-const MAX_POLLS = 104;
+const MAX_POLLS = 60; // Reduced from 104 to a more reasonable 5 minutes (60 * 5s = 5min)
 
 export default function Home() {
   const { t, formatEventDate, formatEventTime } = useTranslation();
@@ -566,13 +566,51 @@ export default function Home() {
         throw new Error(data.error || `Serverfehler (${res.status})`);
       }
 
-      const { jobId } = await res.json();
-      if (!jobId) {
-        throw new Error('Kein Job ID erhalten.');
+      const responseData = await res.json();
+      
+      // Handle different response types
+      if (responseData.status === 'completed') {
+        // All cached - display immediately
+        console.log('All events from cache:', responseData.events.length);
+        setEvents(responseData.events || []);
+        if (responseData.cacheInfo) setCacheInfo(responseData.cacheInfo);
+        setLoading(false);
+        setJobStatus('done');
+        
+        // Show cache success message
+        setToast({
+          show: true,
+          message: responseData.message || `${responseData.events?.length || 0} Events aus dem Cache geladen`
+        });
+        setTimeout(() => setToast({show: false, message: ''}), 3000);
+        
+      } else if (responseData.status === 'partial') {
+        // Some cached, some processing - show cached events immediately and start polling
+        console.log('Partial results - cached events:', responseData.events?.length || 0);
+        setEvents(responseData.events || []);
+        if (responseData.cacheInfo) setCacheInfo(responseData.cacheInfo);
+        if (responseData.progress) setProgress(responseData.progress);
+        
+        // Show partial results message
+        if (responseData.events?.length > 0) {
+          setToast({
+            show: true,
+            message: responseData.message || `${responseData.events.length} Events aus dem Cache, weitere werden geladen...`
+          });
+          setTimeout(() => setToast({show: false, message: ''}), 4000);
+        }
+        
+        setJobId(responseData.jobId);
+        startPolling(responseData.jobId);
+        
+      } else if (responseData.jobId) {
+        // Legacy job polling response
+        setJobId(responseData.jobId);
+        startPolling(responseData.jobId);
+      } else {
+        throw new Error('Unerwartete API-Antwort');
       }
-
-      setJobId(jobId);
-      startPolling(jobId);
+      
     } catch (err: any) {
       setError(err?.message || 'Fehler beim Starten der Eventsuche.');
       setLoading(false);
@@ -654,11 +692,21 @@ export default function Home() {
               setNewEvents(allNewEventKeys);
               setToast({
                 show: true,
-                message: `${incomingEvents.length} Event${incomingEvents.length !== 1 ? 's' : ''} gefunden`
+                message: job.message || `${incomingEvents.length} Event${incomingEvents.length !== 1 ? 's' : ''} gefunden`
               });
               setTimeout(() => {
                 setToast({show: false, message: ''});
                 setNewEvents(new Set());
+              }, 3000);
+            } else if (incomingEvents.length > eventsRef.current.length) {
+              // Show update for additional events found
+              const newCount = incomingEvents.length - eventsRef.current.length;
+              setToast({
+                show: true,
+                message: `${newCount} weitere Event${newCount !== 1 ? 's' : ''} gefunden`
+              });
+              setTimeout(() => {
+                setToast({show: false, message: ''});
               }, 3000);
             }
             setEvents([...incomingEvents]);
@@ -893,13 +941,15 @@ export default function Home() {
             <div className="loading-spinner"></div>
             <p>
               {jobStatus === 'pending' && events.length > 0 
-                ? 'Suche läuft – Ergebnisse werden ergänzt' 
-                : 'Suche läuft … bitte habe etwas Geduld.'
+                ? 'Weitere Events werden geladen...' 
+                : 'Suche läuft... bitte habe etwas Geduld'
               }
             </p>
-            <p>Abfrage <span className="font-mono">{pollCount}/{MAX_POLLS}</span> (max 60 Sekunden)</p>
             {jobStatus === 'pending' && progress && (
               <p>Kategorien: <span className="font-mono">{progress.completedCategories}/{progress.totalCategories}</span> abgeschlossen</p>
+            )}
+            {jobStatus === 'pending' && pollCount > 10 && (
+              <p className="text-sm opacity-70">Suche dauert länger als erwartet (ca. {Math.round(pollCount * 5 / 60)} Min.)</p>
             )}
           </div>
         )}
