@@ -1,3 +1,27 @@
+/* Logo & header layout adjustments */
+.design1-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+}
+.design1-header .header-logo img {
+  height: 200px;
+  width: auto;
+  object-fit: contain;
+}
+.design1-header .header-actions {
+  margin-left: auto;
+}
+.design1-header .premium-link {
+  font-weight: bold;
+  padding: 10px 24px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  color: #fff;
+  text-decoration: none;
+}
+
 header {
   display: flex;
   align-items: center;
