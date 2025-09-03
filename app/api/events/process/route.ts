@@ -364,9 +364,6 @@ async function processJobInBackground(
         } catch (categoryError: any) {
           console.error(`Outer catch - Category ${category} attempt ${attempts}/${maxAttempts} failed:`, categoryError.message);
           lastError = categoryError;
-          break; // Exit retry loop for outer errors
-        }
-      }
           
           // Add debug step for failed attempt
           await jobStore.pushDebugStep(jobId, {
@@ -385,6 +382,8 @@ async function processJobInBackground(
             const delay = baseDelay + jitter;
             console.log(`Retrying category ${category} in ${Math.round(delay)}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
+          } else {
+            break; // Exit retry loop for outer errors
           }
         }
       }
@@ -568,58 +567,34 @@ async function processJobInBackground(
     }
 
     // Always finalize the job with status 'done', even if we have 0 events
-    try {
-      // Get the final events from the JobStore (they may have been updated by workers)
-      const finalJob = await jobStore.getJob(jobId);
-      const finalEvents = finalJob?.events || allEvents || [];
-      
-      // Note: Per-category caching is now done immediately during processing
-      // No need for combined caching here as individual categories are already cached
-      console.log(`Job finalized with ${finalEvents.length} total events (per-category caching completed during processing)`);
-    } catch (cacheError) {
-      console.error('Failed to finalize job, but continuing:', cacheError);
-    }
+    // Get the final events from the JobStore (they may have been updated by workers)
+    const finalJob = await jobStore.getJob(jobId);
+    const finalEvents = finalJob?.events || allEvents || [];
+    
+    // Note: Per-category caching is now done immediately during processing
+    // No need for combined caching here as individual categories are already cached
+    console.log(`Job finalized with ${finalEvents.length} total events (per-category caching completed during processing)`);
 
     // Update job with final status - this must succeed to prevent UI timeout
     // Get current events from JobStore to ensure we don't overwrite progressive updates
     console.log(`Updating job ${jobId} to 'done' status...`);
-    try {
-      const finalJob = await jobStore.getJob(jobId);
-      const finalEvents = finalJob?.events || [];
-      
-      await jobStore.updateJob(jobId, {
-        status: 'done',
-        events: finalEvents,
-        cacheInfo: {
-          fromCache: false,
-          totalEvents: finalEvents.length,
-          cachedEvents: 0
-        },
-        progress: { 
-          completedCategories: effectiveCategories.length, 
-          totalCategories: effectiveCategories.length 
-        },
-        lastUpdateAt: new Date().toISOString(),
-        message: `${finalEvents.length} Events gefunden`
-      });
-      
-      console.log(`✅ Job ${jobId} successfully marked as 'done' with ${finalEvents.length} events`);
-    } catch (finalUpdateError) {
-      console.error(`❌ CRITICAL: Failed to update job ${jobId} to 'done' status - this will cause infinite polling:`, finalUpdateError);
-      
-      // Try a simpler update as fallback
-      try {
-        await jobStore.updateJob(jobId, {
-          status: 'done',
-          lastUpdateAt: new Date().toISOString(),
-          message: 'Processing completed (status update had issues)'
-        });
-        console.log(`✅ Job ${jobId} marked as 'done' via fallback update`);
-      } catch (fallbackError) {
-        console.error(`❌ CRITICAL: Even fallback update failed for job ${jobId}:`, fallbackError);
-        throw fallbackError; // This will trigger the outer catch block
-      }
-    }
+    await jobStore.updateJob(jobId, {
+      status: 'done',
+      events: finalEvents,
+      cacheInfo: {
+        fromCache: false,
+        totalEvents: finalEvents.length,
+        cachedEvents: 0
+      },
+      progress: { 
+        completedCategories: effectiveCategories.length, 
+        totalCategories: effectiveCategories.length 
+      },
+      lastUpdateAt: new Date().toISOString(),
+      message: `${finalEvents.length} Events gefunden`
+    });
+    
+    console.log(`✅ Job ${jobId} successfully marked as 'done' with ${finalEvents.length} events`);
 
   } catch (error) {
     console.error('❌ Background job error for:', jobId, error);
