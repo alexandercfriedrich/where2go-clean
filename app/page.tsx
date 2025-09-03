@@ -43,9 +43,8 @@ export default function Home() {
   const [debugData, setDebugData] = useState<any>(null);
   const [toast, setToast] = useState<{show: boolean, message: string}>({show: false, message: ''});
   const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean, totalEvents: number, cachedEvents: number} | null>(null);
-  
-  // Design 1 specific state
-  const [isDesign1, setIsDesign1] = useState(false);
+
+  // Design 1 search state
   const [searchSubmitted, setSearchSubmitted] = useState(false);
   const [searchedSuperCategories, setSearchedSuperCategories] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState<string>('Alle');
@@ -55,85 +54,17 @@ export default function Home() {
   const pollCountRef = useRef<number>(0);
   const eventsGridRef = useRef<HTMLDivElement>(null);
 
-  // Reactive design switching based on URL params
-  useEffect(() => {
-    const updateFromURL = () => {
-      const params = new URLSearchParams(window.location.search);
-      const design = params.get('design') || '1'; // Default to design 1 if no parameter
-      const id = 'w2g-design-css';
-      const existing = document.getElementById(id) as HTMLLinkElement | null;
-
-      const isValid = design === '1' || design === '2' || design === '3';
-      setIsDesign1(design === '1'); // true wenn design ist "1"
-      
-      if (isValid) {
-        const href = `/designs/design${design}.css`;
-        if (existing) {
-          if (existing.getAttribute('href') !== href) existing.setAttribute('href', href);
-        } else {
-          const link = document.createElement('link');
-          link.id = id;
-          link.rel = 'stylesheet';
-          link.href = href;
-          document.head.appendChild(link);
-        }
-      } else {
-        // Fallback to design 1 if invalid parameter
-        const href = `/designs/design1.css`;
-        if (existing) {
-          if (existing.getAttribute('href') !== href) existing.setAttribute('href', href);
-        } else {
-          const link = document.createElement('link');
-          link.id = id;
-          link.rel = 'stylesheet';
-          link.href = href;
-          document.head.appendChild(link);
-        }
-        setIsDesign1(true);
-      }
-    };
-
-    // Initial update
-    updateFromURL();
-
-    // Listen for URL changes (for client-side navigation)
-    const handlePopState = () => {
-      updateFromURL();
-    };
-
-    window.addEventListener('popstate', handlePopState);
-    
-    // Also listen for hash/search changes
-    const handleHashChange = () => {
-      updateFromURL();
-    };
-    
-    window.addEventListener('hashchange', handleHashChange);
-
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-      window.removeEventListener('hashchange', handleHashChange);
-    };
-  }, []);
-
-  // Reactive debug mode based on URL params
+  // Debug mode from URL params
   useEffect(() => {
     const updateDebugMode = () => {
       const params = new URLSearchParams(window.location.search);
       setDebugMode(params.get('debug') === '1');
     };
 
-    // Initial update
     updateDebugMode();
 
-    // Listen for URL changes
-    const handlePopState = () => {
-      updateDebugMode();
-    };
-
-    const handleHashChange = () => {
-      updateDebugMode();
-    };
+    const handlePopState = () => updateDebugMode();
+    const handleHashChange = () => updateDebugMode();
 
     window.addEventListener('popstate', handlePopState);
     window.addEventListener('hashchange', handleHashChange);
@@ -151,10 +82,10 @@ export default function Home() {
   // Inject sample events when in test mode
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    if (isDesign1 && urlParams.get('test') === '1' && events.length === 0) {
+    if (urlParams.get('test') === '1' && events.length === 0) {
       setEvents(getSampleEvents());
     }
-  }, [isDesign1]);
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -168,15 +99,15 @@ export default function Home() {
 
   // Scroll to events grid when events are found and search is submitted
   useEffect(() => {
-    if (isDesign1 && searchSubmitted && events.length > 0 && eventsGridRef.current) {
+    if (searchSubmitted && events.length > 0 && eventsGridRef.current) {
       setTimeout(() => {
         eventsGridRef.current?.scrollIntoView({ 
           behavior: 'smooth', 
           block: 'start' 
         });
-      }, 100); // Small delay to ensure rendering is complete
+      }, 100);
     }
-  }, [isDesign1, searchSubmitted, events.length]);
+  }, [searchSubmitted, events.length]);
 
   const createEventKey = (event: EventData): string => {
     return `${event.title}_${event.date}_${event.venue}`;
@@ -193,15 +124,8 @@ export default function Home() {
     return venueIndicators.some(indicator => venueLower.includes(indicator));
   };
 
-  // Helper function to format date and time for Design 1
+  // Helper function to format date and time for Design 1 (always used)
   const formatEventDateTime = (date: string, time?: string, endTime?: string) => {
-    if (!isDesign1) {
-      return { 
-        date: time ? `${date} • ${time}` : date,
-        time: null 
-      };
-    }
-
     // Parse the date
     const dateObj = new Date(date);
     const today = new Date();
@@ -360,9 +284,8 @@ export default function Home() {
       </svg>
     );
   };
+
   const formatEventPrice = (event: EventData) => {
-    if (!isDesign1) return null;
-    
     const price = event.ticketPrice || event.price;
     if (!price) return t('event.pricesVary');
     
@@ -376,9 +299,8 @@ export default function Home() {
     return `${priceText} €`;
   };
 
-  // For testing Design 1 - inject sample events when on ?design=1&test=1
+  // For testing - inject sample events when on ?test=1
   const getSampleEvents = (): EventData[] => {
-    if (!isDesign1) return [];
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get('test') !== '1') return [];
     
@@ -484,8 +406,8 @@ export default function Home() {
   const getSelectedSubcategories = (): string[] =>
     selectedSuperCategories.flatMap(superCat => CATEGORY_MAP[superCat]);
 
-  // Design 1: Compute displayed events based on active filter
-  const displayedEvents = isDesign1 && searchSubmitted ? 
+  // Displayed events based on active filter (Design 1)
+  const displayedEvents = searchSubmitted ? 
     filterEventsByTimePeriod(activeFilter === 'Alle' ? events : events.filter(event => {
       const eventSuperCategory = searchedSuperCategories.find(cat =>
         CATEGORY_MAP[cat]?.includes(event.category)
@@ -522,23 +444,21 @@ export default function Home() {
     setCacheInfo(null);
     
     // Design 1: Set search state
-    if (isDesign1) {
-      setSearchSubmitted(true);
-      setSearchedSuperCategories([...selectedSuperCategories]);
-      setActiveFilter('Alle');
-      
-      // Scroll down to hide categories after a short delay
-      setTimeout(() => {
-        const searchSection = document.querySelector('.search-section');
-        if (searchSection) {
-          const searchSectionBottom = searchSection.getBoundingClientRect().bottom + window.scrollY;
-          window.scrollTo({
-            top: searchSectionBottom,
-            behavior: 'smooth'
-          });
-        }
-      }, 100);
-    }
+    setSearchSubmitted(true);
+    setSearchedSuperCategories([...selectedSuperCategories]);
+    setActiveFilter('Alle');
+    
+    // Scroll down to hide categories after a short delay
+    setTimeout(() => {
+      const searchSection = document.querySelector('.search-section');
+      if (searchSection) {
+        const searchSectionBottom = searchSection.getBoundingClientRect().bottom + window.scrollY;
+        window.scrollTo({
+          top: searchSectionBottom,
+          behavior: 'smooth'
+        });
+      }
+    }, 100);
 
     try {
       const res = await fetch('/api/events', {
@@ -747,25 +667,23 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
-      {/* Design 1: Sticky Header */}
-      {isDesign1 && (
-        <header className="design1-header">
-          <div className="header-container">
-            <div className="header-logo">
-              <img src="/where2go-logo.svg" alt="Where2Go" className="logo" />
-            </div>
-            <div className="header-actions">
-              <a href="#premium" className="premium-link">
-                <span className="premium-icon">⭐</span>
-                Premium
-              </a>
-            </div>
+      {/* Sticky Header (Design 1 always) */}
+      <header className="design1-header">
+        <div className="header-container">
+          <div className="header-logo">
+            <img src="/where2go-logo.svg" alt="Where2Go" className="logo" />
           </div>
-        </header>
-      )}
+          <div className="header-actions">
+            <a href="#premium" className="premium-link">
+              <span className="premium-icon">⭐</span>
+              Premium
+            </a>
+          </div>
+        </div>
+      </header>
 
       {/* Hero Section */}
-      <section className={`hero ${isDesign1 && searchSubmitted ? 'hero-collapsed' : ''}`}>
+      <section className={`hero ${searchSubmitted ? 'hero-collapsed' : ''}`}>
         <div className="container">
           <h1>Where2Go</h1>
           <p>{t('page.tagline')}</p>
@@ -881,9 +799,9 @@ export default function Home() {
 
       {/* Main Content */}
       <div className="container">
-        <div className={isDesign1 && searchSubmitted ? "content-with-sidebar" : ""}>
-          {/* Design 1: Filter Sidebar */}
-          {isDesign1 && searchSubmitted && (
+        <div className={searchSubmitted ? "content-with-sidebar" : ""}>
+          {/* Filter Sidebar (Design 1) */}
+          {searchSubmitted && (
             <aside className="filter-sidebar">
               <h3 className="sidebar-title">Filter & Kategorien</h3>
               <div className="filter-chips">
@@ -930,7 +848,7 @@ export default function Home() {
           )}
 
           {/* Main Content Area */}
-          <main className={isDesign1 && searchSubmitted ? "main-content" : ""}>
+          <main className={searchSubmitted ? "main-content" : ""}>
         {error && (
           <div className="error">
             {error}
@@ -957,8 +875,8 @@ export default function Home() {
 
         {!loading && !displayedEvents.length && !error && (
           <div className="empty-state">
-            <h3>{isDesign1 && searchSubmitted ? 'Keine Events gefunden' : 'Bereit für dein nächstes Abenteuer?'}</h3>
-            <p>{isDesign1 && searchSubmitted ? 'Versuche andere Filter oder starte eine neue Suche.' : 'Starte eine Suche, um die besten Events in deiner Stadt zu entdecken.'}</p>
+            <h3>{searchSubmitted ? 'Keine Events gefunden' : 'Bereit für dein nächstes Abenteuer?'}</h3>
+            <p>{searchSubmitted ? 'Versuche andere Filter oder starte eine neue Suche.' : 'Starte eine Suche, um die besten Events in deiner Stadt zu entdecken.'}</p>
           </div>
         )}
 
@@ -983,9 +901,10 @@ export default function Home() {
             {displayedEvents.map((event) => {
               const eventKey = createEventKey(event);
               const isNew = newEvents.has(eventKey);
-              const superCategory = isDesign1 && searchSubmitted 
-                ? searchedSuperCategories.find(cat => CATEGORY_MAP[cat]?.includes(event.category)) || event.category
-                : ALL_SUPER_CATEGORIES.find(cat => CATEGORY_MAP[cat].includes(event.category)) || event.category;
+              const superCategory =
+                searchSubmitted
+                  ? searchedSuperCategories.find(cat => CATEGORY_MAP[cat]?.includes(event.category)) || event.category
+                  : ALL_SUPER_CATEGORIES.find(cat => CATEGORY_MAP[cat].includes(event.category)) || event.category;
 
               const isVenueEvent = isLikelyVenue(event);
 
@@ -995,194 +914,98 @@ export default function Home() {
                   <div className="event-content">
                     <h3 className="event-title">{event.title}</h3>
                     
-                    {isDesign1 ? (
-                      // Design 1: New format with icons
-                      <>
-                        <div className="event-datetime">
-                          <div className="event-date-d1">
-                            <svg className="icon-date" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                              <line x1="16" y1="2" x2="16" y2="6"/>
-                              <line x1="8" y1="2" x2="8" y2="6"/>
-                              <line x1="3" y1="10" x2="21" y2="10"/>
-                            </svg>
-                            {(() => {
-                              const { date, time } = formatEventDateTime(event.date, event.time, event.endTime);
-                              return (
-                                <>
-                                  {date}
-                                  {time && (
-                                    <>
-                                      <svg className="icon-time" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <circle cx="12" cy="12" r="10"/>
-                                        <polyline points="12,6 12,12 16,14"/>
-                                      </svg>
-                                      {time}
-                                    </>
-                                  )}
-                                </>
-                              );
-                            })()}
-                          </div>
-                        </div>
-                        
-                        <div className="event-location-d1">
-                          <svg className="icon-location" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-                            <circle cx="12" cy="10" r="3"/>
+                    {/* Design 1: New format with icons */}
+                    <>
+                      <div className="event-datetime">
+                        <div className="event-date-d1">
+                          <svg className="icon-date" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                            <line x1="16" y1="2" x2="16" y2="6"/>
+                            <line x1="8" y1="2" x2="8" y2="6"/>
+                            <line x1="3" y1="10" x2="21" y2="10"/>
                           </svg>
-                          <div className="event-location-content">
-                            <a 
-                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address || event.venue)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="event-venue-link"
-                              title="Venue in Google Maps öffnen"
-                            >
-                              {event.venue}
-                            </a>
-                          </div>
+                          {(() => {
+                            const { date, time } = formatEventDateTime(event.date, event.time, event.endTime);
+                            return (
+                              <>
+                                {date}
+                                {time && (
+                                  <>
+                                    <svg className="icon-time" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <circle cx="12" cy="12" r="10"/>
+                                      <polyline points="12,6 12,12 16,14"/>
+                                    </svg>
+                                    {time}
+                                  </>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
-                        
-                        {superCategory && (
-                          <div className="event-category">
-                            {getCategoryIcon(superCategory)}
-                            {superCategory}
-                          </div>
-                        )}
-                        
-                        {event.eventType && (
-                          <div className="event-type">
-                            {getEventTypeIcon()}
-                            {event.eventType}
-                          </div>
-                        )}
-                        
-                        {event.ageRestrictions && (
-                          <div className="event-age">
-                            {getAgeRestrictionIcon()}
-                            {event.ageRestrictions}
-                          </div>
-                        )}
-                        
-                        {event.description && (
-                          <div className="event-description">{event.description}</div>
-                        )}
-                        
-                        {/* Bottom row with price and action buttons */}
-                        <div className="event-bottom-row">
-                          <div className="event-price-d1">
-                            {formatEventPrice(event)}
-                          </div>
-                          <div className="event-actions">
-                            {event.website && (
-                              <a 
-                                href={event.website} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className="event-action-btn event-info-btn"
-                              >
-                                <svg className="icon-info" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <circle cx="12" cy="12" r="10"/>
-                                  <line x1="12" y1="16" x2="12" y2="12"/>
-                                  <line x1="12" y1="8" x2="12.01" y2="8"/>
-                                </svg>
-                                {t('button.moreInfo')}
-                              </a>
-                            )}
-                            {event.bookingLink && (
-                              <a 
-                                href={event.bookingLink} 
-                                target="_blank" 
-                                rel="noopener noreferrer" 
-                                className="event-action-btn event-tickets-btn"
-                              >
-                                <svg className="icon-tickets" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/>
-                                  <path d="M13 5v2"/>
-                                  <path d="M13 17v2"/>
-                                  <path d="M13 11v2"/>
-                                </svg>
-                                Tickets
-                              </a>
-                            )}
-                          </div>
+                      </div>
+                      
+                      <div className="event-location-d1">
+                        <svg className="icon-location" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                          <circle cx="12" cy="10" r="3"/>
+                        </svg>
+                        <div className="event-location-content">
+                          <a 
+                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address || event.venue)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="event-venue-link"
+                            title="Venue in Google Maps öffnen"
+                          >
+                            {event.venue}
+                          </a>
                         </div>
-                      </>
-                    ) : (
-                      // Default design: keep existing structure
-                      <>
-                        <div className="event-date">
-                          {event.date}
-                          {event.time && ` • ${event.time}`}
-                          {event.endTime && ` - ${event.endTime}`}
+                      </div>
+                      
+                      {superCategory && (
+                        <div className="event-category">
+                          {getCategoryIcon(superCategory)}
+                          {superCategory}
                         </div>
-                        
-                        <div className="event-location">
-                          📍 {event.venue}
-                          {event.address ? (
-                            <a 
-                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.address)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="event-address-link"
-                              title="Adresse in Google Maps öffnen"
-                            >
-                              <br />📍 {event.address}
-                            </a>
-                          ) : (
-                            <a 
-                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${event.venue}, ${city}`)}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="event-address-link"
-                              title="Venue in Google Maps öffnen"
-                            >
-                              <br />🗺️ In Maps öffnen
-                            </a>
-                          )}
+                      )}
+                      
+                      {event.eventType && (
+                        <div className="event-type">
+                          {getEventTypeIcon()}
+                          {event.eventType}
                         </div>
-                        
-                        {superCategory && (
-                          <div className="event-category">
-                            {getCategoryIcon(superCategory)}
-                            {superCategory}
-                          </div>
-                        )}
-                        
-                        {event.eventType && (
-                          <div className="event-type">
-                            {getEventTypeIcon()}
-                            {event.eventType}
-                          </div>
-                        )}
-                        
-                        {(event.price || event.ticketPrice) && (
-                          <div className="event-price">
-                            💰 {event.ticketPrice || event.price}
-                          </div>
-                        )}
-                        
-                        {event.ageRestrictions && (
-                          <div className="event-age">
-                            {getAgeRestrictionIcon()}
-                            {event.ageRestrictions}
-                          </div>
-                        )}
-                        
-                        {event.description && (
-                          <div className="event-description">{event.description}</div>
-                        )}
-                        
-                        <div className="event-links">
+                      )}
+                      
+                      {event.ageRestrictions && (
+                        <div className="event-age">
+                          {getAgeRestrictionIcon()}
+                          {event.ageRestrictions}
+                        </div>
+                      )}
+                      
+                      {event.description && (
+                        <div className="event-description">{event.description}</div>
+                      )}
+                      
+                      {/* Bottom row with price and action buttons */}
+                      <div className="event-bottom-row">
+                        <div className="event-price-d1">
+                          {formatEventPrice(event)}
+                        </div>
+                        <div className="event-actions">
                           {event.website && (
                             <a 
                               href={event.website} 
                               target="_blank" 
                               rel="noopener noreferrer" 
-                              className="event-link"
+                              className="event-action-btn event-info-btn"
                             >
-                              Website →
+                              <svg className="icon-info" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="16" x2="12" y2="12"/>
+                                <line x1="12" y1="8" x2="12.01" y2="8"/>
+                              </svg>
+                              {t('button.moreInfo')}
                             </a>
                           )}
                           {event.bookingLink && (
@@ -1190,14 +1013,20 @@ export default function Home() {
                               href={event.bookingLink} 
                               target="_blank" 
                               rel="noopener noreferrer" 
-                              className="event-link event-booking-link"
+                              className="event-action-btn event-tickets-btn"
                             >
-                              Tickets →
+                              <svg className="icon-tickets" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/>
+                                <path d="M13 5v2"/>
+                                <path d="M13 17v2"/>
+                                <path d="M13 11v2"/>
+                              </svg>
+                              Tickets
                             </a>
                           )}
                         </div>
-                      </>
-                    )}
+                      </div>
+                    </>
                   </div>
                 </div>
               );
@@ -1258,50 +1087,42 @@ export default function Home() {
         </div>
       )}
 
-      {/* Footer */}
-      {isDesign1 ? (
-        <footer className="design1-footer">
-          <div className="footer-container">
-            <div className="footer-section">
-              <h4>Where2Go</h4>
-              <p>Entdecke die besten Events in deiner Stadt</p>
-            </div>
-            <div className="footer-section">
-              <h4>Service</h4>
-              <ul>
-                <li><a href="#events">Events</a></li>
-                <li><a href="/premium">Premium</a></li>
-                <li><a href="#api">API</a></li>
-              </ul>
-            </div>
-            <div className="footer-section">
-              <h4>Unternehmen</h4>
-              <ul>
-                <li><a href="/ueber-uns">Über uns</a></li>
-                <li><a href="/kontakt">Kontakt</a></li>
-                <li><a href="#jobs">Jobs</a></li>
-              </ul>
-            </div>
-            <div className="footer-section">
-              <h4>Rechtliches</h4>
-              <ul>
-                <li><a href="#privacy">Datenschutz</a></li>
-                <li><a href="#terms">AGB</a></li>
-                <li><a href="/impressum">Impressum</a></li>
-              </ul>
-            </div>
+      {/* Footer (Design 1 always) */}
+      <footer className="design1-footer">
+        <div className="footer-container">
+          <div className="footer-section">
+            <h4>Where2Go</h4>
+            <p>Entdecke die besten Events in deiner Stadt</p>
           </div>
-          <div className="footer-bottom">
-            <p>© 2025 Where2Go</p>
+          <div className="footer-section">
+            <h4>Service</h4>
+            <ul>
+              <li><a href="#events">Events</a></li>
+              <li><a href="/premium">Premium</a></li>
+              <li><a href="#api">API</a></li>
+            </ul>
           </div>
-        </footer>
-      ) : (
-        <footer className="footer">
-          <div className="container">
-            <p>© 2025 Where2Go - Entdecke deine Stadt neu</p>
+          <div className="footer-section">
+            <h4>Unternehmen</h4>
+            <ul>
+              <li><a href="/ueber-uns">Über uns</a></li>
+              <li><a href="/kontakt">Kontakt</a></li>
+              <li><a href="#jobs">Jobs</a></li>
+            </ul>
           </div>
-        </footer>
-      )}
+          <div className="footer-section">
+            <h4>Rechtliches</h4>
+            <ul>
+              <li><a href="#privacy">Datenschutz</a></li>
+              <li><a href="#terms">AGB</a></li>
+              <li><a href="/impressum">Impressum</a></li>
+            </ul>
+          </div>
+        </div>
+        <div className="footer-bottom">
+          <p>© 2025 Where2Go</p>
+        </div>
+      </footer>
     </div>
   );
 }
