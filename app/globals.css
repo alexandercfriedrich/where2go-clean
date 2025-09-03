@@ -6,10 +6,16 @@
   padding: 16px 20px;
 }
 .design1-header .header-logo img {
-  height: 200px;
-  width: auto;
+  max-width: 100%;
+  max-height: 120px;
   object-fit: contain;
+  overflow: visible;
+  display: block;
 }
+.header-logo {
+  overflow: visible !important;
+}
+
 .design1-header .header-actions {
   margin-left: auto;
 }
