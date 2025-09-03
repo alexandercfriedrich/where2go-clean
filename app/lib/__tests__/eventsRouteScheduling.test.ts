@@ -30,12 +30,12 @@ describe('Events Route with Background Scheduling', () => {
 
     expect(response.status).toBe(200);
     expect(result.jobId).toBeDefined();
-    expect(result.status).toBe('pending');
+    expect(result.status).toBe('partial'); // Should be 'partial' when processing is needed
 
-    // Verify job was created
+    // Verify job was created with pending status
     const job = await jobStore.getJob(result.jobId);
     expect(job).toBeDefined();
-    expect(job?.status).toBe('pending');
+    expect(job?.status).toBe('pending'); // Job status should be 'pending'
   });
 
   it('should handle missing required parameters', async () => {

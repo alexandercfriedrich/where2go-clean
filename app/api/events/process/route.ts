@@ -101,9 +101,44 @@ export async function POST(req: NextRequest) {
 
     console.log('Processing job:', { jobId, city, date, categories: categories?.length || 0 });
 
-    // Run the background processing
-    await processJobInBackground(jobId, city, date, categories, options);
+    // Start background processing asynchronously - DO NOT AWAIT
+    // This allows the HTTP response to return immediately while processing continues
+    
+    // Set up a deadman's switch to automatically fail jobs that take too long
+    // Set to 4.5 minutes to ensure it triggers before Vercel's 5-minute timeout
+    const deadmanTimeout = setTimeout(() => {
+      console.error(`🚨 DEADMAN SWITCH: Job ${jobId} has been running for more than 4.5 minutes, marking as failed`);
+      jobStore.updateJob(jobId, {
+        status: 'error',
+        error: 'Processing timed out - job took longer than expected (4.5 min limit)',
+        lastUpdateAt: new Date().toISOString()
+      }).catch(updateError => {
+        console.error('Failed to update job status via deadman switch:', updateError);
+      });
+    }, 4.5 * 60 * 1000); // 4.5 minutes - before Vercel's 5 minute timeout
+    
+    processJobInBackground(jobId, city, date, categories, options)
+      .then(() => {
+        // Job completed successfully
+        clearTimeout(deadmanTimeout);
+        console.log(`✅ Background processing completed successfully for job: ${jobId}`);
+      })
+      .catch(error => {
+        // Job failed with error
+        clearTimeout(deadmanTimeout);
+        console.error('❌ Async background processing error for job', jobId, ':', error);
+        
+        // Update job status to error to prevent infinite polling
+        jobStore.updateJob(jobId, {
+          status: 'error',
+          error: 'Background processing failed to complete',
+          lastUpdateAt: new Date().toISOString()
+        }).catch(updateError => {
+          console.error('Failed to update job status after background error:', updateError);
+        });
+      });
 
+    console.log('Background processing started successfully for job:', jobId);
     return NextResponse.json({ success: true });
 
   } catch (error) {
@@ -128,9 +163,10 @@ async function processJobInBackground(
   try {
     const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
     if (!PERPLEXITY_API_KEY) {
+      console.error('❌ PERPLEXITY_API_KEY environment variable is not set');
       await jobStore.updateJob(jobId, {
         status: 'error',
-        error: 'Perplexity API Key ist nicht konfiguriert'
+        error: 'Perplexity API Key ist nicht konfiguriert. Bitte setze PERPLEXITY_API_KEY in der .env.local Datei.'
       });
       return;
     }
@@ -139,8 +175,7 @@ async function processJobInBackground(
     const effectiveCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
     
     // Extract options with defaults - increased timeouts to prevent premature cutoff
-    // PROGRESSIVE UPDATE IMPROVEMENT: Reduce concurrency to make updates more visible
-    const categoryConcurrency = options?.categoryConcurrency || 2; // Reduced from 5 to 2
+    const categoryConcurrency = options?.categoryConcurrency || 5; // Restore original concurrency for performance
     
     // Default categoryTimeoutMs to 90s (90000ms), enforce minimum 60s (esp. on Vercel)
     const isVercel = process.env.VERCEL === '1';
@@ -151,14 +186,30 @@ async function processJobInBackground(
       : requestedCategoryTimeout;
     const categoryTimeoutMs = defaultCategoryTimeout;
     
-    // Overall timeout defaults to 4 minutes (240000ms), configurable via env var
-    const defaultOverallTimeout = parseInt(process.env.OVERALL_TIMEOUT_MS || '240000', 10);
+    // Overall timeout defaults to 3 minutes (180000ms) - well under Vercel's 5-minute limit
+    const defaultOverallTimeout = parseInt(process.env.OVERALL_TIMEOUT_MS || '180000', 10);
     const overallTimeoutMs = options?.overallTimeoutMs || defaultOverallTimeout;
     
     const maxAttempts = options?.maxAttempts || 5;
     
     console.log('Background job starting for:', jobId, city, date, effectiveCategories);
     console.log('Parallelization config:', { categoryConcurrency, categoryTimeoutMs, overallTimeoutMs, maxAttempts });
+
+    // Add additional logging to track worker progress
+    let progressCheckInterval: NodeJS.Timeout | undefined;
+    let lastProgressUpdate = Date.now();
+    
+    // Set up progress monitoring to detect stuck workers
+    progressCheckInterval = setInterval(() => {
+      const now = Date.now();
+      const timeSinceLastProgress = now - lastProgressUpdate;
+      
+      if (timeSinceLastProgress > 120000) { // 2 minutes without progress
+        console.warn(`⚠️ Job ${jobId}: No progress for ${Math.round(timeSinceLastProgress/1000)}s. Completed: ${completedCategories}/${effectiveCategories.length}`);
+      }
+      
+      console.log(`📊 Job ${jobId} progress check: ${completedCategories}/${effectiveCategories.length} categories completed, current index: ${currentIndex}`);
+    }, 30000); // Check every 30 seconds
 
     // Set up overall timeout using AbortController to prevent jobs from running indefinitely
     const overallAbortController = new AbortController();
@@ -188,19 +239,42 @@ async function processJobInBackground(
 
     // Create worker function that processes categories from the queue
     const worker = async (): Promise<void> => {
-      while (currentIndex < effectiveCategories.length && !overallAbortController.signal.aborted) {
-        const categoryIndex = currentIndex++;
-        if (categoryIndex >= effectiveCategories.length) break;
-        
-        const category = effectiveCategories[categoryIndex];
-        
-        // Check if overall timeout was reached before processing each category
-        if (overallAbortController.signal.aborted) {
-          console.log(`Overall timeout reached, skipping category: ${category}`);
-          break;
+      try {
+        while (currentIndex < effectiveCategories.length && !overallAbortController.signal.aborted) {
+          const categoryIndex = currentIndex++;
+          if (categoryIndex >= effectiveCategories.length) break;
+          
+          const category = effectiveCategories[categoryIndex];
+          
+          // Check if overall timeout was reached before processing each category
+          if (overallAbortController.signal.aborted) {
+            console.log(`Overall timeout reached, skipping category: ${category}`);
+            break;
+          }
+          
+          console.log(`Worker starting category ${categoryIndex + 1}/${effectiveCategories.length}: ${category}`);
+          
+          try {
+            await processCategory(category, categoryIndex);
+            console.log(`Worker completed category ${categoryIndex + 1}/${effectiveCategories.length}: ${category}`);
+          } catch (categoryError: any) {
+            console.error(`Worker failed to process category ${category}:`, categoryError);
+            // Continue processing other categories even if one fails
+            
+            // Update job with error info for this category
+            await jobStore.pushDebugStep(jobId, {
+              category,
+              query: `Events in ${category} for ${city} on ${date}`,
+              response: `Worker error: ${categoryError.message}`,
+              parsedCount: 0,
+              addedCount: 0,
+              totalAfter: allEvents.length
+            });
+          }
         }
-        
-        await processCategory(category, categoryIndex);
+      } catch (workerError) {
+        console.error(`Worker encountered fatal error:`, workerError);
+        throw workerError;
       }
     };
 
@@ -227,10 +301,24 @@ async function processJobInBackground(
           
           console.log(`Category ${category}: using timeout ${perCategoryTimeout}ms`);
 
-          const queryPromise = perplexityService.executeMultiQuery(city, date, [category], options);
-          const res = await withTimeout(queryPromise, perCategoryTimeout);
-          if (res && res.length > 0) {
-            results = res;
+          try {
+            const queryPromise = perplexityService.executeMultiQuery(city, date, [category], options);
+            const res = await withTimeout(queryPromise, perCategoryTimeout);
+            
+            if (res && res.length > 0) {
+              results = res;
+              console.log(`✅ Category ${category} completed successfully with ${res.length} results`);
+            } else {
+              console.log(`⚠️ Category ${category} returned no results`);
+            }
+          } catch (timeoutError: any) {
+            if (timeoutError.message.includes('timed out')) {
+              console.error(`⏰ Category ${category} timed out after ${perCategoryTimeout}ms`);
+              throw new Error(`Category timeout after ${perCategoryTimeout}ms`);
+            } else {
+              console.error(`❌ Category ${category} API error:`, timeoutError.message);
+              throw timeoutError;
+            }
           }
           
         } catch (categoryError: any) {
@@ -373,28 +461,34 @@ async function processJobInBackground(
       }
 
       completedCategories++;
-      
-      // PROGRESSIVE UPDATE IMPROVEMENT: Add small delay between categories to make updates more visible
-      // Only add delay if there are multiple categories and this isn't the last category
-      if (effectiveCategories.length > 1 && completedCategories < effectiveCategories.length) {
-        await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay between categories
-        console.log(`Progressive delay: Waiting 1 second before next category (${completedCategories}/${effectiveCategories.length} completed)`);
-      }
+      lastProgressUpdate = Date.now(); // Update progress timestamp
+      console.log(`✅ Completed category ${category}. Progress: ${completedCategories}/${effectiveCategories.length} categories`);
     };
 
     // Start workers (up to concurrency limit)
     const workerCount = Math.min(categoryConcurrency, effectiveCategories.length);
     console.log(`Starting ${workerCount} parallel workers for ${effectiveCategories.length} categories`);
     for (let i = 0; i < workerCount; i++) {
-      processingPromises.push(worker());
+      processingPromises.push(
+        worker().catch(workerError => {
+          console.error(`Worker ${i + 1} failed:`, workerError);
+          // Don't re-throw here, let Promise.all handle it
+          throw workerError;
+        })
+      );
     }
 
     try {
       // Wait for all workers to complete or overall timeout
+      console.log(`Waiting for ${workerCount} workers to process ${effectiveCategories.length} categories...`);
+      
       await Promise.race([
-        Promise.all(processingPromises),
+        Promise.all(processingPromises).then(() => {
+          console.log(`All ${workerCount} workers completed successfully`);
+        }),
         new Promise<void>((_, reject) => {
           overallAbortController.signal.addEventListener('abort', () => {
+            console.log(`Overall timeout of ${overallTimeoutMs}ms triggered, aborting workers`);
             reject(new Error(`Overall timeout of ${overallTimeoutMs}ms exceeded`));
           });
         })
@@ -412,11 +506,21 @@ async function processJobInBackground(
         console.log(`Job ${jobId} stopped due to overall timeout of ${overallTimeoutMs}ms. Found ${currentEventCount} events so far.`);
         // Continue to finalization with partial results
       } else {
+        console.error(`Job ${jobId} failed due to worker error:`, timeoutError);
         throw timeoutError; // Re-throw other errors
       }
     } finally {
       // Clean up overall timeout
-      clearTimeout(overallTimeoutId);
+      if (overallTimeoutId) {
+        clearTimeout(overallTimeoutId);
+        console.log(`Cleared overall timeout for job ${jobId}`);
+      }
+      
+      // Clean up progress monitoring
+      if (progressCheckInterval) {
+        clearInterval(progressCheckInterval);
+        console.log(`Cleared progress monitoring for job ${jobId}`);
+      }
     }
 
     // Always finalize the job with status 'done', even if we have 0 events
@@ -434,45 +538,80 @@ async function processJobInBackground(
 
     // Update job with final status - this must succeed to prevent UI timeout
     // Get current events from JobStore to ensure we don't overwrite progressive updates
-    const finalJob = await jobStore.getJob(jobId);
-    const finalEvents = finalJob?.events || [];
-    
-    await jobStore.updateJob(jobId, {
-      status: 'done',
-      events: finalEvents,
-      cacheInfo: {
-        fromCache: false,
-        totalEvents: finalEvents.length,
-        cachedEvents: 0
-      },
-      progress: { 
-        completedCategories: effectiveCategories.length, 
-        totalCategories: effectiveCategories.length 
-      },
-      lastUpdateAt: new Date().toISOString(),
-      message: `${finalEvents.length} Events gefunden`
-    });
+    console.log(`Updating job ${jobId} to 'done' status...`);
+    try {
+      const finalJob = await jobStore.getJob(jobId);
+      const finalEvents = finalJob?.events || [];
+      
+      await jobStore.updateJob(jobId, {
+        status: 'done',
+        events: finalEvents,
+        cacheInfo: {
+          fromCache: false,
+          totalEvents: finalEvents.length,
+          cachedEvents: 0
+        },
+        progress: { 
+          completedCategories: effectiveCategories.length, 
+          totalCategories: effectiveCategories.length 
+        },
+        lastUpdateAt: new Date().toISOString(),
+        message: `${finalEvents.length} Events gefunden`
+      });
+      
+      console.log(`✅ Job ${jobId} successfully marked as 'done' with ${finalEvents.length} events`);
+    } catch (finalUpdateError) {
+      console.error(`❌ CRITICAL: Failed to update job ${jobId} to 'done' status - this will cause infinite polling:`, finalUpdateError);
+      
+      // Try a simpler update as fallback
+      try {
+        await jobStore.updateJob(jobId, {
+          status: 'done',
+          lastUpdateAt: new Date().toISOString(),
+          message: 'Processing completed (status update had issues)'
+        });
+        console.log(`✅ Job ${jobId} marked as 'done' via fallback update`);
+      } catch (fallbackError) {
+        console.error(`❌ CRITICAL: Even fallback update failed for job ${jobId}:`, fallbackError);
+        throw fallbackError; // This will trigger the outer catch block
+      }
+    }
 
   } catch (error) {
-    console.error('Background job error for:', jobId, error);
+    console.error('❌ Background job error for:', jobId, error);
     
     // Clean up overall timeout in case of error
     try {
       if (overallTimeoutId) {
         clearTimeout(overallTimeoutId);
+        console.log(`Cleared timeout after error for job ${jobId}`);
       }
     } catch {
       // Ignore cleanup errors
     }
     
-    // Ensure job is always finalized, even on error
+    // Ensure job is always finalized, even on error - this is CRITICAL to prevent infinite polling
+    console.log(`Attempting to mark job ${jobId} as 'error' status...`);
     try {
       await jobStore.updateJob(jobId, {
         status: 'error',
-        error: 'Fehler beim Verarbeiten der Anfrage'
+        error: 'Fehler beim Verarbeiten der Anfrage',
+        lastUpdateAt: new Date().toISOString()
       });
+      console.log(`✅ Job ${jobId} successfully marked as 'error'`);
     } catch (updateError) {
-      console.error('Failed to update job status to error - this may cause UI timeout:', updateError);
+      console.error(`❌ CRITICAL: Failed to update job ${jobId} status to error - this WILL cause infinite polling:`, updateError);
+      
+      // This is critical - try one more time with minimal data
+      try {
+        await jobStore.updateJob(jobId, {
+          status: 'error'
+        });
+        console.log(`✅ Job ${jobId} marked as 'error' via minimal update`);
+      } catch (finalError) {
+        console.error(`❌ CATASTROPHIC: Cannot update job ${jobId} status - user will experience infinite polling:`, finalError);
+        // At this point, we can't do anything more
+      }
     }
   }
 }

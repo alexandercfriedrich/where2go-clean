@@ -14,6 +14,8 @@ export async function GET(request: NextRequest, { params }: { params: { jobId: s
     // Use request.nextUrl instead of new URL(request.url) to avoid searchParams undefined errors
     const debugMode = request.nextUrl.searchParams.get('debug') === '1';
     
+    console.log(`Looking for job with ID: ${jobId}`);
+    
     if (!jobId) {
       return NextResponse.json(
         { error: 'Job ID ist erforderlich' },

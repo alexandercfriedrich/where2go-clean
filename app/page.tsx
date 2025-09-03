@@ -22,7 +22,7 @@ interface EventData {
 
 const ALL_SUPER_CATEGORIES = Object.keys(CATEGORY_MAP);
 const MAX_CATEGORY_SELECTION: number = 3;
-const MAX_POLLS = 60; // Reduced from 104 to a more reasonable 5 minutes (60 * 5s = 5min)
+const MAX_POLLS = 120; // Increased to allow for longer processing time (120 * 5s = 10min max)
 
 export default function Home() {
   const { t, formatEventDate, formatEventTime } = useTranslation();
@@ -636,7 +636,8 @@ export default function Home() {
         }
         setLoading(false);
         setJobStatus('error');
-        setError('Die Suche dauert zu lange (Timeout nach 8 Minuten). Bitte versuche es später erneut.');
+        setError('Die Suche dauert zu lange (Timeout nach 10 Minuten). Bitte versuche es später erneut oder kontaktiere den Support.');
+        console.warn(`Polling timeout reached after ${pollCountRef.current} polls for job ${jobId}`);
         return;
       }
 
