@@ -330,13 +330,7 @@ async function processJobInBackground(
             console.log(`Worker ${workerId}: Category ${category} query completed in ${duration}ms`);
             await jobStore.incrementJobMetric(jobId, 'api_calls_successful', 1);
             
-            if (res && res.length > 0) {
-              results = res;
-              console.log(`✅ Category ${category} completed successfully with ${res.length} results`);
-            } else {
-              console.log(`⚠️ Category ${category} returned no results`);
-              results = res; // Still set results to exit loop
-            }
+            results = res;
             break; // Success, exit retry loop
           } catch (queryError: any) {
             lastError = queryError;
@@ -361,12 +355,25 @@ async function processJobInBackground(
             console.log(`Worker ${workerId}: Retrying category ${category} in ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
           }
+            
+            if (res && res.length > 0) {
+              results = res;
+              console.log(`✅ Category ${category} completed successfully with ${res.length} results`);
+            } else {
+              console.log(`⚠️ Category ${category} returned no results`);
+            }
+          } catch (timeoutError: any) {
+            if (timeoutError.message.includes('timed out')) {
+              console.error(`⏰ Category ${category} timed out after ${perCategoryTimeout}ms`);
+              throw new Error(`Category timeout after ${perCategoryTimeout}ms`);
+            } else {
+              console.error(`❌ Category ${category} API error:`, timeoutError.message);
+              throw timeoutError;
+            }
+          }
+          
         } catch (categoryError: any) {
-          console.error(`Outer catch - Category ${category} attempt ${attempts}/${maxAttempts} failed:`, categoryError.message);
-          lastError = categoryError;
-          break; // Exit retry loop for outer errors
-        }
-      }
+          console.error(`Category ${category} attempt ${attempts}/${maxAttempts} failed:`, categoryError.message);
           
           // Add debug step for failed attempt
           await jobStore.pushDebugStep(jobId, {
