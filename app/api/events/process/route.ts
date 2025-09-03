@@ -60,13 +60,21 @@ const DEFAULT_CATEGORIES = [
 // Get JobStore instance for persisting job state
 const jobStore = getJobStore();
 
-// Helper function to add timeout to any promise
+// Helper function to add timeout to any promise with better cleanup
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  let timeoutId: NodeJS.Timeout;
+  
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`Operation timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+  
   return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => 
-      setTimeout(() => reject(new Error(`Operation timed out after ${timeoutMs}ms`)), timeoutMs)
-    )
+    promise.finally(() => {
+      if (timeoutId) clearTimeout(timeoutId);
+    }),
+    timeoutPromise
   ]);
 }
 
@@ -304,88 +312,129 @@ async function processJobInBackground(
       let results: Array<{ query: string; response: string; events: EventData[]; timestamp: number; }> | null = null;
       let lastError: Error | null = null;
       
-      while (attempts < maxAttempts && !results) {
-        attempts++;
-        
-        try {
-          console.log(`Worker ${workerId}: Processing category ${categoryIndex + 1}/${effectiveCategories.length}: ${category} (attempt ${attempts}/${maxAttempts})`);
+      // Absolute safeguard - max processing time per category (even beyond retries)
+      const categoryAbortController = new AbortController();
+      const maxCategoryProcessingTime = Math.max(categoryTimeoutMs * 2, 180000); // 2x timeout or 3 min, whichever is larger
+      const categoryDeadmanTimer = setTimeout(() => {
+        console.error(`🚨 CATEGORY DEADMAN: Category ${category} has been processing for ${maxCategoryProcessingTime}ms, forcing abort`);
+        categoryAbortController.abort();
+      }, maxCategoryProcessingTime);
+      
+      try {
+        while (attempts < maxAttempts && !results && !categoryAbortController.signal.aborted && !overallAbortController.signal.aborted) {
+          attempts++;
           
-          // Dynamic timeout calculation based on category complexity and attempt number
-          const baseTimeout = typeof categoryTimeoutMs === 'number' ? categoryTimeoutMs : 90000;
-          const complexityMultiplier = category.toLowerCase().includes('museen') || category.toLowerCase().includes('theater') ? 1.3 : 1.0;
-          const attemptMultiplier = attempts > 1 ? 1.2 : 1.0; // Give more time for retries
-          const dynamicTimeout = Math.floor(baseTimeout * complexityMultiplier * attemptMultiplier);
-          
-          console.log(`Worker ${workerId}: Category ${category} using dynamic timeout ${dynamicTimeout}ms (base: ${baseTimeout}ms, complexity: ${complexityMultiplier}, attempt: ${attemptMultiplier})`);
-
           try {
-            const startTime = Date.now();
-            const queryPromise = perplexityService.executeMultiQuery(city, date, [category], {
-              ...options,
-              categoryTimeoutMs: dynamicTimeout
-            });
-            const res = await withTimeout(queryPromise, dynamicTimeout + 5000); // Add 5s buffer to outer timeout
-            const duration = Date.now() - startTime;
+            console.log(`Worker ${workerId}: Processing category ${categoryIndex + 1}/${effectiveCategories.length}: ${category} (attempt ${attempts}/${maxAttempts})`);
             
-            console.log(`Worker ${workerId}: Category ${category} query completed in ${duration}ms`);
-            await jobStore.incrementJobMetric(jobId, 'api_calls_successful', 1);
+            // Dynamic timeout calculation based on category complexity and attempt number
+            const baseTimeout = typeof categoryTimeoutMs === 'number' ? categoryTimeoutMs : 90000;
+            const complexityMultiplier = category.toLowerCase().includes('museen') || category.toLowerCase().includes('theater') ? 1.3 : 1.0;
+            const attemptMultiplier = attempts > 1 ? 1.2 : 1.0; // Give more time for retries
+            const dynamicTimeout = Math.floor(baseTimeout * complexityMultiplier * attemptMultiplier);
             
-            if (res && res.length > 0) {
-              results = res;
-              console.log(`✅ Category ${category} completed successfully with ${res.length} results`);
-            } else {
-              console.log(`⚠️ Category ${category} returned no results`);
-              results = res; // Still set results to exit loop
+            console.log(`Worker ${workerId}: Category ${category} using dynamic timeout ${dynamicTimeout}ms (base: ${baseTimeout}ms, complexity: ${complexityMultiplier}, attempt: ${attemptMultiplier})`);
+
+            try {
+              const startTime = Date.now();
+              const queryPromise = perplexityService.executeMultiQuery(city, date, [category], {
+                ...options,
+                categoryTimeoutMs: dynamicTimeout
+              });
+              
+              // Enhanced timeout with both withTimeout wrapper AND abort signal checking
+              const res = await Promise.race([
+                withTimeout(queryPromise, dynamicTimeout + 5000), // Add 5s buffer to outer timeout
+                new Promise<never>((_, reject) => {
+                  const checkAbort = () => {
+                    if (categoryAbortController.signal.aborted || overallAbortController.signal.aborted) {
+                      reject(new Error('Category processing aborted by timeout'));
+                    } else {
+                      setTimeout(checkAbort, 1000); // Check every second
+                    }
+                  };
+                  checkAbort();
+                })
+              ]);
+              
+              const duration = Date.now() - startTime;
+              
+              console.log(`Worker ${workerId}: Category ${category} query completed in ${duration}ms`);
+              await jobStore.incrementJobMetric(jobId, 'api_calls_successful', 1);
+              
+              if (res && res.length > 0) {
+                results = res;
+                console.log(`✅ Category ${category} completed successfully with ${res.length} results`);
+              } else {
+                console.log(`⚠️ Category ${category} returned no results`);
+                results = res; // Still set results to exit loop
+              }
+              break; // Success, exit retry loop
+            } catch (queryError: any) {
+              lastError = queryError;
+              console.error(`Worker ${workerId}: Category ${category} attempt ${attempts} failed:`, queryError.message);
+              await jobStore.incrementJobMetric(jobId, 'api_calls_failed', 1);
+              
+              // Check if we should abort due to signals
+              if (categoryAbortController.signal.aborted || overallAbortController.signal.aborted) {
+                console.error(`Worker ${workerId}: Category ${category} aborted by timeout signal`);
+                break; // Exit retry loop
+              }
+              
+              // Determine if error is retryable
+              const isRetryable = queryError.message.includes('timeout') || 
+                                queryError.message.includes('network') ||
+                                queryError.message.includes('fetch failed') ||
+                                queryError.message.includes('aborted');
+              
+              if (!isRetryable || attempts >= maxAttempts) {
+                console.error(`Worker ${workerId}: Category ${category} failed permanently after ${attempts} attempts: ${queryError.message}`);
+                break; // Exit retry loop
+              }
+              
+              // Exponential backoff with jitter for retries
+              const baseDelay = 1000 * Math.pow(2, attempts - 1); // 1s, 2s, 4s, 8s
+              const jitter = Math.random() * 0.3; // Up to 30% jitter
+              const delay = Math.floor(baseDelay * (1 + jitter));
+              
+              console.log(`Worker ${workerId}: Retrying category ${category} in ${delay}ms...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
             }
-            break; // Success, exit retry loop
-          } catch (queryError: any) {
-            lastError = queryError;
-            console.error(`Worker ${workerId}: Category ${category} attempt ${attempts} failed:`, queryError.message);
-            await jobStore.incrementJobMetric(jobId, 'api_calls_failed', 1);
+          } catch (categoryError: any) {
+            console.error(`Outer catch - Category ${category} attempt ${attempts}/${maxAttempts} failed:`, categoryError.message);
+            lastError = categoryError;
             
-            // Determine if error is retryable
-            const isRetryable = queryError.message.includes('timeout') || 
-                              queryError.message.includes('network') ||
-                              queryError.message.includes('fetch failed');
+            // Add debug step for failed attempt
+            await jobStore.pushDebugStep(jobId, {
+              category,
+              query: `Events in ${category} for ${city} on ${date} (attempt ${attempts})`,
+              response: `Error: ${categoryError.message}`,
+              parsedCount: 0,
+              addedCount: 0,
+              totalAfter: allEvents.length
+            });
             
-            if (!isRetryable || attempts >= maxAttempts) {
-              console.error(`Worker ${workerId}: Category ${category} failed permanently after ${attempts} attempts: ${queryError.message}`);
+            // Check abort signals before retrying
+            if (categoryAbortController.signal.aborted || overallAbortController.signal.aborted) {
+              console.error(`Worker ${workerId}: Category ${category} processing aborted`);
               break; // Exit retry loop
             }
             
-            // Exponential backoff with jitter for retries
-            const baseDelay = 1000 * Math.pow(2, attempts - 1); // 1s, 2s, 4s, 8s
-            const jitter = Math.random() * 0.3; // Up to 30% jitter
-            const delay = Math.floor(baseDelay * (1 + jitter));
-            
-            console.log(`Worker ${workerId}: Retrying category ${category} in ${delay}ms...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-          }
-        } catch (categoryError: any) {
-          console.error(`Outer catch - Category ${category} attempt ${attempts}/${maxAttempts} failed:`, categoryError.message);
-          lastError = categoryError;
-          
-          // Add debug step for failed attempt
-          await jobStore.pushDebugStep(jobId, {
-            category,
-            query: `Events in ${category} for ${city} on ${date} (attempt ${attempts})`,
-            response: `Error: ${categoryError.message}`,
-            parsedCount: 0,
-            addedCount: 0,
-            totalAfter: allEvents.length
-          });
-          
-          // If not the last attempt, wait with exponential backoff + jitter
-          if (attempts < maxAttempts) {
-            const baseDelay = 1000 * Math.pow(2, attempts - 1); // 1s, 2s, 4s, 8s
-            const jitter = Math.random() * 1000; // 0-1s random jitter
-            const delay = baseDelay + jitter;
-            console.log(`Retrying category ${category} in ${Math.round(delay)}ms...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
-          } else {
-            break; // Exit retry loop for outer errors
+            // If not the last attempt, wait with exponential backoff + jitter
+            if (attempts < maxAttempts) {
+              const baseDelay = 1000 * Math.pow(2, attempts - 1); // 1s, 2s, 4s, 8s
+              const jitter = Math.random() * 1000; // 0-1s random jitter
+              const delay = baseDelay + jitter;
+              console.log(`Retrying category ${category} in ${Math.round(delay)}ms...`);
+              await new Promise(resolve => setTimeout(resolve, delay));
+            } else {
+              break; // Exit retry loop for outer errors
+            }
           }
         }
+      } finally {
+        // Always clean up the category deadman timer
+        clearTimeout(categoryDeadmanTimer);
       }
       
       // Process all sub-results if we got some - wrap in try/catch to prevent escaping exceptions
@@ -567,34 +616,53 @@ async function processJobInBackground(
     }
 
     // Always finalize the job with status 'done', even if we have 0 events
-    // Get the final events from the JobStore (they may have been updated by workers)
-    const finalJob = await jobStore.getJob(jobId);
-    const finalEvents = finalJob?.events || allEvents || [];
-    
-    // Note: Per-category caching is now done immediately during processing
-    // No need for combined caching here as individual categories are already cached
-    console.log(`Job finalized with ${finalEvents.length} total events (per-category caching completed during processing)`);
+    // This is CRITICAL to prevent endless frontend polling
+    try {
+      // Get the final events from the JobStore (they may have been updated by workers)
+      const finalJob = await jobStore.getJob(jobId);
+      const finalEvents = finalJob?.events || allEvents || [];
+      
+      // Note: Per-category caching is now done immediately during processing
+      // No need for combined caching here as individual categories are already cached
+      console.log(`Job finalized with ${finalEvents.length} total events (per-category caching completed during processing)`);
 
-    // Update job with final status - this must succeed to prevent UI timeout
-    // Get current events from JobStore to ensure we don't overwrite progressive updates
-    console.log(`Updating job ${jobId} to 'done' status...`);
-    await jobStore.updateJob(jobId, {
-      status: 'done',
-      events: finalEvents,
-      cacheInfo: {
-        fromCache: false,
-        totalEvents: finalEvents.length,
-        cachedEvents: 0
-      },
-      progress: { 
-        completedCategories: effectiveCategories.length, 
-        totalCategories: effectiveCategories.length 
-      },
-      lastUpdateAt: new Date().toISOString(),
-      message: `${finalEvents.length} Events gefunden`
-    });
-    
-    console.log(`✅ Job ${jobId} successfully marked as 'done' with ${finalEvents.length} events`);
+      // Update job with final status - this must succeed to prevent UI timeout
+      // Get current events from JobStore to ensure we don't overwrite progressive updates
+      console.log(`Updating job ${jobId} to 'done' status...`);
+      await jobStore.updateJob(jobId, {
+        status: 'done',
+        events: finalEvents,
+        cacheInfo: {
+          fromCache: false,
+          totalEvents: finalEvents.length,
+          cachedEvents: 0
+        },
+        progress: { 
+          completedCategories: effectiveCategories.length, 
+          totalCategories: effectiveCategories.length 
+        },
+        lastUpdateAt: new Date().toISOString(),
+        message: `${finalEvents.length} Events gefunden`
+      });
+      
+      console.log(`✅ Job ${jobId} successfully marked as 'done' with ${finalEvents.length} events`);
+    } catch (finalizationError: any) {
+      console.error(`❌ CRITICAL: Failed to finalize job ${jobId} with 'done' status:`, finalizationError);
+      
+      // This is absolutely critical - try a minimal update to prevent infinite polling
+      try {
+        await jobStore.updateJob(jobId, {
+          status: 'done',
+          events: allEvents || [],
+          lastUpdateAt: new Date().toISOString(),
+          message: 'Verarbeitung abgeschlossen (mit Fehlern)'
+        });
+        console.log(`✅ Job ${jobId} marked as 'done' via minimal update to prevent infinite polling`);
+      } catch (criticalError) {
+        console.error(`❌ CATASTROPHIC: Cannot finalize job ${jobId} - user will experience infinite polling:`, criticalError);
+        // At this point, we can't do anything more
+      }
+    }
 
   } catch (error) {
     console.error('❌ Background job error for:', jobId, error);

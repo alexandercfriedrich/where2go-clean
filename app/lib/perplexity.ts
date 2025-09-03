@@ -218,12 +218,28 @@ Falls keine Events gefunden: []
   }
 
   /**
-   * Makes a single API call to Perplexity
+   * Makes a single API call to Perplexity with enhanced timeout handling
    */
   private async callPerplexity(prompt: string, options?: QueryOptions, retries = 2, signal?: AbortSignal): Promise<string> {
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt < retries; attempt++) {
+      // Create a combined abort controller that responds to both external signal and internal timeout
+      const combinedController = new AbortController();
+      const internalTimeoutMs = 30000; // 30 second internal timeout for HTTP requests
+      
+      // Set up internal timeout
+      const internalTimeout = setTimeout(() => {
+        combinedController.abort();
+      }, internalTimeoutMs);
+      
+      // Listen to external abort signal
+      if (signal) {
+        signal.addEventListener('abort', () => {
+          combinedController.abort();
+        });
+      }
+
       try {
         const response = await fetch(this.baseUrl, {
           method: 'POST',
@@ -243,8 +259,11 @@ Falls keine Events gefunden: []
             temperature: options?.temperature || 0.2,
             stream: false
           }),
-          signal // Use AbortSignal for timeout handling
+          signal: combinedController.signal // Use combined signal
         });
+
+        // Clear the internal timeout on successful response
+        clearTimeout(internalTimeout);
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -253,7 +272,20 @@ Falls keine Events gefunden: []
         const data = await response.json();
         return data.choices[0]?.message?.content || '';
       } catch (error: any) {
+        // Clear timeout on any error
+        clearTimeout(internalTimeout);
+        
         lastError = error;
+        
+        // Check if this was an abort
+        if (combinedController.signal.aborted) {
+          if (signal?.aborted) {
+            throw new Error('Request aborted by external signal');
+          } else {
+            throw new Error(`HTTP request timed out after ${internalTimeoutMs}ms`);
+          }
+        }
+        
         if (attempt === 0 && String(error).includes('not valid JSON')) {
           // Wait before retry
           await new Promise(resolve => setTimeout(resolve, 500));
@@ -355,18 +387,34 @@ Falls keine Events gefunden: []
   ): Promise<PerplexityResult> {
     let lastError: Error | null = null;
     
-    // Create AbortController for timeout
+    // Create AbortController for timeout with enhanced cleanup
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    const timeoutId = setTimeout(() => {
+      console.log(`Query timeout of ${timeoutMs}ms reached, aborting...`);
+      controller.abort();
+    }, timeoutMs);
+    
+    // Additional safeguard: absolute max time per query (2x the requested timeout)
+    const absoluteMaxTime = timeoutMs * 2;
+    const absoluteTimeoutId = setTimeout(() => {
+      console.error(`🚨 ABSOLUTE TIMEOUT: Query has been running for ${absoluteMaxTime}ms, force aborting`);
+      controller.abort();
+    }, absoluteMaxTime);
     
     try {
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
+          // Check abort signal before each attempt
+          if (controller.signal.aborted) {
+            throw new Error(`Query aborted before attempt ${attempt + 1}`);
+          }
+          
           const startTime = Date.now();
           const response = await this.callPerplexity(query, options, 2, controller.signal);
           const duration = Date.now() - startTime;
           
           clearTimeout(timeoutId);
+          clearTimeout(absoluteTimeoutId);
           console.log(`Query completed successfully in ${duration}ms on attempt ${attempt + 1}`);
           
           return {
@@ -397,12 +445,19 @@ Falls keine Events gefunden: []
             const baseDelay = this.baseRetryDelayMs * Math.pow(2, attempt);
             const delayWithJitter = this.addJitter(baseDelay);
             console.log(`Retrying in ${delayWithJitter}ms... (attempt ${attempt + 2}/${maxRetries})`);
+            
+            // Check abort signal before waiting
+            if (controller.signal.aborted) {
+              throw new Error('Query aborted during retry wait');
+            }
+            
             await new Promise(resolve => setTimeout(resolve, delayWithJitter));
           }
         }
       }
     } finally {
       clearTimeout(timeoutId);
+      clearTimeout(absoluteTimeoutId);
     }
 
     // If all retries failed, return detailed error result
