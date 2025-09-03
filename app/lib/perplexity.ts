@@ -228,7 +228,7 @@ Falls keine Events gefunden: []
       
       // Create a combined abort controller that responds to both external signal and internal timeout
       const combinedController = new AbortController();
-      const internalTimeoutMs = 30000; // 30 second internal timeout for HTTP requests
+      const internalTimeoutMs = 25000; // Reduced to 25 second internal timeout for HTTP requests
       
       console.log(`⏱️ Setting internal HTTP timeout to ${internalTimeoutMs}ms`);
       
@@ -237,6 +237,12 @@ Falls keine Events gefunden: []
         console.log(`⚠️ Internal HTTP timeout ${internalTimeoutMs}ms reached, aborting request`);
         combinedController.abort();
       }, internalTimeoutMs);
+      
+      // Additional absolute timeout as final safeguard
+      const absoluteTimeout = setTimeout(() => {
+        console.error(`🚨 ABSOLUTE HTTP TIMEOUT: Request has been running for 35 seconds, force aborting`);
+        combinedController.abort();
+      }, 35000);
       
       // Listen to external abort signal
       if (signal) {
@@ -271,6 +277,7 @@ Falls keine Events gefunden: []
 
         // Clear the internal timeout on successful response
         clearTimeout(internalTimeout);
+        clearTimeout(absoluteTimeout);
         console.log(`📨 HTTP response received with status: ${response.status}`);
 
         if (!response.ok) {
@@ -285,6 +292,7 @@ Falls keine Events gefunden: []
       } catch (error: any) {
         // Clear timeout on any error
         clearTimeout(internalTimeout);
+        clearTimeout(absoluteTimeout);
         
         lastError = error;
         console.error(`❌ Perplexity API call failed on attempt ${attempt + 1}:`, error.message);

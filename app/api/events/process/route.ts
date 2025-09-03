@@ -125,15 +125,38 @@ export async function POST(req: NextRequest) {
       });
     }, 4.5 * 60 * 1000); // 4.5 minutes - before Vercel's 5 minute timeout
     
+    // BULLETPROOF: Set up an absolute guarantee that this job will complete
+    // This acts as the final safeguard - if NOTHING else works, this will ensure job completion
+    const absoluteFailsafeTimeout = setTimeout(async () => {
+      console.error(`🚨 ABSOLUTE FAILSAFE: Job ${jobId} exceeded 4 minutes - forcing completion`);
+      try {
+        const currentJob = await jobStore.getJob(jobId);
+        if (currentJob && currentJob.status === 'pending') {
+          console.error(`🚨 FAILSAFE: Job ${jobId} still pending after 4 min, forcing to done with empty results`);
+          await jobStore.updateJob(jobId, {
+            status: 'done',
+            events: [],
+            error: 'Processing timed out - no events found within time limit',
+            lastUpdateAt: new Date().toISOString()
+          });
+          console.error(`🚨 FAILSAFE: Job ${jobId} forced to completion`);
+        }
+      } catch (failsafeError) {
+        console.error(`🚨 FAILSAFE ERROR for job ${jobId}:`, failsafeError);
+      }
+    }, 4 * 60 * 1000); // 4 minutes absolute maximum
+
     processJobInBackground(jobId, city, date, categories, options)
       .then(() => {
         // Job completed successfully
         clearTimeout(deadmanTimeout);
+        clearTimeout(absoluteFailsafeTimeout);
         console.log(`✅ Background processing completed successfully for job: ${jobId}`);
       })
       .catch(error => {
         // Job failed with error
         clearTimeout(deadmanTimeout);
+        clearTimeout(absoluteFailsafeTimeout);
         console.error('❌ Async background processing error for job', jobId, ':', error);
         
         // Update job status to error to prevent infinite polling
