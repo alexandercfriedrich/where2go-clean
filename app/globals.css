@@ -1,33 +1,42 @@
 header {
-    height: auto;
-    min-height: 80px;
-    padding: 16px;
-    overflow: visible;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: auto;
+  min-height: 80px;
+  padding: 16px;
+  overflow: visible;
 }
 
 header img[alt="Where2Go"] {
-    width: auto;
-    height: 64px;
-    max-height: none;
-    object-fit: contain;
-    margin-right: 20px;
-    flex-shrink: 0;
+  height: 64px;
+  width: auto;
+  object-fit: contain;
+  max-height: none;
+  margin-right: 20px;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+header .premium, header a.premium {
+  margin-left: auto;
+  font-weight: bold;
+  padding: 10px 24px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #667eea, #764ba2);
+  color: #fff;
+  text-decoration: none;
 }
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
 /* Custom CSS for Where2Go Landing Page */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
-
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   line-height: 1.6;
@@ -35,34 +44,29 @@ body {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   min-height: 100vh;
 }
-
 /* Container */
 .container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 20px;
 }
-
 /* Hero Section */
 .hero {
   text-align: center;
   padding: 100px 0 80px;
   color: white;
 }
-
 .hero h1 {
   font-size: 3.5rem;
   font-weight: 700;
   margin-bottom: 20px;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
-
 .hero p {
   font-size: 1.3rem;
   margin-bottom: 40px;
   opacity: 0.9;
 }
-
 /* Search Section */
 .search-section {
   background: white;
@@ -72,11 +76,9 @@ body {
   max-width: 800px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
 }
-
 .search-container {
   position: relative;
 }
-
 .search-input {
   width: 100%;
   padding: 15px 20px;
@@ -86,11 +88,9 @@ body {
   outline: none;
   transition: border-color 0.3s ease;
 }
-
 .search-input:focus {
   border-color: #667eea;
 }
-
 .search-btn {
   position: absolute;
   right: 5px;
@@ -105,25 +105,21 @@ body {
   font-size: 1rem;
   transition: opacity 0.3s ease;
 }
-
 .search-btn:hover {
   opacity: 0.9;
 }
-
 /* Features Section */
 .features {
   padding: 80px 0;
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
 }
-
 .features h2 {
   text-align: center;
   font-size: 2.5rem;
   margin-bottom: 60px;
   color: white;
 }
-
 .features-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -131,7 +127,6 @@ body {
   max-width: 1000px;
   margin: 0 auto;
 }
-
 .feature-card {
   background: white;
   padding: 30px;
@@ -140,28 +135,23 @@ body {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   transition: transform 0.3s ease;
 }
-
 .feature-card:hover {
   transform: translateY(-5px);
 }
-
 .feature-icon {
   font-size: 3rem;
   margin-bottom: 20px;
   color: #667eea;
 }
-
 .feature-card h3 {
   font-size: 1.5rem;
   margin-bottom: 15px;
   color: #333;
 }
-
 .feature-card p {
   color: #666;
   line-height: 1.6;
 }
-
 /* Footer */
 footer {
   text-align: center;
@@ -169,7 +159,6 @@ footer {
   background: rgba(0, 0, 0, 0.2);
   color: white;
 }
-
 /* Responsive Design */
 @media (max-width: 768px) {
   .hero h1 {
@@ -195,7 +184,6 @@ footer {
     padding: 0 20px;
   }
 }
-
 /* Debug Panel Styles */
 .debug-panel {
   position: fixed;
@@ -213,7 +201,6 @@ footer {
   z-index: 1000;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
 }
-
 .debug-panel h3 {
   margin: 0 0 15px 0;
   color: #4fd1c7;
@@ -221,12 +208,10 @@ footer {
   border-bottom: 2px solid #2d3748;
   padding-bottom: 10px;
 }
-
 .debug-entry {
   margin: 5px 0;
   font-size: 0.9rem;
 }
-
 .debug-step {
   background: #2d3748;
   border: 1px solid #4a5568;
@@ -234,37 +219,30 @@ footer {
   padding: 15px;
   margin-bottom: 15px;
 }
-
 .debug-step h4 {
   margin: 0 0 10px 0;
   color: #38bdf8;
   font-size: 1rem;
 }
-
 .debug-query, .debug-parsed {
   margin-bottom: 10px;
   font-size: 0.9rem;
 }
-
 .debug-query strong, .debug-parsed strong {
   color: #f59e0b;
 }
-
 .debug-response {
   margin-top: 10px;
 }
-
 .debug-response summary {
   cursor: pointer;
   color: #a78bfa;
   font-weight: 600;
   margin-bottom: 10px;
 }
-
 .debug-response summary:hover {
   color: #c4b5fd;
 }
-
 .debug-response pre {
   background: #1a202c;
   padding: 15px;
