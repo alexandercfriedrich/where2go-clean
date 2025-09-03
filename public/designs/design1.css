@@ -710,6 +710,91 @@ a:hover {
   background: #047857;
 }
 
+/* Calendar Button Styles */
+.event-calendar-btn {
+  background: var(--color-gray-100);
+  border-color: var(--color-gray-300);
+  color: var(--color-gray-700);
+}
+
+.event-calendar-btn:hover {
+  background: var(--color-gray-600);
+  border-color: var(--color-gray-700);
+  color: var(--color-white);
+}
+
+.event-calendar-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: var(--color-gray-100);
+  color: var(--color-gray-700);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: var(--font-weight-medium);
+  transition: all var(--transition-fast);
+  border: 1px solid var(--color-gray-300);
+}
+
+.event-calendar-link:hover {
+  background: var(--color-gray-600);
+  border-color: var(--color-gray-700);
+  color: var(--color-white);
+}
+
+.calendar-wrapper {
+  position: relative;
+}
+
+.calendar-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  min-width: 180px;
+  margin-top: 4px;
+}
+
+.calendar-dropdown-header {
+  padding: var(--space-3);
+  font-weight: var(--font-weight-medium);
+  font-size: 0.875rem;
+  color: var(--color-text);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.calendar-provider-btn {
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--color-text);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.calendar-provider-btn:hover {
+  background: var(--color-gray-100);
+}
+
+.calendar-provider-btn:last-child {
+  border-bottom-left-radius: var(--radius-md);
+  border-bottom-right-radius: var(--radius-md);
+}
+
+.icon-calendar {
+  flex-shrink: 0;
+  color: var(--color-gray-500);
+}
+
 /* New Event Badge */
 .badge-new {
   position: absolute;
