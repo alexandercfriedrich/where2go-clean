@@ -194,6 +194,8 @@ async function processJobInBackground(
   
   try {
     const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
+    console.log(`🔑 Checking PERPLEXITY_API_KEY environment variable...`);
+    
     if (!PERPLEXITY_API_KEY) {
       console.error('❌ PERPLEXITY_API_KEY environment variable is not set');
       await jobStore.updateJob(jobId, {
@@ -203,6 +205,22 @@ async function processJobInBackground(
       });
       return;
     }
+    
+    if (PERPLEXITY_API_KEY.length < 10) {
+      console.error('❌ PERPLEXITY_API_KEY appears to be invalid (too short)');
+      await jobStore.updateJob(jobId, {
+        status: 'error',
+        error: 'Perplexity API Key scheint ungültig zu sein (zu kurz).',
+        lastUpdateAt: new Date().toISOString()
+      });
+      return;
+    }
+    
+    console.log(`✅ PERPLEXITY_API_KEY is set (length: ${PERPLEXITY_API_KEY.length} characters)`);
+    console.log(`🔑 API Key starts with: ${PERPLEXITY_API_KEY.substring(0, 8)}...`);
+    
+    // Create and validate the Perplexity service
+    console.log(`🔧 Creating Perplexity service...`);
 
     // Default to DEFAULT_CATEGORIES when categories is missing or empty
     const effectiveCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
@@ -264,15 +282,68 @@ async function processJobInBackground(
 
     const perplexityService = createPerplexityService(PERPLEXITY_API_KEY);
     if (!perplexityService) {
+      console.error('❌ Failed to create Perplexity service - createPerplexityService returned null');
       await jobStore.updateJob(jobId, {
         status: 'error',
-        error: 'Failed to create Perplexity service'
+        error: 'Failed to create Perplexity service - API key might be invalid',
+        lastUpdateAt: new Date().toISOString()
+      });
+      return;
+    }
+    
+    console.log(`✅ Perplexity service created successfully`);
+    
+    // Test the API key by making a simple test call
+    console.log(`🧪 Testing Perplexity API connection...`);
+    try {
+      // Make a minimal test call to verify the API key works
+      const testResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'sonar-pro',
+          messages: [{ role: 'user', content: 'test' }],
+          max_tokens: 1,
+          temperature: 0
+        }),
+        signal: AbortSignal.timeout(10000) // 10 second timeout for test
+      });
+      
+      console.log(`🧪 Test API call response status: ${testResponse.status}`);
+      
+      if (!testResponse.ok) {
+        const errorText = await testResponse.text();
+        console.error(`❌ Perplexity API test failed with status ${testResponse.status}: ${errorText}`);
+        await jobStore.updateJob(jobId, {
+          status: 'error',
+          error: `Perplexity API key is invalid or expired (HTTP ${testResponse.status}). Please check your API key.`,
+          lastUpdateAt: new Date().toISOString()
+        });
+        return;
+      }
+      
+      console.log(`✅ Perplexity API connection test successful - API key is working`);
+      
+    } catch (testError: any) {
+      console.error(`❌ Perplexity API connection test failed:`, testError.message);
+      await jobStore.updateJob(jobId, {
+        status: 'error',
+        error: `Cannot reach Perplexity API (${testError.message}). Please check your internet connection and API key.`,
+        lastUpdateAt: new Date().toISOString()
       });
       return;
     }
 
     const job = await jobStore.getJob(jobId);
-    if (!job) return; // Job might have been cleaned up
+    if (!job) {
+      console.error(`❌ Job ${jobId} not found in JobStore after API key validation`);
+      return; // Job might have been cleaned up
+    }
+    
+    console.log(`✅ Job ${jobId} found in JobStore with status: ${job.status}`);
 
     let allEvents: EventData[] = [];
     let completedCategories = 0;
@@ -284,29 +355,37 @@ async function processJobInBackground(
     // Enhanced worker function that processes categories from the queue
     const worker = async (): Promise<void> => {
       const workerId = Math.random().toString(36).substr(2, 5);
-      console.log(`Worker ${workerId} started`);
+      console.log(`🚀 Worker ${workerId} starting...`);
       
       try {
+        console.log(`🔍 Worker ${workerId}: Checking conditions - currentIndex: ${currentIndex}, effectiveCategories.length: ${effectiveCategories.length}, aborted: ${overallAbortController.signal.aborted}`);
+        
         while (currentIndex < effectiveCategories.length && !overallAbortController.signal.aborted) {
           const categoryIndex = currentIndex++;
-          if (categoryIndex >= effectiveCategories.length) break;
-          
-          const category = effectiveCategories[categoryIndex];
-          
-          // Check for abort signal before each category
-          if (overallAbortController.signal.aborted) {
-            console.log(`Worker ${workerId}: Overall timeout reached, skipping category: ${category}`);
+          if (categoryIndex >= effectiveCategories.length) {
+            console.log(`🔚 Worker ${workerId}: Reached end of categories (index ${categoryIndex} >= ${effectiveCategories.length})`);
             break;
           }
           
-          console.log(`Worker ${workerId} processing category ${categoryIndex + 1}/${effectiveCategories.length}: ${category}`);
+          const category = effectiveCategories[categoryIndex];
+          console.log(`📂 Worker ${workerId}: Got category ${categoryIndex + 1}/${effectiveCategories.length}: ${category}`);
+          
+          // Check for abort signal before each category
+          if (overallAbortController.signal.aborted) {
+            console.log(`🛑 Worker ${workerId}: Overall timeout reached, skipping category: ${category}`);
+            break;
+          }
+          
+          console.log(`⚙️ Worker ${workerId} processing category ${categoryIndex + 1}/${effectiveCategories.length}: ${category}`);
           
           try {
+            console.log(`🔄 Worker ${workerId}: About to call processCategory for ${category}...`);
             await processCategory(category, categoryIndex, workerId);
             await jobStore.incrementJobMetric(jobId, 'categories_completed', 1);
-            console.log(`Worker ${workerId} completed category ${categoryIndex + 1}/${effectiveCategories.length}: ${category}`);
+            console.log(`✅ Worker ${workerId} completed category ${categoryIndex + 1}/${effectiveCategories.length}: ${category}`);
           } catch (categoryError: any) {
-            console.error(`Worker ${workerId} failed to process category ${category}:`, categoryError);
+            console.error(`❌ Worker ${workerId} failed to process category ${category}:`, categoryError.message);
+            console.error(`❌ Worker ${workerId} category error details:`, categoryError);
             await jobStore.incrementJobMetric(jobId, 'categories_failed', 1);
             
             // Continue processing other categories even if one fails (graceful degradation)
@@ -320,17 +399,22 @@ async function processJobInBackground(
             });
           }
         }
+        
+        console.log(`🏁 Worker ${workerId}: Finished processing loop`);
+        
       } catch (workerError) {
-        console.error(`Worker ${workerId} encountered fatal error:`, workerError);
+        console.error(`❌ Worker ${workerId} encountered fatal error:`, workerError);
         await jobStore.incrementJobMetric(jobId, 'worker_errors', 1);
         throw workerError;
       } finally {
-        console.log(`Worker ${workerId} finished`);
+        console.log(`🔚 Worker ${workerId} finished (finally block)`);
       }
     };
 
     // Enhanced category processing with adaptive retry and better error categorization
     const processCategory = async (category: string, categoryIndex: number, workerId: string): Promise<void> => {
+      console.log(`🎯 processCategory called: Worker ${workerId}, category: ${category}, index: ${categoryIndex}`);
+      
       let attempts = 0;
       let results: Array<{ query: string; response: string; events: EventData[]; timestamp: number; }> | null = null;
       let lastError: Error | null = null;
@@ -340,6 +424,8 @@ async function processJobInBackground(
       // Absolute safeguard - max processing time per category (even beyond retries)
       const categoryAbortController = new AbortController();
       const maxCategoryProcessingTime = Math.max(categoryTimeoutMs * 2, 180000); // 2x timeout or 3 min, whichever is larger
+      console.log(`⏰ Worker ${workerId}: Setting category deadline timer for ${maxCategoryProcessingTime}ms`);
+      
       const categoryDeadmanTimer = setTimeout(() => {
         console.error(`🚨 CATEGORY DEADMAN: Category ${category} has been processing for ${maxCategoryProcessingTime}ms, forcing abort`);
         categoryAbortController.abort();
@@ -363,6 +449,11 @@ async function processJobInBackground(
             try {
               const startTime = Date.now();
               console.log(`🌐 Worker ${workerId}: Starting Perplexity API call for category ${category} at ${new Date().toISOString()}`);
+              console.log(`🎯 Worker ${workerId}: About to call perplexityService.executeMultiQuery with city: ${city}, date: ${date}, category: [${category}]`);
+              
+              if (!perplexityService) {
+                throw new Error('Perplexity service is null - this should not happen');
+              }
               
               const queryPromise = perplexityService.executeMultiQuery(city, date, [category], {
                 ...options,
@@ -370,6 +461,7 @@ async function processJobInBackground(
               });
               
               console.log(`⏰ Worker ${workerId}: Setting up timeout race for category ${category} with ${dynamicTimeout + 5000}ms limit`);
+              console.log(`🔧 Worker ${workerId}: queryPromise created, starting Promise.race...`);
               
               // Enhanced timeout with both withTimeout wrapper AND abort signal checking
               const res = await Promise.race([
@@ -390,6 +482,7 @@ async function processJobInBackground(
               const duration = Date.now() - startTime;
               
               console.log(`✅ Worker ${workerId}: Category ${category} query completed in ${duration}ms`);
+              console.log(`📊 Worker ${workerId}: Response received, type: ${typeof res}, length: ${Array.isArray(res) ? res.length : 'not array'}`);
               await jobStore.incrementJobMetric(jobId, 'api_calls_successful', 1);
               
               if (res && res.length > 0) {
@@ -589,16 +682,30 @@ async function processJobInBackground(
 
     // Start workers (up to concurrency limit)
     const workerCount = Math.min(categoryConcurrency, effectiveCategories.length);
-    console.log(`Starting ${workerCount} parallel workers for ${effectiveCategories.length} categories`);
-    for (let i = 0; i < workerCount; i++) {
-      processingPromises.push(
-        worker().catch(workerError => {
-          console.error(`Worker ${i + 1} failed:`, workerError);
-          // Don't re-throw here, let Promise.all handle it
-          throw workerError;
-        })
-      );
+    console.log(`🔧 Starting ${workerCount} parallel workers for ${effectiveCategories.length} categories`);
+    
+    if (workerCount === 0) {
+      console.warn(`⚠️ No workers to start - workerCount: ${workerCount}, effectiveCategories: ${effectiveCategories.length}`);
     }
+    
+    for (let i = 0; i < workerCount; i++) {
+      console.log(`🔧 Starting worker ${i + 1}/${workerCount}...`);
+      try {
+        processingPromises.push(
+          worker().catch(workerError => {
+            console.error(`❌ Worker ${i + 1} failed with error:`, workerError.message);
+            console.error(`❌ Worker ${i + 1} full error:`, workerError);
+            throw workerError;
+          })
+        );
+        console.log(`✅ Worker ${i + 1} started successfully`);
+      } catch (startupError: any) {
+        console.error(`❌ Failed to start worker ${i + 1}:`, startupError.message);
+        throw startupError;
+      }
+    }
+    
+    console.log(`✅ All ${workerCount} workers started, total promises: ${processingPromises.length}`);
 
     try {
       // Wait for all workers to complete or overall timeout
