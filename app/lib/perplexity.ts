@@ -8,9 +8,70 @@ export class PerplexityService {
   private readonly baseUrl = 'https://api.perplexity.ai/chat/completions';
   private readonly batchSize = 3;
   private readonly delayBetweenBatches = 1000; // 1 second
+  private readonly maxRetries = 5; // Increased for better resilience
+  private readonly baseRetryDelayMs = 500;
 
   constructor(apiKey: string) {
     this.apiKey = apiKey;
+  }
+
+  /**
+   * Calculates dynamic timeout based on category complexity
+   */
+  private calculateCategoryTimeout(category: string, baseTimeoutMs: number = 90000): number {
+    // More complex categories that typically require longer processing
+    const complexCategories = [
+      'live-konzerte', 'museen', 'theater/performance', 'kunst/design'
+    ];
+    
+    // Categories that are typically faster to process
+    const simplCategories = [
+      'clubs/discos', 'bars', 'dj sets/electronic'
+    ];
+
+    const normalizedCategory = category.toLowerCase();
+    
+    if (complexCategories.some(complex => normalizedCategory.includes(complex))) {
+      return Math.min(baseTimeoutMs * 1.5, 180000); // Max 3 minutes
+    } else if (simplCategories.some(simple => normalizedCategory.includes(simple))) {
+      return Math.max(baseTimeoutMs * 0.8, 60000); // Min 1 minute
+    }
+    
+    return baseTimeoutMs; // Default timeout
+  }
+
+  /**
+   * Adds jitter to retry delays to prevent thundering herd
+   */
+  private addJitter(baseDelayMs: number): number {
+    const jitter = Math.random() * 0.3; // Up to 30% jitter
+    return Math.floor(baseDelayMs * (1 + jitter));
+  }
+
+  /**
+   * Determines if an error is retryable
+   */
+  private isRetryableError(error: any): boolean {
+    const errorStr = String(error);
+    
+    // Network-related errors that should be retried
+    const retryableErrors = [
+      'fetch failed', 'network error', 'timeout', 'enotfound',
+      'econnreset', 'econnrefused', 'socket hang up'
+    ];
+    
+    // HTTP status codes that should be retried
+    const retryableStatuses = [429, 500, 502, 503, 504];
+    
+    const isNetworkError = retryableErrors.some(err => 
+      errorStr.toLowerCase().includes(err)
+    );
+    
+    const isRetryableStatus = retryableStatuses.some(status => 
+      errorStr.includes(`HTTP ${status}`)
+    );
+    
+    return isNetworkError || isRetryableStatus;
   }
 
   /**
@@ -206,7 +267,7 @@ Falls keine Events gefunden: []
   }
 
   /**
-   * Executes multiple queries with rate limiting and category-level retry
+   * Executes multiple queries with improved rate limiting and adaptive retry
    */
   async executeMultiQuery(
     city: string, 
@@ -220,38 +281,76 @@ Falls keine Events gefunden: []
     // Extract timeout from options, ensure minimum of 60s, default to 90s
     const rawTimeout = typeof options?.categoryTimeoutMs === 'number' ? 
       options.categoryTimeoutMs : 90000;
-    const timeoutMs = Math.max(rawTimeout, 60000); // Enforce minimum 60s
+    const baseTimeoutMs = Math.max(rawTimeout, 60000); // Enforce minimum 60s
 
-    console.log(`Using category timeout: ${timeoutMs}ms (requested: ${rawTimeout}ms)`);
+    console.log(`Starting multi-query execution for ${queries.length} queries`);
+    console.log(`Base timeout: ${baseTimeoutMs}ms (requested: ${rawTimeout}ms)`);
 
-    // Process queries in batches with rate limiting
-    for (let i = 0; i < queries.length; i += this.batchSize) {
-      const batch = queries.slice(i, i + this.batchSize);
+    // Determine optimal concurrency limit based on query count and system load
+    const optimalConcurrency = this.calculateOptimalConcurrency(queries.length);
+    console.log(`Using adaptive concurrency limit: ${optimalConcurrency}`);
+
+    // Process queries in batches with adaptive rate limiting
+    for (let i = 0; i < queries.length; i += optimalConcurrency) {
+      const batch = queries.slice(i, i + optimalConcurrency);
       
-      // Execute batch in parallel with category-level retry and timeout
-      const batchPromises = batch.map(async (query) => {
-        return await this.executeQueryWithRetry(query, options, 3, timeoutMs);
+      // Execute batch in parallel with category-specific timeouts and improved retry
+      const batchPromises = batch.map(async (query, batchIndex) => {
+        const categoryHint = categories?.[i + batchIndex] || 'general';
+        const dynamicTimeout = this.calculateCategoryTimeout(categoryHint, baseTimeoutMs);
+        
+        return await this.executeQueryWithRetry(query, options, this.maxRetries, dynamicTimeout);
       });
 
-      const batchResults = await Promise.all(batchPromises);
-      results.push(...batchResults);
+      const batchResults = await Promise.allSettled(batchPromises);
+      
+      // Process results and handle any failures gracefully
+      for (const result of batchResults) {
+        if (result.status === 'fulfilled') {
+          results.push(result.value);
+        } else {
+          console.error('Batch query failed:', result.reason);
+          // Add error result to maintain result order
+          results.push({
+            query: 'Failed query',
+            response: `Batch execution failed: ${result.reason}`,
+            events: [],
+            timestamp: Date.now()
+          });
+        }
+      }
 
-      // Delay between batches (except for the last batch)
-      if (i + this.batchSize < queries.length) {
-        await new Promise(resolve => setTimeout(resolve, this.delayBetweenBatches));
+      // Adaptive delay between batches based on success rate
+      if (i + optimalConcurrency < queries.length) {
+        const successRate = batchResults.filter(r => r.status === 'fulfilled').length / batchResults.length;
+        const adaptiveDelay = successRate < 0.5 ? this.delayBetweenBatches * 2 : this.delayBetweenBatches;
+        console.log(`Batch completed. Success rate: ${(successRate * 100).toFixed(1)}%. Waiting ${adaptiveDelay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, adaptiveDelay));
       }
     }
 
+    console.log(`Multi-query execution completed. ${results.length} results processed.`);
     return results;
   }
 
   /**
-   * Executes a single query with exponential backoff retry and timeout support
+   * Calculates optimal concurrency based on system load and query complexity
+   */
+  private calculateOptimalConcurrency(queryCount: number): number {
+    // Base concurrency on query count and system constraints
+    if (queryCount <= 2) return queryCount;
+    if (queryCount <= 5) return Math.min(3, queryCount);
+    if (queryCount <= 10) return Math.min(4, queryCount);
+    return Math.min(5, queryCount); // Cap at 5 for very large query sets
+  }
+
+  /**
+   * Executes a single query with enhanced exponential backoff retry and timeout support
    */
   private async executeQueryWithRetry(
     query: string,
     options?: QueryOptions,
-    maxRetries = 3,
+    maxRetries = 5,
     timeoutMs = 90000
   ): Promise<PerplexityResult> {
     let lastError: Error | null = null;
@@ -263,8 +362,13 @@ Falls keine Events gefunden: []
     try {
       for (let attempt = 0; attempt < maxRetries; attempt++) {
         try {
+          const startTime = Date.now();
           const response = await this.callPerplexity(query, options, 2, controller.signal);
+          const duration = Date.now() - startTime;
+          
           clearTimeout(timeoutId);
+          console.log(`Query completed successfully in ${duration}ms on attempt ${attempt + 1}`);
+          
           return {
             query,
             response,
@@ -279,14 +383,21 @@ Falls keine Events gefunden: []
             throw new Error(`Query timed out after ${timeoutMs}ms`);
           }
           
-          console.error(`Query attempt ${attempt + 1}/${maxRetries} failed for query:`, query.substring(0, 100) + '...', error.message);
+          // Check if error is retryable
+          if (!this.isRetryableError(error)) {
+            console.error(`Non-retryable error encountered:`, error.message);
+            break;
+          }
+          
+          console.error(`Query attempt ${attempt + 1}/${maxRetries} failed:`, error.message);
           
           // Don't retry on last attempt
           if (attempt < maxRetries - 1) {
-            // Exponential backoff: 500ms -> 1000ms -> 2000ms
-            const delay = 500 * Math.pow(2, attempt);
-            console.log(`Retrying in ${delay}ms...`);
-            await new Promise(resolve => setTimeout(resolve, delay));
+            // Enhanced exponential backoff with jitter: 500ms -> 1000ms -> 2000ms -> 4000ms -> 8000ms
+            const baseDelay = this.baseRetryDelayMs * Math.pow(2, attempt);
+            const delayWithJitter = this.addJitter(baseDelay);
+            console.log(`Retrying in ${delayWithJitter}ms... (attempt ${attempt + 2}/${maxRetries})`);
+            await new Promise(resolve => setTimeout(resolve, delayWithJitter));
           }
         }
       }
@@ -294,11 +405,13 @@ Falls keine Events gefunden: []
       clearTimeout(timeoutId);
     }
 
-    // If all retries failed, return error result
-    console.error(`All ${maxRetries} attempts failed for query:`, query.substring(0, 100) + '...');
+    // If all retries failed, return detailed error result
+    const errorMessage = `All ${maxRetries} attempts failed. Last error: ${lastError?.message || 'Unknown error'}`;
+    console.error(`Query failed permanently:`, errorMessage);
+    
     return {
-      query,
-      response: `Error after ${maxRetries} attempts: ${lastError?.message || 'Unknown error'}`,
+      query: query.substring(0, 200) + '...', // Truncate for logging
+      response: errorMessage,
       events: [],
       timestamp: Date.now()
     };

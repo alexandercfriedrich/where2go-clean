@@ -17,6 +17,15 @@ export interface JobStore {
   setDebugInfo(jobId: string, debugInfo: DebugInfo): Promise<void>;
   getDebugInfo(jobId: string): Promise<DebugInfo | null>;
   pushDebugStep(jobId: string, step: DebugStep): Promise<void>;
+  
+  // Enhanced monitoring methods
+  getJobHealth(jobId: string): Promise<{
+    exists: boolean;
+    isStale: boolean;
+    lastUpdate: Date | null;
+    processingTime: number | null;
+  }>;
+  incrementJobMetric(jobId: string, metric: string, value?: number): Promise<void>;
 }
 
 /**
@@ -79,36 +88,69 @@ class RedisJobStore implements JobStore {
   }
 
   async updateJob(jobId: string, updates: Partial<JobStatus>): Promise<void> {
-    // For Redis, we need to implement an atomic update operation
-    // Use a simple retry mechanism with exponential backoff to handle concurrent updates
+    // Enhanced update with better progress tracking
     const maxRetries = 5;
     let retries = 0;
     
     while (retries < maxRetries) {
       try {
         const existing = await this.getJob(jobId);
-        if (!existing) return;
+        if (!existing) {
+          console.warn(`Attempted to update non-existent job: ${jobId}`);
+          return;
+        }
         
-        const updated = { ...existing, ...updates };
+        // Preserve important fields during update
+        const updated = { 
+          ...existing, 
+          ...updates,
+          // Ensure lastUpdateAt is always updated
+          lastUpdateAt: new Date().toISOString(),
+          // Preserve creation time
+          createdAt: existing.createdAt
+        };
+
+        // Enhanced progress tracking
+        if (updates.events && existing.events) {
+          const previousEventCount = existing.events.length;
+          const newEventCount = updates.events.length;
+          
+          if (newEventCount > previousEventCount) {
+            console.log(`Job ${jobId}: Event count increased from ${previousEventCount} to ${newEventCount}`);
+            
+            // Update progress if available
+            if (updated.progress) {
+              updated.progress = {
+                ...updated.progress,
+                lastEventUpdate: new Date().toISOString(),
+                eventsAdded: newEventCount - previousEventCount
+              };
+            }
+          }
+        }
         
-        // Try to use conditional write if supported, otherwise fall back to simple write
+        // Try optimistic update with enhanced error handling
         try {
-          // First attempt: optimistic update
           await this.setJob(jobId, updated);
           return; // Success
         } catch (writeError) {
+          console.error(`Write error for job ${jobId}:`, writeError);
           throw writeError;
         }
         
       } catch (error) {
         retries++;
+        console.warn(`Job update attempt ${retries}/${maxRetries} failed for ${jobId}:`, error);
+        
         if (retries >= maxRetries) {
           console.error(`Failed to update job ${jobId} after ${maxRetries} retries:`, error);
-          throw error;
+          throw new Error(`Job update failed after ${maxRetries} attempts: ${error}`);
         }
         
-        // Exponential backoff: 10ms, 20ms, 40ms, 80ms, 160ms
-        const delay = 10 * Math.pow(2, retries - 1);
+        // Enhanced exponential backoff with jitter: 10ms, 20ms, 40ms, 80ms, 160ms
+        const baseDelay = 10 * Math.pow(2, retries - 1);
+        const jitter = Math.random() * 0.3; // Up to 30% jitter
+        const delay = Math.floor(baseDelay * (1 + jitter));
         await new Promise(resolve => setTimeout(resolve, delay));
       }
     }
@@ -176,6 +218,50 @@ class RedisJobStore implements JobStore {
     if (debugInfo) {
       debugInfo.steps.push(step);
       await this.setDebugInfo(jobId, debugInfo);
+    }
+  }
+
+  async getJobHealth(jobId: string): Promise<{
+    exists: boolean;
+    isStale: boolean;
+    lastUpdate: Date | null;
+    processingTime: number | null;
+  }> {
+    const job = await this.getJob(jobId);
+    
+    if (!job) {
+      return {
+        exists: false,
+        isStale: false,
+        lastUpdate: null,
+        processingTime: null
+      };
+    }
+
+    const now = new Date();
+    const lastUpdate = job.lastUpdateAt ? new Date(job.lastUpdateAt) : job.createdAt;
+    const timeSinceUpdate = now.getTime() - lastUpdate.getTime();
+    const processingTime = now.getTime() - job.createdAt.getTime();
+    
+    // Consider job stale if no update in 5 minutes and status is still pending
+    const isStale = timeSinceUpdate > 5 * 60 * 1000 && job.status === 'pending';
+
+    return {
+      exists: true,
+      isStale,
+      lastUpdate,
+      processingTime
+    };
+  }
+
+  async incrementJobMetric(jobId: string, metric: string, value: number = 1): Promise<void> {
+    const job = await this.getJob(jobId);
+    if (job) {
+      if (!job.metrics) {
+        job.metrics = {};
+      }
+      job.metrics[metric] = (job.metrics[metric] || 0) + value;
+      await this.updateJob(jobId, { metrics: job.metrics });
     }
   }
 }
@@ -309,6 +395,51 @@ class InMemoryJobStore implements JobStore {
     const existing = this.debugInfo.get(jobId);
     if (existing) {
       existing.steps.push(step);
+    }
+  }
+
+  async getJobHealth(jobId: string): Promise<{
+    exists: boolean;
+    isStale: boolean;
+    lastUpdate: Date | null;
+    processingTime: number | null;
+  }> {
+    const job = this.jobs.get(jobId);
+    
+    if (!job) {
+      return {
+        exists: false,
+        isStale: false,
+        lastUpdate: null,
+        processingTime: null
+      };
+    }
+
+    const now = new Date();
+    const lastUpdate = job.lastUpdateAt ? new Date(job.lastUpdateAt) : job.createdAt;
+    const timeSinceUpdate = now.getTime() - lastUpdate.getTime();
+    const processingTime = now.getTime() - job.createdAt.getTime();
+    
+    // Consider job stale if no update in 5 minutes and status is still pending
+    const isStale = timeSinceUpdate > 5 * 60 * 1000 && job.status === 'pending';
+
+    return {
+      exists: true,
+      isStale,
+      lastUpdate,
+      processingTime
+    };
+  }
+
+  async incrementJobMetric(jobId: string, metric: string, value: number = 1): Promise<void> {
+    const job = this.jobs.get(jobId);
+    if (job) {
+      if (!job.metrics) {
+        job.metrics = {};
+      }
+      job.metrics[metric] = (job.metrics[metric] || 0) + value;
+      // Update the job in place for in-memory store
+      this.jobs.set(jobId, job);
     }
   }
 }

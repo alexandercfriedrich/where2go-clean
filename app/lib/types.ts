@@ -66,8 +66,11 @@ export interface JobStatus {
     completedCategories: number;
     totalCategories: number;
     missingCategories?: string[];
+    lastEventUpdate?: string; // ISO date string
+    eventsAdded?: number;
   };
   lastUpdateAt?: string; // ISO date string
+  metrics?: { [key: string]: number }; // Performance and error metrics
 }
 
 export interface CacheEntry<T> {

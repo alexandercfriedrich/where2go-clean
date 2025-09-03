@@ -4,17 +4,25 @@ import { CacheEntry } from './types';
 
 class InMemoryCache {
   private cache = new Map<string, CacheEntry<any>>();
+  private accessTimes = new Map<string, number>(); // Track access times for LRU
+  private maxSize = 1000; // Maximum cache entries to prevent memory issues
 
   /**
    * Sets a value in the cache with TTL in seconds
    */
   set<T>(key: string, value: T, ttlSeconds: number = 300): void {
+    // Implement LRU eviction if cache is full
+    if (this.cache.size >= this.maxSize && !this.cache.has(key)) {
+      this.evictLRU();
+    }
+
     const entry: CacheEntry<T> = {
       data: value,
       timestamp: Date.now(),
       ttl: ttlSeconds * 1000, // Convert to milliseconds
     };
     this.cache.set(key, entry);
+    this.accessTimes.set(key, Date.now());
   }
 
   /**
@@ -30,10 +38,33 @@ class InMemoryCache {
     if (now - entry.timestamp > entry.ttl) {
       // Entry has expired, remove it
       this.cache.delete(key);
+      this.accessTimes.delete(key);
       return null;
     }
 
+    // Update access time for LRU tracking
+    this.accessTimes.set(key, now);
     return entry.data as T;
+  }
+
+  /**
+   * Evicts the least recently used entry when cache is full
+   */
+  private evictLRU(): void {
+    let oldestKey: string | null = null;
+    let oldestTime = Date.now();
+
+    for (const [key, accessTime] of this.accessTimes.entries()) {
+      if (accessTime < oldestTime) {
+        oldestTime = accessTime;
+        oldestKey = key;
+      }
+    }
+
+    if (oldestKey) {
+      this.cache.delete(oldestKey);
+      this.accessTimes.delete(oldestKey);
+    }
   }
 
   /**
@@ -47,6 +78,7 @@ class InMemoryCache {
    * Removes a key from the cache
    */
   delete(key: string): boolean {
+    this.accessTimes.delete(key);
     return this.cache.delete(key);
   }
 
@@ -58,8 +90,51 @@ class InMemoryCache {
     for (const [key, entry] of this.cache.entries()) {
       if (now - entry.timestamp > entry.ttl) {
         this.cache.delete(key);
+        this.accessTimes.delete(key);
       }
     }
+  }
+
+  /**
+   * Intelligently invalidates cache entries based on event timing
+   * This method checks if cached events are no longer relevant
+   */
+  invalidateExpiredEvents(): number {
+    const now = new Date();
+    let invalidatedCount = 0;
+
+    for (const [key, entry] of this.cache.entries()) {
+      try {
+        const events = entry.data;
+        if (Array.isArray(events)) {
+          // Check if any events in this cache entry have passed
+          const hasExpiredEvents = events.some((event: any) => {
+            if (event.date && event.time) {
+              try {
+                const eventDateTime = new Date(`${event.date}T${event.time}`);
+                return eventDateTime < now;
+              } catch {
+                return false;
+              }
+            }
+            return false;
+          });
+
+          if (hasExpiredEvents) {
+            this.cache.delete(key);
+            this.accessTimes.delete(key);
+            invalidatedCount++;
+          }
+        }
+      } catch (error) {
+        // If we can't parse the cache entry, remove it to be safe
+        this.cache.delete(key);
+        this.accessTimes.delete(key);
+        invalidatedCount++;
+      }
+    }
+
+    return invalidatedCount;
   }
 
   /**
@@ -74,6 +149,38 @@ class InMemoryCache {
    */
   clear(): void {
     this.cache.clear();
+    this.accessTimes.clear();
+  }
+
+  /**
+   * Gets cache statistics for monitoring and optimization
+   */
+  getStats(): {
+    size: number;
+    maxSize: number;
+    hitRate: number;
+    oldestEntry: number | null;
+    newestEntry: number | null;
+  } {
+    let oldest: number | null = null;
+    let newest: number | null = null;
+
+    for (const entry of this.cache.values()) {
+      if (!oldest || entry.timestamp < oldest) {
+        oldest = entry.timestamp;
+      }
+      if (!newest || entry.timestamp > newest) {
+        newest = entry.timestamp;
+      }
+    }
+
+    return {
+      size: this.cache.size,
+      maxSize: this.maxSize,
+      hitRate: 0, // Could be implemented with additional tracking
+      oldestEntry: oldest,
+      newestEntry: newest,
+    };
   }
 
   /**
@@ -198,9 +305,17 @@ class InMemoryCache {
 // Export a singleton instance for global use
 export const eventsCache = new InMemoryCache();
 
-// Run cleanup every 10 minutes
+// Run cleanup every 5 minutes (more frequent for better performance)
 setInterval(() => {
   eventsCache.cleanup();
-}, 10 * 60 * 1000);
+}, 5 * 60 * 1000);
+
+// Run intelligent invalidation every 30 minutes to remove expired events
+setInterval(() => {
+  const invalidatedCount = eventsCache.invalidateExpiredEvents();
+  if (invalidatedCount > 0) {
+    console.log(`Intelligently invalidated ${invalidatedCount} expired event cache entries`);
+  }
+}, 30 * 60 * 1000);
 
 export default InMemoryCache;
