@@ -312,6 +312,8 @@ async function processJobInBackground(
       let results: Array<{ query: string; response: string; events: EventData[]; timestamp: number; }> | null = null;
       let lastError: Error | null = null;
       
+      console.log(`🔄 Worker ${workerId}: Starting category processing for ${category} (${categoryIndex + 1}/${effectiveCategories.length})`);
+      
       // Absolute safeguard - max processing time per category (even beyond retries)
       const categoryAbortController = new AbortController();
       const maxCategoryProcessingTime = Math.max(categoryTimeoutMs * 2, 180000); // 2x timeout or 3 min, whichever is larger
@@ -333,14 +335,18 @@ async function processJobInBackground(
             const attemptMultiplier = attempts > 1 ? 1.2 : 1.0; // Give more time for retries
             const dynamicTimeout = Math.floor(baseTimeout * complexityMultiplier * attemptMultiplier);
             
-            console.log(`Worker ${workerId}: Category ${category} using dynamic timeout ${dynamicTimeout}ms (base: ${baseTimeout}ms, complexity: ${complexityMultiplier}, attempt: ${attemptMultiplier})`);
+            console.log(`🔍 Worker ${workerId}: Category ${category} using dynamic timeout ${dynamicTimeout}ms (base: ${baseTimeout}ms, complexity: ${complexityMultiplier}, attempt: ${attemptMultiplier})`);
 
             try {
               const startTime = Date.now();
+              console.log(`🌐 Worker ${workerId}: Starting Perplexity API call for category ${category} at ${new Date().toISOString()}`);
+              
               const queryPromise = perplexityService.executeMultiQuery(city, date, [category], {
                 ...options,
                 categoryTimeoutMs: dynamicTimeout
               });
+              
+              console.log(`⏰ Worker ${workerId}: Setting up timeout race for category ${category} with ${dynamicTimeout + 5000}ms limit`);
               
               // Enhanced timeout with both withTimeout wrapper AND abort signal checking
               const res = await Promise.race([
@@ -348,6 +354,7 @@ async function processJobInBackground(
                 new Promise<never>((_, reject) => {
                   const checkAbort = () => {
                     if (categoryAbortController.signal.aborted || overallAbortController.signal.aborted) {
+                      console.log(`🛑 Worker ${workerId}: Category ${category} aborted by signal`);
                       reject(new Error('Category processing aborted by timeout'));
                     } else {
                       setTimeout(checkAbort, 1000); // Check every second
@@ -359,14 +366,14 @@ async function processJobInBackground(
               
               const duration = Date.now() - startTime;
               
-              console.log(`Worker ${workerId}: Category ${category} query completed in ${duration}ms`);
+              console.log(`✅ Worker ${workerId}: Category ${category} query completed in ${duration}ms`);
               await jobStore.incrementJobMetric(jobId, 'api_calls_successful', 1);
               
               if (res && res.length > 0) {
                 results = res;
-                console.log(`✅ Category ${category} completed successfully with ${res.length} results`);
+                console.log(`🎉 Category ${category} completed successfully with ${res.length} results`);
               } else {
-                console.log(`⚠️ Category ${category} returned no results`);
+                console.log(`⚠️ Category ${category} returned no results but completed successfully`);
                 results = res; // Still set results to exit loop
               }
               break; // Success, exit retry loop

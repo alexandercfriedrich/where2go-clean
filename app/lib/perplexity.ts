@@ -224,23 +224,30 @@ Falls keine Events gefunden: []
     let lastError: Error | null = null;
 
     for (let attempt = 0; attempt < retries; attempt++) {
+      console.log(`🔧 Perplexity API call attempt ${attempt + 1}/${retries} starting...`);
+      
       // Create a combined abort controller that responds to both external signal and internal timeout
       const combinedController = new AbortController();
       const internalTimeoutMs = 30000; // 30 second internal timeout for HTTP requests
       
+      console.log(`⏱️ Setting internal HTTP timeout to ${internalTimeoutMs}ms`);
+      
       // Set up internal timeout
       const internalTimeout = setTimeout(() => {
+        console.log(`⚠️ Internal HTTP timeout ${internalTimeoutMs}ms reached, aborting request`);
         combinedController.abort();
       }, internalTimeoutMs);
       
       // Listen to external abort signal
       if (signal) {
         signal.addEventListener('abort', () => {
+          console.log(`🛑 External abort signal received, aborting request`);
           combinedController.abort();
         });
       }
 
       try {
+        console.log(`📡 Making HTTP request to Perplexity API...`);
         const response = await fetch(this.baseUrl, {
           method: 'POST',
           headers: {
@@ -264,30 +271,38 @@ Falls keine Events gefunden: []
 
         // Clear the internal timeout on successful response
         clearTimeout(internalTimeout);
+        console.log(`📨 HTTP response received with status: ${response.status}`);
 
         if (!response.ok) {
           throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
 
+        console.log(`🔍 Parsing JSON response...`);
         const data = await response.json();
-        return data.choices[0]?.message?.content || '';
+        const content = data.choices[0]?.message?.content || '';
+        console.log(`✅ Perplexity API call successful, response length: ${content.length} characters`);
+        return content;
       } catch (error: any) {
         // Clear timeout on any error
         clearTimeout(internalTimeout);
         
         lastError = error;
+        console.error(`❌ Perplexity API call failed on attempt ${attempt + 1}:`, error.message);
         
         // Check if this was an abort
         if (combinedController.signal.aborted) {
           if (signal?.aborted) {
+            console.log(`🛑 Request aborted by external signal`);
             throw new Error('Request aborted by external signal');
           } else {
+            console.log(`⏰ Request timed out after ${internalTimeoutMs}ms`);
             throw new Error(`HTTP request timed out after ${internalTimeoutMs}ms`);
           }
         }
         
         if (attempt === 0 && String(error).includes('not valid JSON')) {
           // Wait before retry
+          console.log(`🔄 JSON parse error, waiting 500ms before retry...`);
           await new Promise(resolve => setTimeout(resolve, 500));
           continue;
         }
@@ -307,41 +322,52 @@ Falls keine Events gefunden: []
     categories?: string[], 
     options?: QueryOptions
   ): Promise<PerplexityResult[]> {
+    console.log(`🚀 Starting executeMultiQuery for city: ${city}, date: ${date}, categories: ${categories?.join(', ') || 'none'}`);
+    
     const queries = await this.createQueries(city, date, categories);
     const results: PerplexityResult[] = [];
+    
+    console.log(`📋 Created ${queries.length} queries to execute`);
     
     // Extract timeout from options, ensure minimum of 60s, default to 90s
     const rawTimeout = typeof options?.categoryTimeoutMs === 'number' ? 
       options.categoryTimeoutMs : 90000;
     const baseTimeoutMs = Math.max(rawTimeout, 60000); // Enforce minimum 60s
 
-    console.log(`Starting multi-query execution for ${queries.length} queries`);
-    console.log(`Base timeout: ${baseTimeoutMs}ms (requested: ${rawTimeout}ms)`);
+    console.log(`⏱️ Starting multi-query execution for ${queries.length} queries`);
+    console.log(`⏱️ Base timeout: ${baseTimeoutMs}ms (requested: ${rawTimeout}ms)`);
 
     // Determine optimal concurrency limit based on query count and system load
     const optimalConcurrency = this.calculateOptimalConcurrency(queries.length);
-    console.log(`Using adaptive concurrency limit: ${optimalConcurrency}`);
+    console.log(`🔧 Using adaptive concurrency limit: ${optimalConcurrency}`);
 
     // Process queries in batches with adaptive rate limiting
     for (let i = 0; i < queries.length; i += optimalConcurrency) {
       const batch = queries.slice(i, i + optimalConcurrency);
+      
+      console.log(`📦 Processing batch ${Math.floor(i / optimalConcurrency) + 1}/${Math.ceil(queries.length / optimalConcurrency)} with ${batch.length} queries`);
       
       // Execute batch in parallel with category-specific timeouts and improved retry
       const batchPromises = batch.map(async (query, batchIndex) => {
         const categoryHint = categories?.[i + batchIndex] || 'general';
         const dynamicTimeout = this.calculateCategoryTimeout(categoryHint, baseTimeoutMs);
         
+        console.log(`🎯 Starting query execution for category: ${categoryHint} with timeout: ${dynamicTimeout}ms`);
         return await this.executeQueryWithRetry(query, options, this.maxRetries, dynamicTimeout);
       });
 
+      console.log(`⏳ Waiting for batch promises to resolve...`);
       const batchResults = await Promise.allSettled(batchPromises);
+      
+      console.log(`📊 Batch completed. Results: ${batchResults.length}, fulfilled: ${batchResults.filter(r => r.status === 'fulfilled').length}, rejected: ${batchResults.filter(r => r.status === 'rejected').length}`);
       
       // Process results and handle any failures gracefully
       for (const result of batchResults) {
         if (result.status === 'fulfilled') {
+          console.log(`✅ Query fulfilled successfully`);
           results.push(result.value);
         } else {
-          console.error('Batch query failed:', result.reason);
+          console.error(`❌ Batch query failed:`, result.reason);
           // Add error result to maintain result order
           results.push({
             query: 'Failed query',
@@ -356,12 +382,12 @@ Falls keine Events gefunden: []
       if (i + optimalConcurrency < queries.length) {
         const successRate = batchResults.filter(r => r.status === 'fulfilled').length / batchResults.length;
         const adaptiveDelay = successRate < 0.5 ? this.delayBetweenBatches * 2 : this.delayBetweenBatches;
-        console.log(`Batch completed. Success rate: ${(successRate * 100).toFixed(1)}%. Waiting ${adaptiveDelay}ms...`);
+        console.log(`⏸️ Batch completed. Success rate: ${(successRate * 100).toFixed(1)}%. Waiting ${adaptiveDelay}ms...`);
         await new Promise(resolve => setTimeout(resolve, adaptiveDelay));
       }
     }
 
-    console.log(`Multi-query execution completed. ${results.length} results processed.`);
+    console.log(`🏁 Multi-query execution completed. ${results.length} results processed.`);
     return results;
   }
 
@@ -385,12 +411,13 @@ Falls keine Events gefunden: []
     maxRetries = 5,
     timeoutMs = 90000
   ): Promise<PerplexityResult> {
+    console.log(`🔄 Starting executeQueryWithRetry with ${maxRetries} max retries and ${timeoutMs}ms timeout`);
     let lastError: Error | null = null;
     
     // Create AbortController for timeout with enhanced cleanup
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
-      console.log(`Query timeout of ${timeoutMs}ms reached, aborting...`);
+      console.log(`⏰ Query timeout of ${timeoutMs}ms reached, aborting...`);
       controller.abort();
     }, timeoutMs);
     
@@ -403,19 +430,23 @@ Falls keine Events gefunden: []
     
     try {
       for (let attempt = 0; attempt < maxRetries; attempt++) {
+        console.log(`🎯 Starting query attempt ${attempt + 1}/${maxRetries}`);
+        
         try {
           // Check abort signal before each attempt
           if (controller.signal.aborted) {
+            console.log(`🛑 Query aborted before attempt ${attempt + 1}`);
             throw new Error(`Query aborted before attempt ${attempt + 1}`);
           }
           
           const startTime = Date.now();
+          console.log(`📞 Calling Perplexity API...`);
           const response = await this.callPerplexity(query, options, 2, controller.signal);
           const duration = Date.now() - startTime;
           
           clearTimeout(timeoutId);
           clearTimeout(absoluteTimeoutId);
-          console.log(`Query completed successfully in ${duration}ms on attempt ${attempt + 1}`);
+          console.log(`✅ Query completed successfully in ${duration}ms on attempt ${attempt + 1}`);
           
           return {
             query,
@@ -425,29 +456,30 @@ Falls keine Events gefunden: []
           };
         } catch (error: any) {
           lastError = error;
+          console.error(`❌ Query attempt ${attempt + 1}/${maxRetries} failed:`, error.message);
           
           // If aborted due to timeout, don't retry
           if (controller.signal.aborted) {
+            console.log(`⏰ Query timed out, not retrying`);
             throw new Error(`Query timed out after ${timeoutMs}ms`);
           }
           
           // Check if error is retryable
           if (!this.isRetryableError(error)) {
-            console.error(`Non-retryable error encountered:`, error.message);
+            console.error(`🚫 Non-retryable error encountered:`, error.message);
             break;
           }
-          
-          console.error(`Query attempt ${attempt + 1}/${maxRetries} failed:`, error.message);
           
           // Don't retry on last attempt
           if (attempt < maxRetries - 1) {
             // Enhanced exponential backoff with jitter: 500ms -> 1000ms -> 2000ms -> 4000ms -> 8000ms
             const baseDelay = this.baseRetryDelayMs * Math.pow(2, attempt);
             const delayWithJitter = this.addJitter(baseDelay);
-            console.log(`Retrying in ${delayWithJitter}ms... (attempt ${attempt + 2}/${maxRetries})`);
+            console.log(`⏱️ Retrying in ${delayWithJitter}ms... (attempt ${attempt + 2}/${maxRetries})`);
             
             // Check abort signal before waiting
             if (controller.signal.aborted) {
+              console.log(`🛑 Query aborted during retry wait`);
               throw new Error('Query aborted during retry wait');
             }
             
@@ -458,11 +490,12 @@ Falls keine Events gefunden: []
     } finally {
       clearTimeout(timeoutId);
       clearTimeout(absoluteTimeoutId);
+      console.log(`🧹 Cleaned up timeouts for query`);
     }
 
     // If all retries failed, return detailed error result
     const errorMessage = `All ${maxRetries} attempts failed. Last error: ${lastError?.message || 'Unknown error'}`;
-    console.error(`Query failed permanently:`, errorMessage);
+    console.error(`💥 Query failed permanently:`, errorMessage);
     
     return {
       query: query.substring(0, 200) + '...', // Truncate for logging
