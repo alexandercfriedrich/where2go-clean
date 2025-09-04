@@ -14,46 +14,28 @@ export const runtime = 'nodejs';
 export const maxDuration = 300;
 
 // Default categories used when request.categories is empty/missing
+// Use only main category names that match CATEGORY_MAP keys
 const DEFAULT_CATEGORIES = [
-'DJ Sets/Electronic: DJ Sets/Electronic, Techno/House/EDM, Drum & Bass, Trance/Progressive, Ambient/Downtempo, Experimental Electronic, Disco/Nu-Disco, Minimal/Deep House, Hardstyle/Hardcore, Breakbeat/Breaks, Dubstep/Bass Music, Industrial/EBM, Synthwave/Retro, Acid/Acid House, Psytrance/Goa, Future Bass, Garage/UK Garage',
-
-'Clubs/Discos: Clubs/Discos, Nightclubs, Dance Clubs, Underground Venues, Rooftop Parties, Beach Clubs, After-Hours, Club Nights, Party Events, Rave Culture, Social Dancing, Singles Events, VIP Events, Themed Parties, Cocktail Lounges',
-
-'Live-Konzerte: Live-Konzerte, Klassische Musik/Classical, Rock/Pop/Alternative, Jazz/Blues, Folk/Singer-Songwriter, Hip-Hop/Rap, Metal/Hardcore, Indie/Alternative, World Music, Country/Americana, R&B/Soul, Experimental/Avant-garde, Chamber Music, Orchestra/Symphony, Band Performances, Solo Artists, Album Release Shows, Tribute Bands, Open Mic Nights, Acoustic Sessions, Choral Music, New Age/Ambient',
-
-'Open Air: Open Air, Music Festivals, Outdoor Concerts, Beach Events, Park Gatherings, Rooftop Events, Garden Parties, Street Festivals, Market Events, Outdoor Cinema, Picnic Events, Nature Events, Camping/Glamping Events, Adventure Tours, Food Truck Festivals, Craft Fairs (Outdoor), Sports Festivals',
-
-'Museen: Museen, Kunstgalerien/Art Galleries, Ausstellungen/Exhibitions, Kulturelle Institutionen, Historische Stätten, Architektur Tours, Science Museums, Interactive Exhibitions, Private Collections, Art Fairs, Museum Nights, Educational Tours, Virtual Reality Experiences, Photography Exhibitions, Natural History, Technology Museums, Local History',
-
-'LGBTQ+: LGBTQ+, Pride Events, Queer Parties, Drag Shows, LGBTQ+ Clubs, Community Events, Support Groups, Diversity Celebrations, Inclusive Events, Rainbow Events, Trans Events, Lesbian Events, Gay Events, Bisexual Events, Non-binary Events, Coming Out Support, LGBTQ+ Film Screenings',
-
-'Comedy/Kabarett: Comedy/Kabarett, Stand-up Comedy, Improvisational Theater, Satirical Shows, Variety Shows, Comedy Clubs, Humor Events, Roast Shows, Open Mic Comedy, Political Satire, Musical Comedy, Sketch Shows, Comedy Festivals, Story Slam, Comedy Workshops',
-
-'Theater/Performance: Theater/Performance, Drama/Schauspiel, Musicals, Opera/Operette, Ballet/Dance, Contemporary Dance, Performance Art, Experimental Theater, Children Theater, Street Performance, Mime/Physical Theater, Puppet Theater, Immersive Theater, Site-specific Performance, Cabaret Shows, Burlesque, Circus Arts, Storytelling, Poetry Slams, Spoken Word',
-
-'Film: Film, Cinema/Movie Screenings, Film Festivals, Documentary Screenings, Independent Films, Foreign Films, Classic Cinema, Outdoor Cinema, Silent Films, Animation/Animated Films, Short Films, Film Premieres, Director Q&As, Film Discussions, Video Art, Experimental Film, Horror Film Nights, Cult Cinema',
-
-'Food/Culinary: Food/Culinary, Wine Tasting, Beer Events/Beer Festivals, Cooking Classes, Food Markets, Restaurant Events, Culinary Festivals, Food Tours, Pop-up Restaurants, Cocktail Events, Coffee Culture, Whiskey/Spirits Tastings, Vegan/Vegetarian Events, International Cuisine, Local Specialties, Food & Music Pairings, Farmers Markets, Gourmet Events, Street Food, Chef Demonstrations',
-
-'Sport: Sport, Football/Soccer, Basketball, Tennis, Fitness Events, Running/Marathon, Cycling Events, Swimming, Martial Arts, Yoga/Pilates, Extreme Sports, Winter Sports, Team Building Sports, Amateur Leagues, Sports Viewing Parties, Health & Wellness, Outdoor Sports, Indoor Sports, E-Sports, Adventure Racing',
-
-'Familien/Kids: Familien/Kids, Children Events, Family Festivals, Kids Workshops, Educational Activities, Interactive Shows, Children Theater, Puppet Shows, Magic Shows, Storytelling for Kids, Arts & Crafts, Science for Kids, Music for Families, Outdoor Adventures, Birthday Parties, Holiday Events, Baby/Toddler Events, Teen Programs',
-
-'Kunst/Design: Kunst/Design, Art Exhibitions, Design Markets, Craft Fairs, Artist Studios, Creative Workshops, Fashion Shows, Photography, Sculpture, Painting, Digital Art, Street Art, Installation Art, Textile Arts, Ceramics/Pottery, Jewelry Making, Architecture Events, Interior Design, Graphic Design, Art Auctions',
-
-'Wellness/Spirituell: Wellness/Spirituell, Meditation Events, Yoga Classes, Spa Events, Mindfulness Workshops, Spiritual Retreats, Healing Sessions, Wellness Festivals, Breathwork, Sound Healing, Crystal Healing, Reiki Sessions, Holistic Health, Mental Health Support, Self-Care Events, Nature Therapy, Life Coaching, Nutrition Workshops',
-
-'Networking/Business: Networking/Business, Business Meetups, Professional Development, Industry Conferences, Startup Events, Entrepreneurship, Career Fairs, Leadership Events, Trade Shows, B2B Events, Corporate Events, Innovation Hubs, Tech Meetups, Skills Workshops, Mentorship Programs, Investment Events, Coworking Events, Industry Mixers',
-
-'Natur/Outdoor: Natur/Outdoor, Hiking/Walking Tours, Nature Tours, Wildlife Watching, Botanical Gardens, Park Events, Outdoor Adventures, Camping Events, Environmental Education, Eco-Tours, Outdoor Yoga, Nature Photography, Geocaching, Bird Watching, Gardening Workshops, Sustainability Events, Green Living, Conservation Events, Outdoor Fitness, Stargazing',
-
-'Kultur/Traditionen: Lokale Traditionen, Kulturelle Feste, Historische Reenactments, Volksfeste, Religiöse Feiern, Seasonal Celebrations, Cultural Heritage, Traditional Crafts, Folk Music/Dance, Local Legends Tours',
-
-'Märkte/Shopping: Flohmarkt/Flea Markets, Vintage Markets, Handmade Markets, Antique Fairs, Shopping Events, Pop-up Shops, Designer Markets, Book Markets, Record Fairs, Seasonal Markets',
-
-'Bildung/Lernen: Workshops, Kurse/Classes, Seminare/Seminars, Lectures/Vorträge, Language Exchange, Book Clubs, Study Groups, Academic Conferences, Skill Sharing, DIY Workshops',
-
-'Soziales/Community: Community Events, Volunteer Activities, Charity Events, Social Causes, Neighborhood Meetings, Cultural Exchange, Senior Events, Singles Meetups, Expat Events, Local Initiatives'
+  'DJ Sets/Electronic',
+  'Clubs/Discos',
+  'Live-Konzerte',
+  'Open Air',
+  'Museen',
+  'LGBTQ+',
+  'Comedy/Kabarett',
+  'Theater/Performance',
+  'Film',
+  'Food/Culinary',
+  'Sport',
+  'Familien/Kids',
+  'Kunst/Design',
+  'Wellness/Spirituell',
+  'Networking/Business',
+  'Natur/Outdoor',
+  'Kultur/Traditionen',
+  'Märkte/Shopping',
+  'Bildung/Lernen',
+  'Soziales/Community'
 ];
 
 // Default Perplexity options
@@ -87,11 +69,22 @@ async function scheduleBackgroundProcessing(
   // Determine if we're running on Vercel
   const isVercel = process.env.VERCEL === '1';
   
+  console.log('=== Background Processing Scheduler ===');
+  console.log('Running on Vercel:', isVercel);
+  console.log('VERCEL env var:', process.env.VERCEL);
+  
   if (isVercel) {
     // Prefer exact deployment URL to ensure we hit the same deployment in preview
     const deploymentUrl = request.headers.get('x-vercel-deployment-url');
     const host = deploymentUrl || request.headers.get('x-forwarded-host') || request.headers.get('host');
     const protocol = 'https'; // Vercel preview/prod are https
+    
+    console.log('Vercel environment details:', {
+      deploymentUrl,
+      forwarded_host: request.headers.get('x-forwarded-host'),
+      host: request.headers.get('host'),
+      final_host: host
+    });
     
     if (!host) {
       throw new Error('Unable to determine host for background processing');
@@ -99,7 +92,7 @@ async function scheduleBackgroundProcessing(
     
     const backgroundUrl = `${protocol}://${host}/api/events/process`;
     
-    console.log('Scheduling background processing via Vercel Background Functions:', backgroundUrl);
+    console.log('✅ Scheduling background processing via Vercel Background Functions:', backgroundUrl);
 
     // Optional protection bypass for Preview Deployments Protection
     // Set PROTECTION_BYPASS_TOKEN in Vercel Project Settings > Environment Variables
@@ -114,59 +107,123 @@ async function scheduleBackgroundProcessing(
     };
     if (protectionBypass) {
       headers['x-vercel-protection-bypass'] = protectionBypass;
+      console.log('✅ Added protection bypass header');
     }
     if (internalSecret) {
       headers['x-internal-secret'] = internalSecret;
+      console.log('✅ Added internal secret header');
     }
     
-    // Make internal HTTP request to background processor with special header
-    console.log(`Scheduling background processing: ${backgroundUrl}`);
-    const response = await fetch(backgroundUrl, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        jobId,
-        city,
-        date,
-        categories,
-        options
-      })
-    });
+    console.log('Request headers:', Object.keys(headers));
+    console.log('Request payload:', { jobId, city, date, categories: categories.length });
     
-    if (!response.ok) {
-      throw new Error(`Background scheduling failed: ${response.status} ${response.statusText}`);
+    // Add timeout to the background scheduling request
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.error('❌ Background scheduling request timeout after 15 seconds');
+      controller.abort();
+    }, 15000); // 15 second timeout (increased from 10s)
+    
+    try {
+      console.log(`🚀 Making background processing request to: ${backgroundUrl}`);
+      const response = await fetch(backgroundUrl, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          jobId,
+          city,
+          date,
+          categories,
+          options
+        }),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      console.log(`📡 Background processing response: ${response.status} ${response.statusText}`);
+      console.log(`   OK: ${response.ok}`);
+      
+      if (!response.ok) {
+        const responseText = await response.text().catch(() => 'Unable to read response');
+        console.error(`❌ Background scheduling HTTP error: ${response.status} ${response.statusText}`);
+        console.error(`   Response body: ${responseText}`);
+        throw new Error(`Background scheduling failed: ${response.status} ${response.statusText} - ${responseText}`);
+      }
+      
+      const responseData = await response.json().catch(() => null);
+      console.log('✅ Background processing scheduled successfully');
+      console.log('   Response data:', responseData);
+      
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      console.error('❌ Background scheduling fetch error:', fetchError);
+      
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        throw new Error('Background scheduling timed out after 15 seconds');
+      }
+      throw fetchError;
     }
-    
-    console.log('Background processing scheduled successfully');
     
   } else {
-    // Local development fallback - make local HTTP request without awaiting
+    // Local development fallback - make local HTTP request with better error handling
     const localUrl = 'http://localhost:3000/api/events/process';
-    console.log(`Running in local development, making async request to background processor: ${localUrl}`);
+    console.log(`✅ Running in local development, making async request to background processor: ${localUrl}`);
     
-    // Fire and forget request for local development
-    fetch(localUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-vercel-background': '1', // Add auth header for local dev
-      },
-      body: JSON.stringify({
-        jobId,
-        city,
-        date,
-        categories,
-        options
-      })
-    }).then(response => {
+    // Add timeout and better error handling for local development
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.error('❌ Local development request timeout after 15 seconds');
+      controller.abort();
+    }, 15000); // 15 second timeout
+    
+    try {
+      console.log(`🚀 Making local background processing request to: ${localUrl}`);
+      console.log('Request payload:', { jobId, city, date, categories: categories.length });
+      
+      const response = await fetch(localUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-vercel-background': '1', // Add auth header for local dev
+        },
+        body: JSON.stringify({
+          jobId,
+          city,
+          date,
+          categories,
+          options
+        }),
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      
+      console.log(`📡 Local background processing response: ${response.status} ${response.statusText}`);
+      console.log(`   OK: ${response.ok}`);
+      
       if (!response.ok) {
-        console.error(`Local background processing failed: ${response.status} ${response.statusText}`);
+        const responseText = await response.text().catch(() => 'Unable to read response');
+        console.error(`❌ Local background processing HTTP error: ${response.status} ${response.statusText}`);
+        console.error(`   Response body: ${responseText}`);
+        throw new Error(`Local background processing failed: ${response.status} ${response.statusText} - ${responseText}`);
       } else {
-        console.log('Local background processing scheduled successfully');
+        const responseData = await response.json().catch(() => null);
+        console.log('✅ Local background processing scheduled successfully');
+        console.log('   Response data:', responseData);
       }
-    }).catch(error => {
-      console.error('Local development background request failed:', error);
-    });
+    } catch (fetchError) {
+      clearTimeout(timeoutId);
+      console.error('❌ Local development background request error:', fetchError);
+      
+      if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+        console.error('Local development background request timed out after 15 seconds');
+        throw new Error('Local development background request timed out after 15 seconds');
+      } else {
+        console.error('Local development background request failed:', fetchError);
+        throw fetchError;
+      }
+    }
   }
 }
 
@@ -304,20 +361,72 @@ export async function POST(request: NextRequest) {
     // The cache logic checks subcategories, but AI calls should only be made for main categories
     const mainCategoriesForAI = getMainCategoriesForAICalls(missingCategories);
     
+    // Check if category mapping failed - this was causing the infinite loop
+    if (missingCategories.length > 0 && mainCategoriesForAI.length === 0) {
+      console.error('❌ Category mapping failed: No main categories found for missing categories');
+      console.error('Missing categories:', missingCategories);
+      await jobStore.updateJob(jobId, {
+        status: 'error',
+        error: 'Kategorie-Mapping fehlgeschlagen: Unbekannte Kategorien können nicht verarbeitet werden'
+      });
+      return NextResponse.json(
+        { error: 'Kategorie-Mapping fehlgeschlagen' },
+        { status: 400 }
+      );
+    }
+    
     try {
       console.log(`Original missing categories (subcategories): ${missingCategories.length} - [${missingCategories.join(', ')}]`);
       console.log(`Mapped to main categories for AI calls: ${mainCategoriesForAI.length} - [${mainCategoriesForAI.join(', ')}]`);
       
+      // Enhanced debug logging for background processing scheduling
+      console.log('=== Background Processing Setup ===');
+      console.log('Environment:', {
+        VERCEL: process.env.VERCEL,
+        NODE_ENV: process.env.NODE_ENV,
+        deployment_url: request.headers.get('x-vercel-deployment-url'),
+        host: request.headers.get('host'),
+        forwarded_host: request.headers.get('x-forwarded-host')
+      });
+      
       await scheduleBackgroundProcessing(request, jobId, city, date, mainCategoriesForAI, mergedOptions);
+      console.log('✅ Background processing scheduled successfully');
+      
+      // Add reasonable timeout protection for stalled jobs
+      // If background processing doesn't start within 2 minutes, fail the job
+      setTimeout(async () => {
+        try {
+          const currentJob = await jobStore.getJob(jobId);
+          if (currentJob && currentJob.status === 'pending' && currentJob.progress?.completedCategories === 0) {
+            console.error(`🚨 STALLED JOB DETECTED: Job ${jobId} has been pending for 2 minutes with no progress - marking as error`);
+            await jobStore.updateJob(jobId, {
+              status: 'error',
+              error: 'Background processing failed to start - job stalled (2 min timeout)',
+              lastUpdateAt: new Date().toISOString()
+            });
+          }
+        } catch (timeoutError) {
+          console.error('Error in stalled job timeout handler:', timeoutError);
+        }
+      }, 120000); // 2 minutes timeout for stalled jobs
+      
     } catch (scheduleError) {
-      console.error('Failed to schedule background processing:', scheduleError);
-      // Update job to error state
+      console.error('❌ Failed to schedule background processing:', scheduleError);
+      console.error('   Error name:', scheduleError instanceof Error ? scheduleError.name : 'Unknown');
+      console.error('   Error message:', scheduleError instanceof Error ? scheduleError.message : String(scheduleError));
+      console.error('   Error stack:', scheduleError instanceof Error ? scheduleError.stack : 'No stack');
+      
+      // Update job to error state with detailed error information
       await jobStore.updateJob(jobId, {
         status: 'error',
-        error: 'Failed to schedule background processing'
+        error: 'Failed to schedule background processing: ' + (scheduleError instanceof Error ? scheduleError.message : String(scheduleError)),
+        lastUpdateAt: new Date().toISOString()
       });
       return NextResponse.json(
-        { error: 'Failed to schedule background processing' },
+        { 
+          error: 'Failed to schedule background processing',
+          details: scheduleError instanceof Error ? scheduleError.message : String(scheduleError)
+        },
         { status: 500 }
       );
     }

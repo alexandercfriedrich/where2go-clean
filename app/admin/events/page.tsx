@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { EventData } from '@/lib/types';
 
 interface AdminEventsData {
@@ -21,7 +21,7 @@ export default function AdminEventsPage() {
   const [city, setCity] = useState('Berlin');
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
 
-  const loadEventsData = async () => {
+  const loadEventsData = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/admin/events?city=${encodeURIComponent(city)}&date=${date}`);
@@ -33,11 +33,11 @@ export default function AdminEventsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [city, date]);
 
   useEffect(() => {
     loadEventsData();
-  }, [city, date]);
+  }, [loadEventsData]);
 
   if (loading) return <div className="admin-container"><p>Loading...</p></div>;
   if (error) return <div className="admin-container"><p>Error: {error}</p></div>;
