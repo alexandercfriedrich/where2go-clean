@@ -51,6 +51,28 @@ export async function GET(request: NextRequest, { params }: { params: { jobId: s
       );
     }
 
+    // Safety check: If job is older than 10 minutes and still pending, mark it as error
+    // This prevents infinite polling for truly stuck jobs
+    const jobAgeMs = Date.now() - job.createdAt.getTime();
+    const maxJobAgeMs = 10 * 60 * 1000; // 10 minutes
+    
+    if (job.status === 'pending' && jobAgeMs > maxJobAgeMs) {
+      console.warn(`⚠️ Job ${jobId} is ${Math.round(jobAgeMs/1000)}s old and still pending - marking as error to prevent infinite polling`);
+      try {
+        await jobStore.updateJob(jobId, {
+          status: 'error',
+          error: 'Job wurde aufgrund von Zeitüberschreitung beendet (10 Min. Limit)',
+          lastUpdateAt: new Date().toISOString()
+        });
+        // Retrieve the updated job
+        job.status = 'error';
+        job.error = 'Job wurde aufgrund von Zeitüberschreitung beendet (10 Min. Limit)';
+      } catch (updateError) {
+        console.error('Failed to update stale job status:', updateError);
+        // Continue with the stale job data
+      }
+    }
+
     // Clean up old jobs (JobStore handles this automatically for Redis, but run anyway)
     await jobStore.cleanupOldJobs();
 

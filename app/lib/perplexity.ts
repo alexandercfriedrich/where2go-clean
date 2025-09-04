@@ -321,11 +321,28 @@ Falls keine Events gefunden: []
 }
 
 /**
- * Creates a Perplexity service instance
+ * Creates a Perplexity service instance with validation
  */
 export function createPerplexityService(apiKey?: string): PerplexityService | null {
   if (!apiKey) {
+    console.error('❌ Perplexity API key is missing');
     return null;
   }
-  return new PerplexityService(apiKey);
+  
+  if (typeof apiKey !== 'string' || apiKey.trim().length === 0) {
+    console.error('❌ Perplexity API key is invalid (empty or not a string)');
+    return null;
+  }
+  
+  if (!apiKey.startsWith('pplx-')) {
+    console.error('❌ Perplexity API key format is invalid (should start with pplx-)');
+    return null;
+  }
+  
+  try {
+    return new PerplexityService(apiKey.trim());
+  } catch (error) {
+    console.error('❌ Failed to create Perplexity service:', error);
+    return null;
+  }
 }

@@ -332,7 +332,13 @@ class ResilientJobStore implements JobStore {
     }
 
     try {
-      return await operation(this.primaryStore);
+      // Add timeout to Redis operations to prevent hanging
+      const timeoutPromise = new Promise<T>((_, reject) => {
+        setTimeout(() => reject(new Error('Redis operation timeout')), 5000); // 5 second timeout
+      });
+      
+      const operationPromise = operation(this.primaryStore);
+      return await Promise.race([operationPromise, timeoutPromise]);
     } catch (error) {
       if (!this.useFallback) {
         const errorMessage = error instanceof Error ? error.message : String(error);

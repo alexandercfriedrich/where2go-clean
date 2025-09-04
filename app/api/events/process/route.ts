@@ -86,26 +86,49 @@ export async function POST(req: NextRequest) {
     
     // Set up a deadman's switch to automatically fail jobs that take too long
     // Set to 4.5 minutes to ensure it triggers before Vercel's 5-minute timeout
-    const deadmanTimeout = setTimeout(() => {
+    const deadmanTimeout = setTimeout(async () => {
       console.error(`🚨 DEADMAN SWITCH: Job ${jobId} has been running for more than 4.5 minutes, marking as failed`);
-      jobStore.updateJob(jobId, {
-        status: 'error',
-        error: 'Processing timed out - job took longer than expected (4.5 min limit)',
-        lastUpdateAt: new Date().toISOString()
-      }).catch(updateError => {
-        console.error('Failed to update job status via deadman switch:', updateError);
-      });
+      try {
+        await jobStore.updateJob(jobId, {
+          status: 'error',
+          error: 'Processing timed out - job took longer than expected (4.5 min limit)',
+          lastUpdateAt: new Date().toISOString()
+        });
+        console.log(`✅ Deadman switch successfully marked job ${jobId} as error`);
+      } catch (updateError) {
+        console.error('❌ CRITICAL: Deadman switch failed to update job status:', updateError);
+      }
     }, 4.5 * 60 * 1000); // 4.5 minutes - before Vercel's 5 minute timeout
+    
+    // Add additional safety net - shorter timeout for first status update
+    const initialTimeout = setTimeout(async () => {
+      console.warn(`⚠️ SAFETY NET: Job ${jobId} has been running for 2 minutes with no completion, checking status...`);
+      try {
+        const currentJob = await jobStore.getJob(jobId);
+        if (currentJob && currentJob.status === 'pending') {
+          console.warn(`⚠️ Job ${jobId} still pending after 2 minutes - this might indicate a problem`);
+          // Don't fail yet, but add a warning update
+          await jobStore.updateJob(jobId, {
+            lastUpdateAt: new Date().toISOString(),
+            warning: 'Job has been processing for an extended time'
+          });
+        }
+      } catch (checkError) {
+        console.error('Failed to check job status in safety net:', checkError);
+      }
+    }, 2 * 60 * 1000); // 2 minutes
     
     processJobInBackground(jobId, city, date, categories, options)
       .then(() => {
         // Job completed successfully
         clearTimeout(deadmanTimeout);
+        clearTimeout(initialTimeout);
         console.log(`✅ Background processing completed successfully for job: ${jobId}`);
       })
       .catch(error => {
         // Job failed with error
         clearTimeout(deadmanTimeout);
+        clearTimeout(initialTimeout);
         console.error('❌ Async background processing error for job', jobId, ':', error);
         
         // Update job status to error to prevent infinite polling
@@ -149,6 +172,38 @@ async function processJobInBackground(
         error: 'Perplexity API Key ist nicht konfiguriert. Bitte setze PERPLEXITY_API_KEY in der .env.local Datei.'
       });
       return;
+    }
+
+    // Add network connectivity test for Perplexity API
+    console.log('Testing Perplexity API connectivity...');
+    try {
+      const testResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'llama-3.1-sonar-small-online',
+          messages: [{ role: 'user', content: 'Test connection' }],
+          max_tokens: 1
+        }),
+        signal: AbortSignal.timeout(10000) // 10 second timeout
+      });
+      
+      if (!testResponse.ok && testResponse.status === 401) {
+        console.error('❌ Perplexity API Key is invalid');
+        await jobStore.updateJob(jobId, {
+          status: 'error',
+          error: 'Perplexity API Key ist ungültig. Bitte überprüfe PERPLEXITY_API_KEY.'
+        });
+        return;
+      }
+      console.log('✅ Perplexity API connectivity test passed');
+    } catch (connectivityError: any) {
+      console.error('❌ Perplexity API connectivity test failed:', connectivityError.message);
+      // Don't fail here - API might be temporarily down but could work for actual requests
+      console.log('Continuing with processing despite connectivity test failure...');
     }
 
     // Default to DEFAULT_CATEGORIES when categories is missing or empty
