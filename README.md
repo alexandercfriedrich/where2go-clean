@@ -320,4 +320,4 @@ The application uses intelligent caching with dynamic TTL (Time To Live) based o
 - **Shared Cache**: Both Hot Cities and regular searches use the same cache keys for consistency
 - **Dynamic TTL**: Longer cache times for events that haven't started, shorter for ongoing events
 
-This ensures cache stays fresh while events are current, significantly reducing Perplexity API costs for popular destinations.
+This ensures cache stays fresh while events are current, significantly reducing Perplexity API costs for popular destinations.  
