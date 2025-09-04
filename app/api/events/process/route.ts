@@ -6,7 +6,7 @@ import { createPerplexityService } from '@/lib/perplexity';
 import { eventAggregator } from '@/lib/aggregator';
 import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
 import { getJobStore } from '@/lib/jobStore';
-import { getSubcategoriesForMainCategory } from '@/categories';
+import { getSubcategoriesForMainCategory, getMainCategoriesForAICalls } from '@/categories';
 
 // Serverless configuration for background processing
 export const runtime = 'nodejs';
@@ -243,7 +243,7 @@ async function processJobInBackground(
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'sonar',
+          model: 'sonar-pro',
           messages: [{ role: 'user', content: 'Test' }],
           max_tokens: 1
         }),
@@ -296,6 +296,11 @@ async function processJobInBackground(
     // Default to DEFAULT_CATEGORIES when categories is missing or empty
     const effectiveCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
     
+    // Map subcategories to main categories for AI calls
+    console.log('Original missing categories (subcategories):', effectiveCategories.length, '-', effectiveCategories);
+    const mainCategoriesForAI = getMainCategoriesForAICalls(effectiveCategories);
+    console.log('Mapped to main categories for AI calls:', mainCategoriesForAI.length, '-', mainCategoriesForAI);
+    
     // REASONABLE TIMEOUTS to prevent infinite loops but allow proper processing
     const categoryConcurrency = Math.min(options?.categoryConcurrency || 3, 3); // Reasonable concurrency
     const categoryTimeoutMs = 60000; // 60 seconds max per category (increased from 30s)
@@ -303,7 +308,7 @@ async function processJobInBackground(
     
     const maxAttempts = Math.min(options?.maxAttempts || 2, 2); // Reduced attempts to fail fast
     
-    console.log('Background job starting for:', jobId, city, date, effectiveCategories.length, 'categories');
+    console.log('Background job starting for:', jobId, city, date, mainCategoriesForAI.length, 'main categories');
     console.log('Reasonable config:', { categoryConcurrency, categoryTimeoutMs, overallTimeoutMs, maxAttempts });
 
     // Immediate progress update to prevent early timeouts
@@ -311,7 +316,7 @@ async function processJobInBackground(
     await jobStore.updateJob(jobId, {
       progress: { 
         completedCategories: 0, 
-        totalCategories: effectiveCategories.length 
+        totalCategories: mainCategoriesForAI.length 
       },
       lastUpdateAt: new Date().toISOString()
     });
@@ -501,16 +506,16 @@ async function processJobInBackground(
     };
 
     // Simplified processing - process categories sequentially to avoid complexity
-    console.log(`Starting sequential processing of ${effectiveCategories.length} categories...`);
+    console.log(`Starting sequential processing of ${mainCategoriesForAI.length} main categories...`);
     
-    for (let categoryIndex = 0; categoryIndex < effectiveCategories.length; categoryIndex++) {
+    for (let categoryIndex = 0; categoryIndex < mainCategoriesForAI.length; categoryIndex++) {
       if (overallAbortController.signal.aborted) {
         console.log('Overall timeout reached, stopping category processing');
         break;
       }
       
-      const category = effectiveCategories[categoryIndex];
-      console.log(`Processing category ${categoryIndex + 1}/${effectiveCategories.length}: ${category}`);
+      const category = mainCategoriesForAI[categoryIndex];
+      console.log(`Processing category ${categoryIndex + 1}/${mainCategoriesForAI.length}: ${category}`);
       updateHeartbeat();
       
       try {
@@ -522,12 +527,12 @@ async function processJobInBackground(
         await jobStore.updateJob(jobId, {
           progress: { 
             completedCategories, 
-            totalCategories: effectiveCategories.length 
+            totalCategories: mainCategoriesForAI.length 
           },
           lastUpdateAt: new Date().toISOString()
         });
         
-        console.log(`✅ Completed category ${category}. Progress: ${completedCategories}/${effectiveCategories.length}`);
+        console.log(`✅ Completed category ${category}. Progress: ${completedCategories}/${mainCategoriesForAI.length}`);
       } catch (categoryError: any) {
         console.error(`❌ Failed to process category ${category}:`, categoryError.message);
         updateHeartbeat();
@@ -563,8 +568,8 @@ async function processJobInBackground(
           cachedEvents: 0
         },
         progress: { 
-          completedCategories: effectiveCategories.length, 
-          totalCategories: effectiveCategories.length 
+          completedCategories: mainCategoriesForAI.length, 
+          totalCategories: mainCategoriesForAI.length 
         },
         lastUpdateAt: new Date().toISOString(),
         message: `${finalEvents.length} Events gefunden`
