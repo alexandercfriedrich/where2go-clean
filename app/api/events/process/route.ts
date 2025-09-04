@@ -96,28 +96,28 @@ export async function POST(req: NextRequest) {
     // This allows the HTTP response to return immediately while processing continues
     
     // Set up a deadman's switch to automatically fail jobs that take too long
-    // Set to 2 minutes for much more aggressive timeout protection
+    // Set to 5 minutes for reasonable timeout protection
     const deadmanTimeout = setTimeout(async () => {
-      console.error(`🚨 DEADMAN SWITCH: Job ${jobId} has been running for more than 2 minutes, marking as failed`);
+      console.error(`🚨 DEADMAN SWITCH: Job ${jobId} has been running for more than 5 minutes, marking as failed`);
       try {
         await jobStore.updateJob(jobId, {
           status: 'error',
-          error: 'Processing timed out - job took longer than expected (2 min limit)',
+          error: 'Processing timed out - job took longer than expected (5 min limit)',
           lastUpdateAt: new Date().toISOString()
         });
         console.log(`✅ Deadman switch successfully marked job ${jobId} as error`);
       } catch (updateError) {
         console.error('❌ CRITICAL: Deadman switch failed to update job status:', updateError);
       }
-    }, 2 * 60 * 1000); // 2 minutes - much more aggressive
+    }, 5 * 60 * 1000); // 5 minutes - reasonable timeout
     
-    // Add safety net - shorter timeout for first status update
+    // Add safety net - check job status periodically
     const initialTimeout = setTimeout(async () => {
-      console.warn(`⚠️ SAFETY NET: Job ${jobId} has been running for 1 minute with no completion, checking status...`);
+      console.warn(`⚠️ SAFETY NET: Job ${jobId} has been running for 3 minutes, checking status...`);
       try {
         const currentJob = await jobStore.getJob(jobId);
         if (currentJob && currentJob.status === 'pending') {
-          console.warn(`⚠️ Job ${jobId} still pending after 1 minute - this might indicate a problem`);
+          console.warn(`⚠️ Job ${jobId} still pending after 3 minutes - ensuring progress is being made`);
           await jobStore.updateJob(jobId, {
             lastUpdateAt: new Date().toISOString()
           });
@@ -125,7 +125,7 @@ export async function POST(req: NextRequest) {
       } catch (checkError) {
         console.error('Failed to check job status in safety net:', checkError);
       }
-    }, 1 * 60 * 1000); // 1 minute
+    }, 3 * 60 * 1000); // 3 minutes
     
     processJobInBackground(jobId, city, date, categories, options)
       .then(() => {
@@ -214,16 +214,16 @@ async function processJobInBackground(
       const timeSinceLastBeat = now - lastHeartbeat;
       console.log(`💓 Job ${jobId} heartbeat: ${Math.round(timeSinceLastBeat/1000)}s since last activity`);
       
-      // If more than 60 seconds without heartbeat update, something is stuck
-      if (timeSinceLastBeat > 60000) {
+      // If more than 2 minutes without heartbeat update, something is stuck
+      if (timeSinceLastBeat > 120000) {
         console.error(`🚨 Job ${jobId} heartbeat timeout! No activity for ${Math.round(timeSinceLastBeat/1000)}s`);
         jobStore.updateJob(jobId, {
           status: 'error',
-          error: 'Job wurde aufgrund von Inaktivität abgebrochen (60s Heartbeat-Timeout)',
+          error: 'Job wurde aufgrund von Inaktivität abgebrochen (2min Heartbeat-Timeout)',
           lastUpdateAt: new Date().toISOString()
         }).catch(console.error);
       }
-    }, 15000); // Check every 15 seconds
+    }, 30000); // Check every 30 seconds
 
     // Simplified connectivity test with aggressive timeout
     console.log('Testing Perplexity API connectivity...');
@@ -239,7 +239,7 @@ async function processJobInBackground(
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: 'llama-3.1-sonar-small-online',
+          model: 'sonar',
           messages: [{ role: 'user', content: 'Test' }],
           max_tokens: 1
         }),
@@ -272,15 +272,15 @@ async function processJobInBackground(
     // Default to DEFAULT_CATEGORIES when categories is missing or empty
     const effectiveCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
     
-    // AGGRESSIVE TIMEOUTS to prevent infinite loops
-    const categoryConcurrency = Math.min(options?.categoryConcurrency || 3, 3); // Reduced concurrency to prevent overload
-    const categoryTimeoutMs = 30000; // 30 seconds max per category
-    const overallTimeoutMs = 120000; // 2 minutes total max
+    // REASONABLE TIMEOUTS to prevent infinite loops but allow proper processing
+    const categoryConcurrency = Math.min(options?.categoryConcurrency || 3, 3); // Reasonable concurrency
+    const categoryTimeoutMs = 60000; // 60 seconds max per category (increased from 30s)
+    const overallTimeoutMs = 300000; // 5 minutes total max (back to reasonable timeout)
     
     const maxAttempts = Math.min(options?.maxAttempts || 2, 2); // Reduced attempts to fail fast
     
     console.log('Background job starting for:', jobId, city, date, effectiveCategories.length, 'categories');
-    console.log('Aggressive config:', { categoryConcurrency, categoryTimeoutMs, overallTimeoutMs, maxAttempts });
+    console.log('Reasonable config:', { categoryConcurrency, categoryTimeoutMs, overallTimeoutMs, maxAttempts });
 
     // Immediate progress update to prevent early timeouts
     updateHeartbeat();
@@ -295,7 +295,7 @@ async function processJobInBackground(
     // Set up overall timeout - much more aggressive
     const overallAbortController = new AbortController();
     overallTimeoutId = setTimeout(() => {
-      console.log(`🚨 AGGRESSIVE TIMEOUT: Job ${jobId} exceeded ${overallTimeoutMs}ms limit`);
+      console.log(`🚨 OVERALL TIMEOUT: Job ${jobId} exceeded ${overallTimeoutMs}ms limit`);
       overallAbortController.abort();
       jobStore.updateJob(jobId, {
         status: 'error',

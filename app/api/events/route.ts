@@ -340,23 +340,23 @@ export async function POST(request: NextRequest) {
       
       await scheduleBackgroundProcessing(request, jobId, city, date, mainCategoriesForAI, mergedOptions);
       
-      // CRITICAL FIX: Add aggressive timeout protection for stalled jobs
-      // If background processing doesn't start within 30 seconds, fail the job
+      // Add reasonable timeout protection for stalled jobs
+      // If background processing doesn't start within 2 minutes, fail the job
       setTimeout(async () => {
         try {
           const currentJob = await jobStore.getJob(jobId);
           if (currentJob && currentJob.status === 'pending' && currentJob.progress?.completedCategories === 0) {
-            console.error(`🚨 STALLED JOB DETECTED: Job ${jobId} has been pending for 30s with no progress - marking as error`);
+            console.error(`🚨 STALLED JOB DETECTED: Job ${jobId} has been pending for 2 minutes with no progress - marking as error`);
             await jobStore.updateJob(jobId, {
               status: 'error',
-              error: 'Background processing failed to start - job stalled (30s timeout)',
+              error: 'Background processing failed to start - job stalled (2 min timeout)',
               lastUpdateAt: new Date().toISOString()
             });
           }
         } catch (timeoutError) {
           console.error('Error in stalled job timeout handler:', timeoutError);
         }
-      }, 30000); // 30 second timeout for stalled jobs
+      }, 120000); // 2 minutes timeout for stalled jobs
       
     } catch (scheduleError) {
       console.error('Failed to schedule background processing:', scheduleError);
