@@ -314,6 +314,69 @@ class InMemoryJobStore implements JobStore {
 }
 
 /**
+ * Resilient JobStore that wraps Redis and automatically falls back to in-memory on connection issues
+ */
+class ResilientJobStore implements JobStore {
+  private primaryStore: JobStore;
+  private fallbackStore: JobStore;
+  private useFallback = false;
+
+  constructor(redisUrl: string, redisToken: string) {
+    this.primaryStore = new RedisJobStore(redisUrl, redisToken);
+    this.fallbackStore = new InMemoryJobStore();
+  }
+
+  private async executeWithFallback<T>(operation: (store: JobStore) => Promise<T>): Promise<T> {
+    if (this.useFallback) {
+      return await operation(this.fallbackStore);
+    }
+
+    try {
+      return await operation(this.primaryStore);
+    } catch (error) {
+      if (!this.useFallback) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.warn('⚠️ Redis JobStore failed, switching to in-memory fallback:', errorMessage);
+        this.useFallback = true;
+      }
+      return await operation(this.fallbackStore);
+    }
+  }
+
+  async setJob(jobId: string, job: JobStatus): Promise<void> {
+    return this.executeWithFallback(store => store.setJob(jobId, job));
+  }
+
+  async getJob(jobId: string): Promise<JobStatus | null> {
+    return this.executeWithFallback(store => store.getJob(jobId));
+  }
+
+  async updateJob(jobId: string, updates: Partial<JobStatus>): Promise<void> {
+    return this.executeWithFallback(store => store.updateJob(jobId, updates));
+  }
+
+  async deleteJob(jobId: string): Promise<void> {
+    return this.executeWithFallback(store => store.deleteJob(jobId));
+  }
+
+  async cleanupOldJobs(): Promise<void> {
+    return this.executeWithFallback(store => store.cleanupOldJobs());
+  }
+
+  async setDebugInfo(jobId: string, debugInfo: DebugInfo): Promise<void> {
+    return this.executeWithFallback(store => store.setDebugInfo(jobId, debugInfo));
+  }
+
+  async getDebugInfo(jobId: string): Promise<DebugInfo | null> {
+    return this.executeWithFallback(store => store.getDebugInfo(jobId));
+  }
+
+  async pushDebugStep(jobId: string, step: DebugStep): Promise<void> {
+    return this.executeWithFallback(store => store.pushDebugStep(jobId, step));
+  }
+}
+
+/**
  * Create JobStore instance based on environment variables
  */
 export function createJobStore(): JobStore {
@@ -321,8 +384,8 @@ export function createJobStore(): JobStore {
   const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
 
   if (redisUrl && redisToken) {
-    console.log('Using Redis JobStore for durable job state');
-    return new RedisJobStore(redisUrl, redisToken);
+    console.log('Using resilient JobStore with Redis primary and in-memory fallback');
+    return new ResilientJobStore(redisUrl, redisToken);
   } else {
     console.log('Using in-memory JobStore (Redis env vars not configured)');
     return new InMemoryJobStore();
