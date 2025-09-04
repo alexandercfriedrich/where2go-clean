@@ -64,7 +64,16 @@ export async function POST(req: NextRequest) {
   const hasInternalSecret = internalSecret && req.headers.get('x-internal-secret') === internalSecret;
   const hasBypass = !!req.headers.get('x-vercel-protection-bypass');
 
+  console.log('Background processing endpoint called with headers:', {
+    'x-vercel-background': req.headers.get('x-vercel-background'),
+    'x-internal-secret': hasInternalSecret ? 'SET' : 'NOT_SET',
+    'x-vercel-protection-bypass': hasBypass ? 'SET' : 'NOT_SET',
+    host: req.headers.get('host'),
+    userAgent: req.headers.get('user-agent')
+  });
+
   if (!isBackground && !hasInternalSecret && !hasBypass) {
+    console.error('❌ Background processing endpoint: Unauthorized request');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -73,12 +82,14 @@ export async function POST(req: NextRequest) {
     const { jobId, city, date, categories, options } = body;
 
     if (!jobId || !city || !date) {
+      console.error('❌ Background processing endpoint: Missing required parameters');
       return NextResponse.json(
         { error: 'Missing required parameters: jobId, city, date' },
         { status: 400 }
       );
     }
 
+    console.log('✅ Background processing endpoint: Valid request received');
     console.log('Processing job:', { jobId, city, date, categories: categories?.length || 0 });
 
     // Start background processing asynchronously - DO NOT AWAIT
@@ -132,10 +143,15 @@ export async function POST(req: NextRequest) {
         // Update job status to error to prevent infinite polling
         jobStore.updateJob(jobId, {
           status: 'error',
-          error: 'Background processing failed to complete',
+          error: 'Background processing failed: ' + (error instanceof Error ? error.message : String(error)),
           lastUpdateAt: new Date().toISOString()
         }).catch(updateError => {
-          console.error('Failed to update job status after background error:', updateError);
+          console.error('❌ CRITICAL: Failed to update job status after background error:', updateError);
+          
+          // Try a minimal fallback update
+          jobStore.updateJob(jobId, { status: 'error' }).catch(fallbackError => {
+            console.error('❌ CATASTROPHIC: Even minimal error update failed:', fallbackError);
+          });
         });
       });
 
@@ -173,10 +189,24 @@ async function processJobInBackground(
       console.error('❌ PERPLEXITY_API_KEY environment variable is not set');
       await jobStore.updateJob(jobId, {
         status: 'error',
-        error: 'Perplexity API Key ist nicht konfiguriert. Bitte setze PERPLEXITY_API_KEY in der .env.local Datei.'
+        error: 'Perplexity API Key ist nicht konfiguriert. Bitte setze PERPLEXITY_API_KEY in der .env.local Datei.',
+        lastUpdateAt: new Date().toISOString()
       });
       return;
     }
+
+    // CRITICAL: Update job status immediately to show processing has started
+    console.log(`🚀 Background processing starting for job ${jobId}...`);
+    updateHeartbeat();
+    await jobStore.updateJob(jobId, {
+      status: 'pending', // Keep pending but update lastUpdateAt to show activity
+      progress: { 
+        completedCategories: 0, 
+        totalCategories: categories?.length || 0 
+      },
+      lastUpdateAt: new Date().toISOString()
+    });
+    console.log(`✅ Job ${jobId} status updated - processing started`);
 
     // Set up heartbeat to detect stuck processes
     heartbeatInterval = setInterval(() => {
