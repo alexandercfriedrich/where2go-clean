@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { CATEGORY_MAP } from './categories';
 import { useTranslation } from './lib/useTranslation';
+import { convertEventToCalendarEvent, calendarProviders, generatePreferredCalendarUrl, getPreferredCalendarProvider } from './lib/calendar-utils';
 
 interface EventData {
   title: string;
@@ -43,6 +44,24 @@ export default function Home() {
   const [debugData, setDebugData] = useState<any>(null);
   const [toast, setToast] = useState<{show: boolean, message: string}>({show: false, message: ''});
   const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean, totalEvents: number, cachedEvents: number} | null>(null);
+  
+  // Calendar state
+  const [calendarDropdown, setCalendarDropdown] = useState<{show: boolean, eventId: string}>({show: false, eventId: ''});
+  
+  // Click outside handler for calendar dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (calendarDropdown.show && !target.closest('.calendar-wrapper')) {
+        setCalendarDropdown({show: false, eventId: ''});
+      }
+    };
+
+    if (calendarDropdown.show) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [calendarDropdown.show]);
   
   // Design 1 specific state
   const [isDesign1, setIsDesign1] = useState(false);
@@ -359,6 +378,58 @@ export default function Home() {
         <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
       </svg>
     );
+  };
+
+  // Helper function to get calendar icon
+  const getCalendarIcon = () => {
+    return (
+      <svg className="icon-calendar" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+        <path d="M8 14h.01"/>
+        <path d="M12 14h.01"/>
+        <path d="M16 14h.01"/>
+        <path d="M8 18h.01"/>
+        <path d="M12 18h.01"/>
+      </svg>
+    );
+  };
+
+  // Handle calendar dropdown
+  const handleCalendarClick = (eventId: string) => {
+    setCalendarDropdown(prev => ({
+      show: prev.eventId === eventId ? !prev.show : true,
+      eventId: eventId
+    }));
+  };
+
+  // Handle adding event to calendar
+  const handleAddToCalendar = (event: EventData, providerId?: string) => {
+    const calendarEvent = convertEventToCalendarEvent(event);
+    
+    if (providerId) {
+      const provider = calendarProviders.find(p => p.id === providerId);
+      if (provider) {
+        const url = provider.generateUrl(calendarEvent);
+        if (provider.id === 'apple') {
+          // For Apple Calendar, trigger download
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = `${event.title}.ics`;
+          link.click();
+        } else {
+          window.open(url, '_blank', 'noopener,noreferrer');
+        }
+      }
+    } else {
+      // Use preferred provider
+      const url = generatePreferredCalendarUrl(calendarEvent);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+    
+    setCalendarDropdown({show: false, eventId: ''});
   };
   const formatEventPrice = (event: EventData) => {
     if (!isDesign1) return null;
@@ -1075,6 +1146,30 @@ export default function Home() {
                             {formatEventPrice(event)}
                           </div>
                           <div className="event-actions">
+                            {/* Calendar button */}
+                            <div className="calendar-wrapper" style={{ position: 'relative' }}>
+                              <button 
+                                onClick={() => handleCalendarClick(`${event.title}-${event.date}-${event.venue}`)}
+                                className="event-action-btn event-calendar-btn"
+                                title="Add to calendar"
+                              >
+                                {getCalendarIcon()}
+                              </button>
+                              {calendarDropdown.show && calendarDropdown.eventId === `${event.title}-${event.date}-${event.venue}` && (
+                                <div className="calendar-dropdown">
+                                  <div className="calendar-dropdown-header">Add to calendar</div>
+                                  {calendarProviders.map(provider => (
+                                    <button
+                                      key={provider.id}
+                                      onClick={() => handleAddToCalendar(event, provider.id)}
+                                      className="calendar-provider-btn"
+                                    >
+                                      {provider.name}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                             {event.website && (
                               <a 
                                 href={event.website} 
@@ -1175,6 +1270,31 @@ export default function Home() {
                         )}
                         
                         <div className="event-links">
+                          {/* Calendar button for default designs */}
+                          <div className="calendar-wrapper" style={{ position: 'relative', display: 'inline-block' }}>
+                            <button 
+                              onClick={() => handleCalendarClick(`${event.title}-${event.date}-${event.venue}`)}
+                              className="event-link event-calendar-link"
+                              title="Add to calendar"
+                            >
+                              {getCalendarIcon()}
+                              Calendar
+                            </button>
+                            {calendarDropdown.show && calendarDropdown.eventId === `${event.title}-${event.date}-${event.venue}` && (
+                              <div className="calendar-dropdown">
+                                <div className="calendar-dropdown-header">Add to calendar</div>
+                                {calendarProviders.map(provider => (
+                                  <button
+                                    key={provider.id}
+                                    onClick={() => handleAddToCalendar(event, provider.id)}
+                                    className="calendar-provider-btn"
+                                  >
+                                    {provider.name}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                           {event.website && (
                             <a 
                               href={event.website} 

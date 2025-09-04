@@ -1176,6 +1176,88 @@ body {
   transform: translateY(-1px);
 }
 
+/* Calendar Button Styles */
+.event-calendar-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  background: var(--color-surface);
+  color: var(--color-text);
+  padding: var(--space-12) var(--space-16);
+  border-radius: var(--radius-lg);
+  text-decoration: none;
+  transition: all var(--duration-normal) var(--ease-standard);
+  font-weight: var(--font-weight-medium);
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-base);
+  border: 1px solid var(--color-border);
+  backdrop-filter: blur(10px);
+}
+
+.event-calendar-link:hover {
+  background: var(--color-primary);
+  color: var(--color-btn-primary-text);
+  border-color: var(--color-primary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.calendar-wrapper {
+  position: relative;
+}
+
+.calendar-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 1000;
+  background: var(--color-surface);
+  backdrop-filter: blur(10px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  min-width: 180px;
+  margin-top: var(--space-4);
+}
+
+.calendar-dropdown-header {
+  padding: var(--space-12);
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-base);
+  color: var(--color-primary);
+  border-bottom: 1px solid var(--color-border);
+  font-family: var(--font-family-base);
+}
+
+.calendar-provider-btn {
+  width: 100%;
+  padding: var(--space-10) var(--space-12);
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--color-text);
+  font-size: var(--font-size-base);
+  font-family: var(--font-family-base);
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-standard);
+}
+
+.calendar-provider-btn:hover {
+  background: var(--color-primary);
+  color: var(--color-btn-primary-text);
+  transform: translateX(4px);
+}
+
+.calendar-provider-btn:last-child {
+  border-bottom-left-radius: var(--radius-lg);
+  border-bottom-right-radius: var(--radius-lg);
+}
+
+.icon-calendar {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
 /* Debug Panel */
 .debug-panel {
   position: fixed;
