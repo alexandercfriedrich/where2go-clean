@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { CATEGORY_MAP } from './categories';
 import { useTranslation } from './lib/useTranslation';
 import { convertEventToCalendarEvent, calendarProviders, generatePreferredCalendarUrl, getPreferredCalendarProvider } from './lib/calendar-utils';
@@ -167,13 +167,45 @@ export default function Home() {
     eventsRef.current = events;
   }, [events]);
 
+  // For testing Design 1 - inject sample events when on ?design=1&test=1
+  const getSampleEvents = useCallback((): EventData[] => {
+    if (!isDesign1) return [];
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('test') !== '1') return [];
+    
+    return [
+      {
+        title: "Electronic Music Night",
+        category: "DJ Sets/Electronic",
+        date: "2025-01-03",
+        time: "23:30",
+        venue: "Hï Ibiza",
+        price: "35 €",
+        website: "https://example.com",
+        bookingLink: "https://tickets.example.com",
+        description: "Eine unvergessliche Nacht mit den besten DJs der Welt."
+      },
+      {
+        title: "Jazz Live Concert",
+        category: "Live-Konzerte", 
+        date: "2025-01-04",
+        time: "20:00",
+        venue: "Blue Note",
+        price: "45",
+        website: "https://example.com",
+        address: "131 W 3rd St, New York, NY 10012",
+        description: "Authentischer Jazz in gemütlicher Atmosphäre."
+      }
+    ];
+  }, [isDesign1]);
+
   // Inject sample events when in test mode
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     if (isDesign1 && urlParams.get('test') === '1' && events.length === 0) {
       setEvents(getSampleEvents());
     }
-  }, [isDesign1]);
+  }, [isDesign1, events.length, getSampleEvents]);
 
   useEffect(() => {
     return () => {
@@ -445,38 +477,6 @@ export default function Home() {
     
     // Assume Euro if no currency specified
     return `${priceText} €`;
-  };
-
-  // For testing Design 1 - inject sample events when on ?design=1&test=1
-  const getSampleEvents = (): EventData[] => {
-    if (!isDesign1) return [];
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get('test') !== '1') return [];
-    
-    return [
-      {
-        title: "Electronic Music Night",
-        category: "DJ Sets/Electronic",
-        date: "2025-01-03",
-        time: "23:30",
-        venue: "Hï Ibiza",
-        price: "35 €",
-        website: "https://example.com",
-        bookingLink: "https://tickets.example.com",
-        description: "Eine unvergessliche Nacht mit den besten DJs der Welt."
-      },
-      {
-        title: "Jazz Live Concert",
-        category: "Live-Konzerte", 
-        date: "2025-01-04",
-        time: "20:00",
-        venue: "Blue Note",
-        price: "45",
-        website: "https://example.com",
-        address: "131 W 3rd St, New York, NY 10012",
-        description: "Authentischer Jazz in gemütlicher Atmosphäre."
-      }
-    ];
   };
 
   const formatDateForAPI = (): string => {
