@@ -225,12 +225,16 @@ async function processJobInBackground(
       }
     }, 30000); // Check every 30 seconds
 
-    // Simplified connectivity test with aggressive timeout
+    // Resilient connectivity test - don't fail the entire job if this fails
     console.log('Testing Perplexity API connectivity...');
     updateHeartbeat();
+    let connectivityTestPassed = false;
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      const timeoutId = setTimeout(() => {
+        console.log('⏰ Connectivity test timeout after 10 seconds');
+        controller.abort();
+      }, 10000); // Increased to 10 seconds for more reliability
       
       const testResponse = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
@@ -249,6 +253,8 @@ async function processJobInBackground(
       clearTimeout(timeoutId);
       updateHeartbeat();
       
+      console.log(`🔍 Connectivity test response: status=${testResponse.status}, ok=${testResponse.ok}`);
+      
       if (!testResponse.ok && testResponse.status === 401) {
         console.error('❌ Perplexity API Key is invalid');
         await jobStore.updateJob(jobId, {
@@ -257,17 +263,35 @@ async function processJobInBackground(
         });
         return;
       }
+      
+      connectivityTestPassed = true;
       console.log('✅ Perplexity API connectivity test passed');
     } catch (connectivityError: any) {
       updateHeartbeat();
       console.error('❌ Perplexity API connectivity test failed:', connectivityError.message);
-      // Fail fast if API is not reachable
-      await jobStore.updateJob(jobId, {
-        status: 'error',
-        error: 'Perplexity API ist nicht erreichbar. Bitte versuche es später erneut.'
+      console.error('Error details:', {
+        name: connectivityError.name,
+        code: connectivityError.code,
+        cause: connectivityError.cause
       });
-      return;
+      
+      // Instead of failing the entire job, just log the warning and continue
+      // The actual API calls will reveal if there's a real connectivity issue
+      console.warn('⚠️ Connectivity test failed, but continuing with processing - actual API calls will determine success');
+      connectivityTestPassed = false;
     }
+    
+    console.log(`🔍 Connectivity test result: ${connectivityTestPassed ? 'PASSED' : 'FAILED (continuing anyway)'}`);
+    
+    // Log debug information for the job
+    await jobStore.pushDebugStep(jobId, {
+      category: 'SYSTEM',
+      query: 'Perplexity API Connectivity Test',
+      response: `Test ${connectivityTestPassed ? 'PASSED' : 'FAILED'} - ${connectivityTestPassed ? 'API is reachable' : 'API test failed but continuing with processing'}`,
+      parsedCount: 0,
+      addedCount: 0,
+      totalAfter: 0
+    });
 
     // Default to DEFAULT_CATEGORIES when categories is missing or empty
     const effectiveCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;

@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef, useEffect, useCallback } from 'react';
+import Image from 'next/image';
 import { CATEGORY_MAP } from './categories';
 import { useTranslation } from './lib/useTranslation';
 import { convertEventToCalendarEvent, calendarProviders, generatePreferredCalendarUrl, getPreferredCalendarProvider } from './lib/calendar-utils';
@@ -823,7 +824,7 @@ export default function Home() {
         <header className="design1-header">
           <div className="header-container">
             <div className="header-logo">
-              <img src="/where2go-logo.svg" alt="Where2Go" className="logo" />
+              <Image src="/where2go-logo.svg" alt="Where2Go" className="logo" width={120} height={40} priority />
             </div>
             <div className="header-actions">
               <a href="#premium" className="premium-link">
