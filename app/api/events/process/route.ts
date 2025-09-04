@@ -85,29 +85,28 @@ export async function POST(req: NextRequest) {
     // This allows the HTTP response to return immediately while processing continues
     
     // Set up a deadman's switch to automatically fail jobs that take too long
-    // Set to 4.5 minutes to ensure it triggers before Vercel's 5-minute timeout
+    // Set to 2 minutes for much more aggressive timeout protection
     const deadmanTimeout = setTimeout(async () => {
-      console.error(`🚨 DEADMAN SWITCH: Job ${jobId} has been running for more than 4.5 minutes, marking as failed`);
+      console.error(`🚨 DEADMAN SWITCH: Job ${jobId} has been running for more than 2 minutes, marking as failed`);
       try {
         await jobStore.updateJob(jobId, {
           status: 'error',
-          error: 'Processing timed out - job took longer than expected (4.5 min limit)',
+          error: 'Processing timed out - job took longer than expected (2 min limit)',
           lastUpdateAt: new Date().toISOString()
         });
         console.log(`✅ Deadman switch successfully marked job ${jobId} as error`);
       } catch (updateError) {
         console.error('❌ CRITICAL: Deadman switch failed to update job status:', updateError);
       }
-    }, 4.5 * 60 * 1000); // 4.5 minutes - before Vercel's 5 minute timeout
+    }, 2 * 60 * 1000); // 2 minutes - much more aggressive
     
-    // Add additional safety net - shorter timeout for first status update
+    // Add safety net - shorter timeout for first status update
     const initialTimeout = setTimeout(async () => {
-      console.warn(`⚠️ SAFETY NET: Job ${jobId} has been running for 2 minutes with no completion, checking status...`);
+      console.warn(`⚠️ SAFETY NET: Job ${jobId} has been running for 1 minute with no completion, checking status...`);
       try {
         const currentJob = await jobStore.getJob(jobId);
         if (currentJob && currentJob.status === 'pending') {
-          console.warn(`⚠️ Job ${jobId} still pending after 2 minutes - this might indicate a problem`);
-          // Don't fail yet, but update the lastUpdateAt timestamp
+          console.warn(`⚠️ Job ${jobId} still pending after 1 minute - this might indicate a problem`);
           await jobStore.updateJob(jobId, {
             lastUpdateAt: new Date().toISOString()
           });
@@ -115,7 +114,7 @@ export async function POST(req: NextRequest) {
       } catch (checkError) {
         console.error('Failed to check job status in safety net:', checkError);
       }
-    }, 2 * 60 * 1000); // 2 minutes
+    }, 1 * 60 * 1000); // 1 minute
     
     processJobInBackground(jobId, city, date, categories, options)
       .then(() => {
@@ -161,6 +160,12 @@ async function processJobInBackground(
   options?: any
 ) {
   let overallTimeoutId: NodeJS.Timeout | undefined;
+  let heartbeatInterval: NodeJS.Timeout | undefined;
+  let lastHeartbeat = Date.now();
+  
+  const updateHeartbeat = () => {
+    lastHeartbeat = Date.now();
+  };
   
   try {
     const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
@@ -173,9 +178,30 @@ async function processJobInBackground(
       return;
     }
 
-    // Add network connectivity test for Perplexity API
+    // Set up heartbeat to detect stuck processes
+    heartbeatInterval = setInterval(() => {
+      const now = Date.now();
+      const timeSinceLastBeat = now - lastHeartbeat;
+      console.log(`💓 Job ${jobId} heartbeat: ${Math.round(timeSinceLastBeat/1000)}s since last activity`);
+      
+      // If more than 60 seconds without heartbeat update, something is stuck
+      if (timeSinceLastBeat > 60000) {
+        console.error(`🚨 Job ${jobId} heartbeat timeout! No activity for ${Math.round(timeSinceLastBeat/1000)}s`);
+        jobStore.updateJob(jobId, {
+          status: 'error',
+          error: 'Job wurde aufgrund von Inaktivität abgebrochen (60s Heartbeat-Timeout)',
+          lastUpdateAt: new Date().toISOString()
+        }).catch(console.error);
+      }
+    }, 15000); // Check every 15 seconds
+
+    // Simplified connectivity test with aggressive timeout
     console.log('Testing Perplexity API connectivity...');
+    updateHeartbeat();
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+      
       const testResponse = await fetch('https://api.perplexity.ai/chat/completions', {
         method: 'POST',
         headers: {
@@ -184,11 +210,14 @@ async function processJobInBackground(
         },
         body: JSON.stringify({
           model: 'llama-3.1-sonar-small-online',
-          messages: [{ role: 'user', content: 'Test connection' }],
+          messages: [{ role: 'user', content: 'Test' }],
           max_tokens: 1
         }),
-        signal: AbortSignal.timeout(10000) // 10 second timeout
+        signal: controller.signal
       });
+      
+      clearTimeout(timeoutId);
+      updateHeartbeat();
       
       if (!testResponse.ok && testResponse.status === 401) {
         console.error('❌ Perplexity API Key is invalid');
@@ -200,56 +229,49 @@ async function processJobInBackground(
       }
       console.log('✅ Perplexity API connectivity test passed');
     } catch (connectivityError: any) {
+      updateHeartbeat();
       console.error('❌ Perplexity API connectivity test failed:', connectivityError.message);
-      // Don't fail here - API might be temporarily down but could work for actual requests
-      console.log('Continuing with processing despite connectivity test failure...');
+      // Fail fast if API is not reachable
+      await jobStore.updateJob(jobId, {
+        status: 'error',
+        error: 'Perplexity API ist nicht erreichbar. Bitte versuche es später erneut.'
+      });
+      return;
     }
 
     // Default to DEFAULT_CATEGORIES when categories is missing or empty
     const effectiveCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
     
-    // Extract options with defaults - increased timeouts to prevent premature cutoff
-    const categoryConcurrency = options?.categoryConcurrency || 5; // Restore original concurrency for performance
+    // AGGRESSIVE TIMEOUTS to prevent infinite loops
+    const categoryConcurrency = Math.min(options?.categoryConcurrency || 3, 3); // Reduced concurrency to prevent overload
+    const categoryTimeoutMs = 30000; // 30 seconds max per category
+    const overallTimeoutMs = 120000; // 2 minutes total max
     
-    // Default categoryTimeoutMs to 90s (90000ms), enforce minimum 60s (esp. on Vercel)
-    const isVercel = process.env.VERCEL === '1';
-    const requestedCategoryTimeout =
-      typeof options?.categoryTimeoutMs === 'number' ? options.categoryTimeoutMs : 90000;
-    const defaultCategoryTimeout = isVercel
-      ? Math.max(requestedCategoryTimeout, 60000)
-      : requestedCategoryTimeout;
-    const categoryTimeoutMs = defaultCategoryTimeout;
+    const maxAttempts = Math.min(options?.maxAttempts || 2, 2); // Reduced attempts to fail fast
     
-    // Overall timeout defaults to 3 minutes (180000ms) - well under Vercel's 5-minute limit
-    const defaultOverallTimeout = parseInt(process.env.OVERALL_TIMEOUT_MS || '180000', 10);
-    const overallTimeoutMs = options?.overallTimeoutMs || defaultOverallTimeout;
-    
-    const maxAttempts = options?.maxAttempts || 5;
-    
-    console.log('Background job starting for:', jobId, city, date, effectiveCategories);
-    console.log('Parallelization config:', { categoryConcurrency, categoryTimeoutMs, overallTimeoutMs, maxAttempts });
+    console.log('Background job starting for:', jobId, city, date, effectiveCategories.length, 'categories');
+    console.log('Aggressive config:', { categoryConcurrency, categoryTimeoutMs, overallTimeoutMs, maxAttempts });
 
-    // Add additional logging to track worker progress
-    let progressCheckInterval: NodeJS.Timeout | undefined;
-    let lastProgressUpdate = Date.now();
-    
-    // Set up progress monitoring to detect stuck workers
-    progressCheckInterval = setInterval(() => {
-      const now = Date.now();
-      const timeSinceLastProgress = now - lastProgressUpdate;
-      
-      if (timeSinceLastProgress > 120000) { // 2 minutes without progress
-        console.warn(`⚠️ Job ${jobId}: No progress for ${Math.round(timeSinceLastProgress/1000)}s. Completed: ${completedCategories}/${effectiveCategories.length}`);
-      }
-      
-      console.log(`📊 Job ${jobId} progress check: ${completedCategories}/${effectiveCategories.length} categories completed, current index: ${currentIndex}`);
-    }, 30000); // Check every 30 seconds
+    // Immediate progress update to prevent early timeouts
+    updateHeartbeat();
+    await jobStore.updateJob(jobId, {
+      progress: { 
+        completedCategories: 0, 
+        totalCategories: effectiveCategories.length 
+      },
+      lastUpdateAt: new Date().toISOString()
+    });
 
-    // Set up overall timeout using AbortController to prevent jobs from running indefinitely
+    // Set up overall timeout - much more aggressive
     const overallAbortController = new AbortController();
     overallTimeoutId = setTimeout(() => {
-      console.log(`Overall timeout of ${overallTimeoutMs}ms reached for job ${jobId}`);
+      console.log(`🚨 AGGRESSIVE TIMEOUT: Job ${jobId} exceeded ${overallTimeoutMs}ms limit`);
       overallAbortController.abort();
+      jobStore.updateJob(jobId, {
+        status: 'error',
+        error: `Verarbeitung abgebrochen - Zeitlimit von ${overallTimeoutMs/1000}s überschritten`,
+        lastUpdateAt: new Date().toISOString()
+      }).catch(console.error);
     }, overallTimeoutMs);
 
     const perplexityService = createPerplexityService(PERPLEXITY_API_KEY);
@@ -261,94 +283,64 @@ async function processJobInBackground(
       return;
     }
 
+    updateHeartbeat();
     const job = await jobStore.getJob(jobId);
-    if (!job) return; // Job might have been cleaned up
+    if (!job) {
+      console.error(`❌ Job ${jobId} not found during processing`);
+      return;
+    }
 
     let allEvents: EventData[] = [];
     let completedCategories = 0;
 
-    // Process categories in parallel with controlled concurrency, respecting overall timeout
-    const processingPromises: Promise<void>[] = [];
-    let currentIndex = 0;
-
-    // Create worker function that processes categories from the queue
-    const worker = async (): Promise<void> => {
-      try {
-        while (currentIndex < effectiveCategories.length && !overallAbortController.signal.aborted) {
-          const categoryIndex = currentIndex++;
-          if (categoryIndex >= effectiveCategories.length) break;
-          
-          const category = effectiveCategories[categoryIndex];
-          
-          // Check if overall timeout was reached before processing each category
-          if (overallAbortController.signal.aborted) {
-            console.log(`Overall timeout reached, skipping category: ${category}`);
-            break;
-          }
-          
-          console.log(`Worker starting category ${categoryIndex + 1}/${effectiveCategories.length}: ${category}`);
-          
-          try {
-            await processCategory(category, categoryIndex);
-            console.log(`Worker completed category ${categoryIndex + 1}/${effectiveCategories.length}: ${category}`);
-          } catch (categoryError: any) {
-            console.error(`Worker failed to process category ${category}:`, categoryError);
-            // Continue processing other categories even if one fails
-            
-            // Update job with error info for this category
-            await jobStore.pushDebugStep(jobId, {
-              category,
-              query: `Events in ${category} for ${city} on ${date}`,
-              response: `Worker error: ${categoryError.message}`,
-              parsedCount: 0,
-              addedCount: 0,
-              totalAfter: allEvents.length
-            });
-          }
-        }
-      } catch (workerError) {
-        console.error(`Worker encountered fatal error:`, workerError);
-        throw workerError;
-      }
-    };
-
-    // Create a worker function for processing a single category
+    // Simplified category processing function
     const processCategory = async (category: string, categoryIndex: number): Promise<void> => {
       let attempts = 0;
       let results: Array<{ query: string; response: string; events: EventData[]; timestamp: number; }> | null = null;
+      updateHeartbeat();
       
       while (attempts < maxAttempts && !results) {
         attempts++;
+        updateHeartbeat();
         
         try {
           console.log(`Processing category ${categoryIndex + 1}/${effectiveCategories.length}: ${category} (attempt ${attempts}/${maxAttempts})`);
           
-          // Execute query for single category with robust timeout
-          const perCategoryTimeout = (() => {
-            if (typeof categoryTimeoutMs === 'object' && categoryTimeoutMs !== null) {
-              const categoryTimeout = categoryTimeoutMs[category];
-              return Math.max(typeof categoryTimeout === 'number' ? categoryTimeout : 90000, 60000);
-            }
-            if (typeof categoryTimeoutMs === 'number') return Math.max(categoryTimeoutMs, 60000);
-            return 90000;
-          })();
-          
-          console.log(`Category ${category}: using timeout ${perCategoryTimeout}ms`);
+          // Simple timeout for this category
+          const categoryController = new AbortController();
+          const categoryTimeoutId = setTimeout(() => {
+            console.log(`⏰ Category ${category} timeout after ${categoryTimeoutMs}ms`);
+            categoryController.abort();
+          }, categoryTimeoutMs);
 
           try {
             const queryPromise = perplexityService.executeMultiQuery(city, date, [category], options);
-            const res = await withTimeout(queryPromise, perCategoryTimeout);
+            const res = await Promise.race([
+              queryPromise,
+              new Promise<never>((_, reject) => {
+                categoryController.signal.addEventListener('abort', () => {
+                  reject(new Error(`Category ${category} timeout after ${categoryTimeoutMs}ms`));
+                });
+              })
+            ]);
+            
+            clearTimeout(categoryTimeoutId);
+            updateHeartbeat();
             
             if (res && res.length > 0) {
               results = res;
-              console.log(`✅ Category ${category} completed successfully with ${res.length} results`);
+              console.log(`✅ Category ${category} completed with ${res.length} results`);
             } else {
               console.log(`⚠️ Category ${category} returned no results`);
+              results = []; // Set empty results to break the retry loop
             }
           } catch (timeoutError: any) {
-            if (timeoutError.message.includes('timed out')) {
-              console.error(`⏰ Category ${category} timed out after ${perCategoryTimeout}ms`);
-              throw new Error(`Category timeout after ${perCategoryTimeout}ms`);
+            clearTimeout(categoryTimeoutId);
+            updateHeartbeat();
+            
+            if (timeoutError.message.includes('timeout')) {
+              console.error(`⏰ Category ${category} timed out after ${categoryTimeoutMs}ms`);
+              throw new Error(`Category timeout after ${categoryTimeoutMs}ms`);
             } else {
               console.error(`❌ Category ${category} API error:`, timeoutError.message);
               throw timeoutError;
@@ -356,6 +348,7 @@ async function processJobInBackground(
           }
           
         } catch (categoryError: any) {
+          updateHeartbeat();
           console.error(`Category ${category} attempt ${attempts}/${maxAttempts} failed:`, categoryError.message);
           
           // Add debug step for failed attempt
@@ -368,215 +361,145 @@ async function processJobInBackground(
             totalAfter: allEvents.length
           });
           
-          // If not the last attempt, wait with exponential backoff + jitter
+          // If not the last attempt, wait briefly
           if (attempts < maxAttempts) {
-            const baseDelay = 1000 * Math.pow(2, attempts - 1); // 1s, 2s, 4s, 8s
-            const jitter = Math.random() * 1000; // 0-1s random jitter
-            const delay = baseDelay + jitter;
-            console.log(`Retrying category ${category} in ${Math.round(delay)}ms...`);
+            const delay = 1000; // 1 second delay between retries
+            console.log(`Retrying category ${category} in ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
+            updateHeartbeat();
           }
         }
       }
       
-      // Process all sub-results if we got some - wrap in try/catch to prevent escaping exceptions
-      try {
-        if (results && results.length > 0) {
-          for (let i = 0; i < results.length; i++) {
-            const r = results[i];
+      // Process results if we got some
+      if (results && results.length > 0) {
+        updateHeartbeat();
+        for (const r of results) {
+          try {
+            // Parse events from this result
+            r.events = eventAggregator.parseEventsFromResponse(r.response);
+            const parsedCount = r.events.length;
+            
+            // Get current job state and merge events
+            const currentJob = await jobStore.getJob(jobId);
+            const currentEvents = currentJob?.events || [];
+            
+            // Merge and deduplicate
+            const combinedEvents = [...currentEvents, ...r.events];
+            const deduplicatedEvents = eventAggregator.deduplicateEvents(combinedEvents);
+            const finalEvents = eventAggregator.categorizeEvents(deduplicatedEvents);
+            
+            const addedCount = finalEvents.length - currentEvents.length;
+            allEvents = finalEvents;
+            updateHeartbeat();
+            
+            // Update job with new events
+            await jobStore.updateJob(jobId, { 
+              events: finalEvents,
+              progress: { 
+                completedCategories, 
+                totalCategories: effectiveCategories.length 
+              },
+              lastUpdateAt: new Date().toISOString()
+            });
+            
+            console.log(`Progressive update: ${finalEvents.length} total events for category ${category}, parsed: ${parsedCount}, added: ${addedCount}`);
+            
+            // Cache events and push debug step
             try {
-              // Parse events from this sub-result
-              r.events = eventAggregator.parseEventsFromResponse(r.response);
-              const parsedCount = r.events.length;
+              const ttlSeconds = computeTTLSecondsForEvents(r.events);
+              eventsCache.setEventsByCategory(city, date, category, r.events, ttlSeconds);
               
-              // Aggregate new events from this sub-result
-              const newResults = [{ ...r, events: r.events }];
-              const categoryEvents = eventAggregator.aggregateResults(newResults);
-              
-              // Get current job state to ensure we have the latest events
-              const currentJob = await jobStore.getJob(jobId);
-              const currentEvents = currentJob?.events || [];
-              
-              // Merge with current events and deduplicate properly
-              const beforeCount = currentEvents.length;
-              const combinedEvents = [...currentEvents, ...categoryEvents];
-              const deduplicatedEvents = eventAggregator.deduplicateEvents(combinedEvents);
-              
-              // Categorize all events
-              const finalEvents = eventAggregator.categorizeEvents(deduplicatedEvents);
-              
-              const addedCount = finalEvents.length - beforeCount;
-              
-              // Update local tracking variable for this worker
-              allEvents = finalEvents;
-              
-              // Cache this category's events immediately for future requests
-              // IMPORTANT: For main categories, cache under all subcategories too
-              try {
-                const ttlSeconds = computeTTLSecondsForEvents(categoryEvents);
-                
-                // Always cache under the processed category (whether main or sub)
-                eventsCache.setEventsByCategory(city, date, category, categoryEvents, ttlSeconds);
-                console.log(`Cached ${categoryEvents.length} events for category '${category}' with TTL: ${ttlSeconds} seconds`);
-                
-                // If this is a main category, also cache under all its subcategories
-                // This implements the problem statement: AI calls for main categories, cache for subcategories
-                const subcategories = getSubcategoriesForMainCategory(category);
-                if (subcategories.length > 0) {
-                  console.log(`Main category '${category}' detected. Caching events under ${subcategories.length} subcategories.`);
-                  for (const subcategory of subcategories) {
-                    try {
-                      eventsCache.setEventsByCategory(city, date, subcategory, categoryEvents, ttlSeconds);
-                      console.log(`  → Cached under subcategory: '${subcategory}'`);
-                    } catch (subCacheError) {
-                      console.error(`Failed to cache under subcategory '${subcategory}':`, subCacheError);
-                    }
-                  }
-                }
-              } catch (cacheError) {
-                console.error(`Failed to cache category '${category}':`, cacheError);
-                // Continue processing even if caching fails
+              // Cache under subcategories if this is a main category
+              const subcategories = getSubcategoriesForMainCategory(category);
+              for (const subcategory of subcategories) {
+                eventsCache.setEventsByCategory(city, date, subcategory, r.events, ttlSeconds);
               }
-              
-              // Progressive update with the latest merged events
-              await jobStore.updateJob(jobId, { 
-                events: finalEvents,
-                progress: { 
-                  completedCategories, 
-                  totalCategories: effectiveCategories.length 
-                },
-                lastUpdateAt: new Date().toISOString()
-              });
-              console.log(`Progressive update: ${finalEvents.length} total events committed for category ${category} (step ${i + 1}/${results.length}), progress: ${completedCategories}/${effectiveCategories.length} categories, parsed: ${parsedCount}, added: ${addedCount}`);
-              
-              // Push debug step with actual query
-              await jobStore.pushDebugStep(jobId, {
-                category,
-                query: r.query,
-                response: r.response,
-                parsedCount,
-                addedCount,
-                totalAfter: finalEvents.length
-              });
-              
-            } catch (processingError: any) {
-              console.error(`Error processing sub-result ${i + 1}/${results.length} for category ${category}:`, processingError.message);
-              await jobStore.pushDebugStep(jobId, {
-                category,
-                query: r?.query || `Events in ${category} for ${city} on ${date} (sub-result ${i + 1})`,
-                response: `Processing error: ${processingError.message}`,
-                parsedCount: 0,
-                addedCount: 0,
-                totalAfter: allEvents.length
-              });
+            } catch (cacheError) {
+              console.error(`Failed to cache category '${category}':`, cacheError);
             }
+            
+            await jobStore.pushDebugStep(jobId, {
+              category,
+              query: r.query,
+              response: r.response,
+              parsedCount,
+              addedCount,
+              totalAfter: finalEvents.length
+            });
+            
+          } catch (processingError: any) {
+            updateHeartbeat();
+            console.error(`Error processing result for category ${category}:`, processingError.message);
           }
-        } else {
-          // No results returned after all attempts
-          await jobStore.pushDebugStep(jobId, {
-            category,
-            query: `Events in ${category} for ${city} on ${date}`,
-            response: `No results returned`,
-            parsedCount: 0,
-            addedCount: 0,
-            totalAfter: allEvents.length
-          });
         }
-      } catch (outerProcessingError: any) {
-        console.error(`Error processing results array for category ${category}:`, outerProcessingError.message);
+      } else {
+        // No results after all attempts
         await jobStore.pushDebugStep(jobId, {
           category,
           query: `Events in ${category} for ${city} on ${date}`,
-          response: `Processing error: ${outerProcessingError.message}`,
+          response: `No results returned after ${attempts} attempts`,
           parsedCount: 0,
           addedCount: 0,
           totalAfter: allEvents.length
         });
       }
-
-      completedCategories++;
-      lastProgressUpdate = Date.now(); // Update progress timestamp
-      console.log(`✅ Completed category ${category}. Progress: ${completedCategories}/${effectiveCategories.length} categories`);
     };
 
-    // Start workers (up to concurrency limit)
-    const workerCount = Math.min(categoryConcurrency, effectiveCategories.length);
-    console.log(`Starting ${workerCount} parallel workers for ${effectiveCategories.length} categories`);
-    for (let i = 0; i < workerCount; i++) {
-      processingPromises.push(
-        worker().catch(workerError => {
-          console.error(`Worker ${i + 1} failed:`, workerError);
-          // Don't re-throw here, let Promise.all handle it
-          throw workerError;
-        })
-      );
-    }
-
-    try {
-      // Wait for all workers to complete or overall timeout
-      console.log(`Waiting for ${workerCount} workers to process ${effectiveCategories.length} categories...`);
-      
-      await Promise.race([
-        Promise.all(processingPromises).then(() => {
-          console.log(`All ${workerCount} workers completed successfully`);
-        }),
-        new Promise<void>((_, reject) => {
-          overallAbortController.signal.addEventListener('abort', () => {
-            console.log(`Overall timeout of ${overallTimeoutMs}ms triggered, aborting workers`);
-            reject(new Error(`Overall timeout of ${overallTimeoutMs}ms exceeded`));
-          });
-        })
-      ]);
-      
-      // Get final events count from JobStore for accurate logging
-      const finalJob = await jobStore.getJob(jobId);
-      const finalEventCount = finalJob?.events?.length || 0;
-      console.log(`Background job complete: found ${finalEventCount} events total`);
-    } catch (timeoutError: any) {
-      if (timeoutError.message.includes('Overall timeout')) {
-        // Get current events count from JobStore
-        const currentJob = await jobStore.getJob(jobId);
-        const currentEventCount = currentJob?.events?.length || 0;
-        console.log(`Job ${jobId} stopped due to overall timeout of ${overallTimeoutMs}ms. Found ${currentEventCount} events so far.`);
-        // Continue to finalization with partial results
-      } else {
-        console.error(`Job ${jobId} failed due to worker error:`, timeoutError);
-        throw timeoutError; // Re-throw other errors
-      }
-    } finally {
-      // Clean up overall timeout
-      if (overallTimeoutId) {
-        clearTimeout(overallTimeoutId);
-        console.log(`Cleared overall timeout for job ${jobId}`);
+    // Simplified processing - process categories sequentially to avoid complexity
+    console.log(`Starting sequential processing of ${effectiveCategories.length} categories...`);
+    
+    for (let categoryIndex = 0; categoryIndex < effectiveCategories.length; categoryIndex++) {
+      if (overallAbortController.signal.aborted) {
+        console.log('Overall timeout reached, stopping category processing');
+        break;
       }
       
-      // Clean up progress monitoring
-      if (progressCheckInterval) {
-        clearInterval(progressCheckInterval);
-        console.log(`Cleared progress monitoring for job ${jobId}`);
+      const category = effectiveCategories[categoryIndex];
+      console.log(`Processing category ${categoryIndex + 1}/${effectiveCategories.length}: ${category}`);
+      updateHeartbeat();
+      
+      try {
+        await processCategory(category, categoryIndex);
+        completedCategories++;
+        updateHeartbeat();
+        
+        // Update progress after each category
+        await jobStore.updateJob(jobId, {
+          progress: { 
+            completedCategories, 
+            totalCategories: effectiveCategories.length 
+          },
+          lastUpdateAt: new Date().toISOString()
+        });
+        
+        console.log(`✅ Completed category ${category}. Progress: ${completedCategories}/${effectiveCategories.length}`);
+      } catch (categoryError: any) {
+        console.error(`❌ Failed to process category ${category}:`, categoryError.message);
+        updateHeartbeat();
+        
+        // Continue with next category even if one fails
+        await jobStore.pushDebugStep(jobId, {
+          category,
+          query: `Events in ${category} for ${city} on ${date}`,
+          response: `Error: ${categoryError.message}`,
+          parsedCount: 0,
+          addedCount: 0,
+          totalAfter: allEvents.length
+        });
       }
     }
 
-    // Always finalize the job with status 'done', even if we have 0 events
-    try {
-      // Get the final events from the JobStore (they may have been updated by workers)
-      const finalJob = await jobStore.getJob(jobId);
-      const finalEvents = finalJob?.events || allEvents || [];
-      
-      // Note: Per-category caching is now done immediately during processing
-      // No need for combined caching here as individual categories are already cached
-      console.log(`Job finalized with ${finalEvents.length} total events (per-category caching completed during processing)`);
-    } catch (cacheError) {
-      console.error('Failed to finalize job, but continuing:', cacheError);
-    }
+    // Get final events from JobStore
+    updateHeartbeat();
+    const finalJob = await jobStore.getJob(jobId);
+    const finalEvents = finalJob?.events || allEvents || [];
+    console.log(`Sequential processing complete: found ${finalEvents.length} events total`);
 
-    // Update job with final status - this must succeed to prevent UI timeout
-    // Get current events from JobStore to ensure we don't overwrite progressive updates
+    // CRITICAL: Always finalize the job with status 'done'
     console.log(`Updating job ${jobId} to 'done' status...`);
+    updateHeartbeat();
     try {
-      const finalJob = await jobStore.getJob(jobId);
-      const finalEvents = finalJob?.events || [];
-      
       await jobStore.updateJob(jobId, {
         status: 'done',
         events: finalEvents,
@@ -595,36 +518,27 @@ async function processJobInBackground(
       
       console.log(`✅ Job ${jobId} successfully marked as 'done' with ${finalEvents.length} events`);
     } catch (finalUpdateError) {
-      console.error(`❌ CRITICAL: Failed to update job ${jobId} to 'done' status - this will cause infinite polling:`, finalUpdateError);
+      console.error(`❌ CRITICAL: Failed to update job ${jobId} to 'done' status:`, finalUpdateError);
       
-      // Try a simpler update as fallback
+      // Try a minimal fallback update
       try {
         await jobStore.updateJob(jobId, {
           status: 'done',
           lastUpdateAt: new Date().toISOString(),
-          message: 'Processing completed (status update had issues)'
+          message: 'Processing completed'
         });
         console.log(`✅ Job ${jobId} marked as 'done' via fallback update`);
       } catch (fallbackError) {
         console.error(`❌ CRITICAL: Even fallback update failed for job ${jobId}:`, fallbackError);
-        throw fallbackError; // This will trigger the outer catch block
+        throw fallbackError;
       }
     }
 
   } catch (error) {
     console.error('❌ Background job error for:', jobId, error);
+    updateHeartbeat();
     
-    // Clean up overall timeout in case of error
-    try {
-      if (overallTimeoutId) {
-        clearTimeout(overallTimeoutId);
-        console.log(`Cleared timeout after error for job ${jobId}`);
-      }
-    } catch {
-      // Ignore cleanup errors
-    }
-    
-    // Ensure job is always finalized, even on error - this is CRITICAL to prevent infinite polling
+    // Ensure job is always finalized, even on error
     console.log(`Attempting to mark job ${jobId} as 'error' status...`);
     try {
       await jobStore.updateJob(jobId, {
@@ -634,18 +548,25 @@ async function processJobInBackground(
       });
       console.log(`✅ Job ${jobId} successfully marked as 'error'`);
     } catch (updateError) {
-      console.error(`❌ CRITICAL: Failed to update job ${jobId} status to error - this WILL cause infinite polling:`, updateError);
+      console.error(`❌ CRITICAL: Failed to update job ${jobId} status to error:`, updateError);
       
-      // This is critical - try one more time with minimal data
+      // Try minimal update
       try {
-        await jobStore.updateJob(jobId, {
-          status: 'error'
-        });
+        await jobStore.updateJob(jobId, { status: 'error' });
         console.log(`✅ Job ${jobId} marked as 'error' via minimal update`);
       } catch (finalError) {
-        console.error(`❌ CATASTROPHIC: Cannot update job ${jobId} status - user will experience infinite polling:`, finalError);
-        // At this point, we can't do anything more
+        console.error(`❌ CATASTROPHIC: Cannot update job ${jobId} status:`, finalError);
       }
+    }
+  } finally {
+    // Clean up all timeouts and intervals
+    if (overallTimeoutId) {
+      clearTimeout(overallTimeoutId);
+      console.log(`Cleared overall timeout for job ${jobId}`);
+    }
+    if (heartbeatInterval) {
+      clearInterval(heartbeatInterval);
+      console.log(`Cleared heartbeat for job ${jobId}`);
     }
   }
 }

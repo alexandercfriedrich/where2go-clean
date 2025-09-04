@@ -51,22 +51,22 @@ export async function GET(request: NextRequest, { params }: { params: { jobId: s
       );
     }
 
-    // Safety check: If job is older than 10 minutes and still pending, mark it as error
-    // This prevents infinite polling for truly stuck jobs
+    // Safety check: If job is older than 5 minutes and still pending, mark it as error
+    // This prevents infinite polling for truly stuck jobs - MUCH MORE AGGRESSIVE
     const jobAgeMs = Date.now() - job.createdAt.getTime();
-    const maxJobAgeMs = 10 * 60 * 1000; // 10 minutes
+    const maxJobAgeMs = 5 * 60 * 1000; // 5 minutes (reduced from 10)
     
     if (job.status === 'pending' && jobAgeMs > maxJobAgeMs) {
-      console.warn(`⚠️ Job ${jobId} is ${Math.round(jobAgeMs/1000)}s old and still pending - marking as error to prevent infinite polling`);
+      console.warn(`🚨 AGGRESSIVE TIMEOUT: Job ${jobId} is ${Math.round(jobAgeMs/1000)}s old and still pending - marking as error to prevent infinite polling`);
       try {
         await jobStore.updateJob(jobId, {
           status: 'error',
-          error: 'Job wurde aufgrund von Zeitüberschreitung beendet (10 Min. Limit)',
+          error: 'Job wurde aufgrund von Zeitüberschreitung beendet (5 Min. Limit)',
           lastUpdateAt: new Date().toISOString()
         });
         // Retrieve the updated job
         job.status = 'error';
-        job.error = 'Job wurde aufgrund von Zeitüberschreitung beendet (10 Min. Limit)';
+        job.error = 'Job wurde aufgrund von Zeitüberschreitung beendet (5 Min. Limit)';
       } catch (updateError) {
         console.error('Failed to update stale job status:', updateError);
         // Continue with the stale job data
