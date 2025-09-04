@@ -69,11 +69,22 @@ async function scheduleBackgroundProcessing(
   // Determine if we're running on Vercel
   const isVercel = process.env.VERCEL === '1';
   
+  console.log('=== Background Processing Scheduler ===');
+  console.log('Running on Vercel:', isVercel);
+  console.log('VERCEL env var:', process.env.VERCEL);
+  
   if (isVercel) {
     // Prefer exact deployment URL to ensure we hit the same deployment in preview
     const deploymentUrl = request.headers.get('x-vercel-deployment-url');
     const host = deploymentUrl || request.headers.get('x-forwarded-host') || request.headers.get('host');
     const protocol = 'https'; // Vercel preview/prod are https
+    
+    console.log('Vercel environment details:', {
+      deploymentUrl,
+      forwarded_host: request.headers.get('x-forwarded-host'),
+      host: request.headers.get('host'),
+      final_host: host
+    });
     
     if (!host) {
       throw new Error('Unable to determine host for background processing');
@@ -81,7 +92,7 @@ async function scheduleBackgroundProcessing(
     
     const backgroundUrl = `${protocol}://${host}/api/events/process`;
     
-    console.log('Scheduling background processing via Vercel Background Functions:', backgroundUrl);
+    console.log('✅ Scheduling background processing via Vercel Background Functions:', backgroundUrl);
 
     // Optional protection bypass for Preview Deployments Protection
     // Set PROTECTION_BYPASS_TOKEN in Vercel Project Settings > Environment Variables
@@ -96,19 +107,25 @@ async function scheduleBackgroundProcessing(
     };
     if (protectionBypass) {
       headers['x-vercel-protection-bypass'] = protectionBypass;
+      console.log('✅ Added protection bypass header');
     }
     if (internalSecret) {
       headers['x-internal-secret'] = internalSecret;
+      console.log('✅ Added internal secret header');
     }
     
-    // Make internal HTTP request to background processor with special header
-    console.log(`Scheduling background processing: ${backgroundUrl}`);
+    console.log('Request headers:', Object.keys(headers));
+    console.log('Request payload:', { jobId, city, date, categories: categories.length });
     
     // Add timeout to the background scheduling request
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    const timeoutId = setTimeout(() => {
+      console.error('❌ Background scheduling request timeout after 15 seconds');
+      controller.abort();
+    }, 15000); // 15 second timeout (increased from 10s)
     
     try {
+      console.log(`🚀 Making background processing request to: ${backgroundUrl}`);
       const response = await fetch(backgroundUrl, {
         method: 'POST',
         headers,
@@ -124,16 +141,26 @@ async function scheduleBackgroundProcessing(
       
       clearTimeout(timeoutId);
       
+      console.log(`📡 Background processing response: ${response.status} ${response.statusText}`);
+      console.log(`   OK: ${response.ok}`);
+      
       if (!response.ok) {
-        const responseText = await response.text().catch(() => 'Unknown error');
+        const responseText = await response.text().catch(() => 'Unable to read response');
+        console.error(`❌ Background scheduling HTTP error: ${response.status} ${response.statusText}`);
+        console.error(`   Response body: ${responseText}`);
         throw new Error(`Background scheduling failed: ${response.status} ${response.statusText} - ${responseText}`);
       }
       
-      console.log('Background processing scheduled successfully');
+      const responseData = await response.json().catch(() => null);
+      console.log('✅ Background processing scheduled successfully');
+      console.log('   Response data:', responseData);
+      
     } catch (fetchError) {
       clearTimeout(timeoutId);
+      console.error('❌ Background scheduling fetch error:', fetchError);
+      
       if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-        throw new Error('Background scheduling timed out after 10 seconds');
+        throw new Error('Background scheduling timed out after 15 seconds');
       }
       throw fetchError;
     }
@@ -141,13 +168,19 @@ async function scheduleBackgroundProcessing(
   } else {
     // Local development fallback - make local HTTP request with better error handling
     const localUrl = 'http://localhost:3000/api/events/process';
-    console.log(`Running in local development, making async request to background processor: ${localUrl}`);
+    console.log(`✅ Running in local development, making async request to background processor: ${localUrl}`);
     
     // Add timeout and better error handling for local development
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+    const timeoutId = setTimeout(() => {
+      console.error('❌ Local development request timeout after 15 seconds');
+      controller.abort();
+    }, 15000); // 15 second timeout
     
     try {
+      console.log(`🚀 Making local background processing request to: ${localUrl}`);
+      console.log('Request payload:', { jobId, city, date, categories: categories.length });
+      
       const response = await fetch(localUrl, {
         method: 'POST',
         headers: {
@@ -166,18 +199,26 @@ async function scheduleBackgroundProcessing(
       
       clearTimeout(timeoutId);
       
+      console.log(`📡 Local background processing response: ${response.status} ${response.statusText}`);
+      console.log(`   OK: ${response.ok}`);
+      
       if (!response.ok) {
-        const responseText = await response.text().catch(() => 'Unknown error');
-        console.error(`Local background processing failed: ${response.status} ${response.statusText} - ${responseText}`);
+        const responseText = await response.text().catch(() => 'Unable to read response');
+        console.error(`❌ Local background processing HTTP error: ${response.status} ${response.statusText}`);
+        console.error(`   Response body: ${responseText}`);
         throw new Error(`Local background processing failed: ${response.status} ${response.statusText} - ${responseText}`);
       } else {
-        console.log('Local background processing scheduled successfully');
+        const responseData = await response.json().catch(() => null);
+        console.log('✅ Local background processing scheduled successfully');
+        console.log('   Response data:', responseData);
       }
     } catch (fetchError) {
       clearTimeout(timeoutId);
+      console.error('❌ Local development background request error:', fetchError);
+      
       if (fetchError instanceof Error && fetchError.name === 'AbortError') {
-        console.error('Local development background request timed out after 10 seconds');
-        throw new Error('Local development background request timed out after 10 seconds');
+        console.error('Local development background request timed out after 15 seconds');
+        throw new Error('Local development background request timed out after 15 seconds');
       } else {
         console.error('Local development background request failed:', fetchError);
         throw fetchError;
@@ -338,7 +379,18 @@ export async function POST(request: NextRequest) {
       console.log(`Original missing categories (subcategories): ${missingCategories.length} - [${missingCategories.join(', ')}]`);
       console.log(`Mapped to main categories for AI calls: ${mainCategoriesForAI.length} - [${mainCategoriesForAI.join(', ')}]`);
       
+      // Enhanced debug logging for background processing scheduling
+      console.log('=== Background Processing Setup ===');
+      console.log('Environment:', {
+        VERCEL: process.env.VERCEL,
+        NODE_ENV: process.env.NODE_ENV,
+        deployment_url: request.headers.get('x-vercel-deployment-url'),
+        host: request.headers.get('host'),
+        forwarded_host: request.headers.get('x-forwarded-host')
+      });
+      
       await scheduleBackgroundProcessing(request, jobId, city, date, mainCategoriesForAI, mergedOptions);
+      console.log('✅ Background processing scheduled successfully');
       
       // Add reasonable timeout protection for stalled jobs
       // If background processing doesn't start within 2 minutes, fail the job
@@ -359,15 +411,22 @@ export async function POST(request: NextRequest) {
       }, 120000); // 2 minutes timeout for stalled jobs
       
     } catch (scheduleError) {
-      console.error('Failed to schedule background processing:', scheduleError);
-      // Update job to error state
+      console.error('❌ Failed to schedule background processing:', scheduleError);
+      console.error('   Error name:', scheduleError instanceof Error ? scheduleError.name : 'Unknown');
+      console.error('   Error message:', scheduleError instanceof Error ? scheduleError.message : String(scheduleError));
+      console.error('   Error stack:', scheduleError instanceof Error ? scheduleError.stack : 'No stack');
+      
+      // Update job to error state with detailed error information
       await jobStore.updateJob(jobId, {
         status: 'error',
         error: 'Failed to schedule background processing: ' + (scheduleError instanceof Error ? scheduleError.message : String(scheduleError)),
         lastUpdateAt: new Date().toISOString()
       });
       return NextResponse.json(
-        { error: 'Failed to schedule background processing' },
+        { 
+          error: 'Failed to schedule background processing',
+          details: scheduleError instanceof Error ? scheduleError.message : String(scheduleError)
+        },
         { status: 500 }
       );
     }

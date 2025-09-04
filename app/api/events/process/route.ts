@@ -185,9 +185,18 @@ async function processJobInBackground(
   };
   
   try {
+    // Enhanced environment validation with detailed logging
     const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
+    console.log('=== Environment Validation ===');
+    console.log('PERPLEXITY_API_KEY present:', !!PERPLEXITY_API_KEY);
+    console.log('PERPLEXITY_API_KEY length:', PERPLEXITY_API_KEY?.length || 0);
+    console.log('PERPLEXITY_API_KEY starts with pplx-:', PERPLEXITY_API_KEY?.startsWith('pplx-') || false);
+    console.log('VERCEL environment:', process.env.VERCEL || 'not set');
+    console.log('NODE_ENV:', process.env.NODE_ENV || 'not set');
+    
     if (!PERPLEXITY_API_KEY) {
       console.error('❌ PERPLEXITY_API_KEY environment variable is not set');
+      console.error('Available env vars starting with PERPLEXITY:', Object.keys(process.env).filter(k => k.startsWith('PERPLEXITY')));
       await jobStore.updateJob(jobId, {
         status: 'error',
         error: 'Perplexity API Key ist nicht konfiguriert. Bitte setze PERPLEXITY_API_KEY in der .env.local Datei.',
@@ -195,6 +204,23 @@ async function processJobInBackground(
       });
       return;
     }
+    
+    if (!PERPLEXITY_API_KEY.startsWith('pplx-')) {
+      console.error('❌ PERPLEXITY_API_KEY has invalid format');
+      console.error('Key format:', { 
+        length: PERPLEXITY_API_KEY.length, 
+        starts: PERPLEXITY_API_KEY.slice(0, 8),
+        startsWithPplx: PERPLEXITY_API_KEY.startsWith('pplx-')
+      });
+      await jobStore.updateJob(jobId, {
+        status: 'error',
+        error: 'Perplexity API Key hat ungültiges Format (sollte mit pplx- beginnen).',
+        lastUpdateAt: new Date().toISOString()
+      });
+      return;
+    }
+    
+    console.log('✅ Environment validation passed');
 
     // CRITICAL: Update job status immediately to show processing has started
     console.log(`🚀 Background processing starting for job ${jobId}...`);
@@ -226,20 +252,87 @@ async function processJobInBackground(
       }
     }, 30000); // Check every 30 seconds
 
-    // Skip connectivity test in runtime to avoid timeout issues - the actual API calls will verify connectivity
-    console.log('Skipping connectivity test in runtime environment - proceeding directly to event processing');
+    // Perform ROBUST connectivity test with proper error handling
+    console.log('Testing Perplexity API connectivity with enhanced error handling...');
     updateHeartbeat();
-    let connectivityTestPassed = true; // Assume passed to continue processing
+    let connectivityTestPassed = false;
     
-    // Log debug information for the job
-    await jobStore.pushDebugStep(jobId, {
-      category: 'SYSTEM',
-      query: 'Perplexity API Connectivity',
-      response: 'Skipped connectivity test in runtime - proceeding directly to event processing',
-      parsedCount: 0,
-      addedCount: 0,
-      totalAfter: 0
-    });
+    try {
+      // Create dedicated controller for connectivity test with reasonable timeout
+      const connectivityController = new AbortController();
+      const connectivityTimeoutId = setTimeout(() => {
+        console.log('Connectivity test timeout after 15 seconds');
+        connectivityController.abort();
+      }, 15000); // 15 second timeout for connectivity test
+      
+      const testResponse = await fetch('https://api.perplexity.ai/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'sonar-pro',
+          messages: [{ role: 'user', content: 'Test connectivity. Respond with: "API test successful"' }],
+          max_tokens: 10,
+          temperature: 0
+        }),
+        signal: connectivityController.signal
+      });
+      
+      clearTimeout(connectivityTimeoutId);
+      
+      if (testResponse.ok) {
+        const testData = await testResponse.json();
+        console.log('✅ Perplexity API connectivity test PASSED');
+        console.log('   Status:', testResponse.status);
+        console.log('   Model:', testData.model);
+        console.log('   Response:', testData.choices?.[0]?.message?.content?.slice(0, 50) + '...');
+        connectivityTestPassed = true;
+        
+        await jobStore.pushDebugStep(jobId, {
+          category: 'SYSTEM',
+          query: 'Perplexity API Connectivity Test',
+          response: `✅ SUCCESS (${testResponse.status}): ${testData.choices?.[0]?.message?.content || 'No content'}`,
+          parsedCount: 0,
+          addedCount: 0,
+          totalAfter: 0
+        });
+      } else {
+        const errorText = await testResponse.text().catch(() => 'Unknown error');
+        console.error('❌ Perplexity API connectivity test FAILED');
+        console.error('   Status:', testResponse.status, testResponse.statusText);
+        console.error('   Error:', errorText);
+        
+        await jobStore.pushDebugStep(jobId, {
+          category: 'SYSTEM',
+          query: 'Perplexity API Connectivity Test',
+          response: `❌ FAILED (${testResponse.status}): ${errorText}`,
+          parsedCount: 0,
+          addedCount: 0,
+          totalAfter: 0
+        });
+        
+        // Continue processing despite connectivity test failure for resilience
+        console.warn('⚠️ Continuing with event processing despite connectivity test failure');
+        connectivityTestPassed = true; // Allow processing to continue
+      }
+    } catch (connectivityError: any) {
+      console.error('❌ Perplexity API connectivity test ERROR:', connectivityError.message);
+      
+      await jobStore.pushDebugStep(jobId, {
+        category: 'SYSTEM',
+        query: 'Perplexity API Connectivity Test',
+        response: `❌ ERROR: ${connectivityError.message}`,
+        parsedCount: 0,
+        addedCount: 0,
+        totalAfter: 0
+      });
+      
+      // Continue processing despite connectivity error for resilience
+      console.warn('⚠️ Continuing with event processing despite connectivity test error');
+      connectivityTestPassed = true; // Allow processing to continue
+    }
 
     // Default to DEFAULT_CATEGORIES when categories is missing or empty
     const effectiveCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
