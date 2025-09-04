@@ -117,7 +117,8 @@ export async function POST(req: NextRequest) {
       try {
         const currentJob = await jobStore.getJob(jobId);
         if (currentJob && currentJob.status === 'pending') {
-          console.warn(`⚠️ Job ${jobId} still pending after 3 minutes - ensuring progress is being made`);
+          const jobAgeMs = Date.now() - currentJob.createdAt.getTime();
+          console.warn(`⚠️ Job ${jobId} still pending after ${Math.round(jobAgeMs/1000)}s - ensuring progress is being made`);
           await jobStore.updateJob(jobId, {
             lastUpdateAt: new Date().toISOString()
           });
@@ -225,69 +226,16 @@ async function processJobInBackground(
       }
     }, 30000); // Check every 30 seconds
 
-    // Resilient connectivity test - don't fail the entire job if this fails
-    console.log('Testing Perplexity API connectivity...');
+    // Skip connectivity test in runtime to avoid timeout issues - the actual API calls will verify connectivity
+    console.log('Skipping connectivity test in runtime environment - proceeding directly to event processing');
     updateHeartbeat();
-    let connectivityTestPassed = false;
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => {
-        console.log('⏰ Connectivity test timeout after 10 seconds');
-        controller.abort();
-      }, 10000); // Increased to 10 seconds for more reliability
-      
-      const testResponse = await fetch('https://api.perplexity.ai/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'sonar-pro',
-          messages: [{ role: 'user', content: 'Test' }],
-          max_tokens: 1
-        }),
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      updateHeartbeat();
-      
-      console.log(`🔍 Connectivity test response: status=${testResponse.status}, ok=${testResponse.ok}`);
-      
-      if (!testResponse.ok && testResponse.status === 401) {
-        console.error('❌ Perplexity API Key is invalid');
-        await jobStore.updateJob(jobId, {
-          status: 'error',
-          error: 'Perplexity API Key ist ungültig. Bitte überprüfe PERPLEXITY_API_KEY.'
-        });
-        return;
-      }
-      
-      connectivityTestPassed = true;
-      console.log('✅ Perplexity API connectivity test passed');
-    } catch (connectivityError: any) {
-      updateHeartbeat();
-      console.error('❌ Perplexity API connectivity test failed:', connectivityError.message);
-      console.error('Error details:', {
-        name: connectivityError.name,
-        code: connectivityError.code,
-        cause: connectivityError.cause
-      });
-      
-      // Instead of failing the entire job, just log the warning and continue
-      // The actual API calls will reveal if there's a real connectivity issue
-      console.warn('⚠️ Connectivity test failed, but continuing with processing - actual API calls will determine success');
-      connectivityTestPassed = false;
-    }
-    
-    console.log(`🔍 Connectivity test result: ${connectivityTestPassed ? 'PASSED' : 'FAILED (continuing anyway)'}`);
+    let connectivityTestPassed = true; // Assume passed to continue processing
     
     // Log debug information for the job
     await jobStore.pushDebugStep(jobId, {
       category: 'SYSTEM',
-      query: 'Perplexity API Connectivity Test',
-      response: `Test ${connectivityTestPassed ? 'PASSED' : 'FAILED'} - ${connectivityTestPassed ? 'API is reachable' : 'API test failed but continuing with processing'}`,
+      query: 'Perplexity API Connectivity',
+      response: 'Skipped connectivity test in runtime - proceeding directly to event processing',
       parsedCount: 0,
       addedCount: 0,
       totalAfter: 0
@@ -358,21 +306,24 @@ async function processJobInBackground(
       let results: Array<{ query: string; response: string; events: EventData[]; timestamp: number; }> | null = null;
       updateHeartbeat();
       
+      console.log(`🔄 Starting processCategory for: ${category} (index ${categoryIndex})`);
+      
       while (attempts < maxAttempts && !results) {
         attempts++;
         updateHeartbeat();
         
         try {
-          console.log(`Processing category ${categoryIndex + 1}/${effectiveCategories.length}: ${category} (attempt ${attempts}/${maxAttempts})`);
+          console.log(`🔍 [${category}] Processing attempt ${attempts}/${maxAttempts}`);
           
           // Simple timeout for this category
           const categoryController = new AbortController();
           const categoryTimeoutId = setTimeout(() => {
-            console.log(`⏰ Category ${category} timeout after ${categoryTimeoutMs}ms`);
+            console.log(`⏰ [${category}] Timeout after ${categoryTimeoutMs}ms`);
             categoryController.abort();
           }, categoryTimeoutMs);
 
           try {
+            console.log(`📡 [${category}] Calling perplexityService.executeMultiQuery...`);
             const queryPromise = perplexityService.executeMultiQuery(city, date, [category], options);
             const res = await Promise.race([
               queryPromise,
@@ -386,29 +337,32 @@ async function processJobInBackground(
             clearTimeout(categoryTimeoutId);
             updateHeartbeat();
             
+            console.log(`📝 [${category}] API call completed, results:`, res ? res.length : 0);
+            
             if (res && res.length > 0) {
               results = res;
-              console.log(`✅ Category ${category} completed with ${res.length} results`);
+              console.log(`✅ [${category}] Completed with ${res.length} results`);
             } else {
-              console.log(`⚠️ Category ${category} returned no results`);
+              console.log(`⚠️ [${category}] Returned no results`);
               results = []; // Set empty results to break the retry loop
             }
           } catch (timeoutError: any) {
             clearTimeout(categoryTimeoutId);
             updateHeartbeat();
             
+            console.error(`❌ [${category}] API call error:`, timeoutError.message);
+            
             if (timeoutError.message.includes('timeout')) {
-              console.error(`⏰ Category ${category} timed out after ${categoryTimeoutMs}ms`);
+              console.error(`⏰ [${category}] Timed out after ${categoryTimeoutMs}ms`);
               throw new Error(`Category timeout after ${categoryTimeoutMs}ms`);
             } else {
-              console.error(`❌ Category ${category} API error:`, timeoutError.message);
               throw timeoutError;
             }
           }
           
         } catch (categoryError: any) {
           updateHeartbeat();
-          console.error(`Category ${category} attempt ${attempts}/${maxAttempts} failed:`, categoryError.message);
+          console.error(`❌ [${category}] Attempt ${attempts}/${maxAttempts} failed:`, categoryError.message);
           
           // Add debug step for failed attempt
           await jobStore.pushDebugStep(jobId, {
@@ -423,21 +377,27 @@ async function processJobInBackground(
           // If not the last attempt, wait briefly
           if (attempts < maxAttempts) {
             const delay = 1000; // 1 second delay between retries
-            console.log(`Retrying category ${category} in ${delay}ms...`);
+            console.log(`🔄 [${category}] Retrying in ${delay}ms...`);
             await new Promise(resolve => setTimeout(resolve, delay));
             updateHeartbeat();
           }
         }
       }
       
+      console.log(`📊 [${category}] Processing results, count:`, results ? results.length : 0);
+      
       // Process results if we got some
       if (results && results.length > 0) {
         updateHeartbeat();
         for (const r of results) {
           try {
+            console.log(`🔍 [${category}] Processing result with response length:`, r.response.length);
+            
             // Parse events from this result
             r.events = eventAggregator.parseEventsFromResponse(r.response);
             const parsedCount = r.events.length;
+            
+            console.log(`📝 [${category}] Parsed ${parsedCount} events from response`);
             
             // Get current job state and merge events
             const currentJob = await jobStore.getJob(jobId);
@@ -452,6 +412,8 @@ async function processJobInBackground(
             allEvents = finalEvents;
             updateHeartbeat();
             
+            console.log(`📊 [${category}] Events summary: parsed=${parsedCount}, added=${addedCount}, total=${finalEvents.length}`);
+            
             // Update job with new events
             await jobStore.updateJob(jobId, { 
               events: finalEvents,
@@ -462,7 +424,7 @@ async function processJobInBackground(
               lastUpdateAt: new Date().toISOString()
             });
             
-            console.log(`Progressive update: ${finalEvents.length} total events for category ${category}, parsed: ${parsedCount}, added: ${addedCount}`);
+            console.log(`✅ [${category}] Job updated with ${finalEvents.length} total events`);
             
             // Cache events and push debug step
             try {
@@ -474,8 +436,10 @@ async function processJobInBackground(
               for (const subcategory of subcategories) {
                 eventsCache.setEventsByCategory(city, date, subcategory, r.events, ttlSeconds);
               }
+              
+              console.log(`💾 [${category}] Cached ${r.events.length} events with TTL ${ttlSeconds}s`);
             } catch (cacheError) {
-              console.error(`Failed to cache category '${category}':`, cacheError);
+              console.error(`❌ [${category}] Failed to cache:`, cacheError);
             }
             
             await jobStore.pushDebugStep(jobId, {
@@ -489,11 +453,12 @@ async function processJobInBackground(
             
           } catch (processingError: any) {
             updateHeartbeat();
-            console.error(`Error processing result for category ${category}:`, processingError.message);
+            console.error(`❌ [${category}] Error processing result:`, processingError.message);
           }
         }
       } else {
         // No results after all attempts
+        console.log(`⚠️ [${category}] No results after ${attempts} attempts`);
         await jobStore.pushDebugStep(jobId, {
           category,
           query: `Events in ${category} for ${city} on ${date}`,
@@ -503,10 +468,13 @@ async function processJobInBackground(
           totalAfter: allEvents.length
         });
       }
+      
+      console.log(`🏁 [${category}] processCategory completed`);
     };
 
     // Simplified processing - process categories sequentially to avoid complexity
     console.log(`Starting sequential processing of ${mainCategoriesForAI.length} main categories...`);
+    console.log(`Categories to process:`, mainCategoriesForAI);
     
     for (let categoryIndex = 0; categoryIndex < mainCategoriesForAI.length; categoryIndex++) {
       if (overallAbortController.signal.aborted) {
@@ -515,7 +483,7 @@ async function processJobInBackground(
       }
       
       const category = mainCategoriesForAI[categoryIndex];
-      console.log(`Processing category ${categoryIndex + 1}/${mainCategoriesForAI.length}: ${category}`);
+      console.log(`[${categoryIndex + 1}/${mainCategoriesForAI.length}] Processing category: ${category}`);
       updateHeartbeat();
       
       try {
@@ -532,9 +500,9 @@ async function processJobInBackground(
           lastUpdateAt: new Date().toISOString()
         });
         
-        console.log(`✅ Completed category ${category}. Progress: ${completedCategories}/${mainCategoriesForAI.length}`);
+        console.log(`✅ [${categoryIndex + 1}/${mainCategoriesForAI.length}] Completed category ${category}. Progress: ${completedCategories}/${mainCategoriesForAI.length}`);
       } catch (categoryError: any) {
-        console.error(`❌ Failed to process category ${category}:`, categoryError.message);
+        console.error(`❌ [${categoryIndex + 1}/${mainCategoriesForAI.length}] Failed to process category ${category}:`, categoryError.message);
         updateHeartbeat();
         
         // Continue with next category even if one fails
