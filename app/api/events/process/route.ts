@@ -107,10 +107,9 @@ export async function POST(req: NextRequest) {
         const currentJob = await jobStore.getJob(jobId);
         if (currentJob && currentJob.status === 'pending') {
           console.warn(`⚠️ Job ${jobId} still pending after 2 minutes - this might indicate a problem`);
-          // Don't fail yet, but add a warning update
+          // Don't fail yet, but update the lastUpdateAt timestamp
           await jobStore.updateJob(jobId, {
-            lastUpdateAt: new Date().toISOString(),
-            warning: 'Job has been processing for an extended time'
+            lastUpdateAt: new Date().toISOString()
           });
         }
       } catch (checkError) {
