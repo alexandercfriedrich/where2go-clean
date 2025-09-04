@@ -28,8 +28,8 @@ OVERALL_TIMEOUT_MS=240000
 
 # Admin Area Credentials (Required for /admin access)
 # Set these to enable Basic Auth protection for admin pages
-ADMIN_USER=alexander.c.friedrich
-ADMIN_PASS=Where2go?Lufthansa736.
+ADMIN_USER=
+ADMIN_PASS=
 ```
 
 **Admin Area Configuration:**
@@ -38,8 +38,8 @@ ADMIN_PASS=Where2go?Lufthansa736.
   - `ADMIN_USER`: Username for admin access
   - `ADMIN_PASS`: Password for admin access
 - **Example credentials** (set these in your deployment environment):
-  - `ADMIN_USER=alexander.c.friedrich`
-  - `ADMIN_PASS=Where2go?Lufthansa736.`
+  - `ADMIN_USER=
+  - `ADMIN_PASS=
 - Without these credentials, admin pages will return "Admin credentials not configured" error
 - Legacy `ADMIN_SECRET` header authentication is still supported for API calls as an alternative
 
