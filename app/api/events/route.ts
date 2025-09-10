@@ -34,151 +34,108 @@ const DEFAULT_CATEGORIES = [
 
 const jobStore = getJobStore();
 
-// Robust background processing trigger with comprehensive Vercel protection bypass
-async function triggerBackgroundProcessing(
+// Default Perplexity options
+const DEFAULT_PPLX_OPTIONS = {
+  temperature: 0.2,
+  max_tokens: 10000
+};
+
+// Schedule background processing using Vercel Background Functions or local fallback
+async function scheduleBackgroundProcessing(
   request: NextRequest,
   jobId: string,
   city: string,
   date: string,
-  categories: string[]
+  categories: string[],
+  options: any
 ) {
-  // STRATEGY: Try HTTP trigger first, but immediately fall back to direct processing if blocked
-  const shouldSkipHttp = process.env.SKIP_HTTP_TRIGGER === 'true';
+  // Determine if we're running on Vercel
+  const isVercel = process.env.VERCEL === '1';
   
-  if (shouldSkipHttp) {
-    console.log(`🔄 HTTP trigger disabled, using direct processing for job ${jobId}`);
-    return await processJobDirectly(jobId, city, date, categories);
-  }
+  if (isVercel) {
+    // Prefer exact deployment URL to ensure we hit the same deployment in preview
+    const deploymentUrl = request.headers.get('x-vercel-deployment-url');
+    const host = deploymentUrl || request.headers.get('x-forwarded-host') || request.headers.get('host');
+    const protocol = 'https'; // Vercel preview/prod are https
+    
+    if (!host) {
+      throw new Error('Unable to determine host for background processing');
+    }
+    
+    const backgroundUrl = `${protocol}://${host}/api/events/process`;
+    
+    console.log('Scheduling background processing via Vercel Background Functions:', backgroundUrl);
 
-  const host = request.headers.get('x-forwarded-host') || 
-                request.headers.get('host') || 
-                'localhost:3000';
-                
-  const protocol = host.includes('localhost') ? 'http' : 'https';
-  const backgroundUrl = `${protocol}://${host}/api/events/process`;
+    // Optional protection bypass for Preview Deployments Protection
+    // Set PROTECTION_BYPASS_TOKEN in Vercel Project Settings > Environment Variables
+    const protectionBypass = process.env.PROTECTION_BYPASS_TOKEN;
 
-  console.log(`🚀 Attempting HTTP background trigger: ${backgroundUrl}`);
+    // Optional internal secret if your worker route expects it
+    const internalSecret = process.env.INTERNAL_API_SECRET;
 
-  try {
-    // Multi-strategy Vercel protection bypass headers
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      'User-Agent': 'where2go-internal/1.0',
       'x-vercel-background': '1',
-      'x-internal-call': '1'
     };
-
-    // Strategy 1: Official Vercel Automation Bypass
-    const vercelBypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
-    if (vercelBypassSecret) {
-      headers['x-vercel-protection-bypass'] = vercelBypassSecret;
-      console.log(`🔐 Using official Vercel bypass secret`);
+    if (protectionBypass) {
+      headers['x-vercel-protection-bypass'] = protectionBypass;
     }
-
-    // Strategy 2: Alternative bypass headers  
-    headers['x-vercel-skip-toolbar'] = '1';
-    headers['x-middleware-skip'] = '1';
+    if (internalSecret) {
+      headers['x-internal-secret'] = internalSecret;
+    }
     
-    // Strategy 3: Forward authentication context
-    const authHeaders = ['authorization', 'cookie', 'x-forwarded-for', 'x-real-ip'];
-    authHeaders.forEach(headerName => {
-      const value = request.headers.get(headerName);
-      if (value) {
-        headers[headerName] = value;
-      }
-    });
-
-    console.log(`🔐 HTTP request headers: ${Object.keys(headers).join(', ')}`);
-
-    // Short timeout - fail fast if blocked
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-
+    // Make internal HTTP request to background processor with special header
+    console.log(`Scheduling background processing: ${backgroundUrl}`);
     const response = await fetch(backgroundUrl, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ jobId, city, date, categories }),
-      signal: controller.signal
+      body: JSON.stringify({
+        jobId,
+        city,
+        date,
+        categories,
+        options
+      })
     });
-
-    clearTimeout(timeoutId);
-    console.log(`📡 HTTP response: ${response.status} ${response.statusText}`);
     
     if (!response.ok) {
-      const errorText = await response.text();
-      
-      // Check for Vercel Protection authentication errors
-      if (response.status === 401 || response.status === 403 || 
-          errorText.includes('Authentication Required') ||
-          errorText.includes('x-vercel-protection-bypass')) {
-        console.log(`🚫 Vercel Protection blocking detected (${response.status})`);
-        throw new Error(`Vercel Protection: ${response.status}`);
-      }
-      
-      throw new Error(`HTTP ${response.status}: ${errorText}`);
+      throw new Error(`Background scheduling failed: ${response.status} ${response.statusText}`);
     }
-
-    const result = await response.json();
-    console.log(`✅ HTTP background processing triggered successfully`);
-    return;
-
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    console.log(`⚠️ HTTP trigger failed: ${errorMsg}`);
     
-    // Always fall back to direct processing when HTTP fails
-    console.log(`🔄 Falling back to direct processing for job ${jobId}`);
-    return await processJobDirectly(jobId, city, date, categories);
-  }
-}
-
-// Direct processing function - primary solution when HTTP triggers fail due to Vercel protection
-async function processJobDirectly(
-  jobId: string,
-  city: string,
-  date: string,
-  categories: string[]
-) {
-  console.log(`🔄 Starting direct background processing for job ${jobId}`);
-  console.log(`📍 Processing: ${city}, ${date}, ${categories.length} categories`);
-  
-  try {
-    // Update job status to indicate processing has started
-    await jobStore.updateJob(jobId, {
-      status: 'processing',
-      message: 'Background processing started via direct method'
-    });
-    console.log(`✅ Job ${jobId} status updated - processing started`);
-  } catch (error) {
-    console.error(`⚠️ Could not update job status to processing:`, error);
-    // Continue anyway - the processing itself is more important
-  }
-  
-  // Import the processing function dynamically to avoid circular dependencies
-  const { processJobInBackground } = await import('./process/backgroundProcessor');
-  
-  // Start processing in background (don't await to return quickly)
-  processJobInBackground(jobId, city, date, categories)
-    .then(() => {
-      console.log(`✅ Direct background processing completed successfully for job: ${jobId}`);
-    })
-    .catch(async (error) => {
-      console.error(`❌ Direct background processing failed for job ${jobId}:`, error);
-      
-      // Update job to error state
-      try {
-        await jobStore.updateJob(jobId, {
-          status: 'error',
-          error: 'Direct processing failed: ' + (error instanceof Error ? error.message : String(error))
-        });
-        console.log(`🔄 Job ${jobId} updated to error state after direct processing failure`);
-      } catch (updateError) {
-        console.error(`❌ Failed to update job status after direct processing error:`, updateError);
+    console.log('Background processing scheduled successfully');
+    
+  } else {
+    // Local development fallback - make local HTTP request without awaiting
+    const localUrl = 'http://localhost:3000/api/events/process';
+    console.log(`Running in local development, making async request to background processor: ${localUrl}`);
+    
+    // Fire and forget request for local development
+    fetch(localUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-vercel-background': '1', // Add auth header for local dev
+      },
+      body: JSON.stringify({
+        jobId,
+        city,
+        date,
+        categories,
+        options
+      })
+    }).then(response => {
+      if (!response.ok) {
+        console.error(`Local background processing failed: ${response.status} ${response.statusText}`);
+      } else {
+        console.log('Local background processing scheduled successfully');
       }
+    }).catch(error => {
+      console.error('Local development background request failed:', error);
     });
-    
-  console.log(`✅ Direct background processing initiated for job: ${jobId}`);
+  }
 }
+
+
 
 export async function POST(request: NextRequest) {
   try {
@@ -195,12 +152,19 @@ export async function POST(request: NextRequest) {
     // Use provided categories or defaults
     const effectiveCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
     
+    // Merge options with defaults
+    const mergedOptions = { 
+      ...DEFAULT_PPLX_OPTIONS
+    };
+
     // Check cache for all categories
     const cacheResult = eventsCache.getEventsByCategories(city, date, effectiveCategories);
     const allCachedEvents = Object.values(cacheResult.cachedEvents).flat();
     const missingCategories = cacheResult.missingCategories;
 
-    console.log(`📦 Cache: ${Object.keys(cacheResult.cachedEvents).length}/${effectiveCategories.length} categories cached, ${missingCategories.length} missing`);
+    console.log(`Cache analysis: ${Object.keys(cacheResult.cachedEvents).length}/${effectiveCategories.length} categories cached, ${allCachedEvents.length} events from cache`);
+    console.log('Cached categories:', Object.keys(cacheResult.cachedEvents));
+    console.log('Missing categories:', missingCategories);
 
     // If all categories are cached, return immediately
     if (missingCategories.length === 0) {
@@ -230,14 +194,28 @@ export async function POST(request: NextRequest) {
     };
 
     await jobStore.setJob(jobId, job);
-    console.log(`✅ Job created: ${jobId}`);
+    console.log(`Job created successfully with ID: ${jobId}, status: ${job.status}, events: ${job.events?.length || 0}`);
 
     // Map subcategories to main categories for AI calls
     const mainCategoriesForAI = getMainCategoriesForAICalls(missingCategories);
-    console.log(`🎯 Processing ${mainCategoriesForAI.length} main categories for AI: ${mainCategoriesForAI.join(', ')}`);
+    console.log(`Original missing categories (subcategories): ${missingCategories.length} - [${missingCategories.join(', ')}]`);
+    console.log(`Mapped to main categories for AI calls: ${mainCategoriesForAI.length} - [${mainCategoriesForAI.join(', ')}]`);
 
-    // Trigger background processing (await to catch immediate errors)
-    await triggerBackgroundProcessing(request, jobId, city, date, mainCategoriesForAI);
+    // Schedule background processing (await to catch immediate errors)
+    try {
+      await scheduleBackgroundProcessing(request, jobId, city, date, mainCategoriesForAI, mergedOptions);
+    } catch (scheduleError) {
+      console.error('Failed to schedule background processing:', scheduleError);
+      // Update job to error state
+      await jobStore.updateJob(jobId, {
+        status: 'error',
+        error: 'Failed to schedule background processing'
+      });
+      return NextResponse.json(
+        { error: 'Failed to schedule background processing' },
+        { status: 500 }
+      );
+    }
 
     // Return job for polling
     return NextResponse.json({

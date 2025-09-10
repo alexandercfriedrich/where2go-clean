@@ -13,36 +13,22 @@ interface ProcessingRequest {
   city: string;
   date: string;
   categories?: string[];
+  options?: any;
 }
 
 export async function POST(req: NextRequest) {
-  console.log('🔄 Background processing endpoint called with headers:', {
-    'x-vercel-background': req.headers.get('x-vercel-background'),
-    'x-internal-secret': req.headers.get('x-internal-secret') ? 'SET' : 'NOT_SET',
-    'x-vercel-protection-bypass': req.headers.get('x-vercel-protection-bypass') ? 'SET' : 'NOT_SET',
-    'host': req.headers.get('host'),
-    'userAgent': req.headers.get('user-agent')
-  });
+  const isBackground = req.headers.get('x-vercel-background') === '1';
+  const internalSecret = process.env.INTERNAL_API_SECRET;
+  const hasInternalSecret = internalSecret && req.headers.get('x-internal-secret') === internalSecret;
+  const hasBypass = !!req.headers.get('x-vercel-protection-bypass');
 
-  // Enhanced internal request validation with multiple detection methods
-  const isInternalRequest = 
-    req.headers.get('x-vercel-background') === '1' ||
-    req.headers.get('x-internal-call') === '1' ||
-    req.headers.get('user-agent')?.includes('where2go-internal') ||
-    req.headers.get('user-agent')?.includes('node');
-  
-  if (!isInternalRequest) {
-    console.log('⚠️ External request detected, blocking access');
-    return NextResponse.json({ error: 'Internal endpoint only' }, { status: 403 });
+  if (!isBackground && !hasInternalSecret && !hasBypass) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
-
-  console.log('✅ Background processing endpoint: Valid request received');
 
   try {
     const body: ProcessingRequest = await req.json();
-    const { jobId, city, date, categories } = body;
-
-    console.log('Processing job:', { jobId, city, date, categories: categories?.length || 0 });
+    const { jobId, city, date, categories, options } = body;
 
     if (!jobId || !city || !date) {
       console.error('❌ Missing required parameters:', { jobId: !!jobId, city: !!city, date: !!date });
@@ -52,31 +38,52 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log(`🚀 Background processing starting for job ${jobId}...`);
+    console.log('Processing job:', { jobId, city, date, categories: categories?.length || 0 });
 
-    // Start background processing (fire and forget)
-    processJobInBackground(jobId, city, date, categories)
+    // Start background processing asynchronously - DO NOT AWAIT
+    // This allows the HTTP response to return immediately while processing continues
+    
+    // Set up a deadman's switch to automatically fail jobs that take too long
+    // Set to 4.5 minutes to ensure it triggers before Vercel's 5-minute timeout
+    const deadmanTimeout = setTimeout(() => {
+      console.error(`🚨 DEADMAN SWITCH: Job ${jobId} has been running for more than 4.5 minutes, marking as failed`);
+      jobStore.updateJob(jobId, {
+        status: 'error',
+        error: 'Processing timed out - job took longer than expected (4.5 min limit)',
+        lastUpdateAt: new Date().toISOString()
+      }).catch(updateError => {
+        console.error('Failed to update job status via deadman switch:', updateError);
+      });
+    }, 4.5 * 60 * 1000); // 4.5 minutes - before Vercel's 5 minute timeout
+    
+    processJobInBackground(jobId, city, date, categories, options)
       .then(() => {
+        // Job completed successfully
+        clearTimeout(deadmanTimeout);
         console.log(`✅ Background processing completed successfully for job: ${jobId}`);
       })
       .catch(error => {
-        console.error(`❌ Background processing failed for job ${jobId}:`, error);
-        // Update job to error state
+        // Job failed with error
+        clearTimeout(deadmanTimeout);
+        console.error('❌ Async background processing error for job', jobId, ':', error);
+        
+        // Update job status to error to prevent infinite polling
         jobStore.updateJob(jobId, {
           status: 'error',
-          error: 'Processing failed: ' + (error instanceof Error ? error.message : String(error))
+          error: 'Background processing failed to complete',
+          lastUpdateAt: new Date().toISOString()
         }).catch(updateError => {
-          console.error('❌ Failed to update job status after background error:', updateError);
+          console.error('Failed to update job status after background error:', updateError);
         });
       });
 
-    console.log(`✅ Background processing started successfully for job: ${jobId}`);
-    return NextResponse.json({ success: true, jobId, message: 'Background processing started' });
+    console.log('Background processing started successfully for job:', jobId);
+    return NextResponse.json({ success: true });
 
   } catch (error) {
-    console.error('❌ Background processing route error:', error);
+    console.error('Background processing route error:', error);
     return NextResponse.json(
-      { error: 'Background processing failed: ' + (error instanceof Error ? error.message : String(error)) },
+      { error: 'Background processing failed' },
       { status: 500 }
     );
   }
