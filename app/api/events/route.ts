@@ -76,6 +76,8 @@ async function scheduleBackgroundProcessing(
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'x-vercel-background': '1',
+      'x-internal-call': '1',
+      'User-Agent': 'where2go-internal'
     };
     if (protectionBypass) {
       headers['x-vercel-protection-bypass'] = protectionBypass;
@@ -114,7 +116,9 @@ async function scheduleBackgroundProcessing(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-vercel-background': '1', // Add auth header for local dev
+        'x-vercel-background': '1',
+        'x-internal-call': '1',
+        'User-Agent': 'where2go-internal'
       },
       body: JSON.stringify({
         jobId,
