@@ -6,10 +6,10 @@ describe('Prompt Structure Validation', () => {
   const service = new PerplexityService('test-key');
   
   describe('Category Prompt Structure', () => {
-    it('should generate JSON-only prompts for category queries', () => {
+    it('should generate JSON-only prompts for category queries', async () => {
       // Use reflection to access private method for testing
       const buildCategoryPrompt = (service as any).buildCategoryPrompt.bind(service);
-      const prompt = buildCategoryPrompt('Berlin', '2025-01-20', 'DJ Sets/Electronic');
+      const prompt = await buildCategoryPrompt('Berlin', '2025-01-20', 'DJ Sets/Electronic');
       
       // Verify prompt requests JSON only
       expect(prompt).toContain('Return ONLY a valid JSON array');
@@ -18,8 +18,8 @@ describe('Prompt Structure Validation', () => {
       
       // Verify schema specification
       expect(prompt).toContain('"title": "string - event name"');
-      expect(prompt).toContain('"address": "string - full address');
-      expect(prompt).toContain('"bookingLink": "string - ticket booking URL');
+      expect(prompt).toContain('"address": "string - complete address');
+      expect(prompt).toContain('"bookingLink": "string - ticket URL');
       
       // Verify bilingual guardrails
       expect(prompt).toContain('Antworte NUR mit gültigem JSON Array');

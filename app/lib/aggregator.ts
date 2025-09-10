@@ -79,50 +79,72 @@ export class EventAggregator {
     try {
       // Handle empty or "no events found" responses first
       const trimmedResponse = responseText.trim();
+      
+      console.log(`[EventAggregator] Parsing response for category: ${requestCategory}, length: ${trimmedResponse.length}`);
+      
       if (!trimmedResponse || 
           trimmedResponse.toLowerCase().includes('keine passenden events gefunden') ||
           trimmedResponse.toLowerCase().includes('keine events gefunden') ||
-          trimmedResponse.toLowerCase().includes('no events found')) {
+          trimmedResponse.toLowerCase().includes('no events found') ||
+          trimmedResponse === '[]') {
+        console.log('[EventAggregator] Empty response or no events found');
         return [];
+      }
+
+      // Try to clean up the response - remove markdown code blocks if present
+      let cleanResponse = trimmedResponse;
+      if (cleanResponse.startsWith('```json')) {
+        cleanResponse = cleanResponse.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanResponse.startsWith('```')) {
+        cleanResponse = cleanResponse.replace(/^```\s*/, '').replace(/\s*```$/, '');
       }
 
       // First try to parse as complete JSON array
       try {
-        const jsonData = JSON.parse(trimmedResponse);
+        const jsonData = JSON.parse(cleanResponse);
         if (Array.isArray(jsonData)) {
           const parsedEvents = this.parseJsonArray(jsonData, requestCategory, requestDate);
+          console.log(`[EventAggregator] Successfully parsed JSON array: ${parsedEvents.length} events`);
           if (parsedEvents.length > 0) {
             return parsedEvents;
           }
+        } else {
+          console.log('[EventAggregator] JSON parsed but not an array, trying other methods');
         }
-      } catch (error) {
-        // Not a complete JSON array, continue with other parsing methods
+      } catch (jsonError) {
+        console.log(`[EventAggregator] JSON parse failed: ${jsonError instanceof Error ? jsonError.message : 'Unknown error'}`);
+        console.log(`[EventAggregator] Response start: "${cleanResponse.substring(0, 100)}..."`);
       }
 
       // Try to parse JSON objects line by line
-      const jsonEvents = this.parseJsonEvents(trimmedResponse, requestCategory, requestDate);
+      const jsonEvents = this.parseJsonEvents(cleanResponse, requestCategory, requestDate);
       if (jsonEvents.length > 0) {
+        console.log(`[EventAggregator] Parsed ${jsonEvents.length} events from line-by-line JSON`);
         events.push(...jsonEvents);
       }
 
       // If no JSON found, try markdown table parsing as fallback
       if (events.length === 0) {
-        const markdownEvents = this.parseMarkdownTable(trimmedResponse, requestCategory, requestDate);
+        const markdownEvents = this.parseMarkdownTable(cleanResponse, requestCategory, requestDate);
         if (markdownEvents.length > 0) {
+          console.log(`[EventAggregator] Parsed ${markdownEvents.length} events from markdown table`);
           events.push(...markdownEvents);
         }
       }
 
       // Last resort: keyword-based extraction
       if (events.length === 0) {
-        const keywordEvents = this.extractKeywordBasedEvents(trimmedResponse, requestCategory, requestDate);
+        const keywordEvents = this.extractKeywordBasedEvents(cleanResponse, requestCategory, requestDate);
+        console.log(`[EventAggregator] Parsed ${keywordEvents.length} events from keyword extraction`);
         events.push(...keywordEvents);
       }
 
     } catch (error) {
-      console.error('Event parsing error:', error);
+      console.error('[EventAggregator] Event parsing error:', error);
+      console.error('[EventAggregator] Response that failed:', responseText.substring(0, 500));
     }
 
+    console.log(`[EventAggregator] Final result: ${events.length} events parsed`);
     return events;
   }
 

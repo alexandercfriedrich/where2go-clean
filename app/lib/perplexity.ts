@@ -46,11 +46,11 @@ Search multiple sources including:
     }
 
     return `
-    "IMPORTANT: Search for comprehensive ${category} events in ${city} on ${date} across multiple sources.
-    WICHTIG: Suche nach allen ${category}-Veranstaltungen und Events in ${city} am ${date}. ${customQuerySection}
+IMPORTANT: Search for comprehensive ${category} events in ${city} on ${date} across multiple sources.
+WICHTIG: Suche nach allen ${category}-Veranstaltungen und Events in ${city} am ${date}. ${customQuerySection}
 
-    MANDATORY JSON FORMAT: Return ONLY a valid JSON array with NO explanations, markdown, or code blocks. 
-    Each event object must include these EXACT fields:
+MANDATORY JSON FORMAT: Return ONLY a valid JSON array with NO explanations, markdown, or code blocks. Do not include any explanatory text, markdown formatting, code fences, or additional content.
+Each event object must include these EXACT fields:
 
 {
   \"title\": \"string - event name\",
@@ -59,7 +59,7 @@ Search multiple sources including:
   \"endTime\": \"string - HH:MM format (optional)\",
   \"venue\": \"string - venue name\",
   \"address\": \"string - complete address as 'Street Number, ZIP City, Country' (optional)\",
-  \"category\": \"string - ${category}\",
+  \"category\": \"string - must be one of: DJ Sets/Electronic, Clubs/Discos, Live-Konzerte, Open Air, Museen, LGBTQ+, Comedy/Kabarett, Theater/Performance, Film, Food/Culinary, Sport, Familien/Kids, Kunst/Design, Wellness/Spirituell, Networking/Business, Natur/Outdoor - use ${category}\",
   \"eventType\": \"string - specific subcategory (optional)\",
   \"price\": \"string - entry cost (optional)\",
   \"ticketPrice\": \"string - ticket cost (optional)\",
@@ -71,8 +71,11 @@ Search multiple sources including:
 ${websiteSection}
 
 Perform thorough multi-source search for maximum event discovery!!!
-If no events found, return: []
+If no events are found, return: []
 
+CRITICAL: Respond ONLY with valid JSON array. No text before or after the JSON array.
+WICHTIG: Antworte NUR mit gültigem JSON Array. Kein Text vor oder nach dem JSON Array.
+Falls keine Events gefunden: []
 `;
   }
 
@@ -162,43 +165,67 @@ Falls keine Events gefunden: []
   private async callPerplexity(prompt: string, options?: QueryOptions, retries = 2, signal?: AbortSignal): Promise<string> {
     let lastError: Error | null = null;
 
+    console.log(`[PerplexityService] Making API call (retries: ${retries})`);
+
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
+        const requestBody = {
+          model: 'sonar-pro',
+          messages: [
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          max_tokens: options?.max_tokens || 20000,
+          temperature: options?.temperature || 0.2,
+          stream: false
+        };
+
+        console.log(`[PerplexityService] Attempt ${attempt + 1}/${retries}, prompt length: ${prompt.length}`);
+
         const response = await fetch(this.baseUrl, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${this.apiKey}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            model: 'sonar-pro',
-            messages: [
-              {
-                role: 'user',
-                content: prompt
-              }
-            ],
-            max_tokens: options?.max_tokens || 20000,
-            temperature: options?.temperature || 0.2,
-            stream: false
-          }),
+          body: JSON.stringify(requestBody),
           signal // Use AbortSignal for timeout handling
         });
 
+        console.log(`[PerplexityService] Response status: ${response.status}`);
+
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          const errorText = await response.text();
+          console.error(`[PerplexityService] API Error: ${response.status} ${response.statusText}, Body: ${errorText}`);
+          throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
         }
 
         const data = await response.json();
-        return data.choices[0]?.message?.content || '';
+        const content = data.choices[0]?.message?.content || '';
+        
+        console.log(`[PerplexityService] Success! Response length: ${content.length}`);
+        console.log(`[PerplexityService] Response preview: "${content.substring(0, 200)}..."`);
+        
+        return content;
       } catch (error: any) {
         lastError = error;
+        console.error(`[PerplexityService] Attempt ${attempt + 1}/${retries} failed:`, error.message);
+        
         if (attempt === 0 && String(error).includes('not valid JSON')) {
           // Wait before retry
+          console.log(`[PerplexityService] JSON error detected, waiting before retry...`);
           await new Promise(resolve => setTimeout(resolve, 500));
           continue;
         }
-        throw error;
+        
+        if (attempt < retries - 1) {
+          console.log(`[PerplexityService] Retrying in 500ms...`);
+          await new Promise(resolve => setTimeout(resolve, 500));
+        } else {
+          throw error;
+        }
       }
     }
 

@@ -348,16 +348,22 @@ async function processJobInBackground(
       // Process all sub-results if we got some - wrap in try/catch to prevent escaping exceptions
       try {
         if (results && results.length > 0) {
+          console.log(`[ProcessCategory] Processing ${results.length} results for category: ${category}`);
           for (let i = 0; i < results.length; i++) {
             const r = results[i];
             try {
+              console.log(`[ProcessCategory] Processing result ${i + 1}/${results.length} for category: ${category}`);
+              console.log(`[ProcessCategory] Response length: ${r.response?.length || 0}`);
+              
               // Parse events from this sub-result
               r.events = eventAggregator.parseEventsFromResponse(r.response);
               const parsedCount = r.events.length;
+              console.log(`[ProcessCategory] Parsed ${parsedCount} events from response for category: ${category}`);
               
               // Aggregate new events from this sub-result
               const newResults = [{ ...r, events: r.events }];
               const categoryEvents = eventAggregator.aggregateResults(newResults);
+              console.log(`[ProcessCategory] Aggregated ${categoryEvents.length} events for category: ${category}`);
               
               // Get current job state to ensure we have the latest events
               const currentJob = await jobStore.getJob(jobId);
@@ -372,6 +378,7 @@ async function processJobInBackground(
               const finalEvents = eventAggregator.categorizeEvents(deduplicatedEvents);
               
               const addedCount = finalEvents.length - beforeCount;
+              console.log(`[ProcessCategory] Final events count: ${finalEvents.length} (added: ${addedCount}) for category: ${category}`);
               
               // Update local tracking variable for this worker
               allEvents = finalEvents;
