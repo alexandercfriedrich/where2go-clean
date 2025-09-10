@@ -34,7 +34,7 @@ const DEFAULT_CATEGORIES = [
 
 const jobStore = getJobStore();
 
-// Robust background processing trigger with Vercel protection bypass
+// Robust background processing trigger with comprehensive Vercel protection bypass
 async function triggerBackgroundProcessing(
   request: NextRequest,
   jobId: string,
@@ -42,6 +42,14 @@ async function triggerBackgroundProcessing(
   date: string,
   categories: string[]
 ) {
+  // STRATEGY: Try HTTP trigger first, but immediately fall back to direct processing if blocked
+  const shouldSkipHttp = process.env.SKIP_HTTP_TRIGGER === 'true';
+  
+  if (shouldSkipHttp) {
+    console.log(`🔄 HTTP trigger disabled, using direct processing for job ${jobId}`);
+    return await processJobDirectly(jobId, city, date, categories);
+  }
+
   const host = request.headers.get('x-forwarded-host') || 
                 request.headers.get('host') || 
                 'localhost:3000';
@@ -49,112 +57,127 @@ async function triggerBackgroundProcessing(
   const protocol = host.includes('localhost') ? 'http' : 'https';
   const backgroundUrl = `${protocol}://${host}/api/events/process`;
 
-  console.log(`🚀 Triggering background processing: ${backgroundUrl}`);
-  console.log(`🔧 Payload:`, { jobId, city, date, categories: categories.length });
+  console.log(`🚀 Attempting HTTP background trigger: ${backgroundUrl}`);
 
   try {
-    // Prepare headers with Vercel protection bypass
+    // Multi-strategy Vercel protection bypass headers
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'User-Agent': 'where2go-internal/1.0',
-      'x-vercel-background': '1'
+      'x-vercel-background': '1',
+      'x-internal-call': '1'
     };
 
-    // Add Vercel protection bypass headers if available
-    const vercelBypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET || 'internal-bypass';
-    headers['x-vercel-protection-bypass'] = vercelBypassSecret;
-    headers['x-internal-secret'] = vercelBypassSecret;
+    // Strategy 1: Official Vercel Automation Bypass
+    const vercelBypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+    if (vercelBypassSecret) {
+      headers['x-vercel-protection-bypass'] = vercelBypassSecret;
+      console.log(`🔐 Using official Vercel bypass secret`);
+    }
 
-    // Forward original request headers that might help with bypass
-    const forwardHeaders = ['x-vercel-deployment-url', 'x-vercel-id', 'x-real-ip'];
-    forwardHeaders.forEach(headerName => {
+    // Strategy 2: Alternative bypass headers  
+    headers['x-vercel-skip-toolbar'] = '1';
+    headers['x-middleware-skip'] = '1';
+    
+    // Strategy 3: Forward authentication context
+    const authHeaders = ['authorization', 'cookie', 'x-forwarded-for', 'x-real-ip'];
+    authHeaders.forEach(headerName => {
       const value = request.headers.get(headerName);
       if (value) {
         headers[headerName] = value;
       }
     });
 
-    console.log(`🔐 Request headers:`, Object.keys(headers));
+    console.log(`🔐 HTTP request headers: ${Object.keys(headers).join(', ')}`);
+
+    // Short timeout - fail fast if blocked
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
 
     const response = await fetch(backgroundUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify({ jobId, city, date, categories }),
+      signal: controller.signal
     });
 
-    console.log(`📡 Background trigger response: ${response.status} ${response.statusText}`);
+    clearTimeout(timeoutId);
+    console.log(`📡 HTTP response: ${response.status} ${response.statusText}`);
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`❌ Background processing trigger failed: ${response.status} - ${errorText}`);
       
-      // If it's a Vercel protection error (401/403), try direct processing
-      if (response.status === 401 || response.status === 403) {
-        console.log(`🔄 Vercel protection detected, attempting direct processing...`);
-        return await processJobDirectly(jobId, city, date, categories);
+      // Check for Vercel Protection authentication errors
+      if (response.status === 401 || response.status === 403 || 
+          errorText.includes('Authentication Required') ||
+          errorText.includes('x-vercel-protection-bypass')) {
+        console.log(`🚫 Vercel Protection blocking detected (${response.status})`);
+        throw new Error(`Vercel Protection: ${response.status}`);
       }
       
       throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
 
     const result = await response.json();
-    console.log(`✅ Background processing triggered successfully:`, result);
+    console.log(`✅ HTTP background processing triggered successfully`);
+    return;
 
   } catch (error) {
-    console.error('❌ Background processing trigger failed:', error);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.log(`⚠️ HTTP trigger failed: ${errorMsg}`);
     
-    // If HTTP call failed, try direct processing as fallback
-    if (error instanceof Error && (error.message.includes('fetch') || error.message.includes('HTTP'))) {
-      console.log(`🔄 HTTP trigger failed, attempting direct processing fallback...`);
-      try {
-        await processJobDirectly(jobId, city, date, categories);
-        return;
-      } catch (directError) {
-        console.error('❌ Direct processing fallback also failed:', directError);
-      }
-    }
-    
-    // Update job to error state if all attempts failed
-    try {
-      await jobStore.updateJob(jobId, {
-        status: 'error',
-        error: `Failed to start background processing: ${error instanceof Error ? error.message : String(error)}`
-      });
-      console.log(`🔄 Job ${jobId} updated to error state due to background trigger failure`);
-    } catch (updateError) {
-      console.error('❌ Failed to update job after background error:', updateError);
-    }
+    // Always fall back to direct processing when HTTP fails
+    console.log(`🔄 Falling back to direct processing for job ${jobId}`);
+    return await processJobDirectly(jobId, city, date, categories);
   }
 }
 
-// Direct processing fallback when HTTP trigger fails due to Vercel protection
+// Direct processing function - primary solution when HTTP triggers fail due to Vercel protection
 async function processJobDirectly(
   jobId: string,
   city: string,
   date: string,
   categories: string[]
 ) {
-  console.log(`🚀 Starting direct background processing for job ${jobId}`);
+  console.log(`🔄 Starting direct background processing for job ${jobId}`);
+  console.log(`📍 Processing: ${city}, ${date}, ${categories.length} categories`);
+  
+  try {
+    // Update job status to indicate processing has started
+    await jobStore.updateJob(jobId, {
+      status: 'processing',
+      message: 'Background processing started via direct method'
+    });
+    console.log(`✅ Job ${jobId} status updated - processing started`);
+  } catch (error) {
+    console.error(`⚠️ Could not update job status to processing:`, error);
+    // Continue anyway - the processing itself is more important
+  }
   
   // Import the processing function dynamically to avoid circular dependencies
   const { processJobInBackground } = await import('./process/backgroundProcessor');
   
-  // Start processing in background (don't await)
+  // Start processing in background (don't await to return quickly)
   processJobInBackground(jobId, city, date, categories)
     .then(() => {
-      console.log(`✅ Direct background processing completed for job: ${jobId}`);
+      console.log(`✅ Direct background processing completed successfully for job: ${jobId}`);
     })
-    .catch(error => {
+    .catch(async (error) => {
       console.error(`❌ Direct background processing failed for job ${jobId}:`, error);
-      jobStore.updateJob(jobId, {
-        status: 'error',
-        error: 'Direct processing failed: ' + (error instanceof Error ? error.message : String(error))
-      }).catch(updateError => {
-        console.error('❌ Failed to update job status after direct processing error:', updateError);
-      });
+      
+      // Update job to error state
+      try {
+        await jobStore.updateJob(jobId, {
+          status: 'error',
+          error: 'Direct processing failed: ' + (error instanceof Error ? error.message : String(error))
+        });
+        console.log(`🔄 Job ${jobId} updated to error state after direct processing failure`);
+      } catch (updateError) {
+        console.error(`❌ Failed to update job status after direct processing error:`, updateError);
+      }
     });
     
-  console.log(`✅ Direct background processing started for job: ${jobId}`);
+  console.log(`✅ Direct background processing initiated for job: ${jobId}`);
 }
 
 export async function POST(request: NextRequest) {
