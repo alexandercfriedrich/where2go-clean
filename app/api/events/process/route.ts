@@ -7,9 +7,8 @@ import { getJobStore } from '@/lib/jobStore';
 
 // Serverless configuration for background processing
 export const runtime = 'nodejs';
-export const maxDuration = 300;
+export const maxDuration = 300; // 5 minutes max
 
-// Get JobStore instance
 const jobStore = getJobStore();
 
 interface ProcessingRequest {
@@ -20,16 +19,7 @@ interface ProcessingRequest {
 }
 
 export async function POST(req: NextRequest) {
-  const isBackground = req.headers.get('x-vercel-background') === '1';
-  const hasInternalSecret = req.headers.get('x-internal-secret') === process.env.INTERNAL_API_SECRET;
-  const hasBypass = !!req.headers.get('x-vercel-protection-bypass');
-
-  console.log('Background processing endpoint called');
-
-  if (!isBackground && !hasInternalSecret && !hasBypass) {
-    console.error('❌ Unauthorized background processing request');
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  console.log('🔄 Background processing endpoint called');
 
   try {
     const body: ProcessingRequest = await req.json();
@@ -45,7 +35,7 @@ export async function POST(req: NextRequest) {
 
     console.log(`✅ Processing job: ${jobId} for ${city} on ${date}`);
 
-    // Start background processing asynchronously
+    // Start background processing (fire and forget)
     processJobInBackground(jobId, city, date, categories)
       .then(() => {
         console.log(`✅ Background processing completed successfully for job: ${jobId}`);
@@ -55,7 +45,7 @@ export async function POST(req: NextRequest) {
         // Update job to error state
         jobStore.updateJob(jobId, {
           status: 'error',
-          error: 'Background processing failed: ' + (error instanceof Error ? error.message : String(error))
+          error: 'Processing failed: ' + (error instanceof Error ? error.message : String(error))
         }).catch(updateError => {
           console.error('❌ Failed to update job status after background error:', updateError);
         });
@@ -64,7 +54,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true });
 
   } catch (error) {
-    console.error('Background processing route error:', error);
+    console.error('❌ Background processing route error:', error);
     return NextResponse.json(
       { error: 'Background processing failed' },
       { status: 500 }
@@ -72,7 +62,7 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// Simplified background function to fetch from Perplexity
+// Simplified background processing function
 async function processJobInBackground(
   jobId: string, 
   city: string, 
@@ -103,15 +93,14 @@ async function processJobInBackground(
 
     console.log(`🚀 Starting background processing for job ${jobId}`);
     
-    // Update job status to show processing started
-    await jobStore.updateJob(jobId, {
-      status: 'pending',
-      progress: { 
-        completedCategories: 0, 
-        totalCategories: categories?.length || 0 
-      }
-    });
+    // Get current job
+    const job = await jobStore.getJob(jobId);
+    if (!job) {
+      console.error(`❌ Job ${jobId} not found`);
+      return;
+    }
 
+    // Initialize Perplexity service
     const perplexityService = createPerplexityService(PERPLEXITY_API_KEY);
     if (!perplexityService) {
       await jobStore.updateJob(jobId, {
@@ -121,16 +110,10 @@ async function processJobInBackground(
       return;
     }
 
-    const job = await jobStore.getJob(jobId);
-    if (!job) {
-      console.error(`❌ Job ${jobId} not found`);
-      return;
-    }
-
     let allEvents: EventData[] = job.events || [];
     let completedCategories = job.progress?.completedCategories || 0;
 
-    // Process each category
+    // Process each category sequentially
     if (categories && categories.length > 0) {
       for (const category of categories) {
         try {
@@ -168,7 +151,7 @@ async function processJobInBackground(
 
         } catch (categoryError) {
           console.error(`❌ Error processing category ${category}:`, categoryError);
-          // Continue with other categories
+          // Continue with other categories instead of failing completely
         }
       }
     }

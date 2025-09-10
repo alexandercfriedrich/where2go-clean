@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { RequestBody, EventData, JobStatus } from '@/lib/types';
+import { RequestBody, JobStatus } from '@/lib/types';
 import { eventsCache } from '@/lib/cache';
 import { getJobStore } from '@/lib/jobStore';
 import { getMainCategoriesForAICalls } from '@/categories';
 
 // Serverless configuration  
 export const runtime = 'nodejs';
-export const maxDuration = 300;
+export const maxDuration = 60; // Reduced to 1 minute
 
-// Default categories - main categories only
+// Default categories - the 20 main categories
 const DEFAULT_CATEGORIES = [
   'DJ Sets/Electronic',
   'Clubs/Discos', 
@@ -32,60 +32,42 @@ const DEFAULT_CATEGORIES = [
   'Soziales/Community'
 ];
 
-// Get JobStore instance
 const jobStore = getJobStore();
 
-// Simple background processing scheduler
-async function scheduleBackgroundProcessing(
+// Simple background processing trigger
+async function triggerBackgroundProcessing(
   request: NextRequest,
   jobId: string,
   city: string,
   date: string,
   categories: string[]
 ) {
-  const isVercel = process.env.VERCEL === '1';
-  
-  let backgroundUrl: string;
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    'x-vercel-background': '1',
-  };
+  const host = request.headers.get('x-forwarded-host') || 
+                request.headers.get('host') || 
+                'localhost:3000';
+                
+  const protocol = host.includes('localhost') ? 'http' : 'https';
+  const backgroundUrl = `${protocol}://${host}/api/events/process`;
 
-  if (isVercel) {
-    const host = request.headers.get('x-vercel-deployment-url') || 
-                  request.headers.get('x-forwarded-host') || 
-                  request.headers.get('host');
-    if (!host) {
-      throw new Error('Unable to determine host for background processing');
-    }
-    backgroundUrl = `https://${host}/api/events/process`;
-    
-    // Add optional bypass headers
-    if (process.env.PROTECTION_BYPASS_TOKEN) {
-      headers['x-vercel-protection-bypass'] = process.env.PROTECTION_BYPASS_TOKEN;
-    }
-    if (process.env.INTERNAL_API_SECRET) {
-      headers['x-internal-secret'] = process.env.INTERNAL_API_SECRET;
-    }
-  } else {
-    backgroundUrl = 'http://localhost:3000/api/events/process';
-  }
+  console.log(`🚀 Triggering background processing: ${backgroundUrl}`);
 
-  console.log(`🚀 Scheduling background processing: ${backgroundUrl}`);
-
-  const response = await fetch(backgroundUrl, {
+  // Simple fetch without complex headers or timeouts
+  fetch(backgroundUrl, {
     method: 'POST',
-    headers,
+    headers: {
+      'Content-Type': 'application/json',
+    },
     body: JSON.stringify({ jobId, city, date, categories }),
-    signal: AbortSignal.timeout(10000) // 10s timeout
+  }).catch(error => {
+    console.error('Background processing trigger failed:', error);
+    // Update job to error state if background processing fails to start
+    jobStore.updateJob(jobId, {
+      status: 'error',
+      error: 'Failed to start background processing'
+    }).catch(updateError => {
+      console.error('Failed to update job after background error:', updateError);
+    });
   });
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => 'Unknown error');
-    throw new Error(`Background processing failed: ${response.status} - ${errorText}`);
-  }
-
-  console.log('✅ Background processing scheduled successfully');
 }
 
 export async function POST(request: NextRequest) {
@@ -108,12 +90,11 @@ export async function POST(request: NextRequest) {
     const allCachedEvents = Object.values(cacheResult.cachedEvents).flat();
     const missingCategories = cacheResult.missingCategories;
 
-    console.log(`Cache check: ${Object.keys(cacheResult.cachedEvents).length}/${effectiveCategories.length} categories cached`);
-    console.log(`Missing categories: ${missingCategories.length}`);
+    console.log(`📦 Cache: ${Object.keys(cacheResult.cachedEvents).length}/${effectiveCategories.length} categories cached, ${missingCategories.length} missing`);
 
     // If all categories are cached, return immediately
     if (missingCategories.length === 0) {
-      console.log('All categories cached - returning directly');
+      console.log('✅ All categories cached - returning directly');
       return NextResponse.json({
         events: allCachedEvents,
         status: 'completed',
@@ -124,7 +105,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create job for missing categories
+    // Create simple job for missing categories
     const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     
     const job: JobStatus = {
@@ -143,22 +124,10 @@ export async function POST(request: NextRequest) {
 
     // Map subcategories to main categories for AI calls
     const mainCategoriesForAI = getMainCategoriesForAICalls(missingCategories);
-    console.log(`Processing ${mainCategoriesForAI.length} main categories: ${mainCategoriesForAI.join(', ')}`);
+    console.log(`🎯 Processing ${mainCategoriesForAI.length} main categories for AI: ${mainCategoriesForAI.join(', ')}`);
 
-    // Schedule background processing
-    try {
-      await scheduleBackgroundProcessing(request, jobId, city, date, mainCategoriesForAI);
-    } catch (scheduleError) {
-      console.error('❌ Failed to schedule background processing:', scheduleError);
-      await jobStore.updateJob(jobId, {
-        status: 'error',
-        error: 'Failed to start background processing: ' + (scheduleError instanceof Error ? scheduleError.message : String(scheduleError))
-      });
-      return NextResponse.json(
-        { error: 'Failed to start background processing' },
-        { status: 500 }
-      );
-    }
+    // Trigger background processing (non-blocking)
+    triggerBackgroundProcessing(request, jobId, city, date, mainCategoriesForAI);
 
     // Return job for polling
     return NextResponse.json({
@@ -177,7 +146,7 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Events API Error:', error);
+    console.error('❌ Events API Error:', error);
     return NextResponse.json(
       { error: 'Unerwarteter Fehler beim Verarbeiten der Anfrage' },
       { status: 500 }

@@ -2,17 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getJobStore } from '@/lib/jobStore';
 import { normalizeEvents } from '@/lib/event-normalizer';
 
-// Explicit runtime configuration
 export const runtime = 'nodejs';
 
-// Get JobStore instance
 const jobStore = getJobStore();
 
 export async function GET(request: NextRequest, { params }: { params: { jobId: string } }) {
   try {
     const jobId = params.jobId;
-    
-    console.log(`Job status request: ${jobId}`);
     
     if (!jobId) {
       return NextResponse.json(
@@ -24,20 +20,10 @@ export async function GET(request: NextRequest, { params }: { params: { jobId: s
       );
     }
 
+    console.log(`📋 Job status request: ${jobId}`);
+    
     // Get job from store
-    let job;
-    try {
-      job = await jobStore.getJob(jobId);
-    } catch (error) {
-      console.error('Error retrieving job from store:', error);
-      return NextResponse.json(
-        { error: 'Fehler beim Abrufen des Job-Status' },
-        { 
-          status: 500,
-          headers: { 'Cache-Control': 'no-store' }
-        }
-      );
-    }
+    const job = await jobStore.getJob(jobId);
     
     if (!job) {
       return NextResponse.json(
@@ -49,38 +35,36 @@ export async function GET(request: NextRequest, { params }: { params: { jobId: s
       );
     }
 
-    // Simple timeout check: If job is older than 3 minutes and still pending, mark as error
+    // Simple timeout check: If job is older than 5 minutes and still pending, mark as error
     const jobAgeMs = Date.now() - job.createdAt.getTime();
-    const maxJobAgeMs = 3 * 60 * 1000; // 3 minutes
+    const maxJobAgeMs = 5 * 60 * 1000; // 5 minutes
     
     if (job.status === 'pending' && jobAgeMs > maxJobAgeMs) {
-      console.warn(`🚨 Job timeout: ${jobId} is ${Math.round(jobAgeMs/1000)}s old - marking as error`);
+      console.warn(`⏰ Job timeout: ${jobId} is ${Math.round(jobAgeMs/1000)}s old - marking as error`);
       try {
         await jobStore.updateJob(jobId, {
           status: 'error',
-          error: 'Job wurde aufgrund von Zeitüberschreitung beendet (3 Min. Limit)'
+          error: 'Job wurde aufgrund von Zeitüberschreitung beendet (5 Min. Limit)'
         });
         job.status = 'error';
-        job.error = 'Job wurde aufgrund von Zeitüberschreitung beendet (3 Min. Limit)';
+        job.error = 'Job wurde aufgrund von Zeitüberschreitung beendet (5 Min. Limit)';
       } catch (updateError) {
-        console.error('Failed to update stale job status:', updateError);
+        console.error('Failed to update timeout job:', updateError);
       }
     }
 
-    // Clean up old jobs periodically
+    // Clean up old jobs
     await jobStore.cleanupOldJobs();
 
     const response: any = {
       id: job.id,
       status: job.status,
-      // Always include events array if present
-      ...(job.events ? { events: normalizeEvents(job.events) } : {}),
+      events: normalizeEvents(job.events || []),
       ...(job.status === 'error' && job.error ? { error: job.error } : {}),
-      // Include progress fields when available
       ...(job.progress ? { progress: job.progress } : {})
     };
 
-    console.log(`Job status response: ${jobId}, status: ${job.status}, events: ${job.events?.length || 0}`);
+    console.log(`📤 Job status response: ${jobId}, status: ${job.status}, events: ${job.events?.length || 0}`);
 
     return NextResponse.json(response, {
       headers: { 
@@ -91,7 +75,7 @@ export async function GET(request: NextRequest, { params }: { params: { jobId: s
     });
     
   } catch (error) {
-    console.error('Job status API Error:', error);
+    console.error('❌ Job status API Error:', error);
     return NextResponse.json(
       { error: 'Fehler beim Abrufen des Job-Status' },
       { 
