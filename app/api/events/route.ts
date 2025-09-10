@@ -34,7 +34,7 @@ const DEFAULT_CATEGORIES = [
 
 const jobStore = getJobStore();
 
-// Simple background processing trigger
+// Robust background processing trigger with proper error handling
 async function triggerBackgroundProcessing(
   request: NextRequest,
   jobId: string,
@@ -50,24 +50,42 @@ async function triggerBackgroundProcessing(
   const backgroundUrl = `${protocol}://${host}/api/events/process`;
 
   console.log(`🚀 Triggering background processing: ${backgroundUrl}`);
+  console.log(`🔧 Payload:`, { jobId, city, date, categories: categories.length });
 
-  // Simple fetch without complex headers or timeouts
-  fetch(backgroundUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ jobId, city, date, categories }),
-  }).catch(error => {
-    console.error('Background processing trigger failed:', error);
-    // Update job to error state if background processing fails to start
-    jobStore.updateJob(jobId, {
-      status: 'error',
-      error: 'Failed to start background processing'
-    }).catch(updateError => {
-      console.error('Failed to update job after background error:', updateError);
+  try {
+    const response = await fetch(backgroundUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'where2go-background-trigger/1.0'
+      },
+      body: JSON.stringify({ jobId, city, date, categories }),
     });
-  });
+
+    console.log(`📡 Background trigger response: ${response.status} ${response.statusText}`);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`❌ Background processing trigger failed: ${response.status} - ${errorText}`);
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log(`✅ Background processing triggered successfully:`, result);
+
+  } catch (error) {
+    console.error('❌ Background processing trigger failed:', error);
+    // Update job to error state if background processing fails to start
+    try {
+      await jobStore.updateJob(jobId, {
+        status: 'error',
+        error: `Failed to start background processing: ${error instanceof Error ? error.message : String(error)}`
+      });
+      console.log(`🔄 Job ${jobId} updated to error state due to background trigger failure`);
+    } catch (updateError) {
+      console.error('❌ Failed to update job after background error:', updateError);
+    }
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -126,8 +144,8 @@ export async function POST(request: NextRequest) {
     const mainCategoriesForAI = getMainCategoriesForAICalls(missingCategories);
     console.log(`🎯 Processing ${mainCategoriesForAI.length} main categories for AI: ${mainCategoriesForAI.join(', ')}`);
 
-    // Trigger background processing (non-blocking)
-    triggerBackgroundProcessing(request, jobId, city, date, mainCategoriesForAI);
+    // Trigger background processing (await to catch immediate errors)
+    await triggerBackgroundProcessing(request, jobId, city, date, mainCategoriesForAI);
 
     // Return job for polling
     return NextResponse.json({

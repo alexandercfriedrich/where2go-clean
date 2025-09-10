@@ -20,13 +20,21 @@ interface ProcessingRequest {
 
 export async function POST(req: NextRequest) {
   console.log('🔄 Background processing endpoint called');
+  console.log('📋 Request headers:', {
+    'content-type': req.headers.get('content-type'),
+    'user-agent': req.headers.get('user-agent'),
+    'host': req.headers.get('host'),
+    'x-forwarded-host': req.headers.get('x-forwarded-host')
+  });
 
   try {
     const body: ProcessingRequest = await req.json();
     const { jobId, city, date, categories } = body;
 
+    console.log('📦 Request payload:', { jobId, city, date, categories: categories?.length || 0 });
+
     if (!jobId || !city || !date) {
-      console.error('❌ Missing required parameters');
+      console.error('❌ Missing required parameters:', { jobId: !!jobId, city: !!city, date: !!date });
       return NextResponse.json(
         { error: 'Missing required parameters: jobId, city, date' },
         { status: 400 }
@@ -51,12 +59,12 @@ export async function POST(req: NextRequest) {
         });
       });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, jobId, message: 'Background processing started' });
 
   } catch (error) {
     console.error('❌ Background processing route error:', error);
     return NextResponse.json(
-      { error: 'Background processing failed' },
+      { error: 'Background processing failed: ' + (error instanceof Error ? error.message : String(error)) },
       { status: 500 }
     );
   }
