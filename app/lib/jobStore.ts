@@ -99,11 +99,22 @@ class RedisJobStore implements JobStore {
       if (this.redis) {
         const data = await this.redis.get(`job:${jobId}`);
         if (data) {
-          const parsed = JSON.parse(data);
-          return {
-            ...parsed,
-            createdAt: new Date(parsed.createdAt)
-          };
+          // Handle case where Redis returns an object instead of JSON string
+          if (typeof data === 'object' && data !== null) {
+            return {
+              ...data as any,
+              createdAt: new Date((data as any).createdAt)
+            };
+          }
+          
+          // Handle case where Redis returns a JSON string
+          if (typeof data === 'string') {
+            const parsed = JSON.parse(data);
+            return {
+              ...parsed,
+              createdAt: new Date(parsed.createdAt)
+            };
+          }
         }
         return null;
       }
