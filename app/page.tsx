@@ -69,6 +69,7 @@ export default function Home() {
   const [searchSubmitted, setSearchSubmitted] = useState(false);
   const [searchedSuperCategories, setSearchedSuperCategories] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState<string>('Alle');
+  const [sampleEventsInjected, setSampleEventsInjected] = useState(false);
   
   const pollInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const eventsRef = useRef<EventData[]>([]);
@@ -203,10 +204,11 @@ export default function Home() {
   // Inject sample events when in test mode
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    if (isDesign1 && urlParams.get('test') === '1' && events.length === 0) {
+    if (isDesign1 && urlParams.get('test') === '1' && !sampleEventsInjected && events.length === 0) {
       setEvents(getSampleEvents());
+      setSampleEventsInjected(true);
     }
-  }, [isDesign1, events.length, getSampleEvents]);
+  }, [isDesign1, getSampleEvents, sampleEventsInjected, events.length]);
 
   useEffect(() => {
     return () => {
