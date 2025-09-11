@@ -1,342 +1,172 @@
-import { Redis } from '@upstash/redis';
-import { JobStatus, DebugInfo, DebugStep } from './types';
+// Clean, simple job store with Redis fallback
+import { JobStatus } from './types';
 
-/**
- * JobStore abstraction for managing job state and debug information
- * Uses Upstash Redis when environment variables are set, falls back to in-memory storage
- */
-export interface JobStore {
-  // Job methods
+// Simple in-memory store as fallback
+const memoryStore = new Map<string, JobStatus>();
+
+interface JobStore {
   setJob(jobId: string, job: JobStatus): Promise<void>;
   getJob(jobId: string): Promise<JobStatus | null>;
   updateJob(jobId: string, updates: Partial<JobStatus>): Promise<void>;
   deleteJob(jobId: string): Promise<void>;
   cleanupOldJobs(): Promise<void>;
-  
-  // Debug methods
-  setDebugInfo(jobId: string, debugInfo: DebugInfo): Promise<void>;
-  getDebugInfo(jobId: string): Promise<DebugInfo | null>;
-  pushDebugStep(jobId: string, step: DebugStep): Promise<void>;
 }
 
-/**
- * Redis-based JobStore implementation using Upstash Redis REST API
- */
+class SimpleMemoryJobStore implements JobStore {
+  async setJob(jobId: string, job: JobStatus): Promise<void> {
+    memoryStore.set(jobId, { ...job });
+  }
+
+  async getJob(jobId: string): Promise<JobStatus | null> {
+    const job = memoryStore.get(jobId);
+    return job ? { ...job } : null;
+  }
+
+  async updateJob(jobId: string, updates: Partial<JobStatus>): Promise<void> {
+    const existing = memoryStore.get(jobId);
+    if (existing) {
+      memoryStore.set(jobId, { ...existing, ...updates });
+    }
+  }
+
+  async deleteJob(jobId: string): Promise<void> {
+    memoryStore.delete(jobId);
+  }
+
+  async cleanupOldJobs(): Promise<void> {
+    const now = Date.now();
+    const maxAge = 60 * 60 * 1000; // 1 hour
+    
+    for (const [jobId, job] of memoryStore.entries()) {
+      if (now - job.createdAt.getTime() > maxAge) {
+        memoryStore.delete(jobId);
+      }
+    }
+  }
+}
+
 class RedisJobStore implements JobStore {
-  private redis: Redis;
-  private jobKeyPrefix = 'job:';
-  private debugKeyPrefix = 'debug:';
-  private ttlSeconds = 2 * 60 * 60; // 2 hours
+  private redis: any;
+  private fallback: SimpleMemoryJobStore;
 
-  constructor(restUrl: string, restToken: string) {
-    this.redis = new Redis({
-      url: restUrl,
-      token: restToken,
-    });
+  constructor() {
+    this.fallback = new SimpleMemoryJobStore();
+    this.initRedis();
   }
 
-  async setJob(jobId: string, job: JobStatus): Promise<void> {
-    const key = this.jobKeyPrefix + jobId;
-    const serialized = JSON.stringify({
-      ...job,
-      createdAt: job.createdAt.toISOString()
-    });
-    await this.redis.setex(key, this.ttlSeconds, serialized);
-  }
-
-  async getJob(jobId: string): Promise<JobStatus | null> {
-    const key = this.jobKeyPrefix + jobId;
-    const result = await this.redis.get(key);
-    if (!result) return null;
-    
+  private async initRedis() {
     try {
-      // Handle the case where result is already an object (not a JSON string)
-      if (typeof result === 'object' && result !== null) {
-        return {
-          ...result as any,
-          createdAt: new Date((result as any).createdAt)
-        };
+      if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+        const { Redis } = await import('@upstash/redis');
+        this.redis = new Redis({
+          url: process.env.UPSTASH_REDIS_REST_URL,
+          token: process.env.UPSTASH_REDIS_REST_TOKEN,
+        });
+        
+        // Test connection with timeout
+        const testPromise = this.redis.set('test_connection', 'ok', { ex: 10 });
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Redis connection timeout')), 3000)
+        );
+        
+        await Promise.race([testPromise, timeoutPromise]);
+        console.log('✅ Redis connected successfully');
       }
-      
-      // Handle the case where result is a string
-      const resultStr = result as string;
-      
-      // Check for corrupted "[object Object]" strings
-      if (resultStr === '[object Object]' || resultStr.startsWith('[object Object]')) {
-        console.warn(`Corrupted job data for ${jobId}: ${resultStr}`);
-        return null;
-      }
-      
-      const parsed = JSON.parse(resultStr);
-      return {
-        ...parsed,
-        createdAt: new Date(parsed.createdAt)
-      };
     } catch (error) {
-      console.error(`Failed to parse job data for ${jobId}:`, error, 'Raw result:', result);
-      return null;
+      console.log('⚠️ Redis not available, using in-memory store:', error instanceof Error ? error.message : 'Unknown error');
+      this.redis = null;
     }
   }
 
-  async updateJob(jobId: string, updates: Partial<JobStatus>): Promise<void> {
-    // For Redis, we need to implement an atomic update operation
-    // Use a simple retry mechanism with exponential backoff to handle concurrent updates
-    const maxRetries = 5;
-    let retries = 0;
+  async setJob(jobId: string, job: JobStatus): Promise<void> {
+    try {
+      if (this.redis) {
+        await this.redis.set(`job:${jobId}`, JSON.stringify({
+          ...job,
+          createdAt: job.createdAt.toISOString()
+        }), { ex: 3600 }); // 1 hour expiry
+        return;
+      }
+    } catch (error) {
+      console.warn('Redis setJob failed, using fallback:', error);
+    }
     
-    while (retries < maxRetries) {
-      try {
+    await this.fallback.setJob(jobId, job);
+  }
+
+  async getJob(jobId: string): Promise<JobStatus | null> {
+    try {
+      if (this.redis) {
+        const data = await this.redis.get(`job:${jobId}`);
+        if (data) {
+          // Handle case where Redis returns an object instead of JSON string
+          if (typeof data === 'object' && data !== null) {
+            return {
+              ...data as any,
+              createdAt: new Date((data as any).createdAt)
+            };
+          }
+          
+          // Handle case where Redis returns a JSON string
+          if (typeof data === 'string') {
+            const parsed = JSON.parse(data);
+            return {
+              ...parsed,
+              createdAt: new Date(parsed.createdAt)
+            };
+          }
+        }
+        return null;
+      }
+    } catch (error) {
+      console.warn('Redis getJob failed, using fallback:', error);
+    }
+    
+    return await this.fallback.getJob(jobId);
+  }
+
+  async updateJob(jobId: string, updates: Partial<JobStatus>): Promise<void> {
+    try {
+      if (this.redis) {
         const existing = await this.getJob(jobId);
-        if (!existing) return;
-        
-        const updated = { ...existing, ...updates };
-        
-        // Try to use conditional write if supported, otherwise fall back to simple write
-        try {
-          // First attempt: optimistic update
+        if (existing) {
+          const updated = { ...existing, ...updates };
           await this.setJob(jobId, updated);
-          return; // Success
-        } catch (writeError) {
-          throw writeError;
+          return;
         }
-        
-      } catch (error) {
-        retries++;
-        if (retries >= maxRetries) {
-          console.error(`Failed to update job ${jobId} after ${maxRetries} retries:`, error);
-          throw error;
-        }
-        
-        // Exponential backoff: 10ms, 20ms, 40ms, 80ms, 160ms
-        const delay = 10 * Math.pow(2, retries - 1);
-        await new Promise(resolve => setTimeout(resolve, delay));
       }
+    } catch (error) {
+      console.warn('Redis updateJob failed, using fallback:', error);
     }
+    
+    await this.fallback.updateJob(jobId, updates);
   }
 
   async deleteJob(jobId: string): Promise<void> {
-    const jobKey = this.jobKeyPrefix + jobId;
-    const debugKey = this.debugKeyPrefix + jobId;
-    await Promise.all([
-      this.redis.del(jobKey),
-      this.redis.del(debugKey)
-    ]);
+    try {
+      if (this.redis) {
+        await this.redis.del(`job:${jobId}`);
+        return;
+      }
+    } catch (error) {
+      console.warn('Redis deleteJob failed, using fallback:', error);
+    }
+    
+    await this.fallback.deleteJob(jobId);
   }
 
   async cleanupOldJobs(): Promise<void> {
-    // Redis keys automatically expire due to TTL, so cleanup is automatic
-    // This method is kept for interface compatibility
-  }
-
-  async setDebugInfo(jobId: string, debugInfo: DebugInfo): Promise<void> {
-    const key = this.debugKeyPrefix + jobId;
-    const serialized = JSON.stringify({
-      ...debugInfo,
-      createdAt: debugInfo.createdAt.toISOString()
-    });
-    await this.redis.setex(key, this.ttlSeconds, serialized);
-  }
-
-  async getDebugInfo(jobId: string): Promise<DebugInfo | null> {
-    const key = this.debugKeyPrefix + jobId;
-    const result = await this.redis.get(key);
-    if (!result) return null;
-    
-    try {
-      // Handle the case where result is already an object (not a JSON string)
-      if (typeof result === 'object' && result !== null) {
-        return {
-          ...result as any,
-          createdAt: new Date((result as any).createdAt)
-        };
-      }
-      
-      // Handle the case where result is a string
-      const resultStr = result as string;
-      
-      // Check for corrupted "[object Object]" strings
-      if (resultStr === '[object Object]' || resultStr.startsWith('[object Object]')) {
-        console.warn(`Corrupted debug data for ${jobId}: ${resultStr}`);
-        return null;
-      }
-      
-      const parsed = JSON.parse(resultStr);
-      return {
-        ...parsed,
-        createdAt: new Date(parsed.createdAt)
-      };
-    } catch (error) {
-      console.error(`Failed to parse debug data for ${jobId}:`, error, 'Raw result:', result);
-      return null;
-    }
-  }
-
-  async pushDebugStep(jobId: string, step: DebugStep): Promise<void> {
-    const debugInfo = await this.getDebugInfo(jobId);
-    if (debugInfo) {
-      debugInfo.steps.push(step);
-      await this.setDebugInfo(jobId, debugInfo);
-    }
+    // Redis keys expire automatically, just clean memory fallback
+    await this.fallback.cleanupOldJobs();
   }
 }
 
-/**
- * In-memory JobStore implementation for development/fallback
- */
-class InMemoryJobStore implements JobStore {
-  private jobs = new Map<string, JobStatus>();
-  private debugInfo = new Map<string, DebugInfo>();
-  private updateLocks = new Map<string, Promise<void>>();
-
-  async setJob(jobId: string, job: JobStatus): Promise<void> {
-    // Serialize and deserialize to ensure consistency with Redis store
-    const serialized = JSON.stringify({
-      ...job,
-      createdAt: job.createdAt.toISOString()
-    });
-    const parsed = JSON.parse(serialized);
-    this.jobs.set(jobId, {
-      ...parsed,
-      createdAt: new Date(parsed.createdAt)
-    });
-    console.log(`[InMemoryJobStore] Job ${jobId} saved. Total jobs in store: ${this.jobs.size}`);
-  }
-
-  async getJob(jobId: string): Promise<JobStatus | null> {
-    console.log(`[InMemoryJobStore] Looking for job ${jobId}. Total jobs in store: ${this.jobs.size}. Available jobs: [${Array.from(this.jobs.keys()).join(', ')}]`);
-    const job = this.jobs.get(jobId);
-    if (!job) return null;
-    
-    // Ensure consistent format by re-serializing/deserializing
-    try {
-      const serialized = JSON.stringify({
-        ...job,
-        createdAt: job.createdAt.toISOString()
-      });
-      const parsed = JSON.parse(serialized);
-      return {
-        ...parsed,
-        createdAt: new Date(parsed.createdAt)
-      };
-    } catch (error) {
-      console.error(`Failed to serialize/deserialize job ${jobId}:`, error);
-      return null;
-    }
-  }
-
-  async updateJob(jobId: string, updates: Partial<JobStatus>): Promise<void> {
-    // Use a simple locking mechanism to prevent concurrent updates
-    const existingLock = this.updateLocks.get(jobId);
-    if (existingLock) {
-      await existingLock;
-    }
-
-    const updatePromise = this.performUpdate(jobId, updates);
-    this.updateLocks.set(jobId, updatePromise);
-    
-    try {
-      await updatePromise;
-    } finally {
-      this.updateLocks.delete(jobId);
-    }
-  }
-
-  private async performUpdate(jobId: string, updates: Partial<JobStatus>): Promise<void> {
-    const existing = this.jobs.get(jobId);
-    if (existing) {
-      // Create a new object to avoid mutation issues in concurrent environments
-      const updated = { 
-        ...existing, 
-        ...updates,
-        // Ensure createdAt is preserved properly
-        createdAt: existing.createdAt
-      };
-      this.jobs.set(jobId, updated);
-    }
-  }
-
-  async deleteJob(jobId: string): Promise<void> {
-    this.jobs.delete(jobId);
-    this.debugInfo.delete(jobId);
-  }
-
-  async cleanupOldJobs(): Promise<void> {
-    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000); // 2 hours
-    
-    for (const [jobId, job] of this.jobs.entries()) {
-      if (job.createdAt < twoHoursAgo) {
-        this.jobs.delete(jobId);
-        this.debugInfo.delete(jobId);
-      }
-    }
-  }
-
-  async setDebugInfo(jobId: string, debugInfo: DebugInfo): Promise<void> {
-    // Serialize and deserialize to ensure consistency with Redis store
-    const serialized = JSON.stringify({
-      ...debugInfo,
-      createdAt: debugInfo.createdAt.toISOString()
-    });
-    const parsed = JSON.parse(serialized);
-    this.debugInfo.set(jobId, {
-      ...parsed,
-      createdAt: new Date(parsed.createdAt)
-    });
-  }
-
-  async getDebugInfo(jobId: string): Promise<DebugInfo | null> {
-    const debug = this.debugInfo.get(jobId);
-    if (!debug) return null;
-    
-    // Ensure consistent format by re-serializing/deserializing
-    try {
-      const serialized = JSON.stringify({
-        ...debug,
-        createdAt: debug.createdAt.toISOString()
-      });
-      const parsed = JSON.parse(serialized);
-      return {
-        ...parsed,
-        createdAt: new Date(parsed.createdAt)
-      };
-    } catch (error) {
-      console.error(`Failed to serialize/deserialize debug info ${jobId}:`, error);
-      return null;
-    }
-  }
-
-  async pushDebugStep(jobId: string, step: DebugStep): Promise<void> {
-    const existing = this.debugInfo.get(jobId);
-    if (existing) {
-      existing.steps.push(step);
-    }
-  }
-}
-
-/**
- * Create JobStore instance based on environment variables
- */
-export function createJobStore(): JobStore {
-  const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
-  const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
-
-  if (redisUrl && redisToken) {
-    console.log('Using Redis JobStore for durable job state');
-    return new RedisJobStore(redisUrl, redisToken);
-  } else {
-    console.log('Using in-memory JobStore (Redis env vars not configured)');
-    return new InMemoryJobStore();
-  }
-}
-
-// Use global variable to ensure singleton across serverless execution contexts
-const globalForJobStore = globalThis as unknown as {
-  jobStore: JobStore | undefined
-}
+// Singleton instance
+let jobStoreInstance: JobStore | null = null;
 
 export function getJobStore(): JobStore {
-  if (!globalForJobStore.jobStore) {
-    globalForJobStore.jobStore = createJobStore();
+  if (!jobStoreInstance) {
+    jobStoreInstance = new RedisJobStore();
   }
-  return globalForJobStore.jobStore;
+  return jobStoreInstance;
 }

@@ -164,35 +164,62 @@ Falls keine Events gefunden: []
 
     for (let attempt = 0; attempt < retries; attempt++) {
       try {
+        const requestBody = {
+          model: 'sonar-pro',
+          messages: [
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          max_tokens: options?.max_tokens || 20000,
+          temperature: options?.temperature || 0.2,
+          stream: false
+        };
+
+        console.log(`🔄 Perplexity API call attempt ${attempt + 1}/${retries}:`);
+        console.log(`   Model: ${requestBody.model}`);
+        console.log(`   Max tokens: ${requestBody.max_tokens}`);
+        console.log(`   Temperature: ${requestBody.temperature}`);
+        console.log(`   Prompt length: ${prompt.length} chars`);
+
         const response = await fetch(this.baseUrl, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${this.apiKey}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            model: 'sonar-pro',
-            messages: [
-              {
-                role: 'user',
-                content: prompt
-              }
-            ],
-            max_tokens: options?.max_tokens || 20000,
-            temperature: options?.temperature || 0.2,
-            stream: false
-          }),
+          body: JSON.stringify(requestBody),
           signal // Use AbortSignal for timeout handling
         });
 
+        console.log(`📡 Perplexity API response:`);
+        console.log(`   Status: ${response.status} ${response.statusText}`);
+        console.log(`   OK: ${response.ok}`);
+
         if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          const errorText = await response.text();
+          console.error(`❌ Perplexity API error response:`, errorText);
+          throw new Error(`HTTP ${response.status}: ${response.statusText} - ${errorText}`);
         }
 
         const data = await response.json();
-        return data.choices[0]?.message?.content || '';
+        const content = data.choices[0]?.message?.content || '';
+        
+        console.log(`✅ Perplexity API success:`);
+        console.log(`   Response length: ${content.length} chars`);
+        console.log(`   Usage:`, data.usage || 'No usage info');
+        
+        return content;
       } catch (error: any) {
         lastError = error;
+        console.error(`❌ Perplexity API call attempt ${attempt + 1} failed:`, {
+          name: error.name,
+          message: error.message,
+          code: error.code,
+          cause: error.cause
+        });
+        
         if (attempt === 0 && String(error).includes('not valid JSON')) {
           // Wait before retry
           await new Promise(resolve => setTimeout(resolve, 500));
@@ -321,11 +348,28 @@ Falls keine Events gefunden: []
 }
 
 /**
- * Creates a Perplexity service instance
+ * Creates a Perplexity service instance with validation
  */
 export function createPerplexityService(apiKey?: string): PerplexityService | null {
   if (!apiKey) {
+    console.error('❌ Perplexity API key is missing');
     return null;
   }
-  return new PerplexityService(apiKey);
+  
+  if (typeof apiKey !== 'string' || apiKey.trim().length === 0) {
+    console.error('❌ Perplexity API key is invalid (empty or not a string)');
+    return null;
+  }
+  
+  if (!apiKey.startsWith('pplx-')) {
+    console.error('❌ Perplexity API key format is invalid (should start with pplx-)');
+    return null;
+  }
+  
+  try {
+    return new PerplexityService(apiKey.trim());
+  } catch (error) {
+    console.error('❌ Failed to create Perplexity service:', error);
+    return null;
+  }
 }

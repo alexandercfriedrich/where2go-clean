@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createJobStore } from '@/lib/jobStore';
+import { getJobStore } from '@/lib/jobStore';
 
 /**
  * Diagnostics endpoint for JobStore verification
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     results.usingRedis = !!(redisUrl && redisToken);
     
     // Create JobStore instance to test connectivity
-    const jobStore = createJobStore();
+    const jobStore = getJobStore();
     
     // Test set/get/delete operations with a diagnostic test job
     const testJobId = `diagnostic-test-${Date.now()}`;
