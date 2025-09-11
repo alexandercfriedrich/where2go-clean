@@ -73,12 +73,15 @@ async function scheduleBackgroundProcessing(
     // Optional internal secret if your worker route expects it
     const internalSecret = process.env.INTERNAL_API_SECRET;
 
+    // Build comprehensive authentication headers to ensure internal request validation passes
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'x-vercel-background': '1',
-      'x-internal-call': '1',
+      'x-internal-call': '1', 
       'User-Agent': 'where2go-internal'
     };
+    
+    // Add optional authentication tokens if available
     if (protectionBypass) {
       headers['x-vercel-protection-bypass'] = protectionBypass;
     }
@@ -86,8 +89,28 @@ async function scheduleBackgroundProcessing(
       headers['x-internal-secret'] = internalSecret;
     }
     
-    // Make internal HTTP request to background processor with special header
+    // Ensure we always have at least the core authentication headers
+    console.log('Authentication headers being sent:', {
+      'x-vercel-background': headers['x-vercel-background'],
+      'x-internal-call': headers['x-internal-call'],
+      'User-Agent': headers['User-Agent'],
+      'x-vercel-protection-bypass': headers['x-vercel-protection-bypass'] ? 'SET' : 'NOT_SET',
+      'x-internal-secret': headers['x-internal-secret'] ? 'SET' : 'NOT_SET'
+    });
+    
+    // Make internal HTTP request to background processor with comprehensive logging
     console.log(`Scheduling background processing: ${backgroundUrl}`);
+    console.log('Full request details:', {
+      method: 'POST',
+      url: backgroundUrl,
+      headers: {
+        ...headers,
+        'x-vercel-protection-bypass': headers['x-vercel-protection-bypass'] ? 'SET' : 'NOT_SET',
+        'x-internal-secret': headers['x-internal-secret'] ? 'SET' : 'NOT_SET'
+      },
+      bodyPreview: { jobId, city, date, categoriesCount: categories.length }
+    });
+    
     const response = await fetch(backgroundUrl, {
       method: 'POST',
       headers,
@@ -100,26 +123,43 @@ async function scheduleBackgroundProcessing(
       })
     });
     
+    console.log('Background processing response:', {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+      contentType: response.headers.get('content-type')
+    });
+    
     if (!response.ok) {
-      throw new Error(`Background scheduling failed: ${response.status} ${response.statusText}`);
+      const responseText = await response.text();
+      console.error('Background processing failed response body:', responseText);
+      throw new Error(`Background scheduling failed: HTTP ${response.status} ${response.statusText}: ${responseText}`);
     }
+    
+    const responseData = await response.json().catch(() => null);
+    console.log('Background processing success response:', responseData);
     
     console.log('Background processing scheduled successfully');
     
   } else {
     // Local development fallback - make local HTTP request without awaiting
-    const localUrl = 'http://localhost:3000/api/events/process';
+    const localUrl = 'http://localhost:3001/api/events/process';
     console.log(`Running in local development, making async request to background processor: ${localUrl}`);
+    
+    // Build comprehensive authentication headers for local development
+    const localHeaders = {
+      'Content-Type': 'application/json',
+      'x-vercel-background': '1',
+      'x-internal-call': '1',
+      'User-Agent': 'where2go-internal'
+    };
+    
+    console.log('Local development authentication headers:', localHeaders);
     
     // Fire and forget request for local development
     fetch(localUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-vercel-background': '1',
-        'x-internal-call': '1',
-        'User-Agent': 'where2go-internal'
-      },
+      headers: localHeaders,
       body: JSON.stringify({
         jobId,
         city,
