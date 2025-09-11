@@ -1,4 +1,5 @@
 # where2go-clean
+
 Saubere Neuentwicklung der Eventsuchseite für Städte- und Zeitraumfilter.
 
 ## Setup
@@ -16,10 +17,6 @@ PERPLEXITY_API_KEY=your_perplexity_api_key_here
 UPSTASH_REDIS_REST_URL=https://your-redis-url.upstash.io
 UPSTASH_REDIS_REST_TOKEN=your_redis_token_here
 
-# Preview Deployments: Required for background processing on Vercel Preview deployments
-# Get this token from Vercel Project > Settings > Protection
-PROTECTION_BYPASS_TOKEN=your_protection_bypass_token_here
-
 # Optional: Additional security for background worker route
 INTERNAL_API_SECRET=your_internal_secret_here
 
@@ -33,59 +30,57 @@ ADMIN_PASS=
 ```
 
 **Admin Area Configuration:**
+
 - The admin area (`/admin/*` and `/api/admin/*`) is protected by HTTP Basic Auth
 - **Required Environment Variables:**
   - `ADMIN_USER`: Username for admin access
   - `ADMIN_PASS`: Password for admin access
 - **Example credentials** (set these in your deployment environment):
-  - `ADMIN_USER=
-  - `ADMIN_PASS=
+  - `ADMIN_USER=admin`
+  - `ADMIN_PASS=secure_password`
 - Without these credentials, admin pages will return "Admin credentials not configured" error
 - Legacy `ADMIN_SECRET` header authentication is still supported for API calls as an alternative
 
 **Redis Configuration (Production):**
+
 - In production environments (e.g., Vercel), configure Upstash Redis environment variables for durable job state persistence
 - This ensures progressive results work reliably across serverless route contexts
 - Without Redis, job state uses in-memory storage which doesn't persist across serverless function invocations
 
-**Preview Protection Configuration:**
-- Vercel Preview Deployments with Protection enabled block internal API calls by default
-- The `PROTECTION_BYPASS_TOKEN` allows background processing to work on Preview deployments
-- **To set up:**
-  1. Go to Vercel Project > Settings > Protection
-  2. Copy the "Protection Bypass Token" 
-  3. Add it as `PROTECTION_BYPASS_TOKEN` in Environment Variables
-  4. Apply to Preview deployments specifically
-- The `INTERNAL_API_SECRET` provides additional hardening for the background worker route
-- Without proper configuration, background processing will fail with 401 Unauthorized on Preview deployments
+**Vercel Automation Protection:**
+
+- Vercel automatically provides the `VERCEL_AUTOMATION_BYPASS_SECRET` system variable for Preview deployments with Protection enabled
+- This native Vercel integration allows background processing to work seamlessly on Preview deployments
+- No manual configuration required - the system automatically uses this token for internal API authentication
+- The application automatically detects and uses this Vercel-provided variable alongside the optional `INTERNAL_API_SECRET` for additional hardening
 
 ### Architecture: Vercel Background Functions
 
-The application uses **Vercel Background Functions** to ensure reliable job processing that continues after HTTP responses are returned. This solves the issue where background tasks could be terminated prematurely on serverless platforms.
+The application uses Vercel Background Functions to ensure reliable job processing that continues after HTTP responses are returned. This solves the issue where background tasks could be terminated prematurely on serverless platforms.
 
-**How it works:**
-1. **Main Route (`/api/events`)**: Creates job, schedules background worker
-2. **Background Worker (`/api/events/process`)**: Performs actual processing with 300s timeout
-3. **Scheduling**: Uses internal HTTP request with `x-vercel-background: 1` header
-4. **Local Development**: Falls back to direct HTTP requests for dev simplicity
+How it works:
+1. Main Route (/api/events): Creates job, schedules background worker
+2. Background Worker (/api/events/process): Performs actual processing with 300s timeout
+3. Scheduling: Uses internal HTTP request with x-vercel-background: 1 header
+4. Local Development: Falls back to direct HTTP requests for dev simplicity
 
-**Key Benefits:**
-- ✅ **Reliable Processing**: Jobs are guaranteed to complete or fail, never stuck in "pending"
-- ✅ **Progressive Updates**: Events appear as categories complete
-- ✅ **Error Handling**: All jobs finalized with 'done' or 'error' status
-- ✅ **Production Ready**: Leverages Vercel's infrastructure for background work
+Key Benefits:
+- ✅ Reliable Processing: Jobs are guaranteed to complete or fail, never stuck in "pending"
+- ✅ Progressive Updates: Events appear as categories complete
+- ✅ Error Handling: All jobs finalized with 'done' or 'error' status
+- ✅ Production Ready: Leverages Vercel's infrastructure for background work
 
-**Testing the Implementation:**
-- Enable debug mode with `?debug=1` in URL
-- Monitor Redis for job updates (`job:*` keys) and debug info (`debug:*` keys)
+Testing the Implementation:
+- Enable debug mode with ?debug=1 in URL
+- Monitor Redis for job updates (job:* keys) and debug info (debug:* keys)
 - Verify progressive events appear and job transitions from 'pending' to 'done'
 
-**Timeout Configuration:**
-- **Overall Timeout**: Configurable via `overallTimeoutMs` option (default 4 minutes) or `OVERALL_TIMEOUT_MS` environment variable
-- **Category Timeout**: Increased default from 45s to 90s, minimum 60s on Vercel for external API reliability
-- **Background Function**: Configured for 300s `maxDuration` with proper `x-vercel-background` headers
-- **AbortController**: Used for clean timeout handling in both overall processing and individual HTTP requests
-- **No 30s Cutoffs**: All artificial timeout limitations removed to allow full processing duration
+Timeout Configuration:
+• Overall Timeout: Configurable via overallTimeoutMs option (default 4 minutes) or OVERALL_TIMEOUT_MS environment variable
+• Category Timeout: Increased default from 45s to 90s, minimum 60s on Vercel for external API reliability
+• Background Function: Configured for 300s maxDuration with proper x-vercel-background headers
+• AbortController: Used for clean timeout handling in both overall processing and individual HTTP requests
+• No 30s Cutoffs: All artificial timeout limitations removed to allow full processing duration
 
 ### Installation
 
@@ -94,125 +89,124 @@ npm install
 npm run dev
 ```
 
-The application will start on `http://localhost:3000`.
+The application will start on http://localhost:3000.
 
 ### Features
 
-- Event search by city and date
-- **Parallel category processing** - Configurable concurrency for faster searches
-- Multi-query Perplexity search with smart aggregation
-- **Per-category timeouts** - Configurable timeout with retries and exponential backoff + jitter
-- **Extended serverless duration** - 300s maxDuration for long-running searches
-- Dynamic caching with TTL based on event timings (instead of fixed 5-minute caching)
-- Automatic event categorization and deduplication
-- No UI changes required - fully backward compatible
-- New synchronous search endpoint for immediate results
-- **Progressive loading** - Shows events as they are found during search
-- **Enhanced debug mode** - Add `?debug=1` to URL for detailed search insights with raw responses and counts
-- **Real-time updates** - Progressive results with new event notifications and toast messages
-- **Conservative deduplication** - Avoids over-filtering events with missing fields
-- **Hot Cities Management** - Admin area for managing city-specific event sources with priority targeting
+- • Event search by city and date
+- • Parallel category processing - Configurable concurrency for faster searches
+- • Multi-query Perplexity search with smart aggregation
+- • Per-category timeouts - Configurable timeout with retries and exponential backoff + jitter
+- • Extended serverless duration - 300s maxDuration for long-running searches
+- • Dynamic caching with TTL based on event timings (instead of fixed 5-minute caching)
+- • Automatic event categorization and deduplication
+- • No UI changes required - fully backward compatible
+- • New synchronous search endpoint for immediate results
+- • Progressive loading - Shows events as they are found during search
+- • Enhanced debug mode - Add ?debug=1 to URL for detailed search insights with raw responses and counts
+- • Real-time updates - Progressive results with new event notifications and toast messages
+- • Conservative deduplication - Avoids over-filtering events with missing fields
+- • Hot Cities Management - Admin area for managing city-specific event sources with priority targeting
 
 ### Hot Cities Feature
 
 The Hot Cities feature allows administrators to configure city-specific event sources that get prioritized during searches, improving the quality and relevance of results for popular destinations.
 
-**Key Benefits:**
-- **Targeted Sources**: Each city can have specific websites and event sources configured
-- **Category Filtering**: Websites can be tagged with categories they cover best  
-- **Priority Ordering**: Sources are ranked by priority for better result quality
-- **Cost Optimization**: Cached results reduce API calls until event end times
-- **Local Knowledge**: Custom search queries and prompts per city
+Key Benefits:
+• Targeted Sources: Each city can have specific websites and event sources configured
+• Category Filtering: Websites can be tagged with categories they cover best
+• Priority Ordering: Sources are ranked by priority for better result quality
+• Cost Optimization: Cached results reduce API calls until event end times
+• Local Knowledge: Custom search queries and prompts per city
 
-**Admin Management:**
-- Access the admin area at `/admin` (requires Basic Auth)
-- Manage cities and their websites at `/admin/hot-cities`
-- Add, edit, delete, and configure websites for each city
-- Set categories, priorities, and custom search queries per website
-- Enable/disable sources without deleting configuration
+Admin Management:
+- • Access the admin area at /admin (requires Basic Auth)
+- • Manage cities and their websites at /admin/hot-cities
+- • Add, edit, delete, and configure websites for each city
+- • Set categories, priorities, and custom search queries per website
+- • Enable/disable sources without deleting configuration
 
-**Seeding Initial Data:**
-To populate the system with sample cities (Wien, Linz, Ibiza, Berlin):
-1. Access `/admin/hot-cities`
-2. Click "Seed Sample Cities" button
-3. Sample cities will be created with representative sources across categories
+Seeding Initial Data: To populate the system with sample cities (Wien, Linz, Ibiza, Berlin):
+1. • Access /admin/hot-cities
+2. • Click "Seed Sample Cities" button
+3. • Sample cities will be created with representative sources across categories
 
-**API Access:**
-- **Public API**: `GET /api/hot-cities` - Returns sanitized city data (no admin access required)
-- **Admin API**: `/api/admin/hot-cities/*` - Full CRUD operations (requires Basic Auth)
+API Access:
+• Public API: GET /api/hot-cities - Returns sanitized city data (no admin access required)
+• Admin API: /api/admin/hot-cities/* - Full CRUD operations (requires Basic Auth)
 
-**Search Integration:**
-When searching for events, the system automatically:
-1. Checks if the city has Hot Cities configuration
-2. Identifies relevant websites based on requested categories
-3. Provides additional sources to the background worker for prioritized searching
-4. Maintains existing caching behavior to minimize costs
+Search Integration: When searching for events, the system automatically:
+1. • Checks if the city has Hot Cities configuration
+2. • Identifies relevant websites based on requested categories
+3. • Provides additional sources to the background worker for prioritized searching
+4. • Maintains existing caching behavior to minimize costs
 
 ### Debug Mode
 
-To enable debug mode, add `?debug=1` to the URL (e.g., `http://localhost:3000?debug=1`).
+To enable debug mode, add ?debug=1 to the URL (e.g., http://localhost:3000?debug=1).
 
 Debug mode provides:
-- Detailed search query information per category
-- Raw API responses for troubleshooting  
-- **Enhanced metrics**: Parsed event counts, added counts, and total counts per search step
-- Complete search timeline and performance metrics
-- **Phase statistics**: Shows how many events are parsed, merged, and deduplicated at each step
+- • Detailed search query information per category
+- • Raw API responses for troubleshooting
+- • Enhanced metrics: Parsed event counts, added counts, and total counts per search step
+- • Complete search timeline and performance metrics
+- • Phase statistics: Shows how many events are parsed, merged, and deduplicated at each step
 
 The debug panel appears at the bottom of the page when debug mode is active and shows comprehensive information about each search step.
 
 ### Configuration Options
 
-The following options can be configured by modifying the request in `page.tsx`:
+The following options can be configured by modifying the request in page.tsx:
+• categoryConcurrency (default: 5): Number of categories to process in parallel
+• categoryTimeoutMs (default: 90000): Timeout per category in milliseconds, can be a number or object mapping categories to timeouts. Increased from 45s to 90s to prevent premature termination on Vercel.
+• overallTimeoutMs (default: 240000): Overall timeout for entire job processing in milliseconds (4 minutes). Configurable via OVERALL_TIMEOUT_MS environment variable.
+• maxAttempts (default: 5): Maximum retry attempts per category with exponential backoff + jitter
+• Polling window: Extended to 8 minutes (48 polls × 10s) to handle longer processing times
 
-- **`categoryConcurrency`** (default: 5): Number of categories to process in parallel
-- **`categoryTimeoutMs`** (default: 90000): Timeout per category in milliseconds, can be a number or object mapping categories to timeouts. **Increased from 45s to 90s to prevent premature termination on Vercel.**
-- **`overallTimeoutMs`** (default: 240000): Overall timeout for entire job processing in milliseconds (4 minutes). Configurable via `OVERALL_TIMEOUT_MS` environment variable.
-- **`maxAttempts`** (default: 5): Maximum retry attempts per category with exponential backoff + jitter
-- **Polling window**: Extended to 8 minutes (48 polls × 10s) to handle longer processing times
-
-**Vercel Background Function Settings:**
-- **`runtime`**: 'nodejs' (configured)
-- **`maxDuration`**: 300 seconds (configured)
-- **Background processing**: Uses `x-vercel-background: '1'` header for reliable execution
-- **Minimum timeout on Vercel**: 60 seconds per category to reduce flakiness with external APIs
+Vercel Background Function Settings:
+• runtime: 'nodejs' (configured)
+• maxDuration: 300 seconds (configured)
+• Background processing: Uses x-vercel-background: '1' header for reliable execution
+• Minimum timeout on Vercel: 60 seconds per category to reduce flakiness with external APIs
 
 ### Progressive Updates
 
 The application now provides reliable progressive updates:
-- Results are pushed to the job store after each category completes
-- Events appear in the UI as they are found, not just at the end
-- "Neu" badges indicate newly found events
-- Toast notifications show progress with event counts
-- Enhanced Event Cards remain visible with clickable addresses and multiple link types
-- Detailed search query information per category
-- Raw API responses for troubleshooting  
-- **Enhanced metrics**: Parsed event counts, added counts, and total counts per search step
-- Complete search timeline and performance metrics
-- **Phase statistics**: Shows how many events are parsed, merged, and deduplicated at each step
+- • Results are pushed to the job store after each category completes
+- • Events appear in the UI as they are found, not just at the end
+- • "Neu" badges indicate newly found events
+- • Toast notifications show progress with event counts
+- • Enhanced Event Cards remain visible with clickable addresses and multiple link types
+- • Detailed search query information per category
+- • Raw API responses for troubleshooting
+- • Enhanced metrics: Parsed event counts, added counts, and total counts per search step
+- • Complete search timeline and performance metrics
+- • Phase statistics: Shows how many events are parsed, merged, and deduplicated at each step
 
 The debug panel appears at the bottom of the page when debug mode is active and shows comprehensive information about each search step.
 
 ### Progressive Updates
 
 The application supports progressive loading of search results:
-- Results appear as they are found, reducing perceived wait time
-- New events are highlighted with a "Neu" badge and glow animation
-- Toast notifications show when new events are discovered
-- Search continues in the background while showing initial results
-- Status message updates to "Suche läuft – Ergebnisse werden ergänzt" during progressive loading
+- • Results appear as they are found, reducing perceived wait time
+- • New events are highlighted with a "Neu" badge and glow animation
+- • Toast notifications show when new events are discovered
+- • Search continues in the background while showing initial results
+- • Status message updates to "Suche läuft – Ergebnisse werden ergänzt" during progressive loading
 
 ### API
 
 #### Asynchronous Events API (existing)
-- `POST /api/events` - Submit search request, returns job ID immediately
-- `GET /api/jobs/[jobId]` - Check job status and get progressive results
-- `POST /api/events/process` - **Background worker** (internal, not for direct use)
+
+• POST /api/events - Submit search request, returns job ID immediately
+• GET /api/jobs/[jobId] - Check job status and get progressive results
+• POST /api/events/process - Background worker (internal, not for direct use)
 
 #### Synchronous Events Search API (new)
-- `POST /api/events/search` - Returns events directly (no job/polling required)
 
-The asynchronous API now uses Vercel Background Functions for reliable processing. The `/api/events/process` route handles actual job processing with extended timeouts and is automatically called by the main `/api/events` route.
+• POST /api/events/search - Returns events directly (no job/polling required)
+
+The asynchronous API now uses Vercel Background Functions for reliable processing. The /api/events/process route handles actual job processing with extended timeouts and is automatically called by the main /api/events route.
 
 Both public endpoints accept the same request body format and use shared caching.
 
@@ -238,7 +232,7 @@ Both public endpoints accept the same request body format and use shared caching
 
 #### Response Format
 
-**Asynchronous API (`/api/events`)**:
+Asynchronous API (/api/events):
 ```json
 {
   "jobId": "job_1234567890_abcdef123",
@@ -246,7 +240,7 @@ Both public endpoints accept the same request body format and use shared caching
 }
 ```
 
-**Synchronous API (`/api/events/search`)**:
+Synchronous API (/api/events/search):
 ```json
 {
   "events": [
