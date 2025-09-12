@@ -20,12 +20,23 @@ export async function GET(request: NextRequest, { params }: { params: { jobId: s
       );
     }
 
-    console.log(`📋 Job status request: ${jobId}`);
+    // Check for debug parameter
+    const searchParams = request.nextUrl.searchParams;
+    const debugMode = searchParams.get('debug') === '1';
+    
+    if (debugMode) {
+      console.log('🔍 DEBUG: Job status request with debug mode enabled for job:', jobId);
+    }
+
+    console.log(`📋 Job status request: ${jobId}${debugMode ? ' (debug mode)' : ''}`);
     
     // Get job from store
     const job = await jobStore.getJob(jobId);
     
     if (!job) {
+      if (debugMode) {
+        console.log('🔍 DEBUG: Job not found:', jobId);
+      }
       return NextResponse.json(
         { error: 'Job nicht gefunden' },
         { 
@@ -75,16 +86,46 @@ export async function GET(request: NextRequest, { params }: { params: { jobId: s
     // Clean up old jobs
     await jobStore.cleanupOldJobs();
 
+    // Get debug information if in debug mode
+    let debugInfo = null;
+    if (debugMode) {
+      try {
+        if (jobStore.getDebugInfo) {
+          debugInfo = await jobStore.getDebugInfo(jobId);
+          if (debugInfo) {
+            console.log('🔍 DEBUG: Debug info retrieved successfully, steps:', debugInfo.steps?.length || 0);
+          } else {
+            console.log('🔍 DEBUG: No debug info found for job');
+          }
+        } else {
+          console.log('🔍 DEBUG: Debug info retrieval not available on this jobStore implementation');
+        }
+      } catch (debugError) {
+        console.error('🔍 DEBUG: Failed to retrieve debug info:', debugError);
+      }
+    }
+
     const response: any = {
       id: job.id,
       status: job.status,
       events: normalizeEvents(job.events || []),
       ...(job.status === 'error' && job.error ? { error: job.error } : {}),
       ...(job.progress ? { progress: job.progress } : {}),
-      ...(job.lastUpdateAt ? { lastUpdateAt: job.lastUpdateAt } : {})
+      ...(job.lastUpdateAt ? { lastUpdateAt: job.lastUpdateAt } : {}),
+      ...(debugMode && debugInfo ? { debug: debugInfo } : {})
     };
 
-    console.log(`📤 Job status response: ${jobId}, status: ${job.status}, events: ${job.events?.length || 0}`);
+    if (debugMode) {
+      console.log(`🔍 DEBUG: Job status response prepared:`, {
+        id: job.id,
+        status: job.status,
+        eventCount: job.events?.length || 0,
+        hasDebugInfo: !!debugInfo,
+        debugStepsCount: debugInfo?.steps?.length || 0
+      });
+    }
+
+    console.log(`📤 Job status response: ${jobId}, status: ${job.status}, events: ${job.events?.length || 0}${debugMode ? ', debug: ' + (debugInfo ? 'included' : 'not found') : ''}`);
 
     return NextResponse.json(response, {
       headers: { 

@@ -184,7 +184,15 @@ async function scheduleBackgroundProcessing(
 export async function POST(request: NextRequest) {
   try {
     const body: RequestBody = await request.json();
-    const { city, date, categories } = body;
+    const { city, date, categories, options } = body;
+
+    // Check for debug mode from options
+    const debugMode = options?.debug || false;
+    
+    if (debugMode) {
+      console.log('\n=== EVENTS API DEBUG MODE ENABLED ===');
+      console.log('🔍 DEBUG: Request received:', { city, date, categories, options });
+    }
 
     if (!city || !date) {
       return NextResponse.json(
@@ -196,23 +204,45 @@ export async function POST(request: NextRequest) {
     // Use provided categories or defaults
     const effectiveCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
     
-    // Merge options with defaults
+    // Merge options with defaults, preserving the original options
     const mergedOptions = { 
-      ...DEFAULT_PPLX_OPTIONS
+      ...DEFAULT_PPLX_OPTIONS,
+      ...(options || {})
     };
+    
+    if (debugMode) {
+      console.log('🔍 DEBUG: Effective categories:', effectiveCategories);
+      console.log('🔍 DEBUG: Merged options:', mergedOptions);
+    }
 
     // Check cache for all categories
     const cacheResult = eventsCache.getEventsByCategories(city, date, effectiveCategories);
     const allCachedEvents = Object.values(cacheResult.cachedEvents).flat();
     const missingCategories = cacheResult.missingCategories;
 
-    console.log(`Cache analysis: ${Object.keys(cacheResult.cachedEvents).length}/${effectiveCategories.length} categories cached, ${allCachedEvents.length} events from cache`);
-    console.log('Cached categories:', Object.keys(cacheResult.cachedEvents));
-    console.log('Missing categories:', missingCategories);
+    if (debugMode) {
+      console.log('🔍 DEBUG: Cache analysis results:', {
+        totalCategories: effectiveCategories.length,
+        cachedCategories: Object.keys(cacheResult.cachedEvents).length,
+        cachedEvents: allCachedEvents.length,
+        missingCategories: missingCategories.length
+      });
+      console.log('🔍 DEBUG: Cached categories:', Object.keys(cacheResult.cachedEvents));
+      console.log('🔍 DEBUG: Missing categories:', missingCategories);
+    } else {
+      console.log(`Cache analysis: ${Object.keys(cacheResult.cachedEvents).length}/${effectiveCategories.length} categories cached, ${allCachedEvents.length} events from cache`);
+      console.log('Cached categories:', Object.keys(cacheResult.cachedEvents));
+      console.log('Missing categories:', missingCategories);
+    }
 
     // If all categories are cached, return immediately
     if (missingCategories.length === 0) {
-      console.log('✅ All categories cached - returning directly');
+      if (debugMode) {
+        console.log('🔍 DEBUG: ✅ All categories cached - returning directly without background processing');
+        console.log('🔍 DEBUG: Total cached events:', allCachedEvents.length);
+      } else {
+        console.log('✅ All categories cached - returning directly');
+      }
       return NextResponse.json({
         events: allCachedEvents,
         status: 'completed',
@@ -225,6 +255,14 @@ export async function POST(request: NextRequest) {
 
     // Create simple job for missing categories
     const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    if (debugMode) {
+      console.log('🔍 DEBUG: Creating job for missing categories:', {
+        jobId,
+        missingCategoriesCount: missingCategories.length,
+        existingCachedEvents: allCachedEvents.length
+      });
+    }
     
     const job: JobStatus = {
       id: jobId,
@@ -239,9 +277,21 @@ export async function POST(request: NextRequest) {
 
     try {
       await jobStore.setJob(jobId, job);
-      console.log(`Job created successfully with ID: ${jobId}, status: ${job.status}, events: ${job.events?.length || 0}`);
+      if (debugMode) {
+        console.log(`🔍 DEBUG: ✅ Job created successfully:`, {
+          jobId,
+          status: job.status,
+          events: job.events?.length || 0,
+          initialProgress: job.progress
+        });
+      } else {
+        console.log(`Job created successfully with ID: ${jobId}, status: ${job.status}, events: ${job.events?.length || 0}`);
+      }
     } catch (jobStoreError) {
       console.error('Failed to create job in JobStore:', jobStoreError);
+      if (debugMode) {
+        console.log('🔍 DEBUG: ❌ Failed to create job in JobStore:', jobStoreError);
+      }
       return NextResponse.json(
         { error: 'Service nicht verfügbar - Redis Konfiguration erforderlich' },
         { status: 500 }
@@ -250,14 +300,31 @@ export async function POST(request: NextRequest) {
 
     // Map subcategories to main categories for AI calls
     const mainCategoriesForAI = getMainCategoriesForAICalls(missingCategories);
-    console.log(`Original missing categories (subcategories): ${missingCategories.length} - [${missingCategories.join(', ')}]`);
-    console.log(`Mapped to main categories for AI calls: ${mainCategoriesForAI.length} - [${mainCategoriesForAI.join(', ')}]`);
+    
+    if (debugMode) {
+      console.log('🔍 DEBUG: Category mapping for AI calls:', {
+        originalMissingCategories: missingCategories,
+        mappedMainCategories: mainCategoriesForAI
+      });
+    } else {
+      console.log(`Original missing categories (subcategories): ${missingCategories.length} - [${missingCategories.join(', ')}]`);
+      console.log(`Mapped to main categories for AI calls: ${mainCategoriesForAI.length} - [${mainCategoriesForAI.join(', ')}]`);
+    }
 
     // Schedule background processing (await to catch immediate errors)
     try {
+      if (debugMode) {
+        console.log('🔍 DEBUG: Scheduling background processing with debug mode enabled');
+      }
       await scheduleBackgroundProcessing(request, jobId, city, date, mainCategoriesForAI, mergedOptions);
+      if (debugMode) {
+        console.log('🔍 DEBUG: ✅ Background processing scheduled successfully');
+      }
     } catch (scheduleError) {
       console.error('Failed to schedule background processing:', scheduleError);
+      if (debugMode) {
+        console.log('🔍 DEBUG: ❌ Failed to schedule background processing:', scheduleError);
+      }
       // Update job to error state
       await jobStore.updateJob(jobId, {
         status: 'error',
@@ -270,6 +337,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Return job for polling
+    if (debugMode) {
+      console.log('🔍 DEBUG: ✅ Returning job for polling:', {
+        jobId,
+        status: 'partial',
+        cachedEvents: allCachedEvents.length,
+        missingCategories: missingCategories.length,
+        progress: {
+          completedCategories: effectiveCategories.length - missingCategories.length,
+          totalCategories: effectiveCategories.length
+        }
+      });
+      console.log('🔍 DEBUG: === EVENTS API DEBUG COMPLETE ===\n');
+    }
+    
     return NextResponse.json({
       jobId,
       status: 'partial',
