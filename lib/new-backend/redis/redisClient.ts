@@ -146,19 +146,9 @@ class NewBackendRedisClient {
       }) as RedisClient;
     }
     
-    // Check for Vercel KV configuration
-    const kvUrl = process.env.KV_REST_API_URL;
-    const kvToken = process.env.KV_REST_API_TOKEN;
-    
-    if (kvUrl && kvToken) {
-      logger.debug('Using Vercel KV client');
-      const { kv } = await import('@vercel/kv');
-      return kv as RedisClient;
-    }
-    
     throw createError(
       ErrorCode.CONFIG_ERROR,
-      'No Redis configuration found. Please set UPSTASH_REDIS_REST_URL/TOKEN or KV_REST_API_URL/TOKEN environment variables'
+      'No Redis configuration found. Please set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables'
     );
   }
 

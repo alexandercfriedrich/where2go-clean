@@ -25,62 +25,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // If no categories specified or empty array, use legacy cache behavior
-    if (!categories || categories.length === 0) {
-      // Check legacy cache for general search
-      const cacheKey = InMemoryCache.createKey(city, date, categories);
-      const cachedEvents = eventsCache.get<EventData[]>(cacheKey);
-      
-      if (cachedEvents) {
-        console.log('Legacy cache hit for search endpoint:', cacheKey);
-        return NextResponse.json({
-          events: cachedEvents,
-          cached: true,
-          timestamp: new Date().toISOString(),
-          cacheInfo: {
-            fromCache: true,
-            totalEvents: cachedEvents.length,
-            cachedEvents: cachedEvents.length
-          }
-        });
-      }
+    // Use per-category cache system for all searches
+    if (debugMode) {
+      console.log('DEBUG: Checking per-category cache for:', city, date, categories);
+      console.log('DEBUG: Cache size before check:', eventsCache.size());
     } else {
-      // Use per-category cache system for specific categories
-      if (debugMode) {
-        console.log('DEBUG: Checking per-category cache for:', city, date, categories);
-        console.log('DEBUG: Cache size before check:', eventsCache.size());
-      } else {
-        console.log('Checking per-category cache for:', city, date, categories);
-      }
-      
-      // First check if we have complete legacy cache for this exact combination
-      const legacyCacheKey = InMemoryCache.createKey(city, date, categories);
-      const legacyCachedEvents = eventsCache.get<EventData[]>(legacyCacheKey);
-      
-      if (debugMode) {
-        console.log('DEBUG: Legacy cache key:', legacyCacheKey);
-        console.log('DEBUG: Legacy cache result:', legacyCachedEvents ? `${legacyCachedEvents.length} events` : 'NOT FOUND');
-      }
-      
-      if (legacyCachedEvents) {
-        console.log('Legacy cache hit for exact category combination:', legacyCacheKey);
-        return NextResponse.json({
-          events: legacyCachedEvents,
-          cached: true,
-          timestamp: new Date().toISOString(),
-          cacheInfo: {
-            fromCache: true,
-            totalEvents: legacyCachedEvents.length,
-            cachedEvents: legacyCachedEvents.length,
-            categoriesFromCache: categories,
-            categoriesSearched: [],
-            cacheBreakdown: Object.fromEntries(categories.map(cat => [cat, { fromCache: true, eventCount: 0 }]))
-          }
-        });
-      }
+      console.log('Checking per-category cache for:', city, date, categories);
+    }
+    
+    // For searches without specific categories, treat as general search
+    const searchCategories = categories && categories.length > 0 ? categories : ['all'];
 
       // Check per-category cache
-      const cacheResult = eventsCache.getEventsByCategories(city, date, categories);
+      const cacheResult = eventsCache.getEventsByCategories(city, date, searchCategories);
       
       if (debugMode) {
         console.log('DEBUG: Per-category cache result:');
@@ -90,7 +47,7 @@ export async function POST(request: NextRequest) {
         
         // Show actual cache keys that were checked
         console.log('DEBUG: Cache keys checked:');
-        for (const category of categories) {
+        for (const category of searchCategories) {
           const key = InMemoryCache.createKeyForCategory(city, date, category);
           const exists = eventsCache.has(key);
           console.log(`  - "${key}": ${exists ? 'EXISTS' : 'MISSING'}`);
@@ -99,7 +56,7 @@ export async function POST(request: NextRequest) {
       
       // If all categories are cached, return combined results
       if (cacheResult.missingCategories.length === 0) {
-        console.log('Complete per-category cache hit for:', categories);
+        console.log('Complete per-category cache hit for:', searchCategories);
         
         // Combine all cached events
         const allCachedEvents = Object.values(cacheResult.cachedEvents).flat();
@@ -118,7 +75,7 @@ export async function POST(request: NextRequest) {
             fromCache: true,
             totalEvents: totalCachedEvents,
             cachedEvents: totalCachedEvents,
-            categoriesFromCache: categories,
+            categoriesFromCache: searchCategories,
             categoriesSearched: [],
             cacheBreakdown: cacheResult.cacheInfo
           }
@@ -147,7 +104,6 @@ export async function POST(request: NextRequest) {
           console.log('DEBUG: ⚠️  No cached categories found - will make API calls for all categories');
         }
       }
-    }
 
     // Fetch events synchronously
     const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
@@ -158,7 +114,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Synchronous search starting for:', city, date, categories);
+    console.log('Synchronous search starting for:', city, date, searchCategories);
     if (debugMode) {
       console.log('DEBUG: ⚠️  Making API calls - this indicates a cache miss or partial miss');
       console.log('DEBUG: Perplexity API key available:', !!PERPLEXITY_API_KEY);
@@ -177,20 +133,19 @@ export async function POST(request: NextRequest) {
     let cachedEventsFromPartialHit: EventData[] = [];
     let cacheInfo: any = {};
 
-    if (categories && categories.length > 0) {
-      // For per-category approach, get partial cache results
-      const cacheResult = eventsCache.getEventsByCategories(city, date, categories);
-      
-      // Collect cached events
-      cachedEventsFromPartialHit = Object.values(cacheResult.cachedEvents).flat();
-      
-      // Only search for missing categories
-      const categoriesToSearch = cacheResult.missingCategories;
-      searchedCategories = categoriesToSearch;
-      
-      if (categoriesToSearch.length > 0) {
-        // Use multi-query approach for missing categories only
-        const results = await perplexityService.executeMultiQuery(city, date, categoriesToSearch, options);
+    // For per-category approach, get partial cache results
+    // (cacheResult already defined above)
+    
+    // Collect cached events
+    cachedEventsFromPartialHit = Object.values(cacheResult.cachedEvents).flat();
+    
+    // Only search for missing categories
+    const categoriesToSearch = cacheResult.missingCategories;
+    searchedCategories = categoriesToSearch;
+    
+    if (categoriesToSearch.length > 0) {
+      // Use multi-query approach for missing categories only
+      const results = await perplexityService.executeMultiQuery(city, date, categoriesToSearch, options);
         
         // Parse events from all results and aggregate them
         for (const result of results) {
@@ -219,51 +174,30 @@ export async function POST(request: NextRequest) {
           eventsCache.setEventsByCategory(city, date, category, categoryEvents, ttlSeconds);
           console.log(`Cached ${categoryEvents.length} events for category "${category}" with TTL: ${ttlSeconds} seconds`);
         }
-      }
+    }
 
-      // Build cache info
-      cacheInfo = {
-        fromCache: cachedEventsFromPartialHit.length > 0,
-        totalEvents: cachedEventsFromPartialHit.length + newEvents.length,
-        cachedEvents: cachedEventsFromPartialHit.length,
-        categoriesFromCache: Object.keys(cacheResult.cachedEvents),
-        categoriesSearched: searchedCategories,
-        cacheBreakdown: cacheResult.cacheInfo
-      };
+    // Build cache info
+    cacheInfo = {
+      fromCache: cachedEventsFromPartialHit.length > 0,
+      totalEvents: cachedEventsFromPartialHit.length + newEvents.length,
+      cachedEvents: cachedEventsFromPartialHit.length,
+      categoriesFromCache: Object.keys(cacheResult.cachedEvents),
+      categoriesSearched: searchedCategories,
+      cacheBreakdown: cacheResult.cacheInfo
+    };
 
-      // Update cache breakdown with new search results
-      for (const category of searchedCategories) {
-        const categoryEvents = newEvents.filter(event => event.category === category);
-        cacheInfo.cacheBreakdown[category] = {
-          fromCache: false,
-          eventCount: categoryEvents.length
-        };
-      }
-    } else {
-      // Use single query for general search (backward compatibility)
-      const result = await perplexityService.executeSingleQuery(city, date);
-      newEvents = eventAggregator.parseEventsFromResponse(result.response);
-      searchedCategories = ['all'];
-      
-      // Categorize events
-      newEvents = eventAggregator.categorizeEvents(newEvents);
-      
-      cacheInfo = {
+    // Update cache breakdown with new search results
+    for (const category of searchedCategories) {
+      const categoryEvents = newEvents.filter(event => event.category === category);
+      cacheInfo.cacheBreakdown[category] = {
         fromCache: false,
-        totalEvents: newEvents.length,
-        cachedEvents: 0,
-        categoriesFromCache: [],
-        categoriesSearched: ['all']
+        eventCount: categoryEvents.length
       };
     }
 
     // Combine cached and new events
     const allEvents = [...cachedEventsFromPartialHit, ...newEvents];
-
-    // Cache the complete result using legacy method for backward compatibility
-    const legacyCacheKey = InMemoryCache.createKey(city, date, categories);
     const ttlSeconds = computeTTLSecondsForEvents(allEvents);
-    eventsCache.set(legacyCacheKey, allEvents, ttlSeconds);
 
     console.log(`Total events: ${allEvents.length} (${cachedEventsFromPartialHit.length} from cache, ${newEvents.length} new)`);
 
