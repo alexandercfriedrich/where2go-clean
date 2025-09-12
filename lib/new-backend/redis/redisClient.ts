@@ -13,6 +13,7 @@ const logger = createComponentLogger('RedisClient');
 /**
  * Redis client interface for type safety.
  * Supports both Upstash Redis and Vercel KV.
+ * Note: Blocking operations like blpop are not supported by HTTP-based Redis services.
  */
 export interface RedisClient {
   get(key: string): Promise<string | null>;
@@ -22,10 +23,10 @@ export interface RedisClient {
   expire(key: string, seconds: number): Promise<number>;
   ttl(key: string): Promise<number>;
   lpush(key: string, ...values: string[]): Promise<number>;
-  blpop(key: string, timeout: number): Promise<[string, string] | null>;
+  lpop(key: string): Promise<string | null>;
   llen(key: string): Promise<number>;
   hget(key: string, field: string): Promise<string | null>;
-  hset(key: string, field: string, value: string): Promise<number>;
+  hset<TData>(key: string, kv: Record<string, TData>): Promise<number>;
   hdel(key: string, field: string): Promise<number>;
   hgetall(key: string): Promise<Record<string, string>>;
   ping(): Promise<string>;

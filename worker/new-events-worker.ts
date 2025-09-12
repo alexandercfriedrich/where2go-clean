@@ -26,8 +26,8 @@ const logger = createComponentLogger('EventsWorker');
  * Worker configuration.
  */
 interface WorkerConfig {
-  /** How long to wait for jobs from queue (seconds) */
-  queueTimeoutSeconds: number;
+  /** Polling interval when no jobs are available (milliseconds) */
+  pollingIntervalMs: number;
   
   /** Timeout for processing a single category (milliseconds) */
   categoryTimeoutMs: number;
@@ -49,7 +49,7 @@ interface WorkerConfig {
  * Default worker configuration.
  */
 const DEFAULT_CONFIG: WorkerConfig = {
-  queueTimeoutSeconds: 10,
+  pollingIntervalMs: 5000, // Poll every 5 seconds
   categoryTimeoutMs: 25000, // 25 seconds
   categoryMaxRetries: 2,
   retryDelayMs: 1000,
@@ -72,7 +72,7 @@ export class NewEventsWorker {
     this.config = { ...DEFAULT_CONFIG, ...config };
     
     logger.info('New events worker initialized', {
-      queueTimeoutSeconds: this.config.queueTimeoutSeconds,
+      pollingIntervalMs: this.config.pollingIntervalMs,
       categoryTimeoutMs: this.config.categoryTimeoutMs,
       categoryMaxRetries: this.config.categoryMaxRetries
     });
@@ -96,11 +96,12 @@ export class NewEventsWorker {
     try {
       while (this.config.keepRunning && !this.shouldStop) {
         try {
-          // Get next job from queue (blocking)
-          const jobId = await this.jobStore.dequeueJob(this.config.queueTimeoutSeconds);
+          // Get next job from queue (non-blocking)
+          const jobId = await this.jobStore.dequeueJob();
           
           if (!jobId) {
-            // No job available, continue loop
+            // No job available, wait before polling again
+            await this.delay(this.config.pollingIntervalMs);
             continue;
           }
 
@@ -113,7 +114,7 @@ export class NewEventsWorker {
           const appError = fromError(error, ErrorCode.JOB_PROCESSING_FAILED);
           logger.error('Error in worker loop', { error: appError });
           
-          // Continue processing other jobs
+          // Continue processing other jobs after a short delay
           await this.delay(1000);
         }
       }

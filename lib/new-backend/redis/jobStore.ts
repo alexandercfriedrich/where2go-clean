@@ -262,18 +262,19 @@ export class RedisJobStore implements JobStore {
   }
 
   /**
-   * Get next job from processing queue (blocking).
+   * Get next job from processing queue (non-blocking).
+   * Note: This replaces the blocking blpop operation since HTTP-based Redis
+   * services don't support blocking operations.
    */
-  async dequeueJob(timeoutSeconds: number = 10): Promise<string | null> {
+  async dequeueJob(): Promise<string | null> {
     try {
       return await this.redisClient.executeOperation(async (client) => {
-        const result = await client.blpop(REDIS_KEYS.JOB_QUEUE, timeoutSeconds);
+        const jobId = await client.lpop(REDIS_KEYS.JOB_QUEUE);
         
-        if (!result) {
+        if (!jobId) {
           return null;
         }
 
-        const [, jobId] = result;
         logger.debug('Dequeued job for processing', { jobId });
         
         return jobId;
