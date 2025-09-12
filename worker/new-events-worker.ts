@@ -5,20 +5,20 @@
  * @fileoverview Serial job processor with timeout, retry, and partial success handling.
  */
 
-import { getJobStore } from '../lib/new-backend/redis/jobStore.js';
-import { getEventCache } from '../lib/new-backend/redis/eventCache.js';
-import { getPerplexityClient } from '../lib/new-backend/services/perplexityClient.js';
-import { normalizeCategories } from '../lib/new-backend/categories/normalize.js';
-import { createComponentLogger } from '../lib/new-backend/utils/log.js';
-import { createError, ErrorCode, fromError } from '../lib/new-backend/utils/errors.js';
+import { getJobStore } from '../lib/new-backend/redis/jobStore';
+import { getEventCache } from '../lib/new-backend/redis/eventCache';
+import { getPerplexityClient } from '../lib/new-backend/services/perplexityClient';
+import { normalizeCategories } from '../lib/new-backend/categories/normalize';
+import { createComponentLogger } from '../lib/new-backend/utils/log';
+import { createError, ErrorCode, fromError } from '../lib/new-backend/utils/errors';
 import { 
   JobStatus, 
   ProgressState, 
   type EventSearchJob, 
   type CategoryState 
-} from '../lib/new-backend/types/jobs.js';
-import { type EventData } from '../lib/new-backend/types/events.js';
-import { type MainCategory } from '../lib/new-backend/categories/categoryMap.js';
+} from '../lib/new-backend/types/jobs';
+import { type EventData } from '../lib/new-backend/types/events';
+import { type MainCategory } from '../lib/new-backend/categories/categoryMap';
 
 const logger = createComponentLogger('EventsWorker');
 

@@ -5,7 +5,7 @@
  * @fileoverview AI prompt templating for structured event search results.
  */
 
-import { type MainCategory } from '../categories/categoryMap.js';
+import { type MainCategory } from '../categories/categoryMap';
 
 /**
  * JSON schema for event objects that AI must follow.

@@ -5,15 +5,15 @@
  * @fileoverview Stubbed Perplexity client with timeout, retry, and error handling.
  */
 
-import { createComponentLogger } from '../utils/log.js';
-import { createError, ErrorCode, fromError, type AppError } from '../utils/errors.js';
-import { type EventData } from '../types/events.js';
-import { type MainCategory } from '../categories/categoryMap.js';
+import { createComponentLogger } from '../utils/log';
+import { createError, ErrorCode, fromError, type AppError } from '../utils/errors';
+import { type EventData } from '../types/events';
+import { type MainCategory } from '../categories/categoryMap';
 import { 
   createCategoryPrompt, 
   createRetryPrompt, 
   createGeneralPrompt 
-} from '../prompts/eventPrompt.js';
+} from '../prompts/eventPrompt';
 
 const logger = createComponentLogger('PerplexityClient');
 

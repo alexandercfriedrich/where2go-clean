@@ -141,7 +141,10 @@ export function validateInput<T>(
     if (error instanceof z.ZodError) {
       return {
         success: false,
-        errors: error.errors.map(err => `${err.path.join('.')}: ${err.message}`)
+        errors: (error.errors || []).map(err => {
+          const path = err?.path && err.path.length > 0 ? err.path.join('.') : 'root';
+          return `${path}: ${err?.message || 'Validation error'}`;
+        })
       };
     }
     

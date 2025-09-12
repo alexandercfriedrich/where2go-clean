@@ -5,7 +5,7 @@
  * @fileoverview Job domain models with explicit TypeScript types and JSDoc documentation.
  */
 
-import { EventData } from './events.js';
+import { EventData } from './events';
 
 /**
  * Job status enum representing the lifecycle of an event search job.

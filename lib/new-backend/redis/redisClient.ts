@@ -5,8 +5,8 @@
  * @fileoverview Redis client setup with connection pooling and retry logic.
  */
 
-import { createComponentLogger } from '../utils/log.js';
-import { createError, ErrorCode, type AppError } from '../utils/errors.js';
+import { createComponentLogger } from '../utils/log';
+import { createError, ErrorCode, type AppError } from '../utils/errors';
 
 const logger = createComponentLogger('RedisClient');
 

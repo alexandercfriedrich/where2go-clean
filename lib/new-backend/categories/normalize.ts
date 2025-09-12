@@ -5,7 +5,7 @@
  * @fileoverview Category normalization with fuzzy matching using Levenshtein distance.
  */
 
-import { CATEGORY_ALIASES, MAIN_CATEGORIES, FUZZY_MATCH_THRESHOLD, type MainCategory } from './categoryMap.js';
+import { CATEGORY_ALIASES, MAIN_CATEGORIES, FUZZY_MATCH_THRESHOLD, type MainCategory } from './categoryMap';
 
 /**
  * Calculate Levenshtein distance between two strings.
@@ -82,7 +82,7 @@ function findFuzzyMatch(input: string): MainCategory | null {
 export function normalizeCategory(category: string): string {
   const trimmed = category.trim();
   if (!trimmed) {
-    return category;
+    return '';
   }
   
   const lowercased = trimmed.toLowerCase();
@@ -106,7 +106,7 @@ export function normalizeCategory(category: string): string {
     return fuzzyMatch;
   }
   
-  // Return original if no match found (preserves user input)
+  // Return original trimmed input if no match found
   return trimmed;
 }
 

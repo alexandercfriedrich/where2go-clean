@@ -5,17 +5,17 @@
  * @fileoverview Job storage with Redis backend and deduplication logic.
  */
 
-import { getRedisClient, REDIS_KEYS } from './redisClient.js';
-import { createComponentLogger } from '../utils/log.js';
-import { createError, ErrorCode, fromError, type AppError } from '../utils/errors.js';
+import { getRedisClient, REDIS_KEYS } from './redisClient';
+import { createComponentLogger } from '../utils/log';
+import { createError, ErrorCode, fromError, type AppError } from '../utils/errors';
 import { 
   type EventSearchJob, 
   type CreateJobParams, 
   type CreateJobResult, 
   JobStatus,
   ProgressState 
-} from '../types/jobs.js';
-import { generateJobId, generateJobSignature } from '../utils/hash.js';
+} from '../types/jobs';
+import { generateJobId, generateJobSignature } from '../utils/hash';
 
 const logger = createComponentLogger('JobStore');
 

@@ -5,15 +5,15 @@
  * @fileoverview Per-category event caching with metadata and locking.
  */
 
-import { getRedisClient, REDIS_KEYS } from './redisClient.js';
-import { createComponentLogger } from '../utils/log.js';
-import { createError, ErrorCode, fromError, type AppError } from '../utils/errors.js';
+import { getRedisClient, REDIS_KEYS } from './redisClient';
+import { createComponentLogger } from '../utils/log';
+import { createError, ErrorCode, fromError, type AppError } from '../utils/errors';
 import { 
   type EventData, 
   type EventCacheMetadata, 
   type CacheCheckResult 
-} from '../types/events.js';
-import { normalizeCategory } from '../categories/normalize.js';
+} from '../types/events';
+import { normalizeCategory } from '../categories/normalize';
 
 const logger = createComponentLogger('EventCache');
 

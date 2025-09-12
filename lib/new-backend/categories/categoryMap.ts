@@ -47,6 +47,7 @@ export const CATEGORY_ALIASES: Record<string, MainCategory> = {
   'electronic': 'DJ Sets/Electronic',
   'dj sets': 'DJ Sets/Electronic',
   'dj set': 'DJ Sets/Electronic',
+  'dj': 'DJ Sets/Electronic',
   'electronic music': 'DJ Sets/Electronic',
   'techno': 'DJ Sets/Electronic',
   'house': 'DJ Sets/Electronic',
@@ -155,6 +156,7 @@ export const CATEGORY_ALIASES: Record<string, MainCategory> = {
   'wine': 'Food/Culinary',
   'beer': 'Food/Culinary',
   'cooking': 'Food/Culinary',
+  'essen': 'Food/Culinary',
   
   // Sport variations
   'sport': 'Sport',
@@ -247,7 +249,7 @@ export const CATEGORY_ALIASES: Record<string, MainCategory> = {
  * Fuzzy matching threshold for Levenshtein distance.
  * Categories with distance <= this threshold will be considered matches.
  */
-export const FUZZY_MATCH_THRESHOLD = 2;
+export const FUZZY_MATCH_THRESHOLD = 1;
 
 /**
  * Check if a string is a recognized main category.
