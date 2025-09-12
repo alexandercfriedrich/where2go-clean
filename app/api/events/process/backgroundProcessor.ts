@@ -48,6 +48,31 @@ async function safeUpdateJobStatus(jobId: string, updates: Partial<JobStatus>): 
   }
 }
 
+// Critical job status update function that never throws - prevents infinite polling
+async function criticalUpdateJobStatus(jobId: string, updates: Partial<JobStatus>): Promise<boolean> {
+  try {
+    await jobStore.updateJob(jobId, updates);
+    console.log(`✅ Successfully updated job ${jobId} status to: ${updates.status}`);
+    return true;
+  } catch (error) {
+    console.error(`❌ CRITICAL: Failed to update job ${jobId} status:`, error);
+    
+    // Log the intended status for debugging but don't throw
+    console.error(`🚨 INTENDED STATUS UPDATE for job ${jobId}:`, JSON.stringify(updates, null, 2));
+    
+    // Try with minimal data as a last resort
+    try {
+      await jobStore.updateJob(jobId, { status: updates.status || 'error' });
+      console.log(`✅ Minimal update succeeded for job ${jobId}`);
+      return true;
+    } catch (minimalError) {
+      console.error(`❌ CATASTROPHIC: Even minimal update failed for job ${jobId}:`, minimalError);
+      console.error(`🚨 Job ${jobId} may cause infinite polling - deadman switch should handle this`);
+      return false;
+    }
+  }
+}
+
 // Helper function to add timeout to any promise
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return Promise.race([
@@ -72,7 +97,7 @@ export async function processJobInBackground(
     const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
     if (!PERPLEXITY_API_KEY) {
       console.error('❌ PERPLEXITY_API_KEY environment variable is not set');
-      await safeUpdateJobStatus(jobId, {
+      await criticalUpdateJobStatus(jobId, {
         status: 'error',
         error: 'Perplexity API Key ist nicht konfiguriert. Bitte setze PERPLEXITY_API_KEY in der .env.local Datei.'
       });
@@ -116,7 +141,7 @@ export async function processJobInBackground(
 
     const perplexityService = createPerplexityService(PERPLEXITY_API_KEY);
     if (!perplexityService) {
-      await safeUpdateJobStatus(jobId, {
+      await criticalUpdateJobStatus(jobId, {
         status: 'error',
         error: 'Failed to create Perplexity service'
       });
@@ -131,9 +156,11 @@ export async function processJobInBackground(
       console.error(`🚨 FATAL: Cannot retrieve job ${jobId} from JobStore:`, getJobError);
       console.error('This likely indicates a Redis connectivity issue');
       
-      // If we can't even get the job, we can't do much except log and fail
-      // The deadman switch in the route will eventually mark it as error
-      console.error(`Background processing aborted for job ${jobId} due to JobStore access failure`);
+      // Try to mark the job as error even if we can't retrieve it
+      await criticalUpdateJobStatus(jobId, {
+        status: 'error',
+        error: 'Job konnte nicht abgerufen werden - Redis Verbindungsfehler'
+      });
       return;
     }
     
@@ -144,20 +171,10 @@ export async function processJobInBackground(
       console.error('This likely indicates a Redis connectivity issue or job store misconfiguration in serverless environment');
       
       // Try to create a minimal error job entry so the client can see the error
-      try {
-        const errorJob: JobStatus = {
-          id: jobId,
-          status: 'error',
-          createdAt: new Date(),
-          error: 'Job nicht gefunden - möglicherweise ein Konfigurationsproblem',
-          lastUpdateAt: new Date().toISOString()
-        };
-        await jobStore.setJob(jobId, errorJob);
-        console.log(`Created error job entry for missing job ${jobId}`);
-      } catch (setError) {
-        console.error(`Failed to create error job entry for ${jobId}:`, setError);
-        // If we can't even set an error job, there's a fundamental Redis issue
-      }
+      await criticalUpdateJobStatus(jobId, {
+        status: 'error',
+        error: 'Job nicht gefunden - möglicherweise ein Konfigurationsproblem'
+      });
       return;
     }
 
@@ -417,42 +434,36 @@ export async function processJobInBackground(
     // Update job with final status - this must succeed to prevent UI timeout
     // Get current events from JobStore to ensure we don't overwrite progressive updates
     console.log(`Updating job ${jobId} to 'done' status...`);
+    
+    let finalEvents: EventData[] = [];
     try {
       const finalJob = await jobStore.getJob(jobId);
-      const finalEvents = finalJob?.events || [];
-      
-      await safeUpdateJobStatus(jobId, {
-        status: 'done',
-        events: finalEvents,
-        cacheInfo: {
-          fromCache: false,
-          totalEvents: finalEvents.length,
-          cachedEvents: 0
-        },
-        progress: { 
-          completedCategories: effectiveCategories.length, 
-          totalCategories: effectiveCategories.length 
-        },
-        lastUpdateAt: new Date().toISOString(),
-        message: `${finalEvents.length} Events gefunden`
-      });
-      
+      finalEvents = finalJob?.events || allEvents || [];
+    } catch (getFinalJobError) {
+      console.error('Could not get final job state, using local events:', getFinalJobError);
+      finalEvents = allEvents || [];
+    }
+    
+    const success = await criticalUpdateJobStatus(jobId, {
+      status: 'done',
+      events: finalEvents,
+      cacheInfo: {
+        fromCache: false,
+        totalEvents: finalEvents.length,
+        cachedEvents: 0
+      },
+      progress: { 
+        completedCategories: effectiveCategories.length, 
+        totalCategories: effectiveCategories.length 
+      },
+      lastUpdateAt: new Date().toISOString(),
+      message: `${finalEvents.length} Events gefunden`
+    });
+    
+    if (success) {
       console.log(`✅ Job ${jobId} successfully marked as 'done' with ${finalEvents.length} events`);
-    } catch (finalUpdateError) {
-      console.error(`❌ CRITICAL: Failed to update job ${jobId} to 'done' status - this will cause infinite polling:`, finalUpdateError);
-      
-      // Try a simpler update as fallback
-      try {
-        await safeUpdateJobStatus(jobId, {
-          status: 'done',
-          lastUpdateAt: new Date().toISOString(),
-          message: 'Processing completed (status update had issues)'
-        });
-        console.log(`✅ Job ${jobId} marked as 'done' via fallback update`);
-      } catch (fallbackError) {
-        console.error(`❌ CRITICAL: Even fallback update failed for job ${jobId}:`, fallbackError);
-        throw fallbackError; // This will trigger the outer catch block
-      }
+    } else {
+      console.error(`❌ CRITICAL: Failed to update job ${jobId} to 'done' status - but won't throw to prevent infinite loop`);
     }
 
   } catch (error) {
@@ -470,26 +481,17 @@ export async function processJobInBackground(
     
     // Ensure job is always finalized, even on error - this is CRITICAL to prevent infinite polling
     console.log(`Attempting to mark job ${jobId} as 'error' status...`);
-    try {
-      await safeUpdateJobStatus(jobId, {
-        status: 'error',
-        error: 'Fehler beim Verarbeiten der Anfrage',
-        lastUpdateAt: new Date().toISOString()
-      });
+    const success = await criticalUpdateJobStatus(jobId, {
+      status: 'error',
+      error: 'Fehler beim Verarbeiten der Anfrage',
+      lastUpdateAt: new Date().toISOString()
+    });
+    
+    if (success) {
       console.log(`✅ Job ${jobId} successfully marked as 'error'`);
-    } catch (updateError) {
-      console.error(`❌ CRITICAL: Failed to update job ${jobId} status to error - this WILL cause infinite polling:`, updateError);
-      
-      // This is critical - try one more time with minimal data
-      try {
-        await safeUpdateJobStatus(jobId, {
-          status: 'error'
-        });
-        console.log(`✅ Job ${jobId} marked as 'error' via minimal update`);
-      } catch (finalError) {
-        console.error(`❌ CATASTROPHIC: Cannot update job ${jobId} status - user will experience infinite polling:`, finalError);
-        // At this point, we can't do anything more - the deadman switch should eventually clean this up
-      }
+    } else {
+      console.error(`❌ CATASTROPHIC: Cannot update job ${jobId} status to error - user may experience infinite polling`);
+      // The deadman switch should eventually clean this up
     }
   }
 }
