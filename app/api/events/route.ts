@@ -187,6 +187,14 @@ async function scheduleBackgroundProcessing(
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
         
+        if (debugMode) {
+          console.log('🔍 DEBUG: About to make fetch request...');
+          console.log('🔍 DEBUG: URL:', backgroundUrl);
+          console.log('🔍 DEBUG: Method: POST');
+          console.log('🔍 DEBUG: Headers:', headers);
+          console.log('🔍 DEBUG: Body preview:', JSON.stringify(requestBody).substring(0, 200) + '...');
+        }
+        
         response = await fetch(backgroundUrl, {
           method: 'POST',
           headers,
@@ -195,7 +203,18 @@ async function scheduleBackgroundProcessing(
         });
         
         clearTimeout(timeoutId);
+        
+        if (debugMode) {
+          console.log('🔍 DEBUG: Fetch completed successfully, got response object');
+        }
       } catch (fetchError: any) {
+        if (debugMode) {
+          console.log('🔍 DEBUG: ❌ Fetch request failed with error:', fetchError);
+          console.log('🔍 DEBUG: ❌ Error name:', fetchError.name);
+          console.log('🔍 DEBUG: ❌ Error message:', fetchError.message);
+          console.log('🔍 DEBUG: ❌ Error stack:', fetchError.stack);
+        }
+        
         if (fetchError.name === 'AbortError') {
           const errorMessage = 'Background processing request timed out after 30 seconds';
           console.error('❌ TIMEOUT ERROR:', errorMessage);

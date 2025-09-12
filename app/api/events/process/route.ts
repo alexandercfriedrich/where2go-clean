@@ -2,9 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getJobStore } from '@/lib/jobStore';
 import { processJobInBackground } from './backgroundProcessor';
 
-// Serverless configuration for background processing
+// Serverless configuration for background processing - simplified to avoid Vercel issues
 export const runtime = 'nodejs';
-export const maxDuration = 300; // 5 minutes max
 
 const jobStore = getJobStore();
 
@@ -17,6 +16,10 @@ interface ProcessingRequest {
 }
 
 export async function POST(req: NextRequest) {
+  // Add immediate debug logging to see if this function is even being called
+  console.log('🚀 CRITICAL DEBUG: POST function called - route is working!');
+  console.log('🚀 Method and URL:', req.method, req.url);
+  
   console.log('🔄 Background processing endpoint called with headers:', {
     'x-vercel-background': req.headers.get('x-vercel-background'),
     'x-internal-call': req.headers.get('x-internal-call'),
@@ -113,4 +116,29 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// Add GET handler for simple endpoint testing
+export async function GET(req: NextRequest) {
+  console.log('🔍 GET request received on background processing endpoint - route exists and works!');
+  return NextResponse.json({
+    success: true,
+    message: 'Background processing endpoint is accessible',
+    method: 'GET',
+    url: req.url,
+    timestamp: new Date().toISOString()
+  });
+}
+
+// Add OPTIONS handler to support CORS preflight requests if needed
+export async function OPTIONS(req: NextRequest) {
+  console.log('🔍 OPTIONS request received on background processing endpoint');
+  return new NextResponse(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, x-vercel-background, x-internal-call, x-internal-secret, x-vercel-protection-bypass',
+    },
+  });
 }
