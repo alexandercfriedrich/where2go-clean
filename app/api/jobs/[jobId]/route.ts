@@ -39,17 +39,36 @@ export async function GET(request: NextRequest, { params }: { params: { jobId: s
     const jobAgeMs = Date.now() - job.createdAt.getTime();
     const maxJobAgeMs = 5 * 60 * 1000; // 5 minutes
     
+    // Stale detection: Check if job hasn't been updated in a while (indicates stuck processing)
+    const lastUpdateTime = job.lastUpdateAt ? new Date(job.lastUpdateAt).getTime() : job.createdAt.getTime();
+    const timeSinceLastUpdate = Date.now() - lastUpdateTime;
+    const maxStaleMs = 3 * 60 * 1000; // 3 minutes without update
+    
     if (job.status === 'pending' && jobAgeMs > maxJobAgeMs) {
       console.warn(`⏰ Job timeout: ${jobId} is ${Math.round(jobAgeMs/1000)}s old - marking as error`);
       try {
         await jobStore.updateJob(jobId, {
           status: 'error',
-          error: 'Job wurde aufgrund von Zeitüberschreitung beendet (5 Min. Limit)'
+          error: 'Job wurde aufgrund von Zeitüberschreitung beendet (5 Min. Limit)',
+          lastUpdateAt: new Date().toISOString()
         });
         job.status = 'error';
         job.error = 'Job wurde aufgrund von Zeitüberschreitung beendet (5 Min. Limit)';
       } catch (updateError) {
         console.error('Failed to update timeout job:', updateError);
+      }
+    } else if (job.status === 'pending' && timeSinceLastUpdate > maxStaleMs) {
+      console.warn(`🔄 Stale job detected: ${jobId} hasn't been updated for ${Math.round(timeSinceLastUpdate/1000)}s - marking as error`);
+      try {
+        await jobStore.updateJob(jobId, {
+          status: 'error',
+          error: 'Job scheint stecken geblieben zu sein (keine Updates seit 3 Min.)',
+          lastUpdateAt: new Date().toISOString()
+        });
+        job.status = 'error';
+        job.error = 'Job scheint stecken geblieben zu sein (keine Updates seit 3 Min.)';
+      } catch (updateError) {
+        console.error('Failed to update stale job:', updateError);
       }
     }
 
@@ -61,7 +80,8 @@ export async function GET(request: NextRequest, { params }: { params: { jobId: s
       status: job.status,
       events: normalizeEvents(job.events || []),
       ...(job.status === 'error' && job.error ? { error: job.error } : {}),
-      ...(job.progress ? { progress: job.progress } : {})
+      ...(job.progress ? { progress: job.progress } : {}),
+      ...(job.lastUpdateAt ? { lastUpdateAt: job.lastUpdateAt } : {})
     };
 
     console.log(`📤 Job status response: ${jobId}, status: ${job.status}, events: ${job.events?.length || 0}`);

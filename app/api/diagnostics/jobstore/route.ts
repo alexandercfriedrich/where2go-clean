@@ -25,50 +25,80 @@ export async function GET(req: NextRequest) {
   const results: any = {
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    usingRedis: false,
-    setGetOk: false,
+    redisConfigured: false,
+    usingRedis: false, // Keep old field name for compatibility
+    connectivityOk: false,
+    setGetOk: false, // Keep old field name for compatibility
+    roundtripOk: false,
     error: null
   };
 
   try {
-    // Check if Redis environment variables are configured
-    const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
-    const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
-    results.usingRedis = !!(redisUrl && redisToken);
+    // Check if either Redis configuration is available
+    const hasUpstash = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN;
+    const hasVercelKV = process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN;
     
-    // Create JobStore instance to test connectivity
-    const jobStore = getJobStore();
+    results.redisConfigured = hasUpstash || hasVercelKV;
+    results.usingRedis = results.redisConfigured; // Keep old field for compatibility
     
-    // Test set/get/delete operations with a diagnostic test job
-    const testJobId = `diagnostic-test-${Date.now()}`;
-    const testJob = {
-      id: testJobId,
-      status: 'pending' as const,
-      createdAt: new Date()
-    };
+    if (!results.redisConfigured) {
+      const availableVars = Object.keys(process.env).filter(k => 
+        k.includes('REDIS') || k.includes('KV')
+      );
+      results.error = `Redis configuration missing. Need either:\n` +
+        `1. Upstash Redis: UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN\n` +
+        `2. Vercel KV: KV_REST_API_URL + KV_REST_API_TOKEN\n` +
+        `Available env vars: ${availableVars.join(', ') || 'none'}`;
+      results.connectivityOk = false;
+      results.roundtripOk = false;
+      results.setGetOk = false;
+      return NextResponse.json(results);
+    }
+    
+    // Try to create JobStore instance to test connectivity
+    try {
+      const jobStore = getJobStore();
+      results.connectivityOk = true;
+      
+      // Test set/get/delete operations with a diagnostic test job
+      const testJobId = `diagnostic-test-${Date.now()}`;
+      const testJob = {
+        id: testJobId,
+        status: 'pending' as const,
+        createdAt: new Date()
+      };
 
-    // Test set operation
-    await jobStore.setJob(testJobId, testJob);
-    
-    // Test get operation
-    const retrievedJob = await jobStore.getJob(testJobId);
-    const getWorked = retrievedJob?.id === testJobId && retrievedJob?.status === 'pending';
-    
-    // Test delete operation
-    await jobStore.deleteJob(testJobId);
-    
-    // Verify deletion worked
-    const deletedJob = await jobStore.getJob(testJobId);
-    const deleteWorked = deletedJob === null;
-    
-    results.setGetOk = getWorked && deleteWorked;
-    
-    if (!results.setGetOk) {
-      results.error = 'Set/get/delete roundtrip test failed';
+      // Test set operation
+      await jobStore.setJob(testJobId, testJob);
+      
+      // Test get operation
+      const retrievedJob = await jobStore.getJob(testJobId);
+      const getWorked = retrievedJob?.id === testJobId && retrievedJob?.status === 'pending';
+      
+      // Test delete operation
+      await jobStore.deleteJob(testJobId);
+      
+      // Verify deletion worked
+      const deletedJob = await jobStore.getJob(testJobId);
+      const deleteWorked = deletedJob === null;
+      
+      results.roundtripOk = getWorked && deleteWorked;
+      results.setGetOk = results.roundtripOk; // Keep old field for compatibility
+      
+      if (!results.roundtripOk) {
+        results.error = 'Redis roundtrip test failed - operations did not complete as expected';
+      }
+    } catch (jobStoreError: any) {
+      results.connectivityOk = false;
+      results.roundtripOk = false;
+      results.setGetOk = false;
+      results.error = `JobStore creation or operation failed: ${jobStoreError.message}`;
     }
 
   } catch (error: any) {
     results.error = error.message || 'Unknown error during diagnostics';
+    results.connectivityOk = false;
+    results.roundtripOk = false;
     results.setGetOk = false;
   }
 
