@@ -1,4 +1,4 @@
-import { EventData } from '@/lib/types';
+import { EventData, JobStatus } from '@/lib/types';
 import { eventsCache } from '@/lib/cache';
 import { createPerplexityService } from '@/lib/perplexity';
 import { eventAggregator } from '@/lib/aggregator';
