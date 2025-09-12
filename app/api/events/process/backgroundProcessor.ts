@@ -32,6 +32,22 @@ const DEFAULT_CATEGORIES = [
 
 const jobStore = getJobStore();
 
+// Safe job status update function that handles Redis failures gracefully
+async function safeUpdateJobStatus(jobId: string, updates: Partial<JobStatus>): Promise<void> {
+  try {
+    await jobStore.updateJob(jobId, updates);
+  } catch (error) {
+    console.error(`❌ Failed to update job ${jobId} status:`, error);
+    
+    // If Redis is completely down, we should at least log the intended status
+    // The deadman switch or timeout mechanisms should eventually handle cleanup
+    console.error(`🚨 INTENDED STATUS UPDATE for job ${jobId}:`, JSON.stringify(updates, null, 2));
+    
+    // Re-throw to ensure calling code is aware of the failure
+    throw error;
+  }
+}
+
 // Helper function to add timeout to any promise
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
   return Promise.race([
@@ -56,7 +72,7 @@ export async function processJobInBackground(
     const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
     if (!PERPLEXITY_API_KEY) {
       console.error('❌ PERPLEXITY_API_KEY environment variable is not set');
-      await jobStore.updateJob(jobId, {
+      await safeUpdateJobStatus(jobId, {
         status: 'error',
         error: 'Perplexity API Key ist nicht konfiguriert. Bitte setze PERPLEXITY_API_KEY in der .env.local Datei.'
       });
@@ -100,14 +116,27 @@ export async function processJobInBackground(
 
     const perplexityService = createPerplexityService(PERPLEXITY_API_KEY);
     if (!perplexityService) {
-      await jobStore.updateJob(jobId, {
+      await safeUpdateJobStatus(jobId, {
         status: 'error',
         error: 'Failed to create Perplexity service'
       });
       return;
     }
 
-    const job = await jobStore.getJob(jobId);
+    // Safely get job with improved error handling
+    let job: JobStatus | null = null;
+    try {
+      job = await jobStore.getJob(jobId);
+    } catch (getJobError) {
+      console.error(`🚨 FATAL: Cannot retrieve job ${jobId} from JobStore:`, getJobError);
+      console.error('This likely indicates a Redis connectivity issue');
+      
+      // If we can't even get the job, we can't do much except log and fail
+      // The deadman switch in the route will eventually mark it as error
+      console.error(`Background processing aborted for job ${jobId} due to JobStore access failure`);
+      return;
+    }
+    
     if (!job) {
       // CRITICAL: Job not found - this means the job was lost between instances
       // In serverless environments, this indicates a serious issue
@@ -287,7 +316,7 @@ export async function processJobInBackground(
               }
               
               // Progressive update with the latest merged events
-              await jobStore.updateJob(jobId, { 
+              await safeUpdateJobStatus(jobId, { 
                 events: finalEvents,
                 progress: { 
                   completedCategories, 
@@ -392,7 +421,7 @@ export async function processJobInBackground(
       const finalJob = await jobStore.getJob(jobId);
       const finalEvents = finalJob?.events || [];
       
-      await jobStore.updateJob(jobId, {
+      await safeUpdateJobStatus(jobId, {
         status: 'done',
         events: finalEvents,
         cacheInfo: {
@@ -414,7 +443,7 @@ export async function processJobInBackground(
       
       // Try a simpler update as fallback
       try {
-        await jobStore.updateJob(jobId, {
+        await safeUpdateJobStatus(jobId, {
           status: 'done',
           lastUpdateAt: new Date().toISOString(),
           message: 'Processing completed (status update had issues)'
@@ -442,7 +471,7 @@ export async function processJobInBackground(
     // Ensure job is always finalized, even on error - this is CRITICAL to prevent infinite polling
     console.log(`Attempting to mark job ${jobId} as 'error' status...`);
     try {
-      await jobStore.updateJob(jobId, {
+      await safeUpdateJobStatus(jobId, {
         status: 'error',
         error: 'Fehler beim Verarbeiten der Anfrage',
         lastUpdateAt: new Date().toISOString()
@@ -453,13 +482,13 @@ export async function processJobInBackground(
       
       // This is critical - try one more time with minimal data
       try {
-        await jobStore.updateJob(jobId, {
+        await safeUpdateJobStatus(jobId, {
           status: 'error'
         });
         console.log(`✅ Job ${jobId} marked as 'error' via minimal update`);
       } catch (finalError) {
         console.error(`❌ CATASTROPHIC: Cannot update job ${jobId} status - user will experience infinite polling:`, finalError);
-        // At this point, we can't do anything more
+        // At this point, we can't do anything more - the deadman switch should eventually clean this up
       }
     }
   }

@@ -71,6 +71,11 @@ class SimpleMemoryJobStore implements JobStore {
 class StrictRedisJobStore implements JobStore {
   private redis: any;
   private initPromise: Promise<void>;
+  private isConnected: boolean = false;
+  private connectionAttempts: number = 0;
+  private lastConnectionAttempt: number = 0;
+  private maxConnectionAttempts: number = 5;
+  private backoffMultiplier: number = 1000; // Start with 1 second
 
   constructor() {
     // Strict mode: throw immediately if Redis env vars are missing
@@ -89,44 +94,93 @@ class StrictRedisJobStore implements JobStore {
       this.redis = new Redis({
         url: process.env.UPSTASH_REDIS_REST_URL!,
         token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+        // Add more robust connection settings
+        retry: {
+          retries: 3,
+          backoff: (retryCount: number) => Math.min(1000 * Math.pow(2, retryCount), 10000)
+        }
       });
       
-      // Test connection with timeout - fail fast if Redis is unreachable
+      // Test connection with longer timeout for production environments
       const testPromise = this.redis.set('test_connection_strict', 'ok', { ex: 10 });
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Redis connection timeout')), 5000)
+        setTimeout(() => reject(new Error('Redis connection timeout')), 15000) // Increased to 15 seconds
       );
       
       await Promise.race([testPromise, timeoutPromise]);
+      this.isConnected = true;
+      this.connectionAttempts = 0;
       console.log('✅ Strict Redis JobStore connected successfully');
     } catch (error) {
+      this.isConnected = false;
+      this.connectionAttempts++;
       const message = `Redis connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
       console.error('❌ Strict Redis JobStore connection failed:', message);
       throw new Error(message);
     }
   }
 
+  private async retryOperation<T>(operation: () => Promise<T>, operationName: string, maxRetries: number = 3): Promise<T> {
+    let lastError: Error;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        const result = await operation();
+        this.isConnected = true;
+        return result;
+      } catch (error) {
+        lastError = error as Error;
+        this.isConnected = false;
+        
+        console.error(`Redis ${operationName} attempt ${attempt}/${maxRetries} failed:`, error);
+        
+        if (attempt < maxRetries) {
+          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000); // Exponential backoff, max 10s
+          console.log(`Retrying Redis ${operationName} in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
+    }
+    
+    throw new Error(`Redis ${operationName} failed after ${maxRetries} attempts: ${lastError!.message}`);
+  }
+
   private async ensureInitialized() {
+    if (!this.isConnected) {
+      // Implement exponential backoff for reconnection attempts
+      const now = Date.now();
+      const backoffDelay = this.backoffMultiplier * Math.pow(2, Math.min(this.connectionAttempts, 10));
+      
+      if (this.connectionAttempts >= this.maxConnectionAttempts && 
+          now - this.lastConnectionAttempt < backoffDelay) {
+        throw new Error(`Redis connection failed after ${this.maxConnectionAttempts} attempts. Next attempt in ${Math.ceil((backoffDelay - (now - this.lastConnectionAttempt)) / 1000)}s`);
+      }
+      
+      if (this.connectionAttempts >= this.maxConnectionAttempts || 
+          now - this.lastConnectionAttempt >= backoffDelay) {
+        this.lastConnectionAttempt = now;
+        // Reset and retry connection
+        this.initPromise = this.initRedis();
+      }
+    }
+    
     await this.initPromise;
   }
 
   async setJob(jobId: string, job: JobStatus): Promise<void> {
-    await this.ensureInitialized();
-    try {
+    return this.retryOperation(async () => {
+      await this.ensureInitialized();
       await this.redis.set(`job:${jobId}`, JSON.stringify({
         ...job,
         createdAt: job.createdAt.toISOString(),
         lastUpdateAt: job.lastUpdateAt || new Date().toISOString()
       }), { ex: 3600 }); // 1 hour expiry
-    } catch (error) {
-      console.error('Redis setJob failed:', error);
-      throw new Error(`Failed to store job ${jobId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+    }, `setJob(${jobId})`);
   }
 
   async getJob(jobId: string): Promise<JobStatus | null> {
-    await this.ensureInitialized();
-    try {
+    return this.retryOperation(async () => {
+      await this.ensureInitialized();
       const data = await this.redis.get(`job:${jobId}`);
       if (!data) {
         return null;
@@ -150,15 +204,12 @@ class StrictRedisJobStore implements JobStore {
       }
       
       return null;
-    } catch (error) {
-      console.error('Redis getJob failed:', error);
-      throw new Error(`Failed to retrieve job ${jobId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+    }, `getJob(${jobId})`);
   }
 
   async updateJob(jobId: string, updates: Partial<JobStatus>): Promise<void> {
-    await this.ensureInitialized();
-    try {
+    return this.retryOperation(async () => {
+      await this.ensureInitialized();
       const existing = await this.getJob(jobId);
       if (existing) {
         const updated = { 
@@ -170,21 +221,15 @@ class StrictRedisJobStore implements JobStore {
       } else {
         throw new Error(`Job ${jobId} not found for update`);
       }
-    } catch (error) {
-      console.error('Redis updateJob failed:', error);
-      throw error; // Re-throw to preserve original error
-    }
+    }, `updateJob(${jobId})`);
   }
 
   async deleteJob(jobId: string): Promise<void> {
-    await this.ensureInitialized();
-    try {
+    return this.retryOperation(async () => {
+      await this.ensureInitialized();
       await this.redis.del(`job:${jobId}`);
       await this.redis.del(`debug:${jobId}`); // Also delete debug info
-    } catch (error) {
-      console.error('Redis deleteJob failed:', error);
-      throw new Error(`Failed to delete job ${jobId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+    }, `deleteJob(${jobId})`);
   }
 
   async cleanupOldJobs(): Promise<void> {
@@ -194,21 +239,18 @@ class StrictRedisJobStore implements JobStore {
 
   // Debug methods for test compatibility
   async setDebugInfo(jobId: string, debugInfo: DebugInfo): Promise<void> {
-    await this.ensureInitialized();
-    try {
+    return this.retryOperation(async () => {
+      await this.ensureInitialized();
       await this.redis.set(`debug:${jobId}`, JSON.stringify({
         ...debugInfo,
         createdAt: debugInfo.createdAt.toISOString()
       }), { ex: 3600 });
-    } catch (error) {
-      console.error('Redis setDebugInfo failed:', error);
-      throw new Error(`Failed to store debug info for ${jobId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+    }, `setDebugInfo(${jobId})`);
   }
 
   async getDebugInfo(jobId: string): Promise<DebugInfo | null> {
-    await this.ensureInitialized();
-    try {
+    return this.retryOperation(async () => {
+      await this.ensureInitialized();
       const data = await this.redis.get(`debug:${jobId}`);
       if (!data) {
         return null;
@@ -219,24 +261,18 @@ class StrictRedisJobStore implements JobStore {
         ...parsed,
         createdAt: new Date(parsed.createdAt)
       };
-    } catch (error) {
-      console.error('Redis getDebugInfo failed:', error);
-      throw new Error(`Failed to retrieve debug info for ${jobId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+    }, `getDebugInfo(${jobId})`);
   }
 
   async pushDebugStep(jobId: string, step: DebugStep): Promise<void> {
-    await this.ensureInitialized();
-    try {
+    return this.retryOperation(async () => {
+      await this.ensureInitialized();
       const existing = await this.getDebugInfo(jobId);
       if (existing) {
         existing.steps.push(step);
         await this.setDebugInfo(jobId, existing);
       }
-    } catch (error) {
-      console.error('Redis pushDebugStep failed:', error);
-      throw new Error(`Failed to push debug step for ${jobId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+    }, `pushDebugStep(${jobId})`);
   }
 }
 

@@ -65,15 +65,20 @@ export async function POST(req: NextRequest) {
     
     // Set up a deadman's switch to automatically fail jobs that take too long
     // Set to 4.5 minutes to ensure it triggers before Vercel's 5-minute timeout
-    const deadmanTimeout = setTimeout(() => {
+    const deadmanTimeout = setTimeout(async () => {
       console.error(`🚨 DEADMAN SWITCH: Job ${jobId} has been running for more than 4.5 minutes, marking as failed`);
-      jobStore.updateJob(jobId, {
-        status: 'error',
-        error: 'Processing timed out - job took longer than expected (4.5 min limit)',
-        lastUpdateAt: new Date().toISOString()
-      }).catch(updateError => {
-        console.error('Failed to update job status via deadman switch:', updateError);
-      });
+      try {
+        await jobStore.updateJob(jobId, {
+          status: 'error',
+          error: 'Processing timed out - job took longer than expected (4.5 min limit)',
+          lastUpdateAt: new Date().toISOString()
+        });
+        console.log(`✅ Deadman switch successfully marked job ${jobId} as failed`);
+      } catch (updateError) {
+        console.error('❌ CRITICAL: Deadman switch failed to update job status:', updateError);
+        // Even the deadman switch failed - this indicates serious Redis issues
+        console.error(`🚨 REDIS CONNECTIVITY FAILURE: Job ${jobId} cannot be marked as failed due to Redis issues`);
+      }
     }, 4.5 * 60 * 1000); // 4.5 minutes - before Vercel's 5 minute timeout
     
     processJobInBackground(jobId, city, date, categories, options)
@@ -93,7 +98,8 @@ export async function POST(req: NextRequest) {
           error: 'Background processing failed to complete',
           lastUpdateAt: new Date().toISOString()
         }).catch(updateError => {
-          console.error('Failed to update job status after background error:', updateError);
+          console.error('❌ CRITICAL: Failed to update job status after background error:', updateError);
+          console.error(`🚨 Job ${jobId} may be stuck in pending state due to Redis connectivity issues`);
         });
       });
 
