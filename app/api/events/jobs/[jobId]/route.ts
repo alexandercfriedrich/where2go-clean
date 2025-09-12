@@ -193,16 +193,22 @@ export async function GET(
       JobStatus.CANCELLED
     ].includes(job.status);
 
-    const cacheHeaders = isTerminal
-      ? {
-          'Cache-Control': 'private, max-age=300', // Cache completed jobs for 5 minutes
-          'ETag': `"${job.id}-${job.updatedAt}"`
-        }
-      : {
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        };
+    // Build headers object with proper typing
+    const headers: Record<string, string> = {
+      'X-Job-Id': job.id,
+      'X-Job-Status': job.status,
+      'X-Event-Count': (responseData.events?.length || 0).toString(),
+      'X-Is-Terminal': isTerminal.toString()
+    };
+
+    if (isTerminal) {
+      headers['Cache-Control'] = 'private, max-age=300'; // Cache completed jobs for 5 minutes
+      headers['ETag'] = `"${job.id}-${job.updatedAt}"`;
+    } else {
+      headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+      headers['Pragma'] = 'no-cache';
+      headers['Expires'] = '0';
+    }
 
     return NextResponse.json(
       {
@@ -211,13 +217,7 @@ export async function GET(
       },
       {
         status: 200,
-        headers: {
-          ...cacheHeaders,
-          'X-Job-Id': job.id,
-          'X-Job-Status': job.status,
-          'X-Event-Count': (responseData.events?.length || 0).toString(),
-          'X-Is-Terminal': isTerminal.toString()
-        }
+        headers
       }
     );
 
