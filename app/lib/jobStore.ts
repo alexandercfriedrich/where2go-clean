@@ -76,30 +76,46 @@ class StrictRedisJobStore implements JobStore {
   private lastConnectionAttempt: number = 0;
   private maxConnectionAttempts: number = 5;
   private backoffMultiplier: number = 1000; // Start with 1 second
+  private redisType: 'upstash' | 'vercel-kv' | null = null;
 
   constructor() {
-    // Strict mode: throw immediately if Redis env vars are missing
-    if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+    // Check for either Upstash Redis or Vercel KV configuration
+    const hasUpstash = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN;
+    const hasVercelKV = process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN;
+    
+    if (!hasUpstash && !hasVercelKV) {
       throw new Error(
-        'Redis configuration required: UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables must be set'
+        'Redis configuration required. Set either:\n' +
+        '1. Upstash Redis: UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN\n' +
+        '2. Vercel KV: KV_REST_API_URL and KV_REST_API_TOKEN\n' +
+        'Available env vars: ' + Object.keys(process.env).filter(k => k.includes('REDIS') || k.includes('KV')).join(', ')
       );
     }
     
+    // Prefer Upstash if both are available
+    this.redisType = hasUpstash ? 'upstash' : 'vercel-kv';
     this.initPromise = this.initRedis();
   }
 
   private async initRedis() {
     try {
-      const { Redis } = await import('@upstash/redis');
-      this.redis = new Redis({
-        url: process.env.UPSTASH_REDIS_REST_URL!,
-        token: process.env.UPSTASH_REDIS_REST_TOKEN!,
-        // Add more robust connection settings
-        retry: {
-          retries: 3,
-          backoff: (retryCount: number) => Math.min(1000 * Math.pow(2, retryCount), 10000)
-        }
-      });
+      if (this.redisType === 'upstash') {
+        const { Redis } = await import('@upstash/redis');
+        this.redis = new Redis({
+          url: process.env.UPSTASH_REDIS_REST_URL!,
+          token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+          // Add more robust connection settings
+          retry: {
+            retries: 3,
+            backoff: (retryCount: number) => Math.min(1000 * Math.pow(2, retryCount), 10000)
+          }
+        });
+        console.log('🔧 Using Upstash Redis for job storage');
+      } else if (this.redisType === 'vercel-kv') {
+        const { kv } = await import('@vercel/kv');
+        this.redis = kv;
+        console.log('🔧 Using Vercel KV for job storage');
+      }
       
       // Test connection with longer timeout for production environments
       const testPromise = this.redis.set('test_connection_strict', 'ok', { ex: 10 });
@@ -110,12 +126,12 @@ class StrictRedisJobStore implements JobStore {
       await Promise.race([testPromise, timeoutPromise]);
       this.isConnected = true;
       this.connectionAttempts = 0;
-      console.log('✅ Strict Redis JobStore connected successfully');
+      console.log(`✅ Strict ${this.redisType === 'upstash' ? 'Upstash Redis' : 'Vercel KV'} JobStore connected successfully`);
     } catch (error) {
       this.isConnected = false;
       this.connectionAttempts++;
-      const message = `Redis connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
-      console.error('❌ Strict Redis JobStore connection failed:', message);
+      const message = `${this.redisType === 'upstash' ? 'Upstash Redis' : 'Vercel KV'} connection failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      console.error(`❌ Strict ${this.redisType === 'upstash' ? 'Upstash Redis' : 'Vercel KV'} JobStore connection failed:`, message);
       throw new Error(message);
     }
   }

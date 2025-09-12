@@ -11,10 +11,14 @@ Create a `.env.local` file in the root directory and add your configuration:
 # Required: Perplexity API Key
 PERPLEXITY_API_KEY=your_perplexity_api_key_here
 
-# Optional: Upstash Redis for durable job state (production recommended)
-# When not set, uses in-memory storage (dev/local only)
+# Required: Redis/KV for durable job state (production recommended)
+# Option 1: Upstash Redis
 UPSTASH_REDIS_REST_URL=https://your-redis-url.upstash.io
 UPSTASH_REDIS_REST_TOKEN=your_redis_token_here
+
+# Option 2: Vercel KV (alternative to Upstash Redis)
+# KV_REST_API_URL=https://your-kv-url.vercel-storage.com
+# KV_REST_API_TOKEN=your_kv_token_here
 
 # Preview Deployments: Required for background processing on Vercel Preview deployments
 # Get this token from Vercel Project > Settings > Protection
@@ -43,10 +47,13 @@ ADMIN_PASS=
 - Without these credentials, admin pages will return "Admin credentials not configured" error
 - Legacy `ADMIN_SECRET` header authentication is still supported for API calls as an alternative
 
-**Redis Configuration (Production):**
-- In production environments (e.g., Vercel), configure Upstash Redis environment variables for durable job state persistence
-- This ensures progressive results work reliably across serverless route contexts
-- Without Redis, job state uses in-memory storage which doesn't persist across serverless function invocations
+**Redis/KV Configuration (Production):**
+- **Required for production**: Configure either Upstash Redis OR Vercel KV for durable job state persistence
+- **Option 1 - Upstash Redis**: Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`
+- **Option 2 - Vercel KV**: Set `KV_REST_API_URL` and `KV_REST_API_TOKEN` (automatically available in Vercel projects with KV storage enabled)
+- **Automatic detection**: The system automatically detects which service is configured and uses it
+- **No fallback**: Without Redis/KV configuration, job creation will fail with a 500 error
+- **Why required**: Ensures progressive results work reliably across serverless route contexts and prevents infinite polling issues
 
 **Preview Protection Configuration:**
 - Vercel Preview Deployments with Protection enabled block internal API calls by default
