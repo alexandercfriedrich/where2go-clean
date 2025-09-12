@@ -27,15 +27,21 @@ export async function POST(req: NextRequest) {
   });
 
   // Enhanced internal request validation with multiple detection methods
+  const hasInternalSecret = req.headers.get('x-internal-secret');
+  const isValidSecret = hasInternalSecret && 
+    (!process.env.INTERNAL_API_SECRET || hasInternalSecret === process.env.INTERNAL_API_SECRET);
+    
   const isInternalRequest = 
     req.headers.get('x-vercel-background') === '1' ||
     req.headers.get('x-internal-call') === '1' ||
+    isValidSecret ||
+    req.headers.get('x-vercel-protection-bypass') ||
     req.headers.get('user-agent')?.includes('where2go-internal') ||
     req.headers.get('user-agent')?.includes('node');
   
   if (!isInternalRequest) {
     console.log('⚠️ External request detected, blocking access');
-    return NextResponse.json({ error: 'Internal endpoint only' }, { status: 403 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   console.log('✅ Background processing endpoint: Valid request received');

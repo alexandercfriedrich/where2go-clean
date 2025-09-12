@@ -237,8 +237,16 @@ export async function POST(request: NextRequest) {
       }
     };
 
-    await jobStore.setJob(jobId, job);
-    console.log(`Job created successfully with ID: ${jobId}, status: ${job.status}, events: ${job.events?.length || 0}`);
+    try {
+      await jobStore.setJob(jobId, job);
+      console.log(`Job created successfully with ID: ${jobId}, status: ${job.status}, events: ${job.events?.length || 0}`);
+    } catch (jobStoreError) {
+      console.error('Failed to create job in JobStore:', jobStoreError);
+      return NextResponse.json(
+        { error: 'Service nicht verfügbar - Redis Konfiguration erforderlich' },
+        { status: 500 }
+      );
+    }
 
     // Map subcategories to main categories for AI calls
     const mainCategoriesForAI = getMainCategoriesForAICalls(missingCategories);

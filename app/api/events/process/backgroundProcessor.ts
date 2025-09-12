@@ -108,7 +108,29 @@ export async function processJobInBackground(
     }
 
     const job = await jobStore.getJob(jobId);
-    if (!job) return; // Job might have been cleaned up
+    if (!job) {
+      // CRITICAL: Job not found - this means the job was lost between instances
+      // In serverless environments, this indicates a serious issue
+      console.error(`🚨 FATAL: Job ${jobId} not found in JobStore during background processing`);
+      console.error('This likely indicates a Redis connectivity issue or job store misconfiguration in serverless environment');
+      
+      // Try to create a minimal error job entry so the client can see the error
+      try {
+        const errorJob: JobStatus = {
+          id: jobId,
+          status: 'error',
+          createdAt: new Date(),
+          error: 'Job nicht gefunden - möglicherweise ein Konfigurationsproblem',
+          lastUpdateAt: new Date().toISOString()
+        };
+        await jobStore.setJob(jobId, errorJob);
+        console.log(`Created error job entry for missing job ${jobId}`);
+      } catch (setError) {
+        console.error(`Failed to create error job entry for ${jobId}:`, setError);
+        // If we can't even set an error job, there's a fundamental Redis issue
+      }
+      return;
+    }
 
     let allEvents: EventData[] = [];
     let completedCategories = 0;
