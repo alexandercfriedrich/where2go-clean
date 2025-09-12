@@ -34,20 +34,18 @@ export async function GET(req: NextRequest) {
   };
 
   try {
-    // Check if either Redis configuration is available
+    // Check if Upstash Redis configuration is available
     const hasUpstash = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN;
-    const hasVercelKV = process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN;
     
-    results.redisConfigured = hasUpstash || hasVercelKV;
+    results.redisConfigured = hasUpstash;
     results.usingRedis = results.redisConfigured; // Keep old field for compatibility
     
     if (!results.redisConfigured) {
       const availableVars = Object.keys(process.env).filter(k => 
-        k.includes('REDIS') || k.includes('KV')
+        k.includes('REDIS')
       );
-      results.error = `Redis configuration missing. Need either:\n` +
-        `1. Upstash Redis: UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN\n` +
-        `2. Vercel KV: KV_REST_API_URL + KV_REST_API_TOKEN\n` +
+      results.error = `Upstash Redis configuration missing. Need:\n` +
+        `UPSTASH_REDIS_REST_URL + UPSTASH_REDIS_REST_TOKEN\n` +
         `Available env vars: ${availableVars.join(', ') || 'none'}`;
       results.connectivityOk = false;
       results.roundtripOk = false;

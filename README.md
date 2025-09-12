@@ -11,14 +11,10 @@ Create a `.env.local` file in the root directory and add your configuration:
 # Required: Perplexity API Key
 PERPLEXITY_API_KEY=your_perplexity_api_key_here
 
-# Required: Redis/KV for durable job state (production recommended)
-# Option 1: Upstash Redis
+# Required: Redis for durable job state (production recommended)
+# Upstash Redis
 UPSTASH_REDIS_REST_URL=https://your-redis-url.upstash.io
 UPSTASH_REDIS_REST_TOKEN=your_redis_token_here
-
-# Option 2: Vercel KV (alternative to Upstash Redis)
-# KV_REST_API_URL=https://your-kv-url.vercel-storage.com
-# KV_REST_API_TOKEN=your_kv_token_here
 
 # Preview Deployments: Required for background processing on Vercel Preview deployments
 # Get this token from Vercel Project > Settings > Protection
@@ -47,12 +43,10 @@ ADMIN_PASS=
 - Without these credentials, admin pages will return "Admin credentials not configured" error
 - Legacy `ADMIN_SECRET` header authentication is still supported for API calls as an alternative
 
-**Redis/KV Configuration (Production):**
-- **Required for production**: Configure either Upstash Redis OR Vercel KV for durable job state persistence
-- **Option 1 - Upstash Redis**: Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`
-- **Option 2 - Vercel KV**: Set `KV_REST_API_URL` and `KV_REST_API_TOKEN` (automatically available in Vercel projects with KV storage enabled)
-- **Automatic detection**: The system automatically detects which service is configured and uses it
-- **No fallback**: Without Redis/KV configuration, job creation will fail with a 500 error
+**Redis Configuration (Production):**
+- **Required for production**: Configure Upstash Redis for durable job state persistence
+- **Setup**: Set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`
+- **No fallback**: Without Redis configuration, job creation will fail with a 500 error
 - **Why required**: Ensures progressive results work reliably across serverless route contexts and prevents infinite polling issues
 
 **Preview Protection Configuration:**
