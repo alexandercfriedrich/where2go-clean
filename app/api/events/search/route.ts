@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { RequestBody, EventData } from '@/lib/types';
 import { eventsCache } from '@/lib/cache';
 import InMemoryCache from '@/lib/cache';
-import { createPerplexityService } from '@/lib/perplexity';
+import { getPerplexityClient } from '../../../../lib/new-backend/services/perplexityClient';
 import { eventAggregator } from '@/lib/aggregator';
 import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
 
@@ -120,10 +120,10 @@ export async function POST(request: NextRequest) {
       console.log('DEBUG: Perplexity API key available:', !!PERPLEXITY_API_KEY);
     }
 
-    const perplexityService = createPerplexityService(PERPLEXITY_API_KEY);
-    if (!perplexityService) {
+    const perplexityClient = getPerplexityClient({ apiKey: PERPLEXITY_API_KEY });
+    if (!perplexityClient.isConfigured()) {
       return NextResponse.json(
-        { error: 'Failed to create Perplexity service' },
+        { error: 'Failed to configure Perplexity client' },
         { status: 500 }
       );
     }
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
     
     if (categoriesToSearch.length > 0) {
       // Use multi-query approach for missing categories only
-      const results = await perplexityService.executeMultiQuery(city, date, categoriesToSearch, options);
+      const results = await perplexityClient.queryMultipleCategories(city, date, categoriesToSearch);
         
         // Parse events from all results and aggregate them
         for (const result of results) {
