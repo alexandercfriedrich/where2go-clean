@@ -496,6 +496,9 @@ export class PerplexityClient {
 
       clearTimeout(timeoutId);
 
+      console.log(`🔗 PERPLEXITY API CALL: Request sent to ${this.config.baseUrl} with model ${requestBody.model}`);
+      console.log(`📊 PERPLEXITY API STATUS: ${response.status} ${response.statusText} (ok: ${response.ok})`);
+
       logger.debug('[PerplexityClient-NEW] HTTP response received', {
         status: response.status,
         statusText: response.statusText,
@@ -523,7 +526,11 @@ export class PerplexityClient {
       const data = await response.json();
       const content = data.choices?.[0]?.message?.content || '';
       
+      console.log(`📝 PERPLEXITY API RESPONSE: Content length ${content.length} characters`);
+      console.log(`🔍 PERPLEXITY API PREVIEW: ${content.substring(0, 300)}...`);
+      
       if (!content) {
+        console.log(`❌ PERPLEXITY API ERROR: No content received from API`);
         throw createError(
           ErrorCode.AI_INVALID_RESPONSE,
           'No content received from Perplexity API'
@@ -532,6 +539,15 @@ export class PerplexityClient {
 
       // Parse events from the content
       const events = this.parseEventsFromResponse(content);
+      console.log(`🎯 PERPLEXITY PARSING: Found ${events.length} events after parsing`);
+      if (events.length > 0) {
+        console.log(`🎪 PERPLEXITY SAMPLE EVENT:`, {
+          title: events[0].title,
+          venue: events[0].venue,
+          date: events[0].date
+        });
+      }
+      
       const responseTime = Date.now() - startTime;
 
       const result: PerplexityResponse = {

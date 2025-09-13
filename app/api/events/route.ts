@@ -100,6 +100,7 @@ export async function POST(request: NextRequest) {
 
     // Wenn alles im Cache: direkt zurück
     if (missingCategories.length === 0) {
+      console.log(`📥 CACHE HIT: All ${effectiveCategories.length} categories cached, returning ${allCachedEvents.length} events directly`);
       if (debugMode) {
         console.log('🔍 DEBUG: ✅ All categories cached - returning directly');
       } else {
