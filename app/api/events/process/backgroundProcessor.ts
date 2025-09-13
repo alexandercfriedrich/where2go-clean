@@ -3,7 +3,7 @@ import { eventsCache } from '@/lib/cache';
 import { getPerplexityClient } from '../../../../lib/new-backend/services/perplexityClient';
 import { eventAggregator } from '@/lib/aggregator';
 import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
-import { getJobStore } from '@/lib/jobStore';
+import { getJobStore } from '../../../../lib/new-backend/redis/jobStore';
 import { getSubcategoriesForMainCategory } from '@/categories';
 
 // Default categories used when request.categories is empty/missing
