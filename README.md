@@ -101,7 +101,7 @@ The application will start on `http://localhost:3000`.
 
 - Event search by city and date
 - **Parallel category processing** - Configurable concurrency for faster searches
-- Multi-query Perplexity search with smart aggregation
+- Multi-query Perplexity search with smart aggregation (powered by new backend architecture)
 - **Per-category timeouts** - Configurable timeout with retries and exponential backoff + jitter
 - **Extended serverless duration** - 300s maxDuration for long-running searches
 - Dynamic caching with TTL based on event timings (instead of fixed 5-minute caching)
@@ -112,6 +112,15 @@ The application will start on `http://localhost:3000`.
 - **Enhanced debug mode** - Add `?debug=1` to URL for detailed search insights with raw responses and counts
 - **Real-time updates** - Progressive results with new event notifications and toast messages
 - **Conservative deduplication** - Avoids over-filtering events with missing fields
+
+### Recent Changes
+
+- **Perplexity Client Migration** (Latest): Migrated from legacy `app/lib/perplexity.ts` to new `lib/new-backend/services/perplexityClient.ts`
+  - Improved HTTP implementation with proper timeouts and retry handling
+  - Enhanced error handling with structured error codes
+  - Maintained full backward compatibility for existing API endpoints
+  - Consolidated all Perplexity AI usage on the new backend architecture
+  - For migration details, see [CHANGELOG.md](./CHANGELOG.md)
 - **Hot Cities Management** - Admin area for managing city-specific event sources with priority targeting
 
 ### Hot Cities Feature
