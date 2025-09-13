@@ -203,6 +203,7 @@ export async function processJobInBackground(
         parsedCount: 0,
         addedCount: 0,
         totalAfter: 0
+      });
     }
 
     // STEP 2: Check Perplexity API Key
@@ -270,7 +271,10 @@ export async function processJobInBackground(
     // Overall timeout defaults to 3 minutes (180000ms) - well under Vercel's 5-minute limit
     const defaultOverallTimeout = parseInt(process.env.OVERALL_TIMEOUT_MS || '180000', 10);
     const overallTimeoutMs = options?.overallTimeoutMs || defaultOverallTimeout;
-      
+    
+    const maxAttempts = options?.maxAttempts || 5;
+    
+    if (debugMode) {
       debugInfo.steps.push({
         category: 'Configuration',
         query: 'Setup processing parameters',
@@ -278,8 +282,8 @@ export async function processJobInBackground(
         parsedCount: effectiveCategories.length,
         addedCount: 0,
         totalAfter: 0
-    
-    const maxAttempts = options?.maxAttempts || 5;
+      });
+    }
     
     console.log('Background job starting for:', jobId, city, date, effectiveCategories);
     console.log('Parallelization config:', { categoryConcurrency, categoryTimeoutMs, overallTimeoutMs, maxAttempts });
@@ -453,8 +457,6 @@ export async function processJobInBackground(
           try {
             await processCategory(category, categoryIndex);
             console.log(`Worker completed category ${categoryIndex + 1}/${effectiveCategories.length}: ${category}`);
-          } catch (categoryError: any) {
-            console.error(`Worker failed to process category ${category}:`, categoryError);
           } catch (categoryError: any) {
             console.error(`Worker failed to process category ${category}:`, categoryError);
             // Continue processing other categories even if one fails
