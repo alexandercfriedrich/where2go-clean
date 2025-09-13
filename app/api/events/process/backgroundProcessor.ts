@@ -504,8 +504,17 @@ export async function processJobInBackground(
           }
 
           try {
+            console.log(`🚀 DISPATCHING AI QUEUE: Starting Perplexity call for category "${category}" in ${city} on ${date}`);
             const queryPromise = perplexityClient.queryMultipleCategories(city, date, [category]);
+            console.log(`⏳ AI QUEUE DISPATCHED: Waiting for Perplexity response for category "${category}"`);
+            
             const res = await withTimeout(queryPromise, perCategoryTimeout);
+            
+            console.log(`📥 AI QUEUE RESPONSE: Received response for category "${category}":`, {
+              responseLength: res?.length || 0,
+              hasResults: !!(res && res.length > 0),
+              firstResultPreview: res?.[0]?.response?.substring(0, 150) + '...'
+            });
             
             if (res && res.length > 0) {
               results = res;
@@ -516,6 +525,7 @@ export async function processJobInBackground(
                 console.log(`✅ Category ${category} completed successfully with ${res.length} results`);
               }
             } else {
+              console.log(`⚠️ AI QUEUE ISSUE: Category ${category} returned no results - this may indicate AI processing failure`);
               if (debugMode) {
                 console.log(`🔍 DEBUG: ⚠️ Category ${category} returned no results`);
               } else {
@@ -569,6 +579,8 @@ export async function processJobInBackground(
               r.events = eventAggregator.parseEventsFromResponse(r.response);
               const parsedCount = r.events.length;
               
+              console.log(`🎯 EVENT PARSING: Category "${category}" parsed ${parsedCount} events from AI response`);
+              
               if (debugMode) {
                 console.log(`🔍 DEBUG: Parsed ${parsedCount} events from response for category ${category} (step ${i + 1}/${results.length})`);
                 if (parsedCount > 0) {
@@ -585,9 +597,13 @@ export async function processJobInBackground(
               const newResults = [{ ...r, events: r.events }];
               const categoryEvents = eventAggregator.aggregateResults(newResults);
               
+              console.log(`📦 EVENT AGGREGATION: Category "${category}" produced ${categoryEvents.length} events after aggregation`);
+              
               // Get current job state to ensure we have the latest events
               const currentJob = await jobStore.getJob(jobId);
               const currentEvents = currentJob?.events || [];
+              
+              console.log(`💾 JOB STATE: Current job has ${currentEvents.length} events before merging`);
               
               // Merge with current events and deduplicate properly
               const beforeCount = currentEvents.length;
@@ -598,6 +614,8 @@ export async function processJobInBackground(
               const finalEvents = eventAggregator.categorizeEvents(deduplicatedEvents);
               
               const addedCount = finalEvents.length - beforeCount;
+              
+              console.log(`🔄 EVENT MERGE SUMMARY: Before=${beforeCount}, Parsed=${parsedCount}, Combined=${combinedEvents.length}, Deduplicated=${deduplicatedEvents.length}, Final=${finalEvents.length}, Net Added=${addedCount}`);
               
               if (debugMode) {
                 console.log(`🔍 DEBUG: Event processing for ${category}:`, {
@@ -618,8 +636,12 @@ export async function processJobInBackground(
               try {
                 const ttlSeconds = computeTTLSecondsForEvents(categoryEvents);
                 
+                console.log(`💰 CACHING: Storing ${categoryEvents.length} events for category "${category}" with TTL=${ttlSeconds}s`);
+                
                 // Always cache under the processed category (whether main or sub)
                 eventsCache.setEventsByCategory(city, date, category, categoryEvents, ttlSeconds);
+                console.log(`✅ CACHE SUCCESS: Cached events for category '${category}'`);
+                
                 if (debugMode) {
                   console.log(`🔍 DEBUG: ✅ Cached ${categoryEvents.length} events for category '${category}' with TTL: ${ttlSeconds} seconds`);
                 } else {
@@ -877,12 +899,17 @@ export async function processJobInBackground(
     try {
       const finalJob = await jobStore.getJob(jobId);
       finalEvents = finalJob?.events || allEvents || [];
+      
+      console.log(`🏁 FINAL JOB STATE: Retrieved ${finalEvents.length} events from job store`);
+      console.log(`📊 EVENT COUNT COMPARISON: JobStore=${finalJob?.events?.length || 0}, LocalVar=${allEvents?.length || 0}, Final=${finalEvents.length}`);
+      
     } catch (getFinalJobError) {
       console.error('Could not get final job state, using local events:', getFinalJobError);
       if (debugMode) {
         console.log(`🔍 DEBUG: ❌ Could not get final job state, using local events:`, getFinalJobError);
       }
       finalEvents = allEvents || [];
+      console.log(`🏁 FINAL FALLBACK: Using ${finalEvents.length} local events due to job store error`);
     }
     
     // Store final debug information if in debug mode
@@ -921,7 +948,10 @@ export async function processJobInBackground(
       message: `${finalEvents.length} Events gefunden`
     });
     
+    console.log(`🎯 JOB STATUS UPDATE: Attempting to set job ${jobId} to 'done' with ${finalEvents.length} events`);
+    
     if (success) {
+      console.log(`✅ SUCCESS: Job ${jobId} successfully marked as 'done' with ${finalEvents.length} events`);
       if (debugMode) {
         console.log('🔍 DEBUG: === BACKGROUND PROCESSOR DEBUG COMPLETE ===\n');
       } else {

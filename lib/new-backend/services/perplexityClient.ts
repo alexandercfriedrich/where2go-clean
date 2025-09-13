@@ -54,7 +54,7 @@ const DEFAULT_CONFIG: PerplexityConfig = {
   timeoutMs: 25000, // 25 seconds
   maxRetries: 2,
   retryDelayMs: 1000, // 1 second base delay
-  model: 'llama-3.1-sonar-small-128k-online',
+  model: 'sonar-pro',
   batchSize: 3,
   delayBetweenBatches: 1000
 };
@@ -496,6 +496,9 @@ export class PerplexityClient {
 
       clearTimeout(timeoutId);
 
+      console.log(`🔗 PERPLEXITY API CALL: Request sent to ${this.config.baseUrl} with model ${requestBody.model}`);
+      console.log(`📊 PERPLEXITY API STATUS: ${response.status} ${response.statusText} (ok: ${response.ok})`);
+
       logger.debug('[PerplexityClient-NEW] HTTP response received', {
         status: response.status,
         statusText: response.statusText,
@@ -523,7 +526,11 @@ export class PerplexityClient {
       const data = await response.json();
       const content = data.choices?.[0]?.message?.content || '';
       
+      console.log(`📝 PERPLEXITY API RESPONSE: Content length ${content.length} characters`);
+      console.log(`🔍 PERPLEXITY API PREVIEW: ${content.substring(0, 300)}...`);
+      
       if (!content) {
+        console.log(`❌ PERPLEXITY API ERROR: No content received from API`);
         throw createError(
           ErrorCode.AI_INVALID_RESPONSE,
           'No content received from Perplexity API'
@@ -532,6 +539,15 @@ export class PerplexityClient {
 
       // Parse events from the content
       const events = this.parseEventsFromResponse(content);
+      console.log(`🎯 PERPLEXITY PARSING: Found ${events.length} events after parsing`);
+      if (events.length > 0) {
+        console.log(`🎪 PERPLEXITY SAMPLE EVENT:`, {
+          title: events[0].title,
+          venue: events[0].venue,
+          date: events[0].date
+        });
+      }
+      
       const responseTime = Date.now() - startTime;
 
       const result: PerplexityResponse = {
@@ -589,16 +605,45 @@ export class PerplexityClient {
   private parseEventsFromResponse(content: string): EventData[] {
     try {
       // Clean up the response (remove markdown, comments, etc.)
-      const cleanContent = this.cleanJsonResponse(content);
+      let cleanContent = this.cleanJsonResponse(content);
       
-      const parsed = JSON.parse(cleanContent);
+      // Try parsing the cleaned content
+      let parsed: any;
+      try {
+        parsed = JSON.parse(cleanContent);
+      } catch (firstError) {
+        // If initial parsing fails, try more aggressive cleaning
+        console.log(`🔧 JSON parsing failed, attempting repair:`, (firstError as Error).message);
+        
+        // More aggressive cleaning for malformed JSON
+        cleanContent = cleanContent
+          // Fix common JSON issues
+          .replace(/,\s*}/g, '}')           // Remove trailing commas
+          .replace(/,\s*]/g, ']')           // Remove trailing commas in arrays  
+          .replace(/([{,]\s*)(\w+):/g, '$1"$2":')  // Quote unquoted keys
+          .replace(/:\s*'([^']*)'/g, ': "$1"')     // Convert single quotes to double
+          .replace(/\n|\r/g, ' ')           // Remove newlines
+          .replace(/\s+/g, ' ')             // Normalize whitespace
+          .trim();
+        
+        try {
+          parsed = JSON.parse(cleanContent);
+          console.log(`✅ JSON repair successful`);
+        } catch (secondError) {
+          console.log(`❌ JSON repair failed:`, (secondError as Error).message);
+          throw secondError;
+        }
+      }
       
       if (!Array.isArray(parsed)) {
         throw new Error('Response is not an array');
       }
 
       // Validate each event object
-      return parsed.filter(this.isValidEvent);
+      const validEvents = parsed.filter(this.isValidEvent);
+      console.log(`🎯 Validated ${validEvents.length}/${parsed.length} events from JSON`);
+      
+      return validEvents;
 
     } catch (error) {
       logger.error('[PerplexityClient-NEW] Failed to parse events from AI response', {
@@ -618,6 +663,11 @@ export class PerplexityClient {
       .replace(/```\s*/g, '')
       .replace(/\/\*[\s\S]*?\*\//g, '')
       .replace(/\/\/.*$/gm, '')
+      // Remove control characters that can break JSON parsing
+      .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
+      // Fix common escape sequence issues
+      .replace(/\\'/g, "'")
+      .replace(/\\"/g, '"')
       .trim();
   }
 
