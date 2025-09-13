@@ -132,8 +132,7 @@ export async function processJobInBackground(
   let debugInfo: any = null;
   
   if (debugMode) {
-    console.log('\n=== BACKGROUND PROCESSOR DEBUG MODE ENABLED ===');
-    console.log('🔍 DEBUG: Starting background job processing', { jobId, city, date, categories, options });
+    console.log('🔍 DEBUG: Starting background job processing for:', jobId);
     
     // Initialize debug info
     debugInfo = {
@@ -147,7 +146,6 @@ export async function processJobInBackground(
     
     // Store initial debug info
     await safeStoreDebugInfo(jobId, debugInfo);
-    console.log('🔍 DEBUG: Initial debug info stored');
   }
   
   try {
@@ -162,7 +160,6 @@ export async function processJobInBackground(
       console.error('🚨 CRITICAL:', errorMessage);
       
       if (debugMode) {
-        console.log('🔍 DEBUG: Redis check failed - attempting critical update and exiting');
         debugInfo.steps.push({
           category: 'Redis Check',
           query: 'Redis connectivity test',
@@ -189,7 +186,7 @@ export async function processJobInBackground(
     }
     
     if (debugMode) {
-      console.log('🔍 DEBUG: ✅ Redis connectivity confirmed - proceeding with AI operations');
+      console.log('🔍 DEBUG: ✅ Redis connectivity confirmed');
       debugInfo.steps.push({
         category: 'Redis Check',
         query: 'Redis connectivity test',
@@ -197,7 +194,6 @@ export async function processJobInBackground(
         parsedCount: 0,
         addedCount: 0,
         totalAfter: 0
-      });
     }
 
     // STEP 2: Check Perplexity API Key
@@ -207,7 +203,6 @@ export async function processJobInBackground(
       console.error('❌ PERPLEXITY_API_KEY environment variable is not set');
       
       if (debugMode) {
-        console.log('🔍 DEBUG: Perplexity API key check failed');
         debugInfo.steps.push({
           category: 'API Key Check',
           query: 'Check Perplexity API key',
@@ -248,9 +243,7 @@ export async function processJobInBackground(
     const effectiveCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
     
     if (debugMode) {
-      console.log('🔍 DEBUG: Step 3 - Configuring processing parameters');
-      console.log('🔍 DEBUG: Requested categories:', categories);
-      console.log('🔍 DEBUG: Effective categories:', effectiveCategories);
+      console.log('🔍 DEBUG: Step 3 - Processing', effectiveCategories.length, 'categories');
     }
     
     // Extract options with defaults - increased timeouts to prevent premature cutoff
@@ -268,19 +261,6 @@ export async function processJobInBackground(
     // Overall timeout defaults to 3 minutes (180000ms) - well under Vercel's 5-minute limit
     const defaultOverallTimeout = parseInt(process.env.OVERALL_TIMEOUT_MS || '180000', 10);
     const overallTimeoutMs = options?.overallTimeoutMs || defaultOverallTimeout;
-    
-    const maxAttempts = options?.maxAttempts || 5;
-    
-    if (debugMode) {
-      console.log('🔍 DEBUG: Processing configuration:', {
-        categoryConcurrency,
-        categoryTimeoutMs,
-        overallTimeoutMs,
-        maxAttempts,
-        isVercel,
-        requestedCategoryTimeout,
-        defaultCategoryTimeout
-      });
       
       debugInfo.steps.push({
         category: 'Configuration',
@@ -289,8 +269,8 @@ export async function processJobInBackground(
         parsedCount: effectiveCategories.length,
         addedCount: 0,
         totalAfter: 0
-      });
-    }
+    
+    const maxAttempts = options?.maxAttempts || 5;
     
     console.log('Background job starting for:', jobId, city, date, effectiveCategories);
     console.log('Parallelization config:', { categoryConcurrency, categoryTimeoutMs, overallTimeoutMs, maxAttempts });
@@ -300,32 +280,20 @@ export async function processJobInBackground(
     let lastProgressUpdate = Date.now();
     
     // STEP 4: Set up overall timeout using AbortController
-    if (debugMode) {
-      console.log('🔍 DEBUG: Step 4 - Setting up overall timeout and abort controller');
-    }
-    
     // Set up overall timeout using AbortController to prevent jobs from running indefinitely
     const overallAbortController = new AbortController();
     overallTimeoutId = setTimeout(() => {
       console.log(`Overall timeout of ${overallTimeoutMs}ms reached for job ${jobId}`);
-      if (debugMode) {
-        console.log('🔍 DEBUG: Overall timeout triggered - aborting processing');
-      }
       overallAbortController.abort();
     }, overallTimeoutMs);
 
     // STEP 5: Create Perplexity service
-    if (debugMode) {
-      console.log('🔍 DEBUG: Step 5 - Creating Perplexity service');
-    }
-    
     const perplexityService = createPerplexityService(PERPLEXITY_API_KEY);
     if (!perplexityService) {
       const errorMessage = 'Failed to create Perplexity service';
       console.error('❌', errorMessage);
       
       if (debugMode) {
-        console.log('🔍 DEBUG: Perplexity service creation failed');
         debugInfo.steps.push({
           category: 'Perplexity Service',
           query: 'Create Perplexity service',
@@ -363,11 +331,6 @@ export async function processJobInBackground(
     }
 
     // STEP 6: Safely get job with improved error handling
-    if (debugMode) {
-      console.log('🔍 DEBUG: Step 6 - Retrieving job from store');
-    }
-
-    // Safely get job with improved error handling
     let job: JobStatus | null = null;
     try {
       job = await jobStore.getJob(jobId);
