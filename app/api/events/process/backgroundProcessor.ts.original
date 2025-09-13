@@ -132,7 +132,6 @@ export async function processJobInBackground(
   let debugInfo: any = null;
   
   if (debugMode) {
-    console.log('🔍 DEBUG: Starting background job processing for:', jobId);
     
     // Initialize debug info
     debugInfo = {
@@ -151,7 +150,6 @@ export async function processJobInBackground(
   try {
     // STEP 1: Check Redis connectivity FIRST before any expensive operations
     if (debugMode) {
-      console.log('🔍 DEBUG: Step 1 - Checking Redis connectivity...');
     }
     
     const redisConnected = await checkRedisConnectivity();
@@ -243,7 +241,6 @@ export async function processJobInBackground(
     const effectiveCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
     
     if (debugMode) {
-      console.log('🔍 DEBUG: Step 3 - Processing', effectiveCategories.length, 'categories');
     }
     
     // Extract options with defaults - increased timeouts to prevent premature cutoff
@@ -319,7 +316,6 @@ export async function processJobInBackground(
     }
     
     if (debugMode) {
-      console.log('🔍 DEBUG: ✅ Perplexity service created successfully');
       debugInfo.steps.push({
         category: 'Perplexity Service',
         query: 'Create Perplexity service',
@@ -335,7 +331,6 @@ export async function processJobInBackground(
     try {
       job = await jobStore.getJob(jobId);
       if (debugMode) {
-        console.log('🔍 DEBUG: ✅ Job retrieved from store successfully');
       }
     } catch (getJobError) {
       const errorMessage = 'Job konnte nicht abgerufen werden - Redis Verbindungsfehler';
@@ -416,8 +411,6 @@ export async function processJobInBackground(
     let completedCategories = 0;
 
     if (debugMode) {
-      console.log('🔍 DEBUG: Step 7 - Starting parallel category processing');
-      console.log('🔍 DEBUG: Processing categories in parallel with controlled concurrency');
     }
 
     // Process categories in parallel with controlled concurrency, respecting overall timeout
@@ -436,23 +429,37 @@ export async function processJobInBackground(
           // Check if overall timeout was reached before processing each category
           if (overallAbortController.signal.aborted) {
             console.log(`Overall timeout reached, skipping category: ${category}`);
+            if (debugMode) {
+              console.log(`🔍 DEBUG: Overall timeout reached, skipping category: ${category}`);
+            }
             break;
           }
           
-          console.log(`Worker starting category ${categoryIndex + 1}/${effectiveCategories.length}: ${category}`);
+          if (debugMode) {
+            console.log(`🔍 DEBUG: Worker starting category ${categoryIndex + 1}/${effectiveCategories.length}: ${category}`);
+          } else {
+            console.log(`Worker starting category ${categoryIndex + 1}/${effectiveCategories.length}: ${category}`);
+          }
           
           try {
             await processCategory(category, categoryIndex);
-            console.log(`Worker completed category ${categoryIndex + 1}/${effectiveCategories.length}: ${category}`);
+            if (debugMode) {
+              console.log(`🔍 DEBUG: ✅ Worker completed category ${categoryIndex + 1}/${effectiveCategories.length}: ${category}`);
+            } else {
+              console.log(`Worker completed category ${categoryIndex + 1}/${effectiveCategories.length}: ${category}`);
+            }
           } catch (categoryError: any) {
             console.error(`Worker failed to process category ${category}:`, categoryError);
-          } catch (categoryError: any) {
-            console.error(`Worker failed to process category ${category}:`, categoryError);
+            if (debugMode) {
+            }
             // Continue processing other categories even if one fails
           }
         }
       } catch (workerError) {
         console.error(`Worker encountered fatal error:`, workerError);
+        if (debugMode) {
+          console.log(`🔍 DEBUG: ❌ Worker encountered fatal error:`, workerError);
+        }
         throw workerError;
       }
     };
@@ -463,7 +470,6 @@ export async function processJobInBackground(
       let results: Array<{ query: string; response: string; events: EventData[]; timestamp: number; }> | null = null;
       
       if (debugMode) {
-        console.log(`🔍 DEBUG: Starting processing for category ${category} (index ${categoryIndex})`);
       }
       
       while (attempts < maxAttempts && !results) {
@@ -471,7 +477,6 @@ export async function processJobInBackground(
         
         try {
           if (debugMode) {
-            console.log(`🔍 DEBUG: Processing category ${categoryIndex + 1}/${effectiveCategories.length}: ${category} (attempt ${attempts}/${maxAttempts})`);
           } else {
             console.log(`Processing category ${categoryIndex + 1}/${effectiveCategories.length}: ${category} (attempt ${attempts}/${maxAttempts})`);
           }
@@ -499,7 +504,6 @@ export async function processJobInBackground(
             if (res && res.length > 0) {
               results = res;
               if (debugMode) {
-                console.log(`🔍 DEBUG: ✅ Category ${category} completed successfully with ${res.length} results`);
                 console.log(`🔍 DEBUG: Raw response preview for ${category}:`, res[0]?.response?.substring(0, 200) + '...');
               } else {
                 console.log(`✅ Category ${category} completed successfully with ${res.length} results`);
@@ -530,7 +534,6 @@ export async function processJobInBackground(
         } catch (categoryError: any) {
           console.error(`Category ${category} attempt ${attempts}/${maxAttempts} failed:`, categoryError.message);
           if (debugMode) {
-            console.log(`🔍 DEBUG: ❌ Category ${category} attempt ${attempts}/${maxAttempts} failed:`, categoryError.message);
           }
           
           // If not the last attempt, wait with exponential backoff + jitter
@@ -714,7 +717,6 @@ export async function processJobInBackground(
                 await safeStoreDebugInfo(jobId, debugInfo);
                 console.log(`🔍 DEBUG: ✅ Debug step stored for failed category ${category}`);
               } catch (debugStoreError) {
-                console.error(`🔍 DEBUG: ❌ Failed to store debug step for failed category ${category}:`, debugStoreError);
               }
             }
           } else {
@@ -724,7 +726,6 @@ export async function processJobInBackground(
       } catch (outerProcessingError: any) {
         console.error(`Error processing results array for category ${category}:`, outerProcessingError.message);
         if (debugMode) {
-          console.log(`🔍 DEBUG: ❌ Error processing results array for category ${category}:`, outerProcessingError.message);
         }
       }
 
@@ -740,7 +741,6 @@ export async function processJobInBackground(
     // Start workers (up to concurrency limit)
     const workerCount = Math.min(categoryConcurrency, effectiveCategories.length);
     if (debugMode) {
-      console.log(`🔍 DEBUG: Starting ${workerCount} parallel workers for ${effectiveCategories.length} categories`);
     } else {
       console.log(`Starting ${workerCount} parallel workers for ${effectiveCategories.length} categories`);
     }
@@ -749,7 +749,6 @@ export async function processJobInBackground(
         worker().catch(workerError => {
           console.error(`Worker ${i + 1} failed:`, workerError);
           if (debugMode) {
-            console.log(`🔍 DEBUG: ❌ Worker ${i + 1} failed:`, workerError);
           }
           // Don't re-throw here, let Promise.all handle it
           throw workerError;
@@ -768,7 +767,6 @@ export async function processJobInBackground(
       await Promise.race([
         Promise.all(processingPromises).then(() => {
           if (debugMode) {
-            console.log(`🔍 DEBUG: ✅ All ${workerCount} workers completed successfully`);
           } else {
             console.log(`All ${workerCount} workers completed successfully`);
           }
@@ -807,7 +805,6 @@ export async function processJobInBackground(
       } else {
         console.error(`Job ${jobId} failed due to worker error:`, timeoutError);
         if (debugMode) {
-          console.log(`🔍 DEBUG: ❌ Job ${jobId} failed due to worker error:`, timeoutError);
         }
         throw timeoutError; // Re-throw other errors
       }
@@ -840,7 +837,6 @@ export async function processJobInBackground(
       const finalEvents = finalJob?.events || allEvents || [];
       
       if (debugMode) {
-        console.log(`🔍 DEBUG: Step 8 - Finalizing job with ${finalEvents.length} total events`);
         console.log(`🔍 DEBUG: Per-category caching completed during processing`);
       }
       
@@ -857,7 +853,6 @@ export async function processJobInBackground(
     // Update job with final status - this must succeed to prevent UI timeout
     // Get current events from JobStore to ensure we don't overwrite progressive updates
     if (debugMode) {
-      console.log(`🔍 DEBUG: Step 9 - Updating job ${jobId} to 'done' status...`);
     } else {
       console.log(`Updating job ${jobId} to 'done' status...`);
     }
@@ -953,6 +948,7 @@ export async function processJobInBackground(
       if (overallTimeoutId) {
         clearTimeout(overallTimeoutId);
         if (debugMode) {
+          console.log(`🔍 DEBUG: ✅ Cleared timeout after error for job ${jobId}`);
         } else {
           console.log(`Cleared timeout after error for job ${jobId}`);
         }
@@ -963,6 +959,7 @@ export async function processJobInBackground(
     
     // Ensure job is always finalized, even on error - this is CRITICAL to prevent infinite polling
     if (debugMode) {
+      console.log(`🔍 DEBUG: Attempting to mark job ${jobId} as 'error' status...`);
     } else {
       console.log(`Attempting to mark job ${jobId} as 'error' status...`);
     }
@@ -982,6 +979,7 @@ export async function processJobInBackground(
     } else {
       console.error(`❌ CATASTROPHIC: Cannot update job ${jobId} status to error - user may experience infinite polling`);
       if (debugMode) {
+        console.log(`🔍 DEBUG: ❌ CATASTROPHIC: Cannot update job ${jobId} status to error`);
       }
       // The deadman switch should eventually clean this up
     }
