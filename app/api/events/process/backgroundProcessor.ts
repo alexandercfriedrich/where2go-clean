@@ -36,10 +36,21 @@ const jobStore = getJobStore();
 async function safeStoreDebugInfo(jobId: string, debugInfo: any): Promise<void> {
   try {
     if (jobStore.setDebugInfo) {
-      await safeStoreDebugInfo(jobId, debugInfo);
+      await jobStore.setDebugInfo(jobId, debugInfo);
     }
   } catch (debugError) {
     console.error('❌ DEBUG: Failed to store debug info:', debugError);
+  }
+}
+
+// Lightweight debug helper to reduce console output
+function debugLog(debugMode: boolean, message: string, data?: any): void {
+  if (debugMode) {
+    if (data) {
+      console.log(`🔍 DEBUG: ${message}`, data);
+    } else {
+      console.log(`🔍 DEBUG: ${message}`);
+    }
   }
 }
 
@@ -132,7 +143,7 @@ export async function processJobInBackground(
   let debugInfo: any = null;
   
   if (debugMode) {
-    console.log('🔍 DEBUG: Starting background job processing for:', jobId);
+    debugLog(debugMode, 'Starting background job processing for:', jobId);
     
     // Initialize debug info
     debugInfo = {
@@ -150,9 +161,7 @@ export async function processJobInBackground(
   
   try {
     // STEP 1: Check Redis connectivity FIRST before any expensive operations
-    if (debugMode) {
-      console.log('🔍 DEBUG: Step 1 - Checking Redis connectivity...');
-    }
+    debugLog(debugMode, 'Step 1 - Checking Redis connectivity...');
     
     const redisConnected = await checkRedisConnectivity();
     if (!redisConnected) {
@@ -186,7 +195,7 @@ export async function processJobInBackground(
     }
     
     if (debugMode) {
-      console.log('🔍 DEBUG: ✅ Redis connectivity confirmed');
+      debugLog(debugMode, '✅ Redis connectivity confirmed');
       debugInfo.steps.push({
         category: 'Redis Check',
         query: 'Redis connectivity test',
@@ -228,7 +237,7 @@ export async function processJobInBackground(
     }
     
     if (debugMode) {
-      console.log('🔍 DEBUG: ✅ Perplexity API key found');
+      debugLog(debugMode, '✅ Perplexity API key found');
       debugInfo.steps.push({
         category: 'API Key Check',
         query: 'Check Perplexity API key',
@@ -243,7 +252,7 @@ export async function processJobInBackground(
     const effectiveCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
     
     if (debugMode) {
-      console.log('🔍 DEBUG: Step 3 - Processing', effectiveCategories.length, 'categories');
+      debugLog(debugMode, 'Step 3 - Processing', `${effectiveCategories.length} categories`);
     }
     
     // Extract options with defaults - increased timeouts to prevent premature cutoff
