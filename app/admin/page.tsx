@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { HotCity, HotCityWebsite } from '@/lib/types';
+import { extractErrorMessage, createApiErrorMessage } from '../lib/error-utils';
 
 export default function AdminPage() {
   const [cities, setCities] = useState<HotCity[]>([]);
@@ -58,8 +59,8 @@ export default function AdminPage() {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save city');
+        const errorMessage = await createApiErrorMessage(response);
+        throw new Error(errorMessage);
       }
 
       await loadCities();
@@ -84,8 +85,8 @@ export default function AdminPage() {
       });
       
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete city');
+        const errorMessage = await createApiErrorMessage(response);
+        throw new Error(errorMessage);
       }
 
       await loadCities();

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { HotCity, HotCityWebsite } from '@/lib/types';
+import { extractErrorMessage, createApiErrorMessage } from '../../lib/error-utils';
 
 export default function HotCitiesDetailPage() {
   const [cities, setCities] = useState<HotCity[]>([]);
@@ -82,8 +83,8 @@ export default function HotCitiesDetailPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to save website');
+        const errorMessage = await createApiErrorMessage(response);
+        throw new Error(errorMessage);
       }
 
       await loadCities();
@@ -116,8 +117,8 @@ export default function HotCitiesDetailPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete website');
+        const errorMessage = await createApiErrorMessage(response);
+        throw new Error(errorMessage);
       }
 
       await loadCities();
@@ -138,8 +139,8 @@ export default function HotCitiesDetailPage() {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to seed cities');
+        const errorMessage = await createApiErrorMessage(response);
+        throw new Error(errorMessage);
       }
 
       await loadCities();

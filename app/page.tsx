@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { CATEGORY_MAP } from './categories';
 import { useTranslation } from './lib/useTranslation';
 import { convertEventToCalendarEvent, calendarProviders, generatePreferredCalendarUrl, getPreferredCalendarProvider } from './lib/calendar-utils';
+import { extractErrorMessage, createApiErrorMessage } from './lib/error-utils';
 
 interface EventData {
   title: string;
@@ -629,15 +630,16 @@ export default function Home() {
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `Serverfehler (${res.status})`);
+        const errorMessage = await createApiErrorMessage(res);
+        throw new Error(errorMessage);
       }
 
       const responseData = await res.json();
       
       // Handle new API response format: {success: true, data: {job, isNew, isStale}}
       if (!responseData.success) {
-        throw new Error(responseData.error || 'API-Fehler');
+        const errorMessage = extractErrorMessage(responseData.error, 'API-Fehler');
+        throw new Error(errorMessage);
       }
       
       const { job, isNew } = responseData.data;
@@ -716,7 +718,8 @@ export default function Home() {
         const responseData = await res.json();
         
         if (!responseData.success) {
-          throw new Error(responseData.error || 'API-Fehler');
+          const errorMessage = extractErrorMessage(responseData.error, 'API-Fehler');
+          throw new Error(errorMessage);
         }
         
         const job = responseData.data.job;
@@ -794,7 +797,8 @@ export default function Home() {
           setJobStatus('done');
         } else {
           setJobStatus('error');
-          setError(job.error || 'Fehler bei der Eventsuche.');
+          const errorMessage = extractErrorMessage(job.error, 'Fehler bei der Eventsuche.');
+          setError(errorMessage);
         }
       } catch (err) {
         setToast({
