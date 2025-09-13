@@ -126,18 +126,24 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       responseTime: Date.now() - startTime
     });
 
-    // If job is new, enqueue it for processing
+    // If job is new, trigger background processing directly
     if (result.isNew) {
       try {
-        await jobStore.enqueueJob(result.job.id);
-        logger.info('Job enqueued for processing', { jobId: result.job.id });
-      } catch (enqueueError) {
-        logger.error('Failed to enqueue job for processing', {
-          jobId: result.job.id,
-          error: fromError(enqueueError)
+        // In serverless environment, trigger processing directly via HTTP call
+        // instead of relying on a queue worker that doesn't exist
+        await triggerBackgroundProcessing(result.job.id, {
+          city: result.job.city,
+          date: result.job.date,
+          categories: result.job.categories
         });
-        // Don't fail the request if enqueuing fails
-        // The job can still be processed manually or by retry
+        logger.info('Background processing triggered', { jobId: result.job.id });
+      } catch (triggerError) {
+        logger.error('Failed to trigger background processing', {
+          jobId: result.job.id,
+          error: fromError(triggerError)
+        });
+        // Don't fail the request if trigger fails
+        // The job can still be polled and processed via GET endpoint
       }
     }
 
@@ -283,4 +289,59 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       }
     );
   }
+}
+/**
+ * Trigger background processing for a job in serverless environment.
+ * Makes an HTTP call to the process endpoint instead of relying on a queue worker.
+ */
+async function triggerBackgroundProcessing(
+  jobId: string, 
+  jobData: { city: string; date: string; categories: string[] }
+): Promise<void> {
+  // Get the current host for making internal API calls
+  const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
+  const host = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_VERCEL_URL || "localhost:3000";
+  const baseUrl = `${protocol}://${host}`;
+  
+  const processUrl = `${baseUrl}/api/events/process`;
+  
+  logger.info("Triggering background processing", {
+    jobId,
+    processUrl: processUrl.replace(/\/\/[^\/]+/, "//[host]"), // Hide actual host in logs
+    city: jobData.city,
+    date: jobData.date,
+    categoryCount: jobData.categories.length
+  });
+
+  const response = await fetch(processUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-internal-secret": process.env.INTERNAL_API_SECRET || "dev-internal-secret-123",
+      "x-internal-call": "true",
+      "User-Agent": "where2go-jobs-trigger/1.0"
+    },
+    body: JSON.stringify({
+      jobId,
+      city: jobData.city,
+      date: jobData.date,
+      categories: jobData.categories
+    })
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Unknown error");
+    throw createError(
+      ErrorCode.BACKGROUND_PROCESSING_FAILED,
+      `Background processing trigger failed: ${response.status} ${response.statusText}`,
+      { 
+        httpStatus: response.status,
+        responseBody: errorText,
+        jobId,
+        processUrl: processUrl.replace(/\/\/[^\/]+/, "//[host]")
+      }
+    );
+  }
+
+  logger.info("Background processing triggered successfully", { jobId });
 }

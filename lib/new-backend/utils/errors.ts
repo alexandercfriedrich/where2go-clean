@@ -48,6 +48,9 @@ export enum ErrorCode {
   
   // AI/External service errors
   AI_SERVICE_ERROR = 'AI_SERVICE_ERROR',
+  
+  // Background processing errors
+  BACKGROUND_PROCESSING_FAILED = 'BACKGROUND_PROCESSING_FAILED',
   AI_TIMEOUT = 'AI_TIMEOUT',
   AI_RATE_LIMIT = 'AI_RATE_LIMIT',
   AI_INVALID_RESPONSE = 'AI_INVALID_RESPONSE',
