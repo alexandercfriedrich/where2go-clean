@@ -49,102 +49,144 @@ async function scheduleBackgroundProcessing(
   categories: string[],
   options: any
 ) {
+  const debugMode = options?.debug || false;
+  
+  // Minimal debug logging to avoid performance issues
+  if (debugMode) {
+    console.log('🔍 DEBUG: Scheduling background processing for job:', jobId);
+  }
+
   // Determine if we're running on Vercel
   const isVercel = process.env.VERCEL === '1';
   
   if (isVercel) {
-    // Prefer exact deployment URL to ensure we hit the same deployment in preview
-    const deploymentUrl = request.headers.get('x-vercel-deployment-url');
-    const host = deploymentUrl || request.headers.get('x-forwarded-host') || request.headers.get('host');
-    const protocol = 'https'; // Vercel preview/prod are https
-    
-    if (!host) {
-      throw new Error('Unable to determine host for background processing');
-    }
-    
-    const backgroundUrl = `${protocol}://${host}/api/events/process`;
-    
-    console.log('Scheduling background processing via Vercel Background Functions:', backgroundUrl);
+    try {
+      // Enhanced host detection with multiple fallbacks
+      const deploymentUrl = request.headers.get('x-vercel-deployment-url');
+      const forwardedHost = request.headers.get('x-forwarded-host');
+      const regularHost = request.headers.get('host');
+      const vercelUrl = process.env.VERCEL_URL;
+      
+      const host = deploymentUrl || forwardedHost || regularHost || vercelUrl;
+      const protocol = 'https'; // Vercel preview/prod are https
+      
+      if (!host) {
+        const errorMessage = 'Unable to determine host for background processing - all host detection methods failed';
+        console.error('❌ CRITICAL:', errorMessage);
+        throw new Error(errorMessage);
+      }
+      
+      const backgroundUrl = `${protocol}://${host}/api/events/process`;
+      
+      if (debugMode) {
+        console.log('🔍 DEBUG: Background URL:', backgroundUrl);
+      } else {
+        console.log('Scheduling background processing via Vercel Background Functions:', backgroundUrl);
+      }
 
-    // Optional protection bypass for Preview Deployments Protection
-    // Set PROTECTION_BYPASS_TOKEN in Vercel Project Settings > Environment Variables
-    const protectionBypass = process.env.PROTECTION_BYPASS_TOKEN;
+      // Enhanced authentication configuration
+      const protectionBypass = process.env.PROTECTION_BYPASS_TOKEN;
+      const internalSecret = process.env.INTERNAL_API_SECRET;
 
-    // Optional internal secret if your worker route expects it
-    const internalSecret = process.env.INTERNAL_API_SECRET;
-
-    // Build comprehensive authentication headers to ensure internal request validation passes
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'x-vercel-background': '1',
-      'x-internal-call': '1', 
-      'User-Agent': 'where2go-internal'
-    };
-    
-    // Add optional authentication tokens if available
-    if (protectionBypass) {
-      headers['x-vercel-protection-bypass'] = protectionBypass;
-    }
-    if (internalSecret) {
-      headers['x-internal-secret'] = internalSecret;
-    }
-    
-    // Ensure we always have at least the core authentication headers
-    console.log('Authentication headers being sent:', {
-      'x-vercel-background': headers['x-vercel-background'],
-      'x-internal-call': headers['x-internal-call'],
-      'User-Agent': headers['User-Agent'],
-      'x-vercel-protection-bypass': headers['x-vercel-protection-bypass'] ? 'SET' : 'NOT_SET',
-      'x-internal-secret': headers['x-internal-secret'] ? 'SET' : 'NOT_SET'
-    });
-    
-    // Make internal HTTP request to background processor with comprehensive logging
-    console.log(`Scheduling background processing: ${backgroundUrl}`);
-    console.log('Full request details:', {
-      method: 'POST',
-      url: backgroundUrl,
-      headers: {
-        ...headers,
-        'x-vercel-protection-bypass': headers['x-vercel-protection-bypass'] ? 'SET' : 'NOT_SET',
-        'x-internal-secret': headers['x-internal-secret'] ? 'SET' : 'NOT_SET'
-      },
-      bodyPreview: { jobId, city, date, categoriesCount: categories.length }
-    });
-    
-    const response = await fetch(backgroundUrl, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
+      // Build comprehensive authentication headers to ensure internal request validation passes
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+        'x-vercel-background': '1',
+        'x-internal-call': '1', 
+        'User-Agent': 'where2go-internal'
+      };
+      
+      // Add optional authentication tokens if available
+      if (protectionBypass) {
+        headers['x-vercel-protection-bypass'] = protectionBypass;
+      }
+      if (internalSecret) {
+        headers['x-internal-secret'] = internalSecret;
+      }
+      
+      // Prepare request body
+      const requestBody = {
         jobId,
         city,
         date,
         categories,
         options
-      })
-    });
-    
-    console.log('Background processing response:', {
-      status: response.status,
-      statusText: response.statusText,
-      ok: response.ok,
-      contentType: response.headers.get('content-type')
-    });
-    
-    if (!response.ok) {
-      const responseText = await response.text();
-      console.error('Background processing failed response body:', responseText);
-      throw new Error(`Background scheduling failed: HTTP ${response.status} ${response.statusText}: ${responseText}`);
+      };
+      
+      // Make internal HTTP request to background processor with enhanced error handling
+      if (debugMode) {
+        console.log('🔍 DEBUG: Making fetch request to background processor...');
+      }
+      
+      let response: Response;
+      try {
+        // Add timeout to prevent hanging requests
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+        
+        response = await fetch(backgroundUrl, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(requestBody),
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        
+      } catch (fetchError: any) {
+        
+        if (fetchError.name === 'AbortError') {
+          const errorMessage = 'Background processing request timed out after 30 seconds';
+          console.error('❌ TIMEOUT ERROR:', errorMessage);
+          throw new Error(errorMessage);
+        }
+        
+        const errorMessage = `Network error while calling background processor: ${fetchError.message}`;
+        console.error('❌ FETCH ERROR:', errorMessage);
+        throw new Error(errorMessage);
+      }
+      
+      if (debugMode) {
+        console.log('🔍 DEBUG: Response status:', response.status, response.statusText);
+      }
+      
+      if (!response.ok) {
+        let responseText = '';
+        try {
+          responseText = await response.text();
+        } catch (textError) {
+          responseText = `[Could not read response text: ${textError}]`;
+        }
+        
+        const errorMessage = `Background scheduling failed: HTTP ${response.status} ${response.statusText}`;
+        console.error('❌ BACKGROUND SCHEDULING FAILED:', errorMessage);
+        console.error('❌ Response body:', responseText);
+        
+        throw new Error(`${errorMessage}: ${responseText}`);
+      }
+      
+      // Success case
+      if (debugMode) {
+        console.log('🔍 DEBUG: ✅ Background processing scheduled successfully');
+      } else {
+        console.log('✅ Background processing scheduled successfully');
+      }
+      
+    } catch (vercelError: any) {
+      console.error('❌ VERCEL BACKGROUND PROCESSING ERROR:', vercelError.message);
+      throw vercelError; // Re-throw to be handled by calling function
     }
     
-    const responseData = await response.json().catch(() => null);
-    console.log('Background processing success response:', responseData);
-    
-    console.log('Background processing scheduled successfully');
-    
   } else {
-    // Local development fallback - make local HTTP request without awaiting
-    const localUrl = 'http://localhost:3001/api/events/process';
-    console.log(`Running in local development, making async request to background processor: ${localUrl}`);
+    // Local development fallback - enhanced with better error handling
+    const localPort = process.env.PORT || '3000';
+    const localUrl = `http://localhost:${localPort}/api/events/process`;
+    
+    if (debugMode) {
+      console.log('🔍 DEBUG: Local background URL:', localUrl);
+    } else {
+      console.log(`Running in local development, making async request to background processor: ${localUrl}`);
+    }
     
     // Build comprehensive authentication headers for local development
     const localHeaders = {
@@ -154,27 +196,31 @@ async function scheduleBackgroundProcessing(
       'User-Agent': 'where2go-internal'
     };
     
-    console.log('Local development authentication headers:', localHeaders);
+    const requestBody = {
+      jobId,
+      city,
+      date,
+      categories,
+      options
+    };
     
-    // Fire and forget request for local development
+    // Fire and forget request for local development with enhanced error logging
     fetch(localUrl, {
       method: 'POST',
       headers: localHeaders,
-      body: JSON.stringify({
-        jobId,
-        city,
-        date,
-        categories,
-        options
-      })
+      body: JSON.stringify(requestBody)
     }).then(response => {
       if (!response.ok) {
-        console.error(`Local background processing failed: ${response.status} ${response.statusText}`);
+        console.error(`❌ Local background processing failed: ${response.status} ${response.statusText}`);
       } else {
-        console.log('Local background processing scheduled successfully');
+        if (debugMode) {
+          console.log('🔍 DEBUG: ✅ Local background processing scheduled successfully');
+        } else {
+          console.log('✅ Local background processing scheduled successfully');
+        }
       }
     }).catch(error => {
-      console.error('Local development background request failed:', error);
+      console.error('❌ Local development background request failed:', error);
     });
   }
 }
@@ -184,7 +230,14 @@ async function scheduleBackgroundProcessing(
 export async function POST(request: NextRequest) {
   try {
     const body: RequestBody = await request.json();
-    const { city, date, categories } = body;
+    const { city, date, categories, options } = body;
+
+    // Check for debug mode from options
+    const debugMode = options?.debug || false;
+    
+    if (debugMode) {
+      console.log('🔍 DEBUG: Events API request:', { city, date, categoriesCount: categories?.length });
+    }
 
     if (!city || !date) {
       return NextResponse.json(
@@ -196,9 +249,10 @@ export async function POST(request: NextRequest) {
     // Use provided categories or defaults
     const effectiveCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
     
-    // Merge options with defaults
+    // Merge options with defaults, preserving the original options
     const mergedOptions = { 
-      ...DEFAULT_PPLX_OPTIONS
+      ...DEFAULT_PPLX_OPTIONS,
+      ...(options || {})
     };
 
     // Check cache for all categories
@@ -206,13 +260,21 @@ export async function POST(request: NextRequest) {
     const allCachedEvents = Object.values(cacheResult.cachedEvents).flat();
     const missingCategories = cacheResult.missingCategories;
 
-    console.log(`Cache analysis: ${Object.keys(cacheResult.cachedEvents).length}/${effectiveCategories.length} categories cached, ${allCachedEvents.length} events from cache`);
-    console.log('Cached categories:', Object.keys(cacheResult.cachedEvents));
-    console.log('Missing categories:', missingCategories);
+    if (debugMode) {
+      console.log('🔍 DEBUG: Cache analysis - cached:', Object.keys(cacheResult.cachedEvents).length, 'missing:', missingCategories.length);
+    } else {
+      console.log(`Cache analysis: ${Object.keys(cacheResult.cachedEvents).length}/${effectiveCategories.length} categories cached, ${allCachedEvents.length} events from cache`);
+      console.log('Cached categories:', Object.keys(cacheResult.cachedEvents));
+      console.log('Missing categories:', missingCategories);
+    }
 
     // If all categories are cached, return immediately
     if (missingCategories.length === 0) {
-      console.log('✅ All categories cached - returning directly');
+      if (debugMode) {
+        console.log('🔍 DEBUG: ✅ All categories cached - returning directly');
+      } else {
+        console.log('✅ All categories cached - returning directly');
+      }
       return NextResponse.json({
         events: allCachedEvents,
         status: 'completed',
@@ -225,6 +287,10 @@ export async function POST(request: NextRequest) {
 
     // Create simple job for missing categories
     const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    if (debugMode) {
+      console.log('🔍 DEBUG: Creating job for missing categories:', jobId);
+    }
     
     const job: JobStatus = {
       id: jobId,
@@ -239,7 +305,11 @@ export async function POST(request: NextRequest) {
 
     try {
       await jobStore.setJob(jobId, job);
-      console.log(`Job created successfully with ID: ${jobId}, status: ${job.status}, events: ${job.events?.length || 0}`);
+      if (debugMode) {
+        console.log('🔍 DEBUG: ✅ Job created successfully:', jobId);
+      } else {
+        console.log(`Job created successfully with ID: ${jobId}, status: ${job.status}, events: ${job.events?.length || 0}`);
+      }
     } catch (jobStoreError) {
       console.error('Failed to create job in JobStore:', jobStoreError);
       return NextResponse.json(
@@ -250,26 +320,68 @@ export async function POST(request: NextRequest) {
 
     // Map subcategories to main categories for AI calls
     const mainCategoriesForAI = getMainCategoriesForAICalls(missingCategories);
-    console.log(`Original missing categories (subcategories): ${missingCategories.length} - [${missingCategories.join(', ')}]`);
-    console.log(`Mapped to main categories for AI calls: ${mainCategoriesForAI.length} - [${mainCategoriesForAI.join(', ')}]`);
+    
+    if (debugMode) {
+      console.log('🔍 DEBUG: Mapped categories for AI:', mainCategoriesForAI.length);
+    } else {
+      console.log(`Original missing categories (subcategories): ${missingCategories.length} - [${missingCategories.join(', ')}]`);
+      console.log(`Mapped to main categories for AI calls: ${mainCategoriesForAI.length} - [${mainCategoriesForAI.join(', ')}]`);
+    }
 
     // Schedule background processing (await to catch immediate errors)
     try {
+      if (debugMode) {
+        console.log('🔍 DEBUG: Attempting to schedule background processing');
+      }
+      
       await scheduleBackgroundProcessing(request, jobId, city, date, mainCategoriesForAI, mergedOptions);
-    } catch (scheduleError) {
-      console.error('Failed to schedule background processing:', scheduleError);
-      // Update job to error state
-      await jobStore.updateJob(jobId, {
-        status: 'error',
-        error: 'Failed to schedule background processing'
-      });
+      
+      if (debugMode) {
+        console.log('🔍 DEBUG: ✅ Background processing scheduled successfully');
+      } else {
+        console.log('✅ Background processing scheduled successfully');
+      }
+    } catch (scheduleError: any) {
+      const errorMessage = `Failed to schedule background processing: ${scheduleError.message}`;
+      console.error('❌ SCHEDULE ERROR:', errorMessage);
+      console.error('❌ Full schedule error:', scheduleError);
+      
+      if (debugMode) {
+        console.log('🔍 DEBUG: ❌ SCHEDULING FAILED:', scheduleError.message);
+      }
+      
+      // Update job to error state with detailed error information
+      try {
+        await jobStore.updateJob(jobId, {
+          status: 'error',
+          error: `Background processing scheduling failed: ${scheduleError.message}`,
+          lastUpdateAt: new Date().toISOString()
+        });
+        
+        if (debugMode) {
+          console.log('🔍 DEBUG: ✅ Job updated with error status');
+        } else {
+          console.log('Job updated with error status after scheduling failure');
+        }
+      } catch (updateError) {
+        console.error('❌ CRITICAL: Failed to update job status after scheduling error:', updateError);
+      }
+      
       return NextResponse.json(
-        { error: 'Failed to schedule background processing' },
+        { 
+          error: 'Failed to schedule background processing',
+          details: debugMode ? scheduleError.message : undefined,
+          jobId: debugMode ? jobId : undefined
+        },
         { status: 500 }
       );
     }
 
     // Return job for polling
+    if (debugMode) {
+      console.log('🔍 DEBUG: ✅ Returning job for polling:', jobId);
+    }
+    
     return NextResponse.json({
       jobId,
       status: 'partial',
