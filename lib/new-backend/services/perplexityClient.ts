@@ -54,7 +54,7 @@ const DEFAULT_CONFIG: PerplexityConfig = {
   timeoutMs: 25000, // 25 seconds
   maxRetries: 2,
   retryDelayMs: 1000, // 1 second base delay
-  model: 'llama-3.1-sonar-small-128k-online',
+  model: 'sonar-pro',
   batchSize: 3,
   delayBetweenBatches: 1000
 };
