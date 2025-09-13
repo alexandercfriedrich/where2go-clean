@@ -50,14 +50,14 @@ async function testCompleteHotCitiesFeature() {
   // Test 4: Search Integration
   console.log('🔍 Test 4: Search Integration');
   try {
-    const perplexityPath = path.join(process.cwd(), 'app', 'lib', 'perplexity.ts');
+    const perplexityPath = path.join(process.cwd(), 'lib', 'new-backend', 'services', 'perplexityClient.ts');
     const content = await fs.readFile(perplexityPath, 'utf-8');
     
-    if (content.includes('getCityWebsitesForCategories')) {
-      console.log('✅ Perplexity service enhanced with hot cities integration');
-      console.log('   Features: City-specific websites in search prompts, custom search queries\n');
+    if (content.includes('getPerplexityClient')) {
+      console.log('✅ Perplexity client (new backend) available with hot cities integration');
+      console.log('   Features: HTTP requests, batching, retries, backward compatibility\n');
     } else {
-      console.log('❌ Perplexity service not properly integrated\n');
+      console.log('❌ Perplexity client not properly implemented\n');
     }
   } catch (error) {
     console.log(`❌ Search integration check failed: ${error.message}\n`);

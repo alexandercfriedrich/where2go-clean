@@ -1,6 +1,6 @@
 import { EventData, JobStatus } from '@/lib/types';
 import { eventsCache } from '@/lib/cache';
-import { createPerplexityService } from '@/lib/perplexity';
+import { getPerplexityClient } from '../../../../lib/new-backend/services/perplexityClient';
 import { eventAggregator } from '@/lib/aggregator';
 import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
 import { getJobStore } from '@/lib/jobStore';
@@ -300,17 +300,17 @@ export async function processJobInBackground(
       overallAbortController.abort();
     }, overallTimeoutMs);
 
-    // STEP 5: Create Perplexity service
-    const perplexityService = createPerplexityService(PERPLEXITY_API_KEY);
-    if (!perplexityService) {
-      const errorMessage = 'Failed to create Perplexity service';
+    // STEP 5: Create Perplexity client
+    const perplexityClient = getPerplexityClient({ apiKey: PERPLEXITY_API_KEY });
+    if (!perplexityClient.isConfigured()) {
+      const errorMessage = 'Failed to configure Perplexity client';
       console.error('❌', errorMessage);
       
       if (debugMode) {
         debugInfo.steps.push({
-          category: 'Perplexity Service',
-          query: 'Create Perplexity service',
-          response: 'FAILED - Could not initialize Perplexity service',
+          category: 'Perplexity Client',
+          query: 'Configure Perplexity client',
+          response: 'FAILED - Could not initialize Perplexity client',
           parsedCount: 0,
           addedCount: 0,
           totalAfter: 0
@@ -319,7 +319,7 @@ export async function processJobInBackground(
         try {
           await safeStoreDebugInfo(jobId, debugInfo);
         } catch (debugStoreError) {
-          console.error('❌ DEBUG: Could not store debug info for service creation failure:', debugStoreError);
+          console.error('❌ DEBUG: Could not store debug info for client configuration failure:', debugStoreError);
         }
       }
       
@@ -332,11 +332,11 @@ export async function processJobInBackground(
     }
     
     if (debugMode) {
-      console.log('🔍 DEBUG: ✅ Perplexity service created successfully');
+      console.log('🔍 DEBUG: ✅ Perplexity client configured successfully');
       debugInfo.steps.push({
-        category: 'Perplexity Service',
-        query: 'Create Perplexity service',
-        response: 'SUCCESS - Perplexity service initialized',
+        category: 'Perplexity Client',
+        query: 'Configure Perplexity client',
+        response: 'SUCCESS - Perplexity client initialized',
         parsedCount: 0,
         addedCount: 0,
         totalAfter: 0
@@ -504,7 +504,7 @@ export async function processJobInBackground(
           }
 
           try {
-            const queryPromise = perplexityService.executeMultiQuery(city, date, [category], options);
+            const queryPromise = perplexityClient.queryMultipleCategories(city, date, [category]);
             const res = await withTimeout(queryPromise, perCategoryTimeout);
             
             if (res && res.length > 0) {

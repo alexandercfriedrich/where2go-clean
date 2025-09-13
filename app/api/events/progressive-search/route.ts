@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { RequestBody, EventData } from '@/lib/types';
 import { eventsCache } from '@/lib/cache';
 import InMemoryCache from '@/lib/cache';
-import { createPerplexityService } from '@/lib/perplexity';
+import { getPerplexityClient } from '../../../../lib/new-backend/services/perplexityClient';
 import { eventAggregator } from '@/lib/aggregator';
 import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
 
@@ -76,14 +76,14 @@ export async function POST(request: NextRequest) {
                 return;
               }
 
-              const perplexityService = createPerplexityService(PERPLEXITY_API_KEY);
-              if (!perplexityService) {
-                controller.error(new Error('Failed to create Perplexity service'));
+              const perplexityClient = getPerplexityClient({ apiKey: PERPLEXITY_API_KEY });
+              if (!perplexityClient.isConfigured()) {
+                controller.error(new Error('Failed to configure Perplexity client'));
                 return;
               }
 
-              // Search for just this category
-              const results = await perplexityService.executeMultiQuery(city, date, [category], options);
+              // Search for just this category using backward compatibility method
+              const results = await perplexityClient.queryMultipleCategories(city, date, [category]);
               
               // Parse events from results
               for (const result of results) {

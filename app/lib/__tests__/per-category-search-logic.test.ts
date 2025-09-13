@@ -3,10 +3,11 @@ import { eventsCache } from '../cache';
 import InMemoryCache from '../cache';
 
 // Mock the modules we don't want to test
-vi.mock('@/lib/perplexity', () => ({
-  createPerplexityService: vi.fn(() => ({
-    executeMultiQuery: vi.fn(),
-    executeSingleQuery: vi.fn()
+vi.mock('../../../lib/new-backend/services/perplexityClient', () => ({
+  getPerplexityClient: vi.fn(() => ({
+    queryMultipleCategories: vi.fn(),
+    queryGeneral: vi.fn(),
+    isConfigured: vi.fn(() => true)
   }))
 }));
 
