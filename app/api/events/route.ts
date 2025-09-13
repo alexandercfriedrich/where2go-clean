@@ -1,17 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { RequestBody, JobStatus } from '@/lib/types';
+import { RequestBody, JobStatus as LegacyJobStatus } from '@/lib/types';
 import { eventsCache } from '@/lib/cache';
 import { getJobStore } from '@/lib/jobStore';
 import { getMainCategoriesForAICalls } from '@/categories';
+import { processJobInBackground } from './process/backgroundProcessor';
 
-// Serverless configuration  
+// Serverless configuration
 export const runtime = 'nodejs';
-export const maxDuration = 60; // Reduced to 1 minute
+export const maxDuration = 60; // 1 Minute (dient nur dem unmittelbaren Request – Background läuft unabhängig)
 
-// Default categories - the 20 main categories
+// Default Kategorien (Fallback, falls nichts übergeben wird)
 const DEFAULT_CATEGORIES = [
   'DJ Sets/Electronic',
-  'Clubs/Discos', 
+  'Clubs/Discos',
   'Live-Konzerte',
   'Open Air',
   'Museen',
@@ -34,210 +35,18 @@ const DEFAULT_CATEGORIES = [
 
 const jobStore = getJobStore();
 
-// Default Perplexity options
 const DEFAULT_PPLX_OPTIONS = {
   temperature: 0.2,
   max_tokens: 10000
 };
 
-// Schedule background processing using Vercel Background Functions or local fallback
-async function scheduleBackgroundProcessing(
-  request: NextRequest,
-  jobId: string,
-  city: string,
-  date: string,
-  categories: string[],
-  options: any
-) {
-  const debugMode = options?.debug || false;
-  
-  // Minimal debug logging to avoid performance issues
-  if (debugMode) {
-    console.log('🔍 DEBUG: Scheduling background processing for job:', jobId);
-  }
-
-  // Determine if we're running on Vercel
-  const isVercel = process.env.VERCEL === '1';
-  
-  if (isVercel) {
-    try {
-      // Enhanced host detection with multiple fallbacks
-      const deploymentUrl = request.headers.get('x-vercel-deployment-url');
-      const forwardedHost = request.headers.get('x-forwarded-host');
-      const regularHost = request.headers.get('host');
-      const vercelUrl = process.env.VERCEL_URL;
-      
-      const host = deploymentUrl || forwardedHost || regularHost || vercelUrl;
-      const protocol = 'https'; // Vercel preview/prod are https
-      
-      if (!host) {
-        const errorMessage = 'Unable to determine host for background processing - all host detection methods failed';
-        console.error('❌ CRITICAL:', errorMessage);
-        throw new Error(errorMessage);
-      }
-      
-      const backgroundUrl = `${protocol}://${host}/api/events/process`;
-      
-      if (debugMode) {
-        console.log('🔍 DEBUG: Background URL:', backgroundUrl);
-      } else {
-        console.log('Scheduling background processing via Vercel Background Functions:', backgroundUrl);
-      }
-
-      // Enhanced authentication configuration
-      const protectionBypass = process.env.PROTECTION_BYPASS_TOKEN;
-      const internalSecret = process.env.INTERNAL_API_SECRET;
-
-      // Build comprehensive authentication headers to ensure internal request validation passes
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'x-vercel-background': '1',
-        'x-internal-call': '1', 
-        'User-Agent': 'where2go-internal'
-      };
-      
-      // Add optional authentication tokens if available
-      if (protectionBypass) {
-        headers['x-vercel-protection-bypass'] = protectionBypass;
-      }
-      if (internalSecret) {
-        headers['x-internal-secret'] = internalSecret;
-      }
-      
-      // Prepare request body
-      const requestBody = {
-        jobId,
-        city,
-        date,
-        categories,
-        options
-      };
-      
-      // Make internal HTTP request to background processor with enhanced error handling
-      if (debugMode) {
-        console.log('🔍 DEBUG: Making fetch request to background processor...');
-      }
-      
-      let response: Response;
-      try {
-        // Add timeout to prevent hanging requests
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-        
-        response = await fetch(backgroundUrl, {
-          method: 'POST',
-          headers,
-          body: JSON.stringify(requestBody),
-          signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId);
-        
-      } catch (fetchError: any) {
-        
-        if (fetchError.name === 'AbortError') {
-          const errorMessage = 'Background processing request timed out after 30 seconds';
-          console.error('❌ TIMEOUT ERROR:', errorMessage);
-          throw new Error(errorMessage);
-        }
-        
-        const errorMessage = `Network error while calling background processor: ${fetchError.message}`;
-        console.error('❌ FETCH ERROR:', errorMessage);
-        throw new Error(errorMessage);
-      }
-      
-      if (debugMode) {
-        console.log('🔍 DEBUG: Response status:', response.status, response.statusText);
-      }
-      
-      if (!response.ok) {
-        let responseText = '';
-        try {
-          responseText = await response.text();
-        } catch (textError) {
-          responseText = `[Could not read response text: ${textError}]`;
-        }
-        
-        const errorMessage = `Background scheduling failed: HTTP ${response.status} ${response.statusText}`;
-        console.error('❌ BACKGROUND SCHEDULING FAILED:', errorMessage);
-        console.error('❌ Response body:', responseText);
-        
-        throw new Error(`${errorMessage}: ${responseText}`);
-      }
-      
-      // Success case
-      if (debugMode) {
-        console.log('🔍 DEBUG: ✅ Background processing scheduled successfully');
-      } else {
-        console.log('✅ Background processing scheduled successfully');
-      }
-      
-    } catch (vercelError: any) {
-      console.error('❌ VERCEL BACKGROUND PROCESSING ERROR:', vercelError.message);
-      throw vercelError; // Re-throw to be handled by calling function
-    }
-    
-  } else {
-    // Local development fallback - enhanced with better error handling
-    const localPort = process.env.PORT || '3000';
-    const localUrl = `http://localhost:${localPort}/api/events/process`;
-    
-    if (debugMode) {
-      console.log('🔍 DEBUG: Local background URL:', localUrl);
-    } else {
-      console.log(`Running in local development, making async request to background processor: ${localUrl}`);
-    }
-    
-    // Build comprehensive authentication headers for local development
-    const localHeaders = {
-      'Content-Type': 'application/json',
-      'x-vercel-background': '1',
-      'x-internal-call': '1',
-      'User-Agent': 'where2go-internal'
-    };
-    
-    const requestBody = {
-      jobId,
-      city,
-      date,
-      categories,
-      options
-    };
-    
-    // Fire and forget request for local development with enhanced error logging
-    fetch(localUrl, {
-      method: 'POST',
-      headers: localHeaders,
-      body: JSON.stringify(requestBody)
-    }).then(response => {
-      if (!response.ok) {
-        console.error(`❌ Local background processing failed: ${response.status} ${response.statusText}`);
-      } else {
-        if (debugMode) {
-          console.log('🔍 DEBUG: ✅ Local background processing scheduled successfully');
-        } else {
-          console.log('✅ Local background processing scheduled successfully');
-        }
-      }
-    }).catch(error => {
-      console.error('❌ Local development background request failed:', error);
-    });
-  }
-}
-
-
-
 export async function POST(request: NextRequest) {
+  const requestStart = Date.now();
   try {
     const body: RequestBody = await request.json();
-    const { city, date, categories, options } = body;
+    const { city, date, categories, options } = body || {};
 
-    // Check for debug mode from options
     const debugMode = options?.debug || false;
-    
-    if (debugMode) {
-      console.log('🔍 DEBUG: Events API request:', { city, date, categoriesCount: categories?.length });
-    }
 
     if (!city || !date) {
       return NextResponse.json(
@@ -246,29 +55,50 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use provided categories or defaults
-    const effectiveCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
-    
-    // Merge options with defaults, preserving the original options
-    const mergedOptions = { 
+    if (debugMode) {
+      console.log('🔍 DEBUG: Events API request:', {
+        city,
+        date,
+        categoriesCount: categories?.length,
+        hasOptions: !!options
+      });
+    }
+
+    // Effektive Kategorien bestimmen
+    const effectiveCategories =
+      categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
+
+    // Optionen mergen
+    const mergedOptions = {
       ...DEFAULT_PPLX_OPTIONS,
-      ...(options || {})
+      ...(options || {}),
+      debug: debugMode
     };
 
-    // Check cache for all categories
-    const cacheResult = eventsCache.getEventsByCategories(city, date, effectiveCategories);
+    // Cache prüfen
+    const cacheResult = eventsCache.getEventsByCategories(
+      city,
+      date,
+      effectiveCategories
+    );
+
     const allCachedEvents = Object.values(cacheResult.cachedEvents).flat();
     const missingCategories = cacheResult.missingCategories;
 
     if (debugMode) {
-      console.log('🔍 DEBUG: Cache analysis - cached:', Object.keys(cacheResult.cachedEvents).length, 'missing:', missingCategories.length);
+      console.log(
+        '🔍 DEBUG: Cache analysis - cached:',
+        Object.keys(cacheResult.cachedEvents).length,
+        'missing:',
+        missingCategories.length
+      );
     } else {
-      console.log(`Cache analysis: ${Object.keys(cacheResult.cachedEvents).length}/${effectiveCategories.length} categories cached, ${allCachedEvents.length} events from cache`);
-      console.log('Cached categories:', Object.keys(cacheResult.cachedEvents));
-      console.log('Missing categories:', missingCategories);
+      console.log(
+        `Cache analysis: ${Object.keys(cacheResult.cachedEvents).length}/${effectiveCategories.length} categories cached, ${allCachedEvents.length} events from cache`
+      );
     }
 
-    // If all categories are cached, return immediately
+    // Wenn alles im Cache: direkt zurück
     if (missingCategories.length === 0) {
       if (debugMode) {
         console.log('🔍 DEBUG: ✅ All categories cached - returning directly');
@@ -279,20 +109,26 @@ export async function POST(request: NextRequest) {
         events: allCachedEvents,
         status: 'completed',
         cached: true,
-        message: allCachedEvents.length > 0 
-          ? `${allCachedEvents.length} Events aus dem Cache geladen`
-          : 'Keine Events gefunden'
+        message:
+          allCachedEvents.length > 0
+            ? `${allCachedEvents.length} Events aus dem Cache geladen`
+            : 'Keine Events gefunden'
       });
     }
 
-    // Create simple job for missing categories
-    const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+    // Job anlegen
+    const jobId = `job_${Date.now()}_${Math.random()
+      .toString(36)
+      .slice(2, 10)}`;
+
     if (debugMode) {
-      console.log('🔍 DEBUG: Creating job for missing categories:', jobId);
+      console.log('🔍 DEBUG: Creating job for missing categories:', {
+        jobId,
+        missingCategoriesCount: missingCategories.length
+      });
     }
-    
-    const job: JobStatus = {
+
+    const job: LegacyJobStatus = {
       id: jobId,
       status: 'pending',
       events: allCachedEvents,
@@ -308,80 +144,140 @@ export async function POST(request: NextRequest) {
       if (debugMode) {
         console.log('🔍 DEBUG: ✅ Job created successfully:', jobId);
       } else {
-        console.log(`Job created successfully with ID: ${jobId}, status: ${job.status}, events: ${job.events?.length || 0}`);
+        console.log(
+          `Job created: ${jobId} (events: ${job.events?.length || 0}, missing categories: ${missingCategories.length})`
+        );
       }
-    } catch (jobStoreError) {
-      console.error('Failed to create job in JobStore:', jobStoreError);
+    } catch (jobErr) {
+      console.error('❌ Failed to create job in JobStore:', jobErr);
       return NextResponse.json(
-        { error: 'Service nicht verfügbar - Redis Konfiguration erforderlich' },
-        { status: 500 }
-      );
-    }
-
-    // Map subcategories to main categories for AI calls
-    const mainCategoriesForAI = getMainCategoriesForAICalls(missingCategories);
-    
-    if (debugMode) {
-      console.log('🔍 DEBUG: Mapped categories for AI:', mainCategoriesForAI.length);
-    } else {
-      console.log(`Original missing categories (subcategories): ${missingCategories.length} - [${missingCategories.join(', ')}]`);
-      console.log(`Mapped to main categories for AI calls: ${mainCategoriesForAI.length} - [${mainCategoriesForAI.join(', ')}]`);
-    }
-
-    // Schedule background processing (await to catch immediate errors)
-    try {
-      if (debugMode) {
-        console.log('🔍 DEBUG: Attempting to schedule background processing');
-      }
-      
-      await scheduleBackgroundProcessing(request, jobId, city, date, mainCategoriesForAI, mergedOptions);
-      
-      if (debugMode) {
-        console.log('🔍 DEBUG: ✅ Background processing scheduled successfully');
-      } else {
-        console.log('✅ Background processing scheduled successfully');
-      }
-    } catch (scheduleError: any) {
-      const errorMessage = `Failed to schedule background processing: ${scheduleError.message}`;
-      console.error('❌ SCHEDULE ERROR:', errorMessage);
-      console.error('❌ Full schedule error:', scheduleError);
-      
-      if (debugMode) {
-        console.log('🔍 DEBUG: ❌ SCHEDULING FAILED:', scheduleError.message);
-      }
-      
-      // Update job to error state with detailed error information
-      try {
-        await jobStore.updateJob(jobId, {
-          status: 'error',
-          error: `Background processing scheduling failed: ${scheduleError.message}`,
-          lastUpdateAt: new Date().toISOString()
-        });
-        
-        if (debugMode) {
-          console.log('🔍 DEBUG: ✅ Job updated with error status');
-        } else {
-          console.log('Job updated with error status after scheduling failure');
-        }
-      } catch (updateError) {
-        console.error('❌ CRITICAL: Failed to update job status after scheduling error:', updateError);
-      }
-      
-      return NextResponse.json(
-        { 
-          error: 'Failed to schedule background processing',
-          details: debugMode ? scheduleError.message : undefined,
-          jobId: debugMode ? jobId : undefined
+        {
+          error:
+            'Service nicht verfügbar - Redis Konfiguration oder Verbindung fehlt'
         },
         { status: 500 }
       );
     }
 
-    // Return job for polling
+    // Subkategorien → Hauptkategorien für AI zusammenfassen
+    const mainCategoriesForAI = getMainCategoriesForAICalls(missingCategories);
+
     if (debugMode) {
-      console.log('🔍 DEBUG: ✅ Returning job for polling:', jobId);
+      console.log(
+        '🔍 DEBUG: Mapped categories for AI:',
+        mainCategoriesForAI.length,
+        '→',
+        mainCategoriesForAI
+      );
+    } else {
+      console.log(
+        `Mapped ${missingCategories.length} missing subcategories to ${mainCategoriesForAI.length} main AI categories`
+      );
     }
-    
+
+    // Deadman-Switch (lokal in dieser Route) – falls Background gar nicht startet / hängt
+    const deadmanTimeout = setTimeout(async () => {
+      console.error(
+        `🚨 DEADMAN (events route): Job ${jobId} >180s ohne Abschluss – markiere als error`
+      );
+      try {
+        await jobStore.updateJob(jobId, {
+          status: 'error',
+          error:
+            'Hintergrundsuche hat zu lange gedauert (Deadman Events Route 180s)',
+          lastUpdateAt: new Date().toISOString()
+        });
+        console.log(`✅ Deadman updated job ${jobId} to error`);
+      } catch (e) {
+        console.error(
+          `❌ Deadman konnte Job ${jobId} nicht auf error setzen`,
+          e
+        );
+      }
+    }, 180000);
+
+    // Hintergrundverarbeitung DIREKT starten (kein fetch mehr)
+    if (mainCategoriesForAI.length > 0) {
+      if (debugMode) {
+        console.log(
+          '🔍 DEBUG: Starting direct background processing (no internal fetch)'
+        );
+      } else {
+        console.log(
+          `Starting background processing (direct) for job ${jobId} with ${mainCategoriesForAI.length} main AI categories`
+        );
+      }
+
+      processJobInBackground(
+        jobId,
+        city,
+        date,
+        mainCategoriesForAI,
+        mergedOptions
+      )
+        .then(() => {
+          clearTimeout(deadmanTimeout);
+          if (debugMode) {
+            console.log(
+              `🔍 DEBUG: Background processing finished for ${jobId}`
+            );
+          } else {
+            console.log(
+              `✅ Background processing finished normally for job ${jobId}`
+            );
+          }
+        })
+        .catch(async (err) => {
+          clearTimeout(deadmanTimeout);
+            console.error(
+              `❌ Background processor threw for job ${jobId}:`,
+              err
+            );
+          try {
+            await jobStore.updateJob(jobId, {
+              status: 'error',
+              error: 'Interner Fehler in der Hintergrundverarbeitung',
+              lastUpdateAt: new Date().toISOString()
+            });
+          } catch (updateErr) {
+            console.error(
+              '❌ Failed to update job after background error',
+              updateErr
+            );
+          }
+        });
+    } else {
+      // Falls aus irgendeinem Grund keine zu verarbeitenden Kategorien übrig sind → sofort finalisieren
+      clearTimeout(deadmanTimeout);
+      await jobStore.updateJob(jobId, {
+        status: 'done',
+        message: `${allCachedEvents.length} Events (nur Cache)`,
+        lastUpdateAt: new Date().toISOString()
+      });
+      if (debugMode) {
+        console.log(
+          '🔍 DEBUG: No main categories for AI – job finalized immediately'
+        );
+      }
+      return NextResponse.json({
+        jobId,
+        status: 'done',
+        events: allCachedEvents,
+        cached: true,
+        processing: false,
+        progress: {
+          completedCategories: effectiveCategories.length,
+          totalCategories: effectiveCategories.length
+        },
+        message: `${allCachedEvents.length} Events aus dem Cache (keine neuen Kategorien erforderlich)`
+      });
+    }
+
+    // Sofortige Antwort für Polling im Frontend
+    if (debugMode) {
+      console.log('🔍 DEBUG: Returning initial polling payload for job:', jobId);
+    }
+
     return NextResponse.json({
       jobId,
       status: 'partial',
@@ -392,16 +288,22 @@ export async function POST(request: NextRequest) {
         completedCategories: effectiveCategories.length - missingCategories.length,
         totalCategories: effectiveCategories.length
       },
-      message: allCachedEvents.length > 0 
-        ? `${allCachedEvents.length} Events aus dem Cache geladen, ${missingCategories.length} Kategorien werden verarbeitet...`
-        : `${missingCategories.length} Kategorien werden verarbeitet...`
+      message:
+        allCachedEvents.length > 0
+          ? `${allCachedEvents.length} Events aus dem Cache geladen, ${missingCategories.length} Kategorien werden verarbeitet...`
+          : `${missingCategories.length} Kategorien werden verarbeitet...`
     });
-
   } catch (error) {
-    console.error('❌ Events API Error:', error);
+    console.error('❌ Events API Error (direct background variant):', error);
     return NextResponse.json(
       { error: 'Unerwarteter Fehler beim Verarbeiten der Anfrage' },
       { status: 500 }
     );
+  } finally {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(
+        `[EVENTS] POST handled in ${Date.now() - requestStart}ms (direct background variant)`
+      );
+    }
   }
 }
