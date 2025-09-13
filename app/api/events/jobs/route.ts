@@ -163,6 +163,39 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   } catch (error) {
     const appError = fromError(error, ErrorCode.JOB_CREATION_FAILED);
     
+    // Special handling for configuration errors
+    if (appError.code === ErrorCode.CONFIG_ERROR) {
+      logger.error('Job creation failed due to configuration error', {
+        error: appError,
+        environment: process.env.NODE_ENV || 'development',
+        responseTime: Date.now() - startTime
+      });
+
+      return NextResponse.json(
+        {
+          status: 503,
+          error: {
+            code: appError.code,
+            message: 'Service temporarily unavailable - Redis not configured',
+            details: appError.message,
+            context: appError.context,
+            suggestion: process.env.NODE_ENV === 'production' 
+              ? 'Please contact system administrator - Redis configuration missing'
+              : 'For development: Set up Redis configuration in .env.local file'
+          }
+        },
+        { 
+          status: 503,
+          headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0',
+            'Retry-After': '300' // Suggest retry after 5 minutes
+          }
+        }
+      );
+    }
+    
     logger.error('Job creation failed', {
       error: appError,
       responseTime: Date.now() - startTime

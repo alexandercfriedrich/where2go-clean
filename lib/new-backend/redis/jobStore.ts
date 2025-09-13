@@ -2,10 +2,11 @@
  * Job store implementation for the new backend system.
  * This module provides job persistence with signature-based deduplication.
  * 
- * @fileoverview Job storage with Redis backend and deduplication logic.
+ * @fileoverview Job storage with Redis backend and in-memory fallback for development.
  */
 
 import { getRedisClient, REDIS_KEYS } from './redisClient';
+import { InMemoryJobStore } from './inMemoryJobStore';
 import { createComponentLogger } from '../utils/log';
 import { createError, ErrorCode, fromError, type AppError } from '../utils/errors';
 import { 
@@ -188,7 +189,34 @@ export class RedisJobStore implements JobStore {
           return null;
         }
 
-        return JSON.parse(jobData) as EventSearchJob;
+        // Enhanced JSON parsing with better error handling
+        try {
+          // Handle case where Redis client auto-parses JSON (Upstash behavior)
+          if (typeof jobData === 'object' && jobData !== null) {
+            return jobData as EventSearchJob;
+          }
+          
+          // Handle case where Redis returns string (standard Redis behavior)
+          if (typeof jobData === 'string') {
+            return JSON.parse(jobData) as EventSearchJob;
+          }
+          
+          // Unexpected data type
+          throw new Error(`Unexpected data type: ${typeof jobData}`);
+          
+        } catch (parseError) {
+          logger.error('Invalid job data in Redis - corrupted JSON', {
+            jobId,
+            dataType: typeof jobData,
+            dataPreview: String(jobData).substring(0, 100),
+            parseError: parseError instanceof Error ? parseError.message : String(parseError)
+          });
+          
+          // Clean up corrupted data
+          await client.del(REDIS_KEYS.JOB(jobId));
+          
+          return null;
+        }
       }, `getJob(${jobId})`);
 
     } catch (error) {
@@ -214,7 +242,32 @@ export class RedisJobStore implements JobStore {
           );
         }
 
-        const currentJob = JSON.parse(currentJobData) as EventSearchJob;
+        // Enhanced JSON parsing with error handling
+        let currentJob: EventSearchJob;
+        try {
+          // Handle case where Redis client auto-parses JSON (Upstash behavior)
+          if (typeof currentJobData === 'object' && currentJobData !== null) {
+            currentJob = currentJobData as EventSearchJob;
+          } else if (typeof currentJobData === 'string') {
+            // Handle case where Redis returns string (standard Redis behavior)
+            currentJob = JSON.parse(currentJobData) as EventSearchJob;
+          } else {
+            throw new Error(`Unexpected data type: ${typeof currentJobData}`);
+          }
+        } catch (parseError) {
+          logger.error('Invalid job data during update - corrupted JSON', {
+            jobId,
+            dataType: typeof currentJobData,
+            dataPreview: String(currentJobData).substring(0, 100),
+            parseError: parseError instanceof Error ? parseError.message : String(parseError)
+          });
+          
+          throw createError(
+            ErrorCode.JOB_PROCESSING_FAILED,
+            `Job data corrupted, cannot update: ${jobId}`,
+            { parseError: parseError instanceof Error ? parseError.message : String(parseError) }
+          );
+        }
         
         // Merge updates
         const updatedJob: EventSearchJob = {
@@ -354,7 +407,35 @@ export class RedisJobStore implements JobStore {
           return null;
         }
 
-        return JSON.parse(jobData) as EventSearchJob;
+        // Enhanced JSON parsing with better error handling
+        try {
+          // Handle case where Redis client auto-parses JSON (Upstash behavior)
+          if (typeof jobData === 'object' && jobData !== null) {
+            return jobData as EventSearchJob;
+          }
+          
+          // Handle case where Redis returns string (standard Redis behavior)
+          if (typeof jobData === 'string') {
+            return JSON.parse(jobData) as EventSearchJob;
+          }
+          
+          // Unexpected data type
+          throw new Error(`Unexpected data type: ${typeof jobData}`);
+          
+        } catch (parseError) {
+          logger.error('Invalid job data in Redis - corrupted JSON', {
+            jobId,
+            dataType: typeof jobData,
+            dataPreview: String(jobData).substring(0, 100),
+            parseError: parseError instanceof Error ? parseError.message : String(parseError)
+          });
+          
+          // Clean up corrupted data
+          await client.del(REDIS_KEYS.JOB(jobId));
+          await client.del(REDIS_KEYS.JOB_SIGNATURE_INDEX(signature));
+          
+          return null;
+        }
       }, `findJobBySignature(${signature.substring(0, 8)}...)`);
 
     } catch (error) {
@@ -428,16 +509,26 @@ export class RedisJobStore implements JobStore {
 }
 
 /**
- * Global job store instance.
+ * Global job store instance with automatic fallback.
  */
 let jobStore: JobStore | null = null;
 
 /**
- * Get the global job store instance.
+ * Get the global job store instance with automatic Redis/in-memory fallback.
  */
 export function getJobStore(): JobStore {
   if (!jobStore) {
-    jobStore = new RedisJobStore();
+    // Check if Redis is configured
+    const hasRedisConfig = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN;
+    
+    if (hasRedisConfig) {
+      logger.info('Using Redis job store');
+      jobStore = new RedisJobStore();
+    } else {
+      logger.warn('Redis not configured, using in-memory job store for development');
+      jobStore = new InMemoryJobStore() as unknown as JobStore;
+    }
   }
+  
   return jobStore;
 }
