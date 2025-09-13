@@ -46,9 +46,15 @@ export function extractErrorMessage(
     // If it has validation errors, format them
     if (errorObj.context?.errors && Array.isArray(errorObj.context.errors)) {
       const validationErrors = errorObj.context.errors
-        .map((err: any) => err.message || err.toString())
+        .map((err: any) => {
+          if (typeof err === 'string') {
+            // Remove technical prefixes like "request body: " for user-friendly messages
+            return err.replace(/^request body:\s*/, '').replace(/^categories:\s*/, 'Kategorien: ');
+          }
+          return err.message || err.toString();
+        })
         .join(', ');
-      return `Validierungsfehler: ${validationErrors}`;
+      return `${validationErrors}`;
     }
   }
   

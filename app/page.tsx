@@ -585,6 +585,13 @@ export default function Home() {
       return;
     }
 
+    // Check if at least one category is selected
+    const selectedCategories = getSelectedSubcategories();
+    if (selectedCategories.length === 0) {
+      setError('Bitte wähle mindestens eine Kategorie aus.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setEvents([]);
@@ -622,7 +629,7 @@ export default function Home() {
         body: JSON.stringify({ 
           city: city.trim(), 
           date: formatDateForAPI(),
-          categories: getSelectedSubcategories(),
+          categories: selectedCategories,
           options: { 
             ttlSeconds: 3600
           }
