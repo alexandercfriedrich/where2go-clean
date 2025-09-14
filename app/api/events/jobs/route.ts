@@ -293,55 +293,170 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 /**
  * Trigger background processing for a job in serverless environment.
  * Makes an HTTP call to the process endpoint instead of relying on a queue worker.
+ * Enhanced with better host detection, secret validation, and error logging.
  */
 async function triggerBackgroundProcessing(
   jobId: string, 
   jobData: { city: string; date: string; categories: string[] }
 ): Promise<void> {
-  // Get the current host for making internal API calls
-  const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
-  const host = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_VERCEL_URL || "localhost:3001";
-  const baseUrl = `${protocol}://${host}`;
+  // Validate INTERNAL_API_SECRET is set
+  const internalSecret = process.env.INTERNAL_API_SECRET;
+  if (!internalSecret) {
+    throw createError(
+      ErrorCode.CONFIG_ERROR,
+      'INTERNAL_API_SECRET environment variable is required for background processing',
+      { 
+        jobId,
+        suggestion: 'Set INTERNAL_API_SECRET in environment variables' 
+      }
+    );
+  }
+
+  // Improved host detection for different environments
+  let baseUrl: string;
+  
+  if (process.env.NODE_ENV === 'production') {
+    // Production: Use VERCEL_URL, VERCEL_PROJECT_PRODUCTION_URL, or custom domain
+    const host = process.env.VERCEL_PROJECT_PRODUCTION_URL || 
+                 process.env.VERCEL_URL || 
+                 process.env.NEXT_PUBLIC_APP_URL;
+    
+    if (!host) {
+      throw createError(
+        ErrorCode.CONFIG_ERROR,
+        'No production host found for background processing',
+        { 
+          jobId,
+          availableVars: Object.keys(process.env).filter(k => k.includes('URL') || k.includes('HOST')),
+          suggestion: 'Set VERCEL_PROJECT_PRODUCTION_URL or NEXT_PUBLIC_APP_URL'
+        }
+      );
+    }
+    
+    baseUrl = host.startsWith('http') ? host : `https://${host}`;
+  } else {
+    // Development: Use localhost with port 3000 (standard Next.js dev port)
+    baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+  }
   
   const processUrl = `${baseUrl}/api/events/process`;
   
   logger.info("Triggering background processing", {
     jobId,
+    environment: process.env.NODE_ENV,
     processUrl: processUrl.replace(/\/\/[^\/]+/, "//[host]"), // Hide actual host in logs
     city: jobData.city,
     date: jobData.date,
-    categoryCount: jobData.categories.length
+    categoryCount: jobData.categories.length,
+    hasSecret: !!internalSecret
   });
 
-  const response = await fetch(processUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-internal-secret": process.env.INTERNAL_API_SECRET || "dev-internal-secret-123",
-      "x-internal-call": "true",
-      "User-Agent": "where2go-jobs-trigger/1.0"
-    },
-    body: JSON.stringify({
+  try {
+    const response = await fetch(processUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-internal-secret": internalSecret,
+        "x-internal-call": "true",
+        "User-Agent": "where2go-jobs-trigger/1.0"
+      },
+      body: JSON.stringify({
+        jobId,
+        city: jobData.city,
+        date: jobData.date,
+        categories: jobData.categories
+      }),
+      // Add timeout to prevent hanging
+      signal: AbortSignal.timeout(30000) // 30 second timeout
+    });
+
+    if (!response.ok) {
+      // Enhanced error handling with response body logging
+      let errorText = "Unknown error";
+      let errorJson = null;
+      
+      try {
+        const responseText = await response.text();
+        errorText = responseText;
+        
+        // Try to parse as JSON for structured error info
+        if (responseText.startsWith('{')) {
+          errorJson = JSON.parse(responseText);
+        }
+      } catch (parseError) {
+        logger.warn("Failed to parse error response", { parseError: fromError(parseError) });
+      }
+
+      logger.error("Background processing trigger failed", {
+        jobId,
+        httpStatus: response.status,
+        statusText: response.statusText,
+        responseHeaders: {},
+        responseBody: errorText,
+        errorJson,
+        processUrl: processUrl.replace(/\/\/[^\/]+/, "//[host]")
+      });
+
+      throw createError(
+        ErrorCode.BACKGROUND_PROCESSING_FAILED,
+        `Background processing trigger failed: ${response.status} ${response.statusText}`,
+        { 
+          httpStatus: response.status,
+          statusText: response.statusText,
+          responseBody: errorText,
+          responseHeaders: {},
+          jobId,
+          processUrl: processUrl.replace(/\/\/[^\/]+/, "//[host]")
+        }
+      );
+    }
+
+    // Log successful response
+    let responseText = "";
+    try {
+      responseText = await response.text();
+      if (responseText) {
+        logger.debug("Background processing response", { 
+          jobId, 
+          responseBody: responseText.substring(0, 500) // Truncate long responses
+        });
+      }
+    } catch (readError) {
+      logger.debug("Background processing triggered successfully (no response body)", { jobId });
+    }
+
+    logger.info("Background processing triggered successfully", { 
       jobId,
-      city: jobData.city,
-      date: jobData.date,
-      categories: jobData.categories
-    })
-  });
+      responseStatus: response.status,
+      hasResponseBody: !!responseText
+    });
 
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => "Unknown error");
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw createError(
+        ErrorCode.BACKGROUND_PROCESSING_FAILED,
+        'Background processing trigger timed out',
+        { 
+          jobId,
+          timeout: '30 seconds',
+          processUrl: processUrl.replace(/\/\/[^\/]+/, "//[host]")
+        }
+      );
+    }
+    
+    // Re-throw AppError instances as-is, wrap other errors
+    if (error && typeof error === 'object' && 'code' in error) {
+      throw error;
+    }
+    
     throw createError(
       ErrorCode.BACKGROUND_PROCESSING_FAILED,
-      `Background processing trigger failed: ${response.status} ${response.statusText}`,
+      `Background processing trigger failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
       { 
-        httpStatus: response.status,
-        responseBody: errorText,
         jobId,
+        originalError: fromError(error),
         processUrl: processUrl.replace(/\/\/[^\/]+/, "//[host]")
       }
     );
   }
-
-  logger.info("Background processing triggered successfully", { jobId });
 }

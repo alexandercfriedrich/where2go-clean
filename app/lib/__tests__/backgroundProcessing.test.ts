@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { POST } from '../../api/events/process/route';
-import { getJobStore } from '../../lib/jobStore';
+import { getJobStore } from '../../../../lib/new-backend/redis/jobStore';
 
 describe('Background Processing Route', () => {
   const jobStore = getJobStore();

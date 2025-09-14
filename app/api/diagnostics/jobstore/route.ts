@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getJobStore } from '@/lib/jobStore';
+import { getJobStore } from '../../../../lib/new-backend/redis/jobStore';
 
 /**
  * Diagnostics endpoint for JobStore verification
@@ -58,20 +58,19 @@ export async function GET(req: NextRequest) {
       const jobStore = getJobStore();
       results.connectivityOk = true;
       
-      // Test set/get/delete operations with a diagnostic test job
-      const testJobId = `diagnostic-test-${Date.now()}`;
-      const testJob = {
-        id: testJobId,
-        status: 'pending' as const,
-        createdAt: new Date()
-      };
-
-      // Test set operation
-      await jobStore.setJob(testJobId, testJob);
+      // Test job creation/get/delete operations with new backend interface
+      const createResult = await jobStore.createJob({
+        city: 'DiagnosticTestCity',
+        date: '2025-01-01', 
+        categories: ['Test Category'],
+        ttlSeconds: 60 // Short TTL for diagnostic job
+      });
+      
+      const testJobId = createResult.job.id;
       
       // Test get operation
       const retrievedJob = await jobStore.getJob(testJobId);
-      const getWorked = retrievedJob?.id === testJobId && retrievedJob?.status === 'pending';
+      const getWorked = retrievedJob?.id === testJobId && retrievedJob?.city === 'DiagnosticTestCity';
       
       // Test delete operation
       await jobStore.deleteJob(testJobId);
