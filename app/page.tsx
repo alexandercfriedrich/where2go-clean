@@ -26,6 +26,8 @@ interface EventData {
 const ALL_SUPER_CATEGORIES = Object.keys(CATEGORY_MAP);
 const MAX_CATEGORY_SELECTION: number = 3;
 const MAX_POLLS = 120; // Increased to allow for longer processing time (120 * 5s = 10min max)
+const FINAL_JOB_STATUSES = ['success', 'partial_success', 'failed'];
+const STAGNATION_THRESHOLD = 12; // Number of polls with no progress before aborting
 
 export default function Home() {
   const { t, formatEventDate, formatEventTime } = useTranslation();
@@ -41,6 +43,8 @@ export default function Home() {
   const [jobStatus, setJobStatus] = useState<'idle' | 'pending' | 'done' | 'error'>('idle');
   const [pollCount, setPollCount] = useState(0);
   const [progress, setProgress] = useState<{completedCategories: number, totalCategories: number} | null>(null);
+  const [lastCompletedCategories, setLastCompletedCategories] = useState<number>(-1);
+  const [stagnationCount, setStagnationCount] = useState<number>(0);
   const [newEvents, setNewEvents] = useState<Set<string>>(new Set());
   const [debugMode, setDebugMode] = useState(false);
   const [debugData, setDebugData] = useState<any>(null);
@@ -702,6 +706,9 @@ export default function Home() {
       clearTimeout(pollInterval.current);
     }
     pollCountRef.current = 0;
+    // Reset stagnation tracking for new polling session
+    setLastCompletedCategories(-1);
+    setStagnationCount(0);
     const maxPolls = MAX_POLLS;
     const performPoll = async (): Promise<void> => {
       pollCountRef.current++;
@@ -734,7 +741,70 @@ export default function Home() {
         
         if (job.progress) setProgress(job.progress);
 
+        // Check for final statuses first - stop polling immediately
+        if (FINAL_JOB_STATUSES.includes(job.status)) {
+          if (pollInterval.current) {
+            clearInterval(pollInterval.current);
+            clearTimeout(pollInterval.current);
+          }
+          setLoading(false);
+
+          if (job.status === 'success' || job.status === 'partial_success') {
+            const incomingEvents: EventData[] = events || [];
+            if (eventsRef.current.length === 0 && incomingEvents.length > 0) {
+              const allNewEventKeys = new Set(incomingEvents.map(createEventKey));
+              setNewEvents(allNewEventKeys);
+              setToast({
+                show: true,
+                message: `${incomingEvents.length} Event${incomingEvents.length !== 1 ? 's' : ''} gefunden`
+              });
+              setTimeout(() => {
+                setToast({show: false, message: ''});
+                setNewEvents(new Set());
+              }, 3000);
+            } else if (incomingEvents.length > eventsRef.current.length) {
+              // Show update for additional events found
+              const newCount = incomingEvents.length - eventsRef.current.length;
+              setToast({
+                show: true,
+                message: `${newCount} weitere Event${newCount !== 1 ? 's' : ''} gefunden`
+              });
+              setTimeout(() => {
+                setToast({show: false, message: ''});
+              }, 3000);
+            }
+            setEvents([...incomingEvents]);
+            if (responseData.data.cacheInfo) setCacheInfo(responseData.data.cacheInfo);
+            setJobStatus('done');
+          } else if (job.status === 'failed') {
+            setJobStatus('error');
+            const errorMessage = extractErrorMessage(job.error, 'Fehler bei der Eventsuche.');
+            setError(errorMessage);
+          }
+          return;
+        }
+
         if (job.status === 'pending' || job.status === 'running') {
+          // Check for stagnation - no progress in completedCategories
+          const currentCompleted = job.progress?.completedCategories ?? 0;
+          if (lastCompletedCategories === currentCompleted) {
+            setStagnationCount(prev => prev + 1);
+            if (stagnationCount >= STAGNATION_THRESHOLD) {
+              if (pollInterval.current) {
+                clearInterval(pollInterval.current);
+                clearTimeout(pollInterval.current);
+              }
+              setLoading(false);
+              setJobStatus('error');
+              setError('Die Suche ist fehlgeschlagen - keine Fortschritte seit mehreren Versuchen. Bitte versuche es später erneut.');
+              console.warn(`Stagnation detected after ${stagnationCount} polls for job ${jobId}`);
+              return;
+            }
+          } else {
+            setLastCompletedCategories(currentCompleted);
+            setStagnationCount(0);
+          }
+
           // Job still processing - check for new events
           if (events && events.length > 0) {
             const currentEventKeys = new Set(eventsRef.current.map(createEventKey));
@@ -768,45 +838,15 @@ export default function Home() {
           return;
         }
 
-        // Job completed or failed
+        // Unexpected job status - should not reach here due to final status check above
+        console.warn('Unexpected job status:', job.status);
         if (pollInterval.current) {
           clearInterval(pollInterval.current);
           clearTimeout(pollInterval.current);
         }
         setLoading(false);
-
-        if (job.status === 'success' || job.status === 'partial_success') {
-          const incomingEvents: EventData[] = events || [];
-          if (eventsRef.current.length === 0 && incomingEvents.length > 0) {
-            const allNewEventKeys = new Set(incomingEvents.map(createEventKey));
-            setNewEvents(allNewEventKeys);
-            setToast({
-              show: true,
-              message: `${incomingEvents.length} Event${incomingEvents.length !== 1 ? 's' : ''} gefunden`
-            });
-            setTimeout(() => {
-              setToast({show: false, message: ''});
-              setNewEvents(new Set());
-            }, 3000);
-          } else if (incomingEvents.length > eventsRef.current.length) {
-            // Show update for additional events found
-            const newCount = incomingEvents.length - eventsRef.current.length;
-            setToast({
-              show: true,
-              message: `${newCount} weitere Event${newCount !== 1 ? 's' : ''} gefunden`
-            });
-            setTimeout(() => {
-              setToast({show: false, message: ''});
-            }, 3000);
-          }
-          setEvents([...incomingEvents]);
-          if (responseData.data.cacheInfo) setCacheInfo(responseData.data.cacheInfo);
-          setJobStatus('done');
-        } else {
-          setJobStatus('error');
-          const errorMessage = extractErrorMessage(job.error, 'Fehler bei der Eventsuche.');
-          setError(errorMessage);
-        }
+        setJobStatus('error');
+        setError('Unerwarteter Job-Status. Bitte versuche es erneut.');
       } catch (err) {
         setToast({
           show: true,
