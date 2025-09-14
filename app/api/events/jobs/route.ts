@@ -300,7 +300,7 @@ async function triggerBackgroundProcessing(
 ): Promise<void> {
   // Get the current host for making internal API calls
   const protocol = process.env.NODE_ENV === "production" ? "https" : "http";
-  const host = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_VERCEL_URL || "localhost:3000";
+  const host = process.env.VERCEL_URL || process.env.NEXT_PUBLIC_VERCEL_URL || "localhost:3001";
   const baseUrl = `${protocol}://${host}`;
   
   const processUrl = `${baseUrl}/api/events/process`;
