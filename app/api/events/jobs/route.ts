@@ -135,15 +135,32 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           city: result.job.city,
           date: result.job.date,
           categories: result.job.categories
+        }, request);
+        
+        // Mark job as RUNNING after successful trigger
+        await jobStore.updateJob(result.job.id, {
+          status: JobStatus.RUNNING,
+          startedAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         });
-        logger.info('Background processing triggered', { jobId: result.job.id });
+        
+        logger.info('Background processing triggered and job marked as RUNNING', { jobId: result.job.id });
       } catch (triggerError) {
         logger.error('Failed to trigger background processing', {
           jobId: result.job.id,
           error: fromError(triggerError)
         });
-        // Don't fail the request if trigger fails
-        // The job can still be polled and processed via GET endpoint
+        
+        // Mark job as FAILED if triggering fails
+        await jobStore.updateJob(result.job.id, {
+          status: JobStatus.FAILED,
+          error: `Background processing trigger failed: ${triggerError instanceof Error ? triggerError.message : 'Unknown error'}`,
+          updatedAt: new Date().toISOString()
+        });
+        
+        // Update the result to reflect the failed status so frontend stops polling
+        result.job.status = JobStatus.FAILED;
+        result.job.error = `Background processing trigger failed: ${triggerError instanceof Error ? triggerError.message : 'Unknown error'}`;
       }
     }
 
@@ -297,7 +314,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
  */
 async function triggerBackgroundProcessing(
   jobId: string, 
-  jobData: { city: string; date: string; categories: string[] }
+  jobData: { city: string; date: string; categories: string[] },
+  request: NextRequest
 ): Promise<void> {
   // Validate INTERNAL_API_SECRET is set
   const internalSecret = process.env.INTERNAL_API_SECRET;
@@ -312,28 +330,33 @@ async function triggerBackgroundProcessing(
     );
   }
 
-  // Improved host detection for different environments
+  // Use request origin for production custom domain, fallback for development
   let baseUrl: string;
   
   if (process.env.NODE_ENV === 'production') {
-    // Production: Use VERCEL_URL, VERCEL_PROJECT_PRODUCTION_URL, or custom domain
-    const host = process.env.VERCEL_PROJECT_PRODUCTION_URL || 
-                 process.env.VERCEL_URL || 
-                 process.env.NEXT_PUBLIC_APP_URL;
-    
-    if (!host) {
-      throw createError(
-        ErrorCode.CONFIG_ERROR,
-        'No production host found for background processing',
-        { 
-          jobId,
-          availableVars: Object.keys(process.env).filter(k => k.includes('URL') || k.includes('HOST')),
-          suggestion: 'Set VERCEL_PROJECT_PRODUCTION_URL or NEXT_PUBLIC_APP_URL'
-        }
-      );
+    // Production: Use request origin if available (custom domain)
+    if (request.nextUrl.origin) {
+      baseUrl = request.nextUrl.origin;
+    } else {
+      // Fallback to environment variables
+      const host = process.env.VERCEL_PROJECT_PRODUCTION_URL || 
+                   process.env.VERCEL_URL || 
+                   process.env.NEXT_PUBLIC_APP_URL;
+      
+      if (!host) {
+        throw createError(
+          ErrorCode.CONFIG_ERROR,
+          'No production host found for background processing',
+          { 
+            jobId,
+            availableVars: Object.keys(process.env).filter(k => k.includes('URL') || k.includes('HOST')),
+            suggestion: 'Set VERCEL_PROJECT_PRODUCTION_URL or NEXT_PUBLIC_APP_URL'
+          }
+        );
+      }
+      
+      baseUrl = host.startsWith('http') ? host : `https://${host}`;
     }
-    
-    baseUrl = host.startsWith('http') ? host : `https://${host}`;
   } else {
     // Development: Use localhost with port 3000 (standard Next.js dev port)
     baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';

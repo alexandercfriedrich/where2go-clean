@@ -39,11 +39,6 @@ export interface JobStore {
   updateJob(jobId: string, updates: Partial<EventSearchJob>): Promise<void>;
 
   /**
-   * Add job to processing queue.
-   */
-  enqueueJob(jobId: string): Promise<void>;
-
-  /**
    * Get next job from processing queue (blocking).
    */
   dequeueJob(timeoutSeconds?: number): Promise<string | null>;
@@ -291,24 +286,6 @@ export class RedisJobStore implements JobStore {
     } catch (error) {
       const appError = fromError(error, ErrorCode.JOB_PROCESSING_FAILED);
       logger.error('Failed to update job', { jobId, error: appError });
-      throw appError;
-    }
-  }
-
-  /**
-   * Add job to processing queue.
-   */
-  async enqueueJob(jobId: string): Promise<void> {
-    try {
-      await this.redisClient.executeOperation(async (client) => {
-        await client.lpush(REDIS_KEYS.JOB_QUEUE, jobId);
-        
-        logger.info('Enqueued job for processing', { jobId });
-      }, `enqueueJob(${jobId})`);
-
-    } catch (error) {
-      const appError = fromError(error, ErrorCode.REDIS_OPERATION_FAILED);
-      logger.error('Failed to enqueue job', { jobId, error: appError });
       throw appError;
     }
   }

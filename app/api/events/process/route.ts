@@ -31,15 +31,23 @@ export async function POST(req: NextRequest) {
     'userAgent': req.headers.get('user-agent')
   });
 
-  // Enhanced internal request validation with multiple detection methods
+  // Enhanced internal request validation with stricter secret requirement
   const hasInternalSecret = req.headers.get('x-internal-secret');
   const isValidSecret = hasInternalSecret && 
-    (!process.env.INTERNAL_API_SECRET || hasInternalSecret === process.env.INTERNAL_API_SECRET);
+    process.env.INTERNAL_API_SECRET && 
+    hasInternalSecret === process.env.INTERNAL_API_SECRET;
     
+  // In production, require valid secret - no fallback
+  if (process.env.NODE_ENV === 'production' && !isValidSecret) {
+    console.log('⚠️ Production request without valid secret, blocking access');
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  
+  // For development, allow more flexible detection
   const isInternalRequest = 
-    req.headers.get('x-vercel-background') === '1' ||
-    req.headers.get('x-internal-call') === '1' ||
     isValidSecret ||
+    req.headers.get('x-vercel-background') === '1' ||
+    req.headers.get('x-internal-call') === 'true' ||
     req.headers.get('x-vercel-protection-bypass') ||
     req.headers.get('user-agent')?.includes('where2go-internal') ||
     req.headers.get('user-agent')?.includes('node');
@@ -64,6 +72,22 @@ export async function POST(req: NextRequest) {
     }
 
     console.log('Processing job:', { jobId, city, date, categories: categories?.length || 0 });
+
+    // Immediately set job status to RUNNING to give visible progress
+    try {
+      await jobStore.updateJob(jobId, {
+        status: JobStatus.RUNNING,
+        startedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+      console.log(`✅ Job ${jobId} status set to RUNNING`);
+    } catch (updateError) {
+      console.error('❌ Failed to set job status to RUNNING:', updateError);
+      return NextResponse.json(
+        { error: 'Failed to update job status to running' },
+        { status: 500 }
+      );
+    }
 
     // Start background processing asynchronously - DO NOT AWAIT
     // This allows the HTTP response to return immediately while processing continues
