@@ -2,11 +2,10 @@
  * Job store implementation for the new backend system.
  * This module provides job persistence with signature-based deduplication.
  * 
- * @fileoverview Job storage with Redis backend and in-memory fallback for development.
+ * @fileoverview Job storage with Redis backend - Redis configuration is required.
  */
 
 import { getRedisClient, REDIS_KEYS } from './redisClient';
-import { InMemoryJobStore } from './inMemoryJobStore';
 import { createComponentLogger } from '../utils/log';
 import { createError, ErrorCode, fromError, type AppError } from '../utils/errors';
 import { 
@@ -509,25 +508,31 @@ export class RedisJobStore implements JobStore {
 }
 
 /**
- * Global job store instance with automatic fallback.
+ * Global job store instance.
  */
 let jobStore: JobStore | null = null;
 
 /**
- * Get the global job store instance with automatic Redis/in-memory fallback.
+ * Get the global job store instance.
+ * Requires Redis configuration - throws CONFIG_ERROR if not available.
  */
 export function getJobStore(): JobStore {
   if (!jobStore) {
     // Check if Redis is configured
     const hasRedisConfig = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN;
     
-    if (hasRedisConfig) {
-      logger.info('Using Redis job store');
-      jobStore = new RedisJobStore();
-    } else {
-      logger.warn('Redis not configured, using in-memory job store for development');
-      jobStore = new InMemoryJobStore() as unknown as JobStore;
+    if (!hasRedisConfig) {
+      throw createError(
+        ErrorCode.CONFIG_ERROR,
+        'Redis configuration required for job store. Please set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables.',
+        { 
+          hint: 'For production deployment, configure Redis. For local development, ensure Redis environment variables are set.' 
+        }
+      );
     }
+
+    logger.info('Using Redis job store');
+    jobStore = new RedisJobStore();
   }
   
   return jobStore;
