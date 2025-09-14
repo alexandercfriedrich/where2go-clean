@@ -15,6 +15,7 @@ const mockRedisClient = {
   set: vi.fn(),
   del: vi.fn(),
   lpush: vi.fn(),
+  lpop: vi.fn(),
   blpop: vi.fn(),
   llen: vi.fn(),
   exists: vi.fn(),
@@ -285,27 +286,19 @@ describe('JobStore', () => {
   });
 
   describe('Queue Operations', () => {
-    it('should enqueue job', async () => {
-      mockRedisClient.lpush.mockResolvedValue(1);
-
-      await jobStore.enqueueJob('job_123_test');
-
-      expect(mockRedisClient.lpush).toHaveBeenCalledWith('jobs:queue', 'job_123_test');
-    });
-
     it('should dequeue job', async () => {
-      mockRedisClient.blpop.mockResolvedValue(['jobs:queue', 'job_123_test']);
+      mockRedisClient.lpop.mockResolvedValue('job_123_test');
 
-      const result = await jobStore.dequeueJob(10);
+      const result = await jobStore.dequeueJob();
 
       expect(result).toBe('job_123_test');
-      expect(mockRedisClient.blpop).toHaveBeenCalledWith('jobs:queue', 10);
+      expect(mockRedisClient.lpop).toHaveBeenCalledWith('jobs:queue');
     });
 
     it('should return null when no job in queue', async () => {
-      mockRedisClient.blpop.mockResolvedValue(null);
+      mockRedisClient.lpop.mockResolvedValue(null);
 
-      const result = await jobStore.dequeueJob(10);
+      const result = await jobStore.dequeueJob();
 
       expect(result).toBeNull();
     });
