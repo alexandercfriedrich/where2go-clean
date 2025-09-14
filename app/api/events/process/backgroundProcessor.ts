@@ -1,4 +1,5 @@
-import { EventData, JobStatus } from '@/lib/types';
+import { EventData } from '@/lib/types';
+import { EventSearchJob, JobStatus } from '../../../../lib/new-backend/types/jobs';
 import { eventsCache } from '@/lib/cache';
 import { getPerplexityClient } from '../../../../lib/new-backend/services/perplexityClient';
 import { eventAggregator } from '@/lib/aggregator';
@@ -33,14 +34,11 @@ const DEFAULT_CATEGORIES = [
 const jobStore = getJobStore();
 
 // Helper function to safely store debug info
+// Note: Debug info is now stored as part of job status updates, not separately
 async function safeStoreDebugInfo(jobId: string, debugInfo: any): Promise<void> {
-  try {
-    if (jobStore.setDebugInfo) {
-      await jobStore.setDebugInfo(jobId, debugInfo);
-    }
-  } catch (debugError) {
-    console.error('❌ DEBUG: Failed to store debug info:', debugError);
-  }
+  // Debug information is stored as part of the job data during status updates
+  // This function is kept for compatibility but doesn't need to do anything
+  return;
 }
 
 // Lightweight debug helper to reduce console output
@@ -55,7 +53,7 @@ function debugLog(debugMode: boolean, message: string, data?: any): void {
 }
 
 // Safe job status update function that handles Redis failures gracefully
-async function safeUpdateJobStatus(jobId: string, updates: Partial<JobStatus>): Promise<void> {
+async function safeUpdateJobStatus(jobId: string, updates: Partial<EventSearchJob>): Promise<void> {
   try {
     await jobStore.updateJob(jobId, updates);
   } catch (error) {
@@ -71,7 +69,7 @@ async function safeUpdateJobStatus(jobId: string, updates: Partial<JobStatus>): 
 }
 
 // Critical job status update function that never throws - prevents infinite polling
-async function criticalUpdateJobStatus(jobId: string, updates: Partial<JobStatus>): Promise<boolean> {
+async function criticalUpdateJobStatus(jobId: string, updates: Partial<EventSearchJob>): Promise<boolean> {
   try {
     await jobStore.updateJob(jobId, updates);
     console.log(`✅ Successfully updated job ${jobId} status to: ${updates.status}`);
@@ -84,7 +82,7 @@ async function criticalUpdateJobStatus(jobId: string, updates: Partial<JobStatus
     
     // Try with minimal data as a last resort
     try {
-      await jobStore.updateJob(jobId, { status: updates.status || 'error' });
+      await jobStore.updateJob(jobId, { status: updates.status || JobStatus.FAILED });
       console.log(`✅ Minimal update succeeded for job ${jobId}`);
       return true;
     } catch (minimalError) {
@@ -110,17 +108,16 @@ async function checkRedisConnectivity(): Promise<boolean> {
   try {
     // Try to get the job store and test a simple operation
     const jobStore = getJobStore();
-    // Test a simple operation - we'll try to set and get a test key
+    // Test a simple operation - we'll try to create and delete a test job
     const testJobId = `test_${Date.now()}`;
-    const testJob = {
-      id: testJobId,
-      status: 'pending' as const,
-      createdAt: new Date()
-    };
     
-    // Try to set and immediately delete a test job
-    await jobStore.setJob(testJobId, testJob);
-    await jobStore.deleteJob(testJobId);
+    // Try to create and immediately delete a test job
+    const result = await jobStore.createJob({
+      city: 'test',
+      date: '2024-01-01',
+      categories: ['test']
+    });
+    await jobStore.deleteJob(result.job.id);
     
     console.log('✅ Redis connectivity check passed');
     return true;
@@ -187,9 +184,8 @@ export async function processJobInBackground(
       }
       
       await criticalUpdateJobStatus(jobId, {
-        status: 'error',
+        status: JobStatus.FAILED,
         error: errorMessage,
-        debug: debugInfo
       });
       return;
     }
@@ -230,9 +226,8 @@ export async function processJobInBackground(
       }
       
       await criticalUpdateJobStatus(jobId, {
-        status: 'error',
+        status: JobStatus.FAILED,
         error: errorMessage,
-        debug: debugInfo
       });
       return;
     }
@@ -324,9 +319,8 @@ export async function processJobInBackground(
       }
       
       await criticalUpdateJobStatus(jobId, {
-        status: 'error',
+        status: JobStatus.FAILED,
         error: errorMessage,
-        debug: debugInfo
       });
       return;
     }
@@ -344,7 +338,7 @@ export async function processJobInBackground(
     }
 
     // STEP 6: Safely get job with improved error handling
-    let job: JobStatus | null = null;
+    let job: EventSearchJob | null = null;
     try {
       job = await jobStore.getJob(jobId);
       if (debugMode) {
@@ -375,9 +369,8 @@ export async function processJobInBackground(
       
       // Try to mark the job as error even if we can't retrieve it
       await criticalUpdateJobStatus(jobId, {
-        status: 'error',
+        status: JobStatus.FAILED,
         error: errorMessage,
-        debug: debugInfo
       });
       return;
     }
@@ -409,9 +402,8 @@ export async function processJobInBackground(
       
       // Try to create a minimal error job entry so the client can see the error
       await criticalUpdateJobStatus(jobId, {
-        status: 'error',
+        status: JobStatus.FAILED,
         error: errorMessage,
-        debug: debugInfo
       });
       return;
     }
@@ -681,14 +673,24 @@ export async function processJobInBackground(
                 // Continue processing even if caching fails
               }
               
+              // Get current job state and update progress incrementally
+              const currentJobForProgress = await jobStore.getJob(jobId);
+              const currentProgress = currentJobForProgress?.progress || {
+                totalCategories: effectiveCategories.length,
+                completedCategories: 0,
+                failedCategories: 0,
+                categoryStates: {}
+              };
+              
               // Progressive update with the latest merged events
               await safeUpdateJobStatus(jobId, { 
                 events: finalEvents,
-                progress: { 
+                progress: {
+                  ...currentProgress,
                   completedCategories, 
                   totalCategories: effectiveCategories.length 
                 },
-                lastUpdateAt: new Date().toISOString()
+                updatedAt: new Date().toISOString()
               });
               
               if (debugMode) {
@@ -931,21 +933,25 @@ export async function processJobInBackground(
       }
     }
     
+    // Get the final job state to preserve progress structure
+    const finalJobState = await jobStore.getJob(jobId);
+    const finalProgress = finalJobState?.progress || {
+      totalCategories: effectiveCategories.length,
+      completedCategories: effectiveCategories.length,
+      failedCategories: 0,
+      categoryStates: {}
+    };
+    
     const success = await criticalUpdateJobStatus(jobId, {
-      status: 'done',
+      status: JobStatus.SUCCESS,
       events: finalEvents,
-      debug: debugMode ? debugInfo : undefined,
-      cacheInfo: {
-        fromCache: false,
-        totalEvents: finalEvents.length,
-        cachedEvents: 0
-      },
-      progress: { 
+      progress: {
+        ...finalProgress,
         completedCategories: effectiveCategories.length, 
         totalCategories: effectiveCategories.length 
       },
-      lastUpdateAt: new Date().toISOString(),
-      message: `${finalEvents.length} Events gefunden`
+      updatedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString()
     });
     
     console.log(`🎯 JOB STATUS UPDATE: Attempting to set job ${jobId} to 'done' with ${finalEvents.length} events`);
@@ -1008,10 +1014,10 @@ export async function processJobInBackground(
       console.log(`Attempting to mark job ${jobId} as 'error' status...`);
     }
     const success = await criticalUpdateJobStatus(jobId, {
-      status: 'error',
+      status: JobStatus.FAILED,
       error: 'Fehler beim Verarbeiten der Anfrage',
-      debug: debugMode ? debugInfo : undefined,
-      lastUpdateAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      completedAt: new Date().toISOString()
     });
     
     if (success) {
