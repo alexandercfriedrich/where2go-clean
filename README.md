@@ -214,20 +214,97 @@ The application supports progressive loading of search results:
 
 ### API
 
-#### Asynchronous Events API (existing)
-- `POST /api/events` - Submit search request, returns job ID immediately
-- `GET /api/jobs/[jobId]` - Check job status and get progressive results
+#### New Events API (recommended)
+- `POST /api/events/jobs` - Create search job, returns `{success: true, data: {job, isNew, isStale}}`
+- `GET /api/events/jobs/[jobId]` - Get job status with optional event aggregation
+
+#### Legacy Events API (deprecated)
+- ~~`POST /api/events`~~ - **DEPRECATED** (returns 410 Gone)
+- ~~`GET /api/jobs/[jobId]`~~ - **DEPRECATED** (returns 410 Gone)
+
+**Migration Guide:**
+The legacy endpoints have been replaced with a new system. Update your API calls:
+
+```javascript
+// OLD (deprecated)
+const response = await fetch('/api/events', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    city: 'Berlin',
+    date: '2025-01-20',
+    categories: ['DJ Sets/Electronic'],
+    options: {
+      temperature: 0.2,
+      max_tokens: 10000,
+      debug: true,
+      // ... many other options
+    }
+  })
+});
+
+// NEW (recommended)
+const response = await fetch('/api/events/jobs', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    city: 'Berlin',
+    date: '2025-01-20',
+    categories: ['DJ Sets/Electronic'],
+    options: {
+      ttlSeconds: 3600
+    }
+  })
+});
+
+// Handle new response format
+if (!response.ok) throw new Error('Request failed');
+const result = await response.json();
+if (!result.success) throw new Error(result.error);
+
+const { job, isNew } = result.data;
+// Use job.id for polling
+```
+
+**Polling Changes:**
+```javascript
+// OLD (deprecated)
+const jobResponse = await fetch(`/api/jobs/${jobId}`);
+const job = await jobResponse.json();
+
+// NEW (recommended)  
+const jobResponse = await fetch(`/api/events/jobs/${jobId}?includeEvents=true&aggregateFromCache=true`);
+const result = await jobResponse.json();
+if (!result.success) throw new Error(result.error);
+
+const { job, events } = result.data;
+```
+
+**Response Format Changes:**
+- New system wraps responses in `{success: true/false, data/error}`
+- Job status values changed: `'done'` → `'success'`, `'error'` → `'failed'`
+- Enhanced error handling with structured error codes
+- Better progress tracking and event aggregation
+
+#### Synchronous Events Search API
+- `POST /api/events/search` - Returns events directly (no job/polling required)
 - `POST /api/events/process` - **Background worker** (internal, not for direct use)
 
-#### Synchronous Events Search API (new)
-- `POST /api/events/search` - Returns events directly (no job/polling required)
+#### Request Format
 
-The asynchronous API now uses Vercel Background Functions for reliable processing. The `/api/events/process` route handles actual job processing with extended timeouts and is automatically called by the main `/api/events` route.
+**New API (`/api/events/jobs`):**
+```json
+{
+  "city": "Berlin",
+  "date": "2025-01-20",
+  "categories": ["DJ Sets/Electronic", "Live-Konzerte"], // optional
+  "options": { // optional
+    "ttlSeconds": 3600 // job TTL (default: 3600 seconds)
+  }
+}
+```
 
-Both public endpoints accept the same request body format and use shared caching.
-
-#### Request Format (both endpoints)
-
+**Legacy Search API (`/api/events/search`):**
 ```json
 {
   "city": "Berlin",
@@ -248,15 +325,65 @@ Both public endpoints accept the same request body format and use shared caching
 
 #### Response Format
 
-**Asynchronous API (`/api/events`)**:
+**New API (`/api/events/jobs`)**:
 ```json
 {
-  "jobId": "job_1234567890_abcdef123",
-  "status": "pending"
+  "success": true,
+  "data": {
+    "job": {
+      "id": "job_1234567890_abcdef123",
+      "status": "pending",
+      "city": "Berlin",
+      "date": "2025-01-20",
+      "categories": ["DJ Sets/Electronic"],
+      "events": [],
+      "progress": {
+        "totalCategories": 1,
+        "completedCategories": 0,
+        "failedCategories": 0,
+        "categoryStates": {}
+      },
+      "createdAt": "2025-01-20T15:00:00Z",
+      "updatedAt": "2025-01-20T15:00:00Z"
+    },
+    "isNew": true,
+    "isStale": false
+  }
 }
 ```
 
-**Synchronous API (`/api/events/search`)**:
+**Job Status API (`/api/events/jobs/[jobId]`)**:
+```json
+{
+  "success": true,
+  "data": {
+    "job": {
+      "id": "job_1234567890_abcdef123",
+      "status": "success",
+      "events": [
+        {
+          "title": "Concert at Philharmonie",
+          "category": "Live-Konzerte",
+          "date": "2025-01-20",
+          "time": "19:30",
+          "venue": "Berliner Philharmonie",
+          "price": "€35-85",
+          "website": "https://example.com"
+        }
+      ],
+      "progress": {
+        "totalCategories": 1,
+        "completedCategories": 1,
+        "failedCategories": 0
+      }
+    },
+    "events": [...], // Aggregated events (if includeEvents=true)
+    "cacheInfo": {...} // Cache information (if aggregateFromCache=true)
+  }
+}
+```
+
+**Legacy Search API (`/api/events/search`)**:
 ```json
 {
   "events": [

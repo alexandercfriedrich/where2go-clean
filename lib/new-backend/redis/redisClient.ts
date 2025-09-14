@@ -146,9 +146,21 @@ class NewBackendRedisClient {
       }) as RedisClient;
     }
     
+    // Enhanced error message for development
+    const isProduction = process.env.NODE_ENV === 'production';
+    const errorMessage = isProduction 
+      ? 'Redis configuration is required in production. Please set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables.'
+      : 'Redis configuration missing. For development: Please set up Upstash Redis or use a local Redis instance. Set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN in .env.local';
+    
     throw createError(
       ErrorCode.CONFIG_ERROR,
-      'No Redis configuration found. Please set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables'
+      errorMessage,
+      {
+        environment: process.env.NODE_ENV || 'development',
+        hasUrl: !!upstashUrl,
+        hasToken: !!upstashToken,
+        suggestion: 'Visit https://upstash.com/redis to create a free Redis instance for development'
+      }
     );
   }
 

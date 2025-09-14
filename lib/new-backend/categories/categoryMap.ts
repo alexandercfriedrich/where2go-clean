@@ -27,7 +27,9 @@ export const MAIN_CATEGORIES = [
   'Networking/Business',
   'Natur/Outdoor',
   'Kultur/Traditionen',
-  'Märkte/Shopping'
+  'Märkte/Shopping',
+  'Bildung/Lernen',
+  'Soziales/Community'
 ] as const;
 
 /**

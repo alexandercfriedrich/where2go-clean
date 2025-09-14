@@ -4,6 +4,7 @@ import Image from 'next/image';
 import { CATEGORY_MAP } from './categories';
 import { useTranslation } from './lib/useTranslation';
 import { convertEventToCalendarEvent, calendarProviders, generatePreferredCalendarUrl, getPreferredCalendarProvider } from './lib/calendar-utils';
+import { extractErrorMessage, createApiErrorMessage } from './lib/error-utils';
 
 interface EventData {
   title: string;
@@ -584,6 +585,13 @@ export default function Home() {
       return;
     }
 
+    // Send the selected super categories directly instead of expanding to subcategories
+    const selectedCategories = selectedSuperCategories;
+    if (selectedCategories.length === 0) {
+      setError('Bitte wähle mindestens eine Kategorie aus.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     setEvents([]);
@@ -615,72 +623,68 @@ export default function Home() {
     }
 
     try {
-      const res = await fetch('/api/events', {
+      const res = await fetch('/api/events/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           city: city.trim(), 
           date: formatDateForAPI(),
-          categories: getSelectedSubcategories(),
+          categories: selectedCategories,
           options: { 
-            temperature: 0.2, 
-            max_tokens: 10000,
-            debug: debugMode,
-            disableCache: debugMode,
-            categoryConcurrency: 5,
-            categoryTimeoutMs: 90000,
-            overallTimeoutMs: 240000,
-            maxAttempts: 5
+            ttlSeconds: 3600
           }
         }),
       });
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || `Serverfehler (${res.status})`);
+        const errorMessage = await createApiErrorMessage(res);
+        throw new Error(errorMessage);
       }
 
       const responseData = await res.json();
       
-      // Handle different response types
-      if (responseData.status === 'completed') {
-        // All cached - display immediately
-        console.log('All events from cache:', responseData.events.length);
-        setEvents(responseData.events || []);
-        if (responseData.cacheInfo) setCacheInfo(responseData.cacheInfo);
-        setLoading(false);
-        setJobStatus('done');
+      // Handle new API response format: {success: true, data: {job, isNew, isStale}}
+      if (!responseData.success) {
+        const errorMessage = extractErrorMessage(responseData.error, 'API-Fehler');
+        throw new Error(errorMessage);
+      }
+      
+      const { job, isNew } = responseData.data;
+      const jobId = job.id;
+      
+      // Check if job has events already (from cache or completed)
+      if (job.events && job.events.length > 0) {
+        console.log('Events found in job:', job.events.length);
+        setEvents(job.events);
         
-        // Show cache success message
-        setToast({
-          show: true,
-          message: responseData.message || `${responseData.events?.length || 0} Events aus dem Cache geladen`
-        });
-        setTimeout(() => setToast({show: false, message: ''}), 3000);
-        
-      } else if (responseData.status === 'partial') {
-        // Some cached, some processing - show cached events immediately and start polling
-        console.log('Partial results - cached events:', responseData.events?.length || 0);
-        setEvents(responseData.events || []);
-        if (responseData.cacheInfo) setCacheInfo(responseData.cacheInfo);
-        if (responseData.progress) setProgress(responseData.progress);
-        
-        // Show partial results message
-        if (responseData.events?.length > 0) {
+        // If job is completed, we're done
+        if (job.status === 'success' || job.status === 'partial_success') {
+          setLoading(false);
+          setJobStatus('done');
+          
           setToast({
             show: true,
-            message: responseData.message || `${responseData.events.length} Events aus dem Cache, weitere werden geladen...`
+            message: `${job.events.length} Events gefunden`
+          });
+          setTimeout(() => setToast({show: false, message: ''}), 3000);
+          return;
+        }
+      }
+      
+      // For new jobs or jobs in progress, start polling
+      if (isNew || job.status === 'pending' || job.status === 'running') {
+        setJobId(jobId);
+        if (job.progress) setProgress(job.progress);
+        
+        if (job.events && job.events.length > 0) {
+          setToast({
+            show: true,
+            message: `${job.events.length} Events gefunden, weitere werden geladen...`
           });
           setTimeout(() => setToast({show: false, message: ''}), 4000);
         }
         
-        setJobId(responseData.jobId);
-        startPolling(responseData.jobId);
-        
-      } else if (responseData.jobId) {
-        // Legacy job polling response
-        setJobId(responseData.jobId);
-        startPolling(responseData.jobId);
+        startPolling(jobId);
       } else {
         throw new Error('Unerwartete API-Antwort');
       }
@@ -716,34 +720,45 @@ export default function Home() {
       }
 
       try {
-        const debugParam = debugMode ? '?debug=1' : '';
-        const res = await fetch(`/api/jobs/${jobId}${debugParam}`);
+        const res = await fetch(`/api/events/jobs/${jobId}?includeEvents=true&aggregateFromCache=true`);
         if (!res.ok) throw new Error(`Status ${res.status}`);
-        const job = await res.json();
+        const responseData = await res.json();
+        
+        if (!responseData.success) {
+          const errorMessage = extractErrorMessage(responseData.error, 'API-Fehler');
+          throw new Error(errorMessage);
+        }
+        
+        const job = responseData.data.job;
+        const events = responseData.data.events || [];
+        
         if (job.progress) setProgress(job.progress);
 
-        if (job.status === 'pending' && job.events && job.events.length > 0) {
-          const currentEventKeys = new Set(eventsRef.current.map(createEventKey));
-          const incomingEvents = job.events;
-          const newEventKeys = new Set<string>();
-          incomingEvents.forEach((event: EventData) => {
-            const key = createEventKey(event);
-            if (!currentEventKeys.has(key)) newEventKeys.add(key);
-          });
-          setEvents([...incomingEvents]);
-          if (job.cacheInfo) setCacheInfo(job.cacheInfo);
-          if (newEventKeys.size > 0) {
-            setNewEvents(newEventKeys);
-            setToast({
-              show: true,
-              message: `${newEventKeys.size} neue Event${newEventKeys.size !== 1 ? 's' : ''} gefunden`
+        if (job.status === 'pending' || job.status === 'running') {
+          // Job still processing - check for new events
+          if (events && events.length > 0) {
+            const currentEventKeys = new Set(eventsRef.current.map(createEventKey));
+            const newEventKeys = new Set<string>();
+            events.forEach((event: EventData) => {
+              const key = createEventKey(event);
+              if (!currentEventKeys.has(key)) newEventKeys.add(key);
             });
-            setTimeout(() => {
-              setToast({show: false, message: ''});
-              setNewEvents(new Set());
-            }, 3000);
+            setEvents([...events]);
+            if (responseData.data.cacheInfo) setCacheInfo(responseData.data.cacheInfo);
+            if (newEventKeys.size > 0) {
+              setNewEvents(newEventKeys);
+              setToast({
+                show: true,
+                message: `${newEventKeys.size} neue Event${newEventKeys.size !== 1 ? 's' : ''} gefunden`
+              });
+              setTimeout(() => {
+                setToast({show: false, message: ''});
+                setNewEvents(new Set());
+              }, 3000);
+            }
           }
-          if (job.debug) setDebugData(job.debug);
+          
+          // Continue polling
           if (pollInterval.current) {
             clearInterval(pollInterval.current);
             clearTimeout(pollInterval.current);
@@ -753,52 +768,44 @@ export default function Home() {
           return;
         }
 
-        if (job.status !== 'pending') {
-          if (pollInterval.current) {
-            clearInterval(pollInterval.current);
-            clearTimeout(pollInterval.current);
-          }
-          setLoading(false);
+        // Job completed or failed
+        if (pollInterval.current) {
+          clearInterval(pollInterval.current);
+          clearTimeout(pollInterval.current);
+        }
+        setLoading(false);
 
-          if (job.status === 'done') {
-            const incomingEvents: EventData[] = job.events || [];
-            if (eventsRef.current.length === 0 && incomingEvents.length > 0) {
-              const allNewEventKeys = new Set(incomingEvents.map(createEventKey));
-              setNewEvents(allNewEventKeys);
-              setToast({
-                show: true,
-                message: job.message || `${incomingEvents.length} Event${incomingEvents.length !== 1 ? 's' : ''} gefunden`
-              });
-              setTimeout(() => {
-                setToast({show: false, message: ''});
-                setNewEvents(new Set());
-              }, 3000);
-            } else if (incomingEvents.length > eventsRef.current.length) {
-              // Show update for additional events found
-              const newCount = incomingEvents.length - eventsRef.current.length;
-              setToast({
-                show: true,
-                message: `${newCount} weitere Event${newCount !== 1 ? 's' : ''} gefunden`
-              });
-              setTimeout(() => {
-                setToast({show: false, message: ''});
-              }, 3000);
-            }
-            setEvents([...incomingEvents]);
-            if (job.cacheInfo) setCacheInfo(job.cacheInfo);
-            setJobStatus('done');
-            if (job.debug) setDebugData(job.debug);
-          } else {
-            setJobStatus('error');
-            setError(job.error || 'Fehler bei der Eventsuche.');
+        if (job.status === 'success' || job.status === 'partial_success') {
+          const incomingEvents: EventData[] = events || [];
+          if (eventsRef.current.length === 0 && incomingEvents.length > 0) {
+            const allNewEventKeys = new Set(incomingEvents.map(createEventKey));
+            setNewEvents(allNewEventKeys);
+            setToast({
+              show: true,
+              message: `${incomingEvents.length} Event${incomingEvents.length !== 1 ? 's' : ''} gefunden`
+            });
+            setTimeout(() => {
+              setToast({show: false, message: ''});
+              setNewEvents(new Set());
+            }, 3000);
+          } else if (incomingEvents.length > eventsRef.current.length) {
+            // Show update for additional events found
+            const newCount = incomingEvents.length - eventsRef.current.length;
+            setToast({
+              show: true,
+              message: `${newCount} weitere Event${newCount !== 1 ? 's' : ''} gefunden`
+            });
+            setTimeout(() => {
+              setToast({show: false, message: ''});
+            }, 3000);
           }
+          setEvents([...incomingEvents]);
+          if (responseData.data.cacheInfo) setCacheInfo(responseData.data.cacheInfo);
+          setJobStatus('done');
         } else {
-          if (pollInterval.current) {
-            clearInterval(pollInterval.current);
-            clearTimeout(pollInterval.current);
-          }
-          const nextIntervalMs = pollCountRef.current < 20 ? 3000 : 5000;
-          pollInterval.current = setTimeout(performPoll, nextIntervalMs);
+          setJobStatus('error');
+          const errorMessage = extractErrorMessage(job.error, 'Fehler bei der Eventsuche.');
+          setError(errorMessage);
         }
       } catch (err) {
         setToast({

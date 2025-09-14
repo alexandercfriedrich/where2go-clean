@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getJobStore } from '@/lib/jobStore';
+import { getJobStore } from '../../../../lib/new-backend/redis/jobStore';
 import { processJobInBackground } from './backgroundProcessor';
+import { JobStatus } from '../../../../lib/new-backend/types/jobs';
 
 // Serverless configuration for background processing
 export const runtime = 'nodejs';
@@ -73,9 +74,9 @@ export async function POST(req: NextRequest) {
       console.error(`🚨 DEADMAN SWITCH: Job ${jobId} has been running for more than 3.5 minutes, marking as failed`);
       try {
         await jobStore.updateJob(jobId, {
-          status: 'error',
+          status: JobStatus.FAILED,
           error: 'Processing timed out - job took longer than expected (3.5 min limit)',
-          lastUpdateAt: new Date().toISOString()
+          updatedAt: new Date().toISOString()
         });
         console.log(`✅ Deadman switch successfully marked job ${jobId} as failed`);
       } catch (updateError) {
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest) {
       }
     }, 3.5 * 60 * 1000); // 3.5 minutes - before the 4-minute maxDuration
     
-    processJobInBackground(jobId, city, date, categories, options)
+    processJobInBackground(jobId, city, date, categories || [], options)
       .then(() => {
         // Job completed successfully
         clearTimeout(deadmanTimeout);
@@ -98,9 +99,9 @@ export async function POST(req: NextRequest) {
         
         // Update job status to error to prevent infinite polling
         jobStore.updateJob(jobId, {
-          status: 'error',
+          status: JobStatus.FAILED,
           error: 'Background processing failed to complete',
-          lastUpdateAt: new Date().toISOString()
+          updatedAt: new Date().toISOString()
         }).catch(updateError => {
           console.error('❌ CRITICAL: Failed to update job status after background error:', updateError);
           console.error(`🚨 Job ${jobId} may be stuck in pending state due to Redis connectivity issues`);
