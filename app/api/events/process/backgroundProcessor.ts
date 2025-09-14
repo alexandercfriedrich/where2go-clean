@@ -1,1036 +1,227 @@
-import { EventData } from '@/lib/types';
-import { EventSearchJob, JobStatus } from '../../../../lib/new-backend/types/jobs';
-import { eventsCache } from '@/lib/cache';
+import { EventData } from '../../../../lib/new-backend/types/events';
+import { EventSearchJob, JobStatus, JobProgress } from '../../../../lib/new-backend/types/jobs';
+import { getEventCache } from '../../../../lib/new-backend/redis/eventCache';
 import { getPerplexityClient } from '../../../../lib/new-backend/services/perplexityClient';
-import { eventAggregator } from '@/lib/aggregator';
-import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
+import { aggregateAndDeduplicateEvents, deduplicateEvents } from '../../../../lib/new-backend/utils/eventAggregator';
+import { computeTTLSecondsForEvents } from '../../../../lib/new-backend/utils/cacheUtils';
 import { getJobStore } from '../../../../lib/new-backend/redis/jobStore';
-import { getSubcategoriesForMainCategory } from '@/categories';
+import { MAIN_CATEGORIES } from '../../../../lib/new-backend/categories/categoryMap';
+import { createComponentLogger } from '../../../../lib/new-backend/utils/log';
 
-// Default categories used when request.categories is empty/missing
-const DEFAULT_CATEGORIES = [
-  'DJ Sets/Electronic',
-  'Clubs/Discos', 
-  'Live-Konzerte',
-  'Open Air',
-  'Museen',
-  'LGBTQ+',
-  'Comedy/Kabarett',
-  'Theater/Performance',
-  'Film',
-  'Food/Culinary',
-  'Sport',
-  'Familien/Kids',
-  'Kunst/Design',
-  'Wellness/Spirituell',
-  'Networking/Business',
-  'Natur/Outdoor',
-  'Kultur/Traditionen',
-  'Märkte/Shopping',
-  'Bildung/Lernen',
-  'Soziales/Community'
-];
-
+const logger = createComponentLogger('BackgroundProcessor');
 const jobStore = getJobStore();
 
-// Helper function to safely store debug info
-// Note: Debug info is now stored as part of job status updates, not separately
-async function safeStoreDebugInfo(jobId: string, debugInfo: any): Promise<void> {
-  // Debug information is stored as part of the job data during status updates
-  // This function is kept for compatibility but doesn't need to do anything
-  return;
-}
-
-// Lightweight debug helper to reduce console output
-function debugLog(debugMode: boolean, message: string, data?: any): void {
-  if (debugMode) {
-    if (data) {
-      console.log(`🔍 DEBUG: ${message}`, data);
-    } else {
-      console.log(`🔍 DEBUG: ${message}`);
-    }
-  }
-}
-
-// Safe job status update function that handles Redis failures gracefully
-async function safeUpdateJobStatus(jobId: string, updates: Partial<EventSearchJob>): Promise<void> {
-  try {
-    await jobStore.updateJob(jobId, updates);
-  } catch (error) {
-    console.error(`❌ Failed to update job ${jobId} status:`, error);
-    
-    // If Redis is completely down, we should at least log the intended status
-    // The deadman switch or timeout mechanisms should eventually handle cleanup
-    console.error(`🚨 INTENDED STATUS UPDATE for job ${jobId}:`, JSON.stringify(updates, null, 2));
-    
-    // Re-throw to ensure calling code is aware of the failure
-    throw error;
-  }
-}
-
-// Critical job status update function that never throws - prevents infinite polling
-async function criticalUpdateJobStatus(jobId: string, updates: Partial<EventSearchJob>): Promise<boolean> {
-  try {
-    await jobStore.updateJob(jobId, updates);
-    console.log(`✅ Successfully updated job ${jobId} status to: ${updates.status}`);
-    return true;
-  } catch (error) {
-    console.error(`❌ CRITICAL: Failed to update job ${jobId} status:`, error);
-    
-    // Log the intended status for debugging but don't throw
-    console.error(`🚨 INTENDED STATUS UPDATE for job ${jobId}:`, JSON.stringify(updates, null, 2));
-    
-    // Try with minimal data as a last resort
-    try {
-      await jobStore.updateJob(jobId, { status: updates.status || JobStatus.FAILED });
-      console.log(`✅ Minimal update succeeded for job ${jobId}`);
-      return true;
-    } catch (minimalError) {
-      console.error(`❌ CATASTROPHIC: Even minimal update failed for job ${jobId}:`, minimalError);
-      console.error(`🚨 Job ${jobId} may cause infinite polling - deadman switch should handle this`);
-      return false;
-    }
-  }
-}
-
-// Helper function to add timeout to any promise
-function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => 
-      setTimeout(() => reject(new Error(`Operation timed out after ${timeoutMs}ms`)), timeoutMs)
-    )
-  ]);
-}
-
-// Function to check Redis connectivity before starting expensive operations
-async function checkRedisConnectivity(): Promise<boolean> {
-  try {
-    // Try to get the job store and test a simple operation
-    const jobStore = getJobStore();
-    // Test a simple operation - we'll try to create and delete a test job
-    const testJobId = `test_${Date.now()}`;
-    
-    // Try to create and immediately delete a test job
-    const result = await jobStore.createJob({
-      city: 'test',
-      date: '2024-01-01',
-      categories: ['test']
-    });
-    await jobStore.deleteJob(result.job.id);
-    
-    console.log('✅ Redis connectivity check passed');
-    return true;
-  } catch (error) {
-    console.error('❌ Redis connectivity check failed:', error);
-    return false;
-  }
-}
-
-// Background function to fetch from Perplexity with progressive updates
+// Simplified background processor without complex category mapping
 export async function processJobInBackground(
-  jobId: string, 
-  city: string, 
-  date: string, 
-  categories?: string[], 
-  options?: any
-) {
-  let overallTimeoutId: NodeJS.Timeout | undefined;
-  const debugMode = options?.debug || false;
-  let debugInfo: any = null;
+  jobId: string,
+  city: string,
+  date: string,
+  categories: string[],
+  options: any = {}
+): Promise<void> {
+  const startTime = Date.now();
   
-  if (debugMode) {
-    debugLog(debugMode, 'Starting background job processing for:', jobId);
-    
-    // Initialize debug info
-    debugInfo = {
-      createdAt: new Date(),
+  try {
+    logger.info('Starting background job processing', {
+      jobId,
       city,
       date,
-      categories: categories || [],
-      options,
-      steps: []
-    };
-    
-    // Store initial debug info
-    await safeStoreDebugInfo(jobId, debugInfo);
-  }
-  
-  try {
-    // STEP 1: Check Redis connectivity FIRST before any expensive operations
-    debugLog(debugMode, 'Step 1 - Checking Redis connectivity...');
-    
-    const redisConnected = await checkRedisConnectivity();
-    if (!redisConnected) {
-      const errorMessage = 'Redis connection failed - breaking immediately to avoid expensive AI operations without storage capability';
-      console.error('🚨 CRITICAL:', errorMessage);
-      
-      if (debugMode) {
-        debugInfo.steps.push({
-          category: 'Redis Check',
-          query: 'Redis connectivity test',
-          response: 'FAILED - Redis not accessible',
-          parsedCount: 0,
-          addedCount: 0,
-          totalAfter: 0
-        });
-        
-        // Try to store debug info even if Redis is having issues
-        try {
-          await safeStoreDebugInfo(jobId, debugInfo);
-        } catch (debugStoreError) {
-          console.error('❌ DEBUG: Could not store debug info for Redis failure:', debugStoreError);
-        }
-      }
-      
-      await criticalUpdateJobStatus(jobId, {
-        status: JobStatus.FAILED,
-        error: errorMessage,
-      });
-      return;
-    }
-    
-    if (debugMode) {
-      debugLog(debugMode, '✅ Redis connectivity confirmed');
-      debugInfo.steps.push({
-        category: 'Redis Check',
-        query: 'Redis connectivity test',
-        response: 'SUCCESS - Redis accessible and functional',
-        parsedCount: 0,
-        addedCount: 0,
-        totalAfter: 0
-      });
-    }
+      categoryCount: categories.length,
+      categories: categories.slice(0, 3) // Log first 3 categories
+    });
 
-    // STEP 2: Check Perplexity API Key
-    const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
-    if (!PERPLEXITY_API_KEY) {
-      const errorMessage = 'Perplexity API Key ist nicht konfiguriert. Bitte setze PERPLEXITY_API_KEY in der .env.local Datei.';
-      console.error('❌ PERPLEXITY_API_KEY environment variable is not set');
-      
-      if (debugMode) {
-        debugInfo.steps.push({
-          category: 'API Key Check',
-          query: 'Check Perplexity API key',
-          response: 'FAILED - PERPLEXITY_API_KEY not set in environment',
-          parsedCount: 0,
-          addedCount: 0,
-          totalAfter: 0
-        });
-        
-        try {
-          await safeStoreDebugInfo(jobId, debugInfo);
-        } catch (debugStoreError) {
-          console.error('❌ DEBUG: Could not store debug info for API key failure:', debugStoreError);
-        }
+    // Initialize category states
+    const initialCategoryStates: Record<string, any> = {};
+    categories.forEach(category => {
+      initialCategoryStates[category] = { state: 'not_started' };
+    });
+
+    // Update job status to running
+    await jobStore.updateJob(jobId, {
+      status: JobStatus.RUNNING,
+      progress: {
+        completedCategories: 0,
+        totalCategories: categories.length,
+        failedCategories: 0,
+        categoryStates: initialCategoryStates
       }
-      
-      await criticalUpdateJobStatus(jobId, {
-        status: JobStatus.FAILED,
-        error: errorMessage,
-      });
-      return;
-    }
+    });
+
+    const allEvents: EventData[] = [];
+    const eventCache = getEventCache();
     
-    if (debugMode) {
-      debugLog(debugMode, '✅ Perplexity API key found');
-      debugInfo.steps.push({
-        category: 'API Key Check',
-        query: 'Check Perplexity API key',
-        response: 'SUCCESS - Perplexity API key available',
-        parsedCount: 0,
-        addedCount: 0,
-        totalAfter: 0
-      });
-    }
-
-    // STEP 3: Configure processing parameters
-    const effectiveCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
-    
-    if (debugMode) {
-      debugLog(debugMode, 'Step 3 - Processing', `${effectiveCategories.length} categories`);
-    }
-    
-    // Extract options with defaults - increased timeouts to prevent premature cutoff
-    const categoryConcurrency = options?.categoryConcurrency || 5; // Restore original concurrency for performance
-    
-    // Default categoryTimeoutMs to 90s (90000ms), enforce minimum 60s (esp. on Vercel)
-    const isVercel = process.env.VERCEL === '1';
-    const requestedCategoryTimeout =
-      typeof options?.categoryTimeoutMs === 'number' ? options.categoryTimeoutMs : 90000;
-    const defaultCategoryTimeout = isVercel
-      ? Math.max(requestedCategoryTimeout, 60000)
-      : requestedCategoryTimeout;
-    const categoryTimeoutMs = defaultCategoryTimeout;
-    
-    // Overall timeout defaults to 3 minutes (180000ms) - well under Vercel's 5-minute limit
-    const defaultOverallTimeout = parseInt(process.env.OVERALL_TIMEOUT_MS || '180000', 10);
-    const overallTimeoutMs = options?.overallTimeoutMs || defaultOverallTimeout;
-    
-    const maxAttempts = options?.maxAttempts || 5;
-    
-    if (debugMode) {
-      debugInfo.steps.push({
-        category: 'Configuration',
-        query: 'Setup processing parameters',
-        response: `Config: ${effectiveCategories.length} categories, ${categoryConcurrency} concurrency, ${categoryTimeoutMs}ms per category, ${overallTimeoutMs}ms overall timeout, ${maxAttempts} max attempts per category, Vercel: ${isVercel}`,
-        parsedCount: effectiveCategories.length,
-        addedCount: 0,
-        totalAfter: 0
-      });
-    }
-    
-    console.log('Background job starting for:', jobId, city, date, effectiveCategories);
-    console.log('Parallelization config:', { categoryConcurrency, categoryTimeoutMs, overallTimeoutMs, maxAttempts });
-
-    // Add additional logging to track worker progress
-    let progressCheckInterval: NodeJS.Timeout | undefined;
-    let lastProgressUpdate = Date.now();
-    
-    // STEP 4: Set up overall timeout using AbortController
-    // Set up overall timeout using AbortController to prevent jobs from running indefinitely
-    const overallAbortController = new AbortController();
-    overallTimeoutId = setTimeout(() => {
-      console.log(`Overall timeout of ${overallTimeoutMs}ms reached for job ${jobId}`);
-      overallAbortController.abort();
-    }, overallTimeoutMs);
-
-    // STEP 5: Create Perplexity client
-    const perplexityClient = getPerplexityClient({ apiKey: PERPLEXITY_API_KEY });
-    if (!perplexityClient.isConfigured()) {
-      const errorMessage = 'Failed to configure Perplexity client';
-      console.error('❌', errorMessage);
-      
-      if (debugMode) {
-        debugInfo.steps.push({
-          category: 'Perplexity Client',
-          query: 'Configure Perplexity client',
-          response: 'FAILED - Could not initialize Perplexity client',
-          parsedCount: 0,
-          addedCount: 0,
-          totalAfter: 0
-        });
-        
-        try {
-          await safeStoreDebugInfo(jobId, debugInfo);
-        } catch (debugStoreError) {
-          console.error('❌ DEBUG: Could not store debug info for client configuration failure:', debugStoreError);
-        }
-      }
-      
-      await criticalUpdateJobStatus(jobId, {
-        status: JobStatus.FAILED,
-        error: errorMessage,
-      });
-      return;
-    }
-    
-    if (debugMode) {
-      console.log('🔍 DEBUG: ✅ Perplexity client configured successfully');
-      debugInfo.steps.push({
-        category: 'Perplexity Client',
-        query: 'Configure Perplexity client',
-        response: 'SUCCESS - Perplexity client initialized',
-        parsedCount: 0,
-        addedCount: 0,
-        totalAfter: 0
-      });
-    }
-
-    // STEP 6: Safely get job with improved error handling
-    let job: EventSearchJob | null = null;
-    try {
-      job = await jobStore.getJob(jobId);
-      if (debugMode) {
-        console.log('🔍 DEBUG: ✅ Job retrieved from store successfully');
-      }
-    } catch (getJobError) {
-      const errorMessage = 'Job konnte nicht abgerufen werden - Redis Verbindungsfehler';
-      console.error(`🚨 FATAL: Cannot retrieve job ${jobId} from JobStore:`, getJobError);
-      console.error('This likely indicates a Redis connectivity issue');
-      
-      if (debugMode) {
-        console.log('🔍 DEBUG: Job retrieval failed:', getJobError);
-        debugInfo.steps.push({
-          category: 'Job Retrieval',
-          query: `Get job ${jobId} from store`,
-          response: `FAILED - ${getJobError}`,
-          parsedCount: 0,
-          addedCount: 0,
-          totalAfter: 0
-        });
-        
-        try {
-          await safeStoreDebugInfo(jobId, debugInfo);
-        } catch (debugStoreError) {
-          console.error('❌ DEBUG: Could not store debug info for job retrieval failure:', debugStoreError);
-        }
-      }
-      
-      // Try to mark the job as error even if we can't retrieve it
-      await criticalUpdateJobStatus(jobId, {
-        status: JobStatus.FAILED,
-        error: errorMessage,
-      });
-      return;
-    }
-    
-    if (!job) {
-      // CRITICAL: Job not found - this means the job was lost between instances
-      // In serverless environments, this indicates a serious issue
-      const errorMessage = 'Job nicht gefunden - möglicherweise ein Konfigurationsproblem';
-      console.error(`🚨 FATAL: Job ${jobId} not found in JobStore during background processing`);
-      console.error('This likely indicates a Redis connectivity issue or job store misconfiguration in serverless environment');
-      
-      if (debugMode) {
-        console.log('🔍 DEBUG: Job not found in store');
-        debugInfo.steps.push({
-          category: 'Job Retrieval',
-          query: `Get job ${jobId} from store`,
-          response: 'FAILED - Job not found in store',
-          parsedCount: 0,
-          addedCount: 0,
-          totalAfter: 0
-        });
-        
-        try {
-          await safeStoreDebugInfo(jobId, debugInfo);
-        } catch (debugStoreError) {
-          console.error('❌ DEBUG: Could not store debug info for job not found:', debugStoreError);
-        }
-      }
-      
-      // Try to create a minimal error job entry so the client can see the error
-      await criticalUpdateJobStatus(jobId, {
-        status: JobStatus.FAILED,
-        error: errorMessage,
-      });
-      return;
-    }
-    
-    if (debugMode) {
-      console.log('🔍 DEBUG: Job details:', { 
-        id: job.id, 
-        status: job.status, 
-        existingEvents: job.events?.length || 0,
-        createdAt: job.createdAt 
-      });
-    }
-
-    let allEvents: EventData[] = [];
-    let completedCategories = 0;
-
-    if (debugMode) {
-      console.log('🔍 DEBUG: Step 7 - Starting parallel category processing');
-      console.log('🔍 DEBUG: Processing categories in parallel with controlled concurrency');
-    }
-
-    // Process categories in parallel with controlled concurrency, respecting overall timeout
-    const processingPromises: Promise<void>[] = [];
-    let currentIndex = 0;
-
-    // Create worker function that processes categories from the queue
-    const worker = async (): Promise<void> => {
-      try {
-        while (currentIndex < effectiveCategories.length && !overallAbortController.signal.aborted) {
-          const categoryIndex = currentIndex++;
-          if (categoryIndex >= effectiveCategories.length) break;
-          
-          const category = effectiveCategories[categoryIndex];
-          
-          // Check if overall timeout was reached before processing each category
-          if (overallAbortController.signal.aborted) {
-            console.log(`Overall timeout reached, skipping category: ${category}`);
-            break;
-          }
-          
-          console.log(`Worker starting category ${categoryIndex + 1}/${effectiveCategories.length}: ${category}`);
-          
-          try {
-            await processCategory(category, categoryIndex);
-            console.log(`Worker completed category ${categoryIndex + 1}/${effectiveCategories.length}: ${category}`);
-          } catch (categoryError: any) {
-            console.error(`Worker failed to process category ${category}:`, categoryError);
-            // Continue processing other categories even if one fails
-          }
-        }
-      } catch (workerError) {
-        console.error(`Worker encountered fatal error:`, workerError);
-        throw workerError;
-      }
-    };
-
-    // Create a worker function for processing a single category
-    const processCategory = async (category: string, categoryIndex: number): Promise<void> => {
-      let attempts = 0;
-      let results: Array<{ query: string; response: string; events: EventData[]; timestamp: number; }> | null = null;
-      
-      if (debugMode) {
-        console.log(`🔍 DEBUG: Starting processing for category ${category} (index ${categoryIndex})`);
-      }
-      
-      while (attempts < maxAttempts && !results) {
-        attempts++;
-        
-        try {
-          if (debugMode) {
-            console.log(`🔍 DEBUG: Processing category ${categoryIndex + 1}/${effectiveCategories.length}: ${category} (attempt ${attempts}/${maxAttempts})`);
-          } else {
-            console.log(`Processing category ${categoryIndex + 1}/${effectiveCategories.length}: ${category} (attempt ${attempts}/${maxAttempts})`);
-          }
-          
-          // Execute query for single category with robust timeout
-          const perCategoryTimeout = (() => {
-            if (typeof categoryTimeoutMs === 'object' && categoryTimeoutMs !== null) {
-              const categoryTimeout = categoryTimeoutMs[category];
-              return Math.max(typeof categoryTimeout === 'number' ? categoryTimeout : 90000, 60000);
-            }
-            if (typeof categoryTimeoutMs === 'number') return Math.max(categoryTimeoutMs, 60000);
-            return 90000;
-          })();
-          
-          if (debugMode) {
-            console.log(`🔍 DEBUG: Category ${category}: using timeout ${perCategoryTimeout}ms`);
-          } else {
-            console.log(`Category ${category}: using timeout ${perCategoryTimeout}ms`);
-          }
-
-          try {
-            console.log(`🚀 DISPATCHING AI QUEUE: Starting Perplexity call for category "${category}" in ${city} on ${date}`);
-            const queryPromise = perplexityClient.queryMultipleCategories(city, date, [category]);
-            console.log(`⏳ AI QUEUE DISPATCHED: Waiting for Perplexity response for category "${category}"`);
-            
-            const res = await withTimeout(queryPromise, perCategoryTimeout);
-            
-            console.log(`📥 AI QUEUE RESPONSE: Received response for category "${category}":`, {
-              responseLength: res?.length || 0,
-              hasResults: !!(res && res.length > 0),
-              firstResultPreview: res?.[0]?.response?.substring(0, 150) + '...'
-            });
-            
-            if (res && res.length > 0) {
-              results = res;
-              if (debugMode) {
-                console.log(`🔍 DEBUG: ✅ Category ${category} completed successfully with ${res.length} results`);
-                console.log(`🔍 DEBUG: Raw response preview for ${category}:`, res[0]?.response?.substring(0, 200) + '...');
-              } else {
-                console.log(`✅ Category ${category} completed successfully with ${res.length} results`);
-              }
-            } else {
-              console.log(`⚠️ AI QUEUE ISSUE: Category ${category} returned no results - this may indicate AI processing failure`);
-              if (debugMode) {
-                console.log(`🔍 DEBUG: ⚠️ Category ${category} returned no results`);
-              } else {
-                console.log(`⚠️ Category ${category} returned no results`);
-              }
-            }
-          } catch (timeoutError: any) {
-            if (timeoutError.message.includes('timed out')) {
-              console.error(`⏰ Category ${category} timed out after ${perCategoryTimeout}ms`);
-              if (debugMode) {
-                console.log(`🔍 DEBUG: ⏰ Category ${category} timed out after ${perCategoryTimeout}ms`);
-              }
-              throw new Error(`Category timeout after ${perCategoryTimeout}ms`);
-            } else {
-              console.error(`❌ Category ${category} API error:`, timeoutError.message);
-              if (debugMode) {
-                console.log(`🔍 DEBUG: ❌ Category ${category} API error:`, timeoutError.message);
-              }
-              throw timeoutError;
-            }
-          }
-          
-        } catch (categoryError: any) {
-          console.error(`Category ${category} attempt ${attempts}/${maxAttempts} failed:`, categoryError.message);
-          if (debugMode) {
-            console.log(`🔍 DEBUG: ❌ Category ${category} attempt ${attempts}/${maxAttempts} failed:`, categoryError.message);
-          }
-          
-          // If not the last attempt, wait with exponential backoff + jitter
-          if (attempts < maxAttempts) {
-            const baseDelay = 1000 * Math.pow(2, attempts - 1); // 1s, 2s, 4s, 8s
-            const jitter = Math.random() * 1000; // 0-1s random jitter
-            const delay = baseDelay + jitter;
-            if (debugMode) {
-              console.log(`🔍 DEBUG: Retrying category ${category} in ${Math.round(delay)}ms...`);
-            } else {
-              console.log(`Retrying category ${category} in ${Math.round(delay)}ms...`);
-            }
-            await new Promise(resolve => setTimeout(resolve, delay));
-          }
-        }
-      }
-      
-      // Process all sub-results if we got some - wrap in try/catch to prevent escaping exceptions
-      try {
-        if (results && results.length > 0) {
-          for (let i = 0; i < results.length; i++) {
-            const r = results[i];
-            try {
-              // Parse events from this sub-result
-              r.events = eventAggregator.parseEventsFromResponse(r.response);
-              const parsedCount = r.events.length;
-              
-              console.log(`🎯 EVENT PARSING: Category "${category}" parsed ${parsedCount} events from AI response`);
-              
-              if (debugMode) {
-                console.log(`🔍 DEBUG: Parsed ${parsedCount} events from response for category ${category} (step ${i + 1}/${results.length})`);
-                if (parsedCount > 0) {
-                  console.log(`🔍 DEBUG: Sample event from ${category}:`, {
-                    title: r.events[0].title,
-                    venue: r.events[0].venue,
-                    date: r.events[0].date,
-                    time: r.events[0].time
-                  });
-                }
-              }
-              
-              // Aggregate new events from this sub-result
-              const newResults = [{ ...r, events: r.events }];
-              const categoryEvents = eventAggregator.aggregateResults(newResults);
-              
-              console.log(`📦 EVENT AGGREGATION: Category "${category}" produced ${categoryEvents.length} events after aggregation`);
-              
-              // Get current job state to ensure we have the latest events
-              const currentJob = await jobStore.getJob(jobId);
-              const currentEvents = currentJob?.events || [];
-              
-              console.log(`💾 JOB STATE: Current job has ${currentEvents.length} events before merging`);
-              
-              // Merge with current events and deduplicate properly
-              const beforeCount = currentEvents.length;
-              const combinedEvents = [...currentEvents, ...categoryEvents];
-              const deduplicatedEvents = eventAggregator.deduplicateEvents(combinedEvents);
-              
-              // Categorize all events
-              const finalEvents = eventAggregator.categorizeEvents(deduplicatedEvents);
-              
-              const addedCount = finalEvents.length - beforeCount;
-              
-              console.log(`🔄 EVENT MERGE SUMMARY: Before=${beforeCount}, Parsed=${parsedCount}, Combined=${combinedEvents.length}, Deduplicated=${deduplicatedEvents.length}, Final=${finalEvents.length}, Net Added=${addedCount}`);
-              
-              if (debugMode) {
-                console.log(`🔍 DEBUG: Event processing for ${category}:`, {
-                  beforeCount,
-                  parsedCount,
-                  categoryEventsCount: categoryEvents.length,
-                  afterDeduplication: deduplicatedEvents.length,
-                  finalCount: finalEvents.length,
-                  addedCount
-                });
-              }
-              
-              // Update local tracking variable for this worker
-              allEvents = finalEvents;
-              
-              // Cache this category's events immediately for future requests
-              // IMPORTANT: For main categories, cache under all subcategories too
-              try {
-                const ttlSeconds = computeTTLSecondsForEvents(categoryEvents);
-                
-                console.log(`💰 CACHING: Storing ${categoryEvents.length} events for category "${category}" with TTL=${ttlSeconds}s`);
-                
-                // Always cache under the processed category (whether main or sub)
-                eventsCache.setEventsByCategory(city, date, category, categoryEvents, ttlSeconds);
-                console.log(`✅ CACHE SUCCESS: Cached events for category '${category}'`);
-                
-                if (debugMode) {
-                  console.log(`🔍 DEBUG: ✅ Cached ${categoryEvents.length} events for category '${category}' with TTL: ${ttlSeconds} seconds`);
-                } else {
-                  console.log(`Cached ${categoryEvents.length} events for category '${category}' with TTL: ${ttlSeconds} seconds`);
-                }
-                
-                // If this is a main category, also cache under all its subcategories
-                // This implements the problem statement: AI calls for main categories, cache for subcategories
-                const subcategories = getSubcategoriesForMainCategory(category);
-                if (subcategories.length > 0) {
-                  if (debugMode) {
-                    console.log(`🔍 DEBUG: Main category '${category}' detected. Caching events under ${subcategories.length} subcategories.`);
-                  } else {
-                    console.log(`Main category '${category}' detected. Caching events under ${subcategories.length} subcategories.`);
-                  }
-                  for (const subcategory of subcategories) {
-                    try {
-                      eventsCache.setEventsByCategory(city, date, subcategory, categoryEvents, ttlSeconds);
-                      if (debugMode) {
-                        console.log(`🔍 DEBUG:   → Cached under subcategory: '${subcategory}'`);
-                      } else {
-                        console.log(`  → Cached under subcategory: '${subcategory}'`);
-                      }
-                    } catch (subCacheError) {
-                      console.error(`Failed to cache under subcategory '${subcategory}':`, subCacheError);
-                      if (debugMode) {
-                        console.log(`🔍 DEBUG: ❌ Failed to cache under subcategory '${subcategory}':`, subCacheError);
-                      }
-                    }
-                  }
-                }
-              } catch (cacheError) {
-                console.error(`Failed to cache category '${category}':`, cacheError);
-                if (debugMode) {
-                  console.log(`🔍 DEBUG: ❌ Failed to cache category '${category}':`, cacheError);
-                }
-                // Continue processing even if caching fails
-              }
-              
-              // Get current job state and update progress incrementally
-              const currentJobForProgress = await jobStore.getJob(jobId);
-              const currentProgress = currentJobForProgress?.progress || {
-                totalCategories: effectiveCategories.length,
-                completedCategories: 0,
-                failedCategories: 0,
-                categoryStates: {}
-              };
-              
-              // Progressive update with the latest merged events
-              await safeUpdateJobStatus(jobId, { 
-                events: finalEvents,
-                progress: {
-                  ...currentProgress,
-                  completedCategories, 
-                  totalCategories: effectiveCategories.length 
-                },
-                updatedAt: new Date().toISOString()
-              });
-              
-              if (debugMode) {
-                console.log(`🔍 DEBUG: ✅ Progressive update completed for ${category} (step ${i + 1}/${results.length}): ${finalEvents.length} total events, progress: ${completedCategories}/${effectiveCategories.length} categories`);
-              } else {
-                console.log(`Progressive update: ${finalEvents.length} total events committed for category ${category} (step ${i + 1}/${results.length}), progress: ${completedCategories}/${effectiveCategories.length} categories, parsed: ${parsedCount}, added: ${addedCount}`);
-              }
-              
-              // Store debug step for this category processing
-              if (debugMode && debugInfo) {
-                const debugStep = {
-                  category,
-                  query: r.query || `Search events in ${city} on ${date} for category: ${category}`,
-                  response: r.response,
-                  parsedCount,
-                  addedCount,
-                  totalAfter: finalEvents.length
-                };
-                
-                debugInfo.steps.push(debugStep);
-                
-                try {
-                  await safeStoreDebugInfo(jobId, debugInfo);
-                  console.log(`🔍 DEBUG: ✅ Debug step stored for category ${category}`);
-                } catch (debugStoreError) {
-                  console.error(`🔍 DEBUG: ❌ Failed to store debug step for category ${category}:`, debugStoreError);
-                }
-              }
-              
-            } catch (processingError: any) {
-              console.error(`Error processing sub-result ${i + 1}/${results.length} for category ${category}:`, processingError.message);
-              if (debugMode) {
-                console.log(`🔍 DEBUG: ❌ Error processing sub-result ${i + 1}/${results.length} for category ${category}:`, processingError.message);
-              }
-            }
-          }
-        } else {
-          // No results returned after all attempts
-          if (debugMode) {
-            console.log(`🔍 DEBUG: ⚠️ No results returned for category ${category} after ${maxAttempts} attempts`);
-            
-            // Store debug step for failed category
-            if (debugInfo) {
-              const debugStep = {
-                category,
-                query: `Search events in ${city} on ${date} for category: ${category}`,
-                response: `No results after ${maxAttempts} attempts`,
-                parsedCount: 0,
-                addedCount: 0,
-                totalAfter: allEvents.length
-              };
-              
-              debugInfo.steps.push(debugStep);
-              
-              try {
-                await safeStoreDebugInfo(jobId, debugInfo);
-                console.log(`🔍 DEBUG: ✅ Debug step stored for failed category ${category}`);
-              } catch (debugStoreError) {
-                console.error(`🔍 DEBUG: ❌ Failed to store debug step for failed category ${category}:`, debugStoreError);
-              }
-            }
-          } else {
-            console.log(`No results returned for category ${category} after ${maxAttempts} attempts`);
-          }
-        }
-      } catch (outerProcessingError: any) {
-        console.error(`Error processing results array for category ${category}:`, outerProcessingError.message);
-        if (debugMode) {
-          console.log(`🔍 DEBUG: ❌ Error processing results array for category ${category}:`, outerProcessingError.message);
-        }
-      }
-
-      completedCategories++;
-      lastProgressUpdate = Date.now(); // Update progress timestamp
-      if (debugMode) {
-        console.log(`🔍 DEBUG: ✅ Completed category ${category}. Progress: ${completedCategories}/${effectiveCategories.length} categories`);
-      } else {
-        console.log(`✅ Completed category ${category}. Progress: ${completedCategories}/${effectiveCategories.length} categories`);
-      }
-    };
-
-    // Start workers (up to concurrency limit)
-    const workerCount = Math.min(categoryConcurrency, effectiveCategories.length);
-    if (debugMode) {
-      console.log(`🔍 DEBUG: Starting ${workerCount} parallel workers for ${effectiveCategories.length} categories`);
-    } else {
-      console.log(`Starting ${workerCount} parallel workers for ${effectiveCategories.length} categories`);
-    }
-    for (let i = 0; i < workerCount; i++) {
-      processingPromises.push(
-        worker().catch(workerError => {
-          console.error(`Worker ${i + 1} failed:`, workerError);
-          if (debugMode) {
-            console.log(`🔍 DEBUG: ❌ Worker ${i + 1} failed:`, workerError);
-          }
-          // Don't re-throw here, let Promise.all handle it
-          throw workerError;
-        })
-      );
-    }
-
-    try {
-      // Wait for all workers to complete or overall timeout
-      if (debugMode) {
-        console.log(`🔍 DEBUG: Waiting for ${workerCount} workers to process ${effectiveCategories.length} categories...`);
-      } else {
-        console.log(`Waiting for ${workerCount} workers to process ${effectiveCategories.length} categories...`);
-      }
-      
-      await Promise.race([
-        Promise.all(processingPromises).then(() => {
-          if (debugMode) {
-            console.log(`🔍 DEBUG: ✅ All ${workerCount} workers completed successfully`);
-          } else {
-            console.log(`All ${workerCount} workers completed successfully`);
-          }
-        }),
-        new Promise<void>((_, reject) => {
-          overallAbortController.signal.addEventListener('abort', () => {
-            if (debugMode) {
-              console.log(`🔍 DEBUG: ⏰ Overall timeout of ${overallTimeoutMs}ms triggered, aborting workers`);
-            } else {
-              console.log(`Overall timeout of ${overallTimeoutMs}ms triggered, aborting workers`);
-            }
-            reject(new Error(`Overall timeout of ${overallTimeoutMs}ms exceeded`));
-          });
-        })
-      ]);
-      
-      // Get final events count from JobStore for accurate logging
-      const finalJob = await jobStore.getJob(jobId);
-      const finalEventCount = finalJob?.events?.length || 0;
-      if (debugMode) {
-        console.log(`🔍 DEBUG: ✅ Background job complete: found ${finalEventCount} events total`);
-      } else {
-        console.log(`Background job complete: found ${finalEventCount} events total`);
-      }
-    } catch (timeoutError: any) {
-      if (timeoutError.message.includes('Overall timeout')) {
-        // Get current events count from JobStore
-        const currentJob = await jobStore.getJob(jobId);
-        const currentEventCount = currentJob?.events?.length || 0;
-        if (debugMode) {
-          console.log(`🔍 DEBUG: ⏰ Job ${jobId} stopped due to overall timeout of ${overallTimeoutMs}ms. Found ${currentEventCount} events so far.`);
-        } else {
-          console.log(`Job ${jobId} stopped due to overall timeout of ${overallTimeoutMs}ms. Found ${currentEventCount} events so far.`);
-        }
-        // Continue to finalization with partial results
-      } else {
-        console.error(`Job ${jobId} failed due to worker error:`, timeoutError);
-        if (debugMode) {
-          console.log(`🔍 DEBUG: ❌ Job ${jobId} failed due to worker error:`, timeoutError);
-        }
-        throw timeoutError; // Re-throw other errors
-      }
-    } finally {
-      // Clean up overall timeout
-      if (overallTimeoutId) {
-        clearTimeout(overallTimeoutId);
-        if (debugMode) {
-          console.log(`🔍 DEBUG: ✅ Cleared overall timeout for job ${jobId}`);
-        } else {
-          console.log(`Cleared overall timeout for job ${jobId}`);
-        }
-      }
-      
-      // Clean up progress monitoring
-      if (progressCheckInterval) {
-        clearInterval(progressCheckInterval);
-        if (debugMode) {
-          console.log(`🔍 DEBUG: ✅ Cleared progress monitoring for job ${jobId}`);
-        } else {
-          console.log(`Cleared progress monitoring for job ${jobId}`);
-        }
-      }
-    }
-
-    // Always finalize the job with status 'done', even if we have 0 events
-    try {
-      // Get the final events from the JobStore (they may have been updated by workers)
-      const finalJob = await jobStore.getJob(jobId);
-      const finalEvents = finalJob?.events || allEvents || [];
-      
-      if (debugMode) {
-        console.log(`🔍 DEBUG: Step 8 - Finalizing job with ${finalEvents.length} total events`);
-        console.log(`🔍 DEBUG: Per-category caching completed during processing`);
-      }
-      
-      // Note: Per-category caching is now done immediately during processing
-      // No need for combined caching here as individual categories are already cached
-      console.log(`Job finalized with ${finalEvents.length} total events (per-category caching completed during processing)`);
-    } catch (cacheError) {
-      console.error('Failed to finalize job, but continuing:', cacheError);
-      if (debugMode) {
-        console.log(`🔍 DEBUG: ❌ Failed to finalize job, but continuing:`, cacheError);
-      }
-    }
-
-    // Update job with final status - this must succeed to prevent UI timeout
-    // Get current events from JobStore to ensure we don't overwrite progressive updates
-    if (debugMode) {
-      console.log(`🔍 DEBUG: Step 9 - Updating job ${jobId} to 'done' status...`);
-    } else {
-      console.log(`Updating job ${jobId} to 'done' status...`);
-    }
-    
-    let finalEvents: EventData[] = [];
-    try {
-      const finalJob = await jobStore.getJob(jobId);
-      finalEvents = finalJob?.events || allEvents || [];
-      
-      console.log(`🏁 FINAL JOB STATE: Retrieved ${finalEvents.length} events from job store`);
-      console.log(`📊 EVENT COUNT COMPARISON: JobStore=${finalJob?.events?.length || 0}, LocalVar=${allEvents?.length || 0}, Final=${finalEvents.length}`);
-      
-    } catch (getFinalJobError) {
-      console.error('Could not get final job state, using local events:', getFinalJobError);
-      if (debugMode) {
-        console.log(`🔍 DEBUG: ❌ Could not get final job state, using local events:`, getFinalJobError);
-      }
-      finalEvents = allEvents || [];
-      console.log(`🏁 FINAL FALLBACK: Using ${finalEvents.length} local events due to job store error`);
-    }
-    
-    // Store final debug information if in debug mode
-    if (debugMode && debugInfo) {
-      debugInfo.steps.push({
-        category: 'Job Completion',
-        query: 'Finalize job and set status to done',
-        response: `Job completed successfully with ${finalEvents.length} total events across ${effectiveCategories.length} categories`,
-        parsedCount: finalEvents.length,
-        addedCount: 0,
-        totalAfter: finalEvents.length
-      });
+    // Process each category individually (as requested by user)
+    for (let i = 0; i < categories.length; i++) {
+      const category = categories[i];
       
       try {
-        await safeStoreDebugInfo(jobId, debugInfo);
-        console.log(`🔍 DEBUG: ✅ Final debug info stored`);
-      } catch (debugStoreError) {
-        console.error(`🔍 DEBUG: ❌ Failed to store final debug info:`, debugStoreError);
+        logger.info(`Processing category ${i + 1}/${categories.length}: ${category}`, { jobId });
+        
+        // Update progress
+        const categoryStates = { ...initialCategoryStates };
+        categoryStates[category] = { state: 'in_progress' };
+        
+        await jobStore.updateJob(jobId, {
+          progress: {
+            completedCategories: i,
+            totalCategories: categories.length,
+            failedCategories: 0,
+            categoryStates
+          }
+        });
+
+        // Check cache first
+        const cacheResult = await eventCache.getEventsForCategories(city, date, [category]);
+        
+        if (cacheResult.cachedEvents[category] && cacheResult.cachedEvents[category].length > 0) {
+          logger.info(`Found ${cacheResult.cachedEvents[category].length} cached events for category: ${category}`, { jobId });
+          allEvents.push(...cacheResult.cachedEvents[category]);
+          continue;
+        }
+
+        // Make AI request for this category
+        const perplexity = getPerplexityClient();
+        const result = await perplexity.queryGeneral(city, date + ` kategorie: ${category}`);
+        
+        // Simple event parsing
+        const categoryEvents = parseEventsFromResponse(result.response, category, date);
+        
+        if (categoryEvents.length > 0) {
+          logger.info(`Found ${categoryEvents.length} new events for category: ${category}`, { jobId });
+          
+          // Cache the events
+          const ttl = computeTTLSecondsForEvents(categoryEvents);
+          await eventCache.cacheEvents(city, date, category, categoryEvents, ttl);
+          
+          allEvents.push(...categoryEvents);
+        } else {
+          logger.info(`No events found for category: ${category}`, { jobId });
+        }
+
+        // Small delay between requests to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+      } catch (categoryError) {
+        logger.error(`Error processing category ${category}`, {
+          jobId,
+          category,
+          error: categoryError instanceof Error ? categoryError.message : String(categoryError)
+        });
+        // Continue with other categories
       }
     }
+
+    // Deduplicate all events
+    const finalEvents = deduplicateEvents(allEvents);
     
-    // Get the final job state to preserve progress structure
-    const finalJobState = await jobStore.getJob(jobId);
-    const finalProgress = finalJobState?.progress || {
-      totalCategories: effectiveCategories.length,
-      completedCategories: effectiveCategories.length,
-      failedCategories: 0,
-      categoryStates: {}
-    };
-    
-    const success = await criticalUpdateJobStatus(jobId, {
-      status: JobStatus.SUCCESS,
+    logger.info('Job processing completed', {
+      jobId,
+      totalEvents: finalEvents.length,
+      processingTime: Date.now() - startTime
+    });
+
+    // Update job with final results
+    const finalCategoryStates: Record<string, any> = {};
+    categories.forEach(category => {
+      finalCategoryStates[category] = { state: 'completed' };
+    });
+
+    await jobStore.updateJob(jobId, {
+      status: finalEvents.length > 0 ? JobStatus.SUCCESS : JobStatus.PARTIAL_SUCCESS,
       events: finalEvents,
       progress: {
-        ...finalProgress,
-        completedCategories: effectiveCategories.length, 
-        totalCategories: effectiveCategories.length 
+        completedCategories: categories.length,
+        totalCategories: categories.length,
+        failedCategories: 0,
+        categoryStates: finalCategoryStates
       },
-      updatedAt: new Date().toISOString(),
       completedAt: new Date().toISOString()
     });
-    
-    console.log(`🎯 JOB STATUS UPDATE: Attempting to set job ${jobId} to 'done' with ${finalEvents.length} events`);
-    
-    if (success) {
-      console.log(`✅ SUCCESS: Job ${jobId} successfully marked as 'done' with ${finalEvents.length} events`);
-      if (debugMode) {
-        console.log('🔍 DEBUG: === BACKGROUND PROCESSOR DEBUG COMPLETE ===\n');
-      } else {
-        console.log(`✅ Job ${jobId} successfully marked as 'done' with ${finalEvents.length} events`);
-      }
-    } else {
-      console.error(`❌ CRITICAL: Failed to update job ${jobId} to 'done' status - but won't throw to prevent infinite loop`);
-      if (debugMode) {
-        console.log(`🔍 DEBUG: ❌ CRITICAL: Failed to update job ${jobId} to 'done' status`);
-      }
-    }
 
   } catch (error) {
-    console.error('❌ Background job error for:', jobId, error);
-    if (debugMode) {
-      console.log('🔍 DEBUG: ❌ Background job error for:', jobId, error);
-      
-      // Store error debug information
-      if (debugInfo) {
-        debugInfo.steps.push({
-          category: 'Error',
-          query: 'Background job processing',
-          response: `FATAL ERROR: ${error}`,
-          parsedCount: 0,
-          addedCount: 0,
-          totalAfter: 0
-        });
-        
-        try {
-          await safeStoreDebugInfo(jobId, debugInfo);
-          console.log(`🔍 DEBUG: ✅ Error debug info stored`);
-        } catch (debugStoreError) {
-          console.error(`🔍 DEBUG: ❌ Failed to store error debug info:`, debugStoreError);
-        }
-      }
-    }
-    
-    // Clean up overall timeout in case of error
-    try {
-      if (overallTimeoutId) {
-        clearTimeout(overallTimeoutId);
-        if (debugMode) {
-        } else {
-          console.log(`Cleared timeout after error for job ${jobId}`);
-        }
-      }
-    } catch {
-      // Ignore cleanup errors
-    }
-    
-    // Ensure job is always finalized, even on error - this is CRITICAL to prevent infinite polling
-    if (debugMode) {
-    } else {
-      console.log(`Attempting to mark job ${jobId} as 'error' status...`);
-    }
-    const success = await criticalUpdateJobStatus(jobId, {
+    logger.error('Background job processing failed', {
+      jobId,
+      error: error instanceof Error ? error.message : String(error),
+      processingTime: Date.now() - startTime
+    });
+
+    await jobStore.updateJob(jobId, {
       status: JobStatus.FAILED,
-      error: 'Fehler beim Verarbeiten der Anfrage',
-      updatedAt: new Date().toISOString(),
+      error: error instanceof Error ? error.message : 'Unknown error during processing',
       completedAt: new Date().toISOString()
     });
+  }
+}
+
+// Simple event parsing function
+function parseEventsFromResponse(responseText: string, category: string, date: string): EventData[] {
+  const events: EventData[] = [];
+  
+  try {
+    // Try to parse as JSON first
+    const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (Array.isArray(parsed)) {
+        return parsed.map(event => ({
+          title: event.title || 'Untitled Event',
+          venue: event.venue || 'Unknown Venue',
+          time: event.time || '00:00',
+          price: event.price || 'Free',
+          date: event.date || date,
+          category: event.category || category,
+          website: event.website || '',
+          ...event
+        }));
+      }
+    }
+  } catch (parseError) {
+    logger.warn('Failed to parse JSON response, trying fallback parsing', {
+      category,
+      error: parseError instanceof Error ? parseError.message : String(parseError)
+    });
+  }
+
+  // Fallback: look for event-like patterns in text
+  const lines = responseText.split('\n');
+  let currentEvent: Partial<EventData> = {};
+  
+  for (const line of lines) {
+    const cleanLine = line.trim();
+    if (!cleanLine) continue;
     
-    if (success) {
-      if (debugMode) {
-        console.log('🔍 DEBUG: === BACKGROUND PROCESSOR DEBUG COMPLETE (WITH ERROR) ===\n');
-      } else {
-        console.log(`✅ Job ${jobId} successfully marked as 'error'`);
+    // Simple pattern matching for common event formats
+    if (cleanLine.includes('Titel:') || cleanLine.includes('Title:')) {
+      if (currentEvent.title) {
+        events.push(finalizeEvent(currentEvent, category, date));
+        currentEvent = {};
       }
-    } else {
-      console.error(`❌ CATASTROPHIC: Cannot update job ${jobId} status to error - user may experience infinite polling`);
-      if (debugMode) {
-      }
-      // The deadman switch should eventually clean this up
+      currentEvent.title = cleanLine.replace(/^(Titel:|Title:)/, '').trim();
+    } else if (cleanLine.includes('Venue:') || cleanLine.includes('Ort:')) {
+      currentEvent.venue = cleanLine.replace(/^(Venue:|Ort:)/, '').trim();
+    } else if (cleanLine.includes('Zeit:') || cleanLine.includes('Time:')) {
+      currentEvent.time = cleanLine.replace(/^(Zeit:|Time:)/, '').trim();
+    } else if (cleanLine.includes('Preis:') || cleanLine.includes('Price:')) {
+      currentEvent.price = cleanLine.replace(/^(Preis:|Price:)/, '').trim();
     }
   }
+  
+  if (currentEvent.title) {
+    events.push(finalizeEvent(currentEvent, category, date));
+  }
+  
+  return events;
+}
+
+function finalizeEvent(event: Partial<EventData>, category: string, date: string): EventData {
+  return {
+    title: event.title || 'Untitled Event',
+    venue: event.venue || 'Unknown Venue',
+    time: event.time || '00:00',
+    price: event.price || 'Free',
+    date: event.date || date,
+    category: event.category || category,
+    website: event.website || '',
+    ...event
+  } as EventData;
 }

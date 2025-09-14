@@ -585,8 +585,8 @@ export default function Home() {
       return;
     }
 
-    // Check if at least one category is selected
-    const selectedCategories = getSelectedSubcategories();
+    // Send the selected super categories directly instead of expanding to subcategories
+    const selectedCategories = selectedSuperCategories;
     if (selectedCategories.length === 0) {
       setError('Bitte wähle mindestens eine Kategorie aus.');
       return;
