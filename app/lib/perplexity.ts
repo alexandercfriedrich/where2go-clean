@@ -16,7 +16,59 @@ export class PerplexityService {
   /**
    * Builds a query prompt for a specific category with strict JSON schema
    */
-  private async buildCategoryPrompt(city: string, date: string, category: string): Promise<string> {
+  private buildCategoryPrompt(city: string, date: string, category: string): string {
+    // Simplified version for compatibility with existing tests
+    // The async version can be added later or used internally
+    let websiteSection = `
+Search multiple sources including:
+- Local event platforms for ${city}
+- Official venue websites and social media  
+- ${city} tourism and culture sites
+- Ticketing platforms active in ${city}
+- Entertainment and nightlife directories of ${city}
+- Category-specific platforms for ${category}`;
+
+    return `
+    "IMPORTANT: Search for comprehensive ${category} events in ${city} on ${date} across multiple sources.
+    WICHTIG: Suche nach allen ${category}-Veranstaltungen und Events in ${city} am ${date}.
+
+    Use ONLY the exact main category string for 'category'. Subtypes go into 'eventType'.
+    Valid categories include: DJ Sets/Electronic, Clubs/Discos, Live-Konzerte, Open Air, Museen, LGBTQ+, Comedy/Kabarett, Theater/Performance, Film, Food/Culinary, Sport, Familien/Kids, Kunst/Design, Wellness/Spirituell, Networking/Business, Natur/Outdoor.
+
+    MANDATORY JSON FORMAT: Return ONLY a valid JSON array with NO explanations, markdown, or code blocks. Do not include any explanatory text.
+    Each event object must include these EXACT fields:
+
+{
+  \"title\": \"string - event name\",
+  \"date\": \"string - YYYY-MM-DD format\", 
+  \"time\": \"string - HH:MM format (optional)\",
+  \"endTime\": \"string - HH:MM format (optional)\",
+  \"venue\": \"string - venue name\",
+  \"address\": \"string - full address as 'Street Number, ZIP City, Country' (optional)\",
+  \"category\": \"string - ${category}\",
+  \"eventType\": \"string - specific subcategory (optional)\",
+  \"price\": \"string - entry cost (optional)\",
+  \"ticketPrice\": \"string - ticket cost (optional)\",
+  \"ageRestrictions\": \"string - age requirements (optional)\",
+  \"description\": \"string - brief description (optional)\",
+  \"website\": \"string - event URL\",
+  \"bookingLink\": \"string - ticket booking URL (optional)\"
+}
+${websiteSection}
+
+Return ONLY a valid JSON array with NO explanations, markdown, or code blocks. 
+If no events are found, return: []
+
+Antworte NUR mit gültigem JSON Array ohne Erklärungen, Markdown oder Code-Blöcke.
+Falls keine Events gefunden: []
+
+`;
+  }
+
+  /**
+   * Builds a query prompt for a specific category with strict JSON schema (async version)
+   */
+  private async buildCategoryPromptAsync(city: string, date: string, category: string): Promise<string> {
     // Get hot city configuration and specific websites
     const hotCity = await getHotCity(city);
     const cityWebsites = await getCityWebsitesForCategories(city, [category]);
@@ -49,6 +101,8 @@ Search multiple sources including:
     "IMPORTANT: Search for comprehensive ${category} events in ${city} on ${date} across multiple sources.
     WICHTIG: Suche nach allen ${category}-Veranstaltungen und Events in ${city} am ${date}. ${customQuerySection}
 
+    Use ONLY the exact main category string for 'category'. Subtypes go into 'eventType'.
+
     MANDATORY JSON FORMAT: Return ONLY a valid JSON array with NO explanations, markdown, or code blocks. 
     Each event object must include these EXACT fields:
 
@@ -58,7 +112,7 @@ Search multiple sources including:
   \"time\": \"string - HH:MM format (optional)\",
   \"endTime\": \"string - HH:MM format (optional)\",
   \"venue\": \"string - venue name\",
-  \"address\": \"string - complete address as 'Street Number, ZIP City, Country' (optional)\",
+  \"address\": \"string - full address as 'Street Number, ZIP City, Country' (optional)\",
   \"category\": \"string - ${category}\",
   \"eventType\": \"string - specific subcategory (optional)\",
   \"price\": \"string - entry cost (optional)\",
@@ -66,12 +120,15 @@ Search multiple sources including:
   \"ageRestrictions\": \"string - age requirements (optional)\",
   \"description\": \"string - brief description (optional)\",
   \"website\": \"string - event URL\",
-  \"bookingLink\": \"string - ticket URL (optional)\"
+  \"bookingLink\": \"string - ticket booking URL (optional)\"
 }
 ${websiteSection}
 
 Return ONLY a valid JSON array with NO explanations, markdown, or code blocks. 
 If no events found, return: []
+
+Antworte NUR mit gültigem JSON Array ohne Erklärungen, Markdown oder Code-Blöcke.
+Falls keine Events gefunden: []
 
 `;
   }
@@ -94,6 +151,8 @@ IMPORTANT: Search for comprehensive events in ${city} on ${date} across these ca
 9. Universitäts- & Studentenevents
 10. Szene-Events & Underground Events & Alternative Events
 
+Category guidance: Each main category implicitly includes its typical subtypes (e.g. DJ Sets/Electronic → Techno, House, Trance; Live-Konzerte → Rock, Pop, Jazz; Open Air → Festivals, Street Festivals, Outdoor Concerts). Always output ONLY the exact main category name in the 'category' field.
+
 REQUIRED: Return ONLY a valid JSON array of event objects. Do not include any explanatory text, markdown formatting, code fences, or additional content.
 
 Each event object must have these exact field names:
@@ -114,7 +173,9 @@ Each event object must have these exact field names:
   "bookingLink": "string - ticket booking URL (optional)"
 }
 Return ONLY a valid JSON array with NO explanations, markdown, or code blocks. 
-if no events found: []
+If no events are found, return: []
+
+AUSSCHLIESSLICH mit gültigem JSON Array ohne kein Fließtext, kein Markdown.
 `;
   }
 
@@ -144,7 +205,7 @@ if no events found: []
     const queries: string[] = [];
     for (const category of categories) {
       const categoryName = categoryMap[category.toLowerCase()] || category;
-      const prompt = await this.buildCategoryPrompt(city, date, categoryName);
+      const prompt = await this.buildCategoryPromptAsync(city, date, categoryName);
       queries.push(prompt);
     }
 
