@@ -2,6 +2,7 @@
 
 import { EventData, PerplexityResult, QueryOptions } from './types';
 import { getCityWebsitesForCategories, getHotCity } from './hotCityStore';
+import { buildCategoryListForPrompt, allowedCategoriesForSchema } from './eventCategories';
 
 export class PerplexityService {
   private readonly apiKey: string;
@@ -46,11 +47,11 @@ Search multiple sources including:
     }
 
     return `
-    "IMPORTANT: Search for comprehensive ${category} events in ${city} on ${date} across multiple sources.
-    WICHTIG: Suche nach allen ${category}-Veranstaltungen und Events in ${city} am ${date}. ${customQuerySection}
+IMPORTANT: Search for comprehensive ${category} events in ${city} on ${date} across multiple sources.
+WICHTIG: Suche nach allen ${category}-Veranstaltungen und Events in ${city} am ${date}.${customQuerySection}
 
-    MANDATORY JSON FORMAT: Return ONLY a valid JSON array with NO explanations, markdown, or code blocks. 
-    Each event object must include these EXACT fields:
+Return ONLY a valid JSON array with NO explanations, markdown, or code blocks. 
+Do not include any explanatory text. Each event object must include these EXACT fields:
 
 {
   \"title\": \"string - event name\",
@@ -58,7 +59,7 @@ Search multiple sources including:
   \"time\": \"string - HH:MM format (optional)\",
   \"endTime\": \"string - HH:MM format (optional)\",
   \"venue\": \"string - venue name\",
-  \"address\": \"string - complete address as 'Street Number, ZIP City, Country' (optional)\",
+  \"address\": \"string - full address like 'Street Number, ZIP City, Country' (optional)\",
   \"category\": \"string - ${category}\",
   \"eventType\": \"string - specific subcategory (optional)\",
   \"price\": \"string - entry cost (optional)\",
@@ -66,35 +67,30 @@ Search multiple sources including:
   \"ageRestrictions\": \"string - age requirements (optional)\",
   \"description\": \"string - brief description (optional)\",
   \"website\": \"string - event URL\",
-  \"bookingLink\": \"string - ticket URL (optional)\"
+  \"bookingLink\": \"string - ticket booking URL (optional)\"
 }
 ${websiteSection}
 
-Return ONLY a valid JSON array with NO explanations, markdown, or code blocks. 
-If no events found, return: []
+Antworte NUR mit gültigem JSON Array ohne Erklärungen, Markdown oder Code-Blöcke.
+If no events are found, return: []
+Falls keine Events gefunden: []
 
 `;
   }
 
   /**
-   * Builds a general query prompt with strict JSON schema
+   * Builds a general query prompt with strict JSON schema using dynamic category list
    */
   private buildGeneralPrompt(city: string, date: string): string {
+    const categoryList = buildCategoryListForPrompt();
+    const allowedCategories = allowedCategoriesForSchema().join(', ');
+    
     return `
 IMPORTANT: Search for comprehensive events in ${city} on ${date} across these categories:
 
-1. Konzerte & Musik (Klassik, Rock, Pop, Jazz, Elektronik)
-2. Theater & Kabarett & Comedy & Musicals  
-3. Museen & Ausstellungen & Galerien (auch Sonderausstellungen)
-4. Clubs & DJ-Sets & Partys & Electronic Music Events
-5. Bars & Rooftop Events & Afterwork Events
-6. Open-Air Events & Festivals & Outdoor Events
-7. LGBT+ Events & Queer Events & Pride Events
-8. Kinder- & Familienveranstaltungen
-9. Universitäts- & Studentenevents
-10. Szene-Events & Underground Events & Alternative Events
+${categoryList}
 
-REQUIRED: Return ONLY a valid JSON array of event objects. Do not include any explanatory text, markdown formatting, code fences, or additional content.
+Return ONLY a valid JSON array of event objects. Do not include any explanatory text, markdown formatting, code fences, or additional content.
 
 Each event object must have these exact field names:
 {
@@ -104,7 +100,7 @@ Each event object must have these exact field names:
   "endTime": "string - HH:MM format (optional)",
   "venue": "string - venue name",
   "address": "string - full address like 'Straße Hausnr, PLZ Stadt, Land' (optional)",
-  "category": "string - must be one of: DJ Sets/Electronic, Clubs/Discos, Live-Konzerte, Open Air, Museen, LGBTQ+, Comedy/Kabarett, Theater/Performance, Film, Food/Culinary, Sport, Familien/Kids, Kunst/Design, Wellness/Spirituell, Networking/Business, Natur/Outdoor",
+  "category": "string - must be one of: ${allowedCategories}",
   "eventType": "string - specific event type (optional)",
   "price": "string - entry price (optional)", 
   "ticketPrice": "string - ticket price (optional)",
@@ -113,8 +109,9 @@ Each event object must have these exact field names:
   "website": "string - event website URL",
   "bookingLink": "string - ticket booking URL (optional)"
 }
-Return ONLY a valid JSON array with NO explanations, markdown, or code blocks. 
-if no events found: []
+
+AUSSCHLIESSLICH mit gültigem JSON Array antworten, kein Fließtext, kein Markdown.
+If no events are found, return: []
 `;
   }
 
@@ -127,18 +124,141 @@ if no events found: []
       return [this.buildGeneralPrompt(city, date)];
     }
 
-    // Create specific queries for each category
+    // Expanded categoryMap to cover all 20 top-level categories with slug variants
     const categoryMap: { [key: string]: string } = {
-      'musik': 'Konzerte & Musik (Klassik, Rock, Pop, Jazz, Elektronik)',
-      'theater': 'Theater & Kabarett & Comedy & Musicals',
-      'museen': 'Museen & Ausstellungen & Galerien (auch Sonderausstellungen)',
-      'clubs': 'Clubs & DJ-Sets & Partys & Electronic Music Events',
-      'bars': 'Bars & Rooftop Events & Afterwork Events',
+      // DJ Sets/Electronic category variants
+      'dj': 'DJ Sets & Electronic Music Events',
+      'electronic': 'DJ Sets & Electronic Music Events',
+      'techno': 'DJ Sets & Electronic Music Events',
+      'house': 'DJ Sets & Electronic Music Events',
+      'edm': 'DJ Sets & Electronic Music Events',
+      
+      // Clubs/Discos category variants
+      'clubs': 'Clubs & Partys & Disco Events',
+      'disco': 'Clubs & Partys & Disco Events',
+      'party': 'Clubs & Partys & Disco Events',
+      'nightclub': 'Clubs & Partys & Disco Events',
+      
+      // Live-Konzerte category variants
+      'musik': 'Konzerte & Musik (Klassik, Rock, Pop, Jazz)',
+      'konzerte': 'Konzerte & Musik (Klassik, Rock, Pop, Jazz)',
+      'live': 'Konzerte & Musik (Klassik, Rock, Pop, Jazz)',
+      'rock': 'Konzerte & Musik (Klassik, Rock, Pop, Jazz)',
+      'pop': 'Konzerte & Musik (Klassik, Rock, Pop, Jazz)',
+      'jazz': 'Konzerte & Musik (Klassik, Rock, Pop, Jazz)',
+      'classical': 'Konzerte & Musik (Klassik, Rock, Pop, Jazz)',
+      
+      // Open Air category variants
       'outdoor': 'Open-Air Events & Festivals & Outdoor Events',
+      'openair': 'Open-Air Events & Festivals & Outdoor Events',
+      'festival': 'Open-Air Events & Festivals & Outdoor Events',
+      'openairfestival': 'Open-Air Events & Festivals & Outdoor Events',
+      
+      // Museen category variants
+      'museen': 'Museen & Ausstellungen & Galerien',
+      'museum': 'Museen & Ausstellungen & Galerien',
+      'ausstellung': 'Museen & Ausstellungen & Galerien',
+      'galerie': 'Museen & Ausstellungen & Galerien',
+      'exhibition': 'Museen & Ausstellungen & Galerien',
+      
+      // LGBTQ+ category variants
       'lgbt': 'LGBT+ Events & Queer Events & Pride Events',
+      'lgbtq': 'LGBT+ Events & Queer Events & Pride Events',
+      'queer': 'LGBT+ Events & Queer Events & Pride Events',
+      'pride': 'LGBT+ Events & Queer Events & Pride Events',
+      'gay': 'LGBT+ Events & Queer Events & Pride Events',
+      
+      // Comedy/Kabarett category variants
+      'comedy': 'Comedy & Kabarett & Shows',
+      'kabarett': 'Comedy & Kabarett & Shows',
+      'standup': 'Comedy & Kabarett & Shows',
+      'humor': 'Comedy & Kabarett & Shows',
+      
+      // Theater/Performance category variants
+      'theater': 'Theater & Performance & Musicals',
+      'theatre': 'Theater & Performance & Musicals',
+      'performance': 'Theater & Performance & Musicals',
+      'musical': 'Theater & Performance & Musicals',
+      'opera': 'Theater & Performance & Musicals',
+      'dance': 'Theater & Performance & Musicals',
+      
+      // Film category variants
+      'film': 'Film & Cinema & Movie Events',
+      'cinema': 'Film & Cinema & Movie Events',
+      'movie': 'Film & Cinema & Movie Events',
+      'kino': 'Film & Cinema & Movie Events',
+      
+      // Food/Culinary category variants
+      'food': 'Food & Culinary Events & Wine Tasting',
+      'culinary': 'Food & Culinary Events & Wine Tasting',
+      'wine': 'Food & Culinary Events & Wine Tasting',
+      'cooking': 'Food & Culinary Events & Wine Tasting',
+      'restaurant': 'Food & Culinary Events & Wine Tasting',
+      
+      // Sport category variants
+      'sport': 'Sport & Fitness Events',
+      'fitness': 'Sport & Fitness Events',
+      'running': 'Sport & Fitness Events',
+      'yoga': 'Sport & Fitness Events',
+      
+      // Familien/Kids category variants
       'familie': 'Kinder- & Familienveranstaltungen',
-      'studenten': 'Universitäts- & Studentenevents',
-      'alternative': 'Szene-Events & Underground Events & Alternative Events'
+      'kids': 'Kinder- & Familienveranstaltungen',
+      'kinder': 'Kinder- & Familienveranstaltungen',
+      'family': 'Kinder- & Familienveranstaltungen',
+      
+      // Kunst/Design category variants
+      'kunst': 'Kunst & Design Events',
+      'art': 'Kunst & Design Events',
+      'design': 'Kunst & Design Events',
+      'creative': 'Kunst & Design Events',
+      
+      // Wellness/Spirituell category variants
+      'wellness': 'Wellness & Spiritual Events',
+      'spiritual': 'Wellness & Spiritual Events',
+      'meditation': 'Wellness & Spiritual Events',
+      'mindfulness': 'Wellness & Spiritual Events',
+      
+      // Networking/Business category variants
+      'networking': 'Business & Networking Events',
+      'business': 'Business & Networking Events',
+      'conference': 'Business & Networking Events',
+      'meetup': 'Business & Networking Events',
+      
+      // Natur/Outdoor category variants
+      'natur': 'Natur & Outdoor Activities',
+      'nature': 'Natur & Outdoor Activities',
+      'hiking': 'Natur & Outdoor Activities',
+      'eco': 'Natur & Outdoor Activities',
+      
+      // Kultur/Traditionen category variants
+      'kultur': 'Kultur & Traditional Events',
+      'culture': 'Kultur & Traditional Events',
+      'traditional': 'Kultur & Traditional Events',
+      'heritage': 'Kultur & Traditional Events',
+      
+      // Märkte/Shopping category variants
+      'markt': 'Märkte & Shopping Events',
+      'market': 'Märkte & Shopping Events',
+      'shopping': 'Märkte & Shopping Events',
+      'flohmarkt': 'Märkte & Shopping Events',
+      
+      // Bildung/Lernen category variants
+      'bildung': 'Bildung & Learning Events',
+      'learning': 'Bildung & Learning Events',
+      'workshop': 'Bildung & Learning Events',
+      'seminar': 'Bildung & Learning Events',
+      
+      // Soziales/Community category variants
+      'sozial': 'Community & Social Events',
+      'community': 'Community & Social Events',
+      'social': 'Community & Social Events',
+      'volunteer': 'Community & Social Events',
+      
+      // Legacy/backward compatibility entries
+      'bars': 'Food & Culinary Events & Wine Tasting',
+      'studenten': 'Bildung & Learning Events',
+      'alternative': 'Kultur & Traditional Events'
     };
 
     const queries: string[] = [];
