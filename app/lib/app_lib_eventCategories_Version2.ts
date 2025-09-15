@@ -1,8 +1,8 @@
 // Zentral gepflegte Event-Kategorien inkl. Subkategorien
-// Diese Datei dient als Single Source of Truth für:
-// - Prompt-Generierung (LLM Abfragen)
-// - UI Dropdowns / Filter
-// - Validierung eingehender Event-Daten
+// Single Source of Truth für:
+// - Prompt-Generierung
+// - UI Filter / Dropdowns
+// - Validierung
 
 export const EVENT_CATEGORY_SUBCATEGORIES: Record<string, string[]> = {
   'DJ Sets/Electronic': [
@@ -132,29 +132,22 @@ export const EVENT_CATEGORY_SUBCATEGORIES: Record<string, string[]> = {
 
 export const EVENT_CATEGORIES = Object.keys(EVENT_CATEGORY_SUBCATEGORIES);
 
-// Erzeugt nummerierte Liste für Prompt
 export function buildCategoryListForPrompt(): string {
-  return EVENT_CATEGORIES
-    .map((cat, idx) => `${idx + 1}. ${cat}`)
-    .join('\n');
+  return EVENT_CATEGORIES.map((cat, idx) => `${idx + 1}. ${cat}`).join('\n');
 }
 
-// Kommagetrennte Liste für Schema
 export function allowedCategoriesForSchema(): string {
   return EVENT_CATEGORIES.join(', ');
 }
 
-// Array-Version für Validierung
 export function getAllowedCategories(): string[] {
   return [...EVENT_CATEGORIES];
 }
 
-// Optional: einfache Validierung einer Event-Kategorie
 export function isValidCategory(category: string): boolean {
   return EVENT_CATEGORIES.includes(category);
 }
 
-// Optional: Subkategorie validieren (Case-sensitiv aktuell)
 export function isValidSubcategory(category: string, sub: string): boolean {
   const subs = EVENT_CATEGORY_SUBCATEGORIES[category];
   return Array.isArray(subs) && subs.includes(sub);
