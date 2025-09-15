@@ -188,6 +188,7 @@ export async function GET(
     // Determine cache headers based on job status
     const isTerminal = [
       JobStatus.SUCCESS,
+      JobStatus.EMPTY,
       JobStatus.PARTIAL_SUCCESS,
       JobStatus.FAILED,
       JobStatus.CANCELLED
