@@ -140,14 +140,14 @@ export class NewEventsWorker {
               eventCount: categoryEvents.length
             });
           } else {
-            // Zero parsed events currently treated as failure (can be adapted later)
+            // Zero parsed events - mark as completed with eventCount 0 for EMPTY status derivation
             await this.updateCategoryState(job, category, {
-              state: ProgressState.FAILED,
+              state: ProgressState.COMPLETED,
               completedAt: new Date().toISOString(),
-              error: 'No events found'
+              eventCount: 0
             });
 
-            logger.info('Category processed with no events - treated as failure', {
+            logger.info('Category processed with no events - marked as completed', {
               jobId,
               category
             });
