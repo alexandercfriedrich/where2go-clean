@@ -1,170 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getJobStore } from '../../../../lib/new-backend/redis/jobStore';
-import { processJobInBackground } from './backgroundProcessor';
-import { JobStatus } from '../../../../lib/new-backend/types/jobs';
+import { processPendingJobsOnce } from '../../../../worker/process-once';
 
-// Serverless configuration for background processing
 export const runtime = 'nodejs';
-export const maxDuration = 240; // 4 minutes - conservative timeout that should work on most Vercel plans
 
-const jobStore = getJobStore();
-
-interface ProcessingRequest {
-  jobId: string;
-  city: string;
-  date: string;
-  categories?: string[];
-  options?: any;
-}
-
-export async function POST(req: NextRequest) {
-  // Add immediate debug logging to see if this function is even being called
-  console.log('🚀 CRITICAL DEBUG: POST function called - route is working!');
-  console.log('🚀 Method and URL:', req.method, req.url);
-  
-  console.log('🔄 Background processing endpoint called with headers:', {
-    'x-vercel-background': req.headers.get('x-vercel-background'),
-    'x-internal-call': req.headers.get('x-internal-call'),
-    'x-internal-secret': req.headers.get('x-internal-secret') ? 'SET' : 'NOT_SET',
-    'x-vercel-protection-bypass': req.headers.get('x-vercel-protection-bypass') ? 'SET' : 'NOT_SET',
-    'host': req.headers.get('host'),
-    'userAgent': req.headers.get('user-agent')
-  });
-
-  // Enhanced internal request validation with stricter secret requirement
-  const hasInternalSecret = req.headers.get('x-internal-secret');
-  const isValidSecret = hasInternalSecret && 
-    process.env.INTERNAL_API_SECRET && 
-    hasInternalSecret === process.env.INTERNAL_API_SECRET;
-    
-  // In production, require valid secret - no fallback
-  if (process.env.NODE_ENV === 'production' && !isValidSecret) {
-    console.log('⚠️ Production request without valid secret, blocking access');
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-  
-  // For development, allow more flexible detection
-  const isInternalRequest = 
-    isValidSecret ||
-    req.headers.get('x-vercel-background') === '1' ||
-    req.headers.get('x-internal-call') === 'true' ||
-    req.headers.get('x-vercel-protection-bypass') ||
-    req.headers.get('user-agent')?.includes('where2go-internal') ||
-    req.headers.get('user-agent')?.includes('node');
-  
-  if (!isInternalRequest) {
-    console.log('⚠️ External request detected, blocking access');
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  console.log('✅ Background processing endpoint: Valid request received');
-
+export async function POST(_req: NextRequest) {
+  const started = Date.now();
   try {
-    const body: ProcessingRequest = await req.json();
-    const { jobId, city, date, categories, options } = body;
-
-    if (!jobId || !city || !date) {
-      console.error('❌ Missing required parameters:', { jobId: !!jobId, city: !!city, date: !!date });
-      return NextResponse.json(
-        { error: 'Missing required parameters: jobId, city, date' },
-        { status: 400 }
-      );
-    }
-
-    console.log('Processing job:', { jobId, city, date, categories: categories?.length || 0 });
-
-    // Immediately set job status to RUNNING to give visible progress
-    try {
-      await jobStore.updateJob(jobId, {
-        status: JobStatus.RUNNING,
-        startedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      });
-      console.log(`✅ Job ${jobId} status set to RUNNING`);
-    } catch (updateError) {
-      console.error('❌ Failed to set job status to RUNNING:', updateError);
-      return NextResponse.json(
-        { error: 'Failed to update job status to running' },
-        { status: 500 }
-      );
-    }
-
-    // Start background processing asynchronously - DO NOT AWAIT
-    // This allows the HTTP response to return immediately while processing continues
-    
-    // Set up a deadman's switch to automatically fail jobs that take too long
-    // Set to 3.5 minutes to ensure it triggers before the 4-minute maxDuration
-    const deadmanTimeout = setTimeout(async () => {
-      console.error(`🚨 DEADMAN SWITCH: Job ${jobId} has been running for more than 3.5 minutes, marking as failed`);
-      try {
-        await jobStore.updateJob(jobId, {
-          status: JobStatus.FAILED,
-          error: 'Processing timed out - job took longer than expected (3.5 min limit)',
-          updatedAt: new Date().toISOString()
-        });
-        console.log(`✅ Deadman switch successfully marked job ${jobId} as failed`);
-      } catch (updateError) {
-        console.error('❌ CRITICAL: Deadman switch failed to update job status:', updateError);
-        // Even the deadman switch failed - this indicates serious Redis issues
-        console.error(`🚨 REDIS CONNECTIVITY FAILURE: Job ${jobId} cannot be marked as failed due to Redis issues`);
-      }
-    }, 3.5 * 60 * 1000); // 3.5 minutes - before the 4-minute maxDuration
-    
-    processJobInBackground(jobId, city, date, categories || [], options)
-      .then(() => {
-        // Job completed successfully
-        clearTimeout(deadmanTimeout);
-        console.log(`✅ Background processing completed successfully for job: ${jobId}`);
-      })
-      .catch(error => {
-        // Job failed with error
-        clearTimeout(deadmanTimeout);
-        console.error('❌ Async background processing error for job', jobId, ':', error);
-        
-        // Update job status to error to prevent infinite polling
-        jobStore.updateJob(jobId, {
-          status: JobStatus.FAILED,
-          error: 'Background processing failed to complete',
-          updatedAt: new Date().toISOString()
-        }).catch(updateError => {
-          console.error('❌ CRITICAL: Failed to update job status after background error:', updateError);
-          console.error(`🚨 Job ${jobId} may be stuck in pending state due to Redis connectivity issues`);
-        });
-      });
-
-    console.log('Background processing started successfully for job:', jobId);
-    return NextResponse.json({ success: true });
-
-  } catch (error) {
-    console.error('Background processing route error:', error);
-    return NextResponse.json(
-      { error: 'Background processing failed' },
-      { status: 500 }
-    );
+    const result = await processPendingJobsOnce({
+      maxJobsPerRun: Number(process.env.WORKER_MAX_JOBS ?? 8),
+      maxRunMs: Number(process.env.WORKER_MAX_MS ?? 480000)
+    });
+    return NextResponse.json({ ok: true, ...result, ms: Date.now() - started });
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: e?.message || 'processing_failed' }, { status: 500 });
   }
 }
 
-// Add GET handler for simple endpoint testing
-export async function GET(req: NextRequest) {
-  console.log('🔍 GET request received on background processing endpoint - route exists and works!');
-  return NextResponse.json({
-    success: true,
-    message: 'Background processing endpoint is accessible',
-    method: 'GET',
-    url: req.url,
-    timestamp: new Date().toISOString()
-  });
-}
-
-// Add OPTIONS handler to support CORS preflight requests if needed
-export async function OPTIONS(req: NextRequest) {
-  console.log('🔍 OPTIONS request received on background processing endpoint');
-  return new NextResponse(null, {
-    status: 200,
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type, x-vercel-background, x-internal-call, x-internal-secret, x-vercel-protection-bypass',
-    },
-  });
-}

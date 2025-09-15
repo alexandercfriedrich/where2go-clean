@@ -1,6 +1,11 @@
 /**
  * Background worker for processing event search jobs.
- * This worker runs as a separate Node.js process and processes jobs serially.
+ * 
+ * DEPRECATION NOTICE: The start() loop method is deprecated and kept for legacy purposes only.
+ * For serverless environments, use the new processPendingJobsOnce() function from worker/process-once.ts
+ * which provides Redis-based distributed locking and one-shot batch processing.
+ * 
+ * The processJob() method remains unchanged and is the single source of truth for job processing logic.
  * 
  * @fileoverview Serial job processor with timeout, retry, and partial success handling.
  */
