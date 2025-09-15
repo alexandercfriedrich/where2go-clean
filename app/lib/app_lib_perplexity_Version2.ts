@@ -123,14 +123,23 @@ if no events found: []
       return [this.buildGeneralPrompt(city, date)];
     }
 
-    // Create specific queries for each category using dynamic eventCategories system
+    // Create specific queries for each category
+    const categoryMap: { [key: string]: string } = {
+      'musik': 'Konzerte & Musik (Klassik, Rock, Pop, Jazz, Elektronik)',
+      'theater': 'Theater & Kabarett & Comedy & Musicals',
+      'museen': 'Museen & Ausstellungen & Galerien (auch Sonderausstellungen)',
+      'clubs': 'Clubs & DJ-Sets & Partys & Electronic Music Events',
+      'bars': 'Bars & Rooftop Events & Afterwork Events',
+      'outdoor': 'Open-Air Events & Festivals & Outdoor Events',
+      'lgbt': 'LGBT+ Events & Queer Events & Pride Events',
+      'familie': 'Kinder- & Familienveranstaltungen',
+      'studenten': 'Universitäts- & Studentenevents',
+      'alternative': 'Szene-Events & Underground Events & Alternative Events'
+    };
+
     const queries: string[] = [];
     for (const category of categories) {
-      // Use buildCategoryListForPrompt or similar from eventCategories to get human-readable name
-      // If buildCategoryListForPrompt returns an array, find the matching category object
-      const categoryList = buildCategoryListForPrompt();
-      const categoryObj = categoryList.find(cat => cat.slug.toLowerCase() === category.toLowerCase());
-      const categoryName = categoryObj ? categoryObj.name : category;
+      const categoryName = categoryMap[category.toLowerCase()] || category;
       const prompt = await this.buildCategoryPrompt(city, date, categoryName);
       queries.push(prompt);
     }
@@ -148,10 +157,10 @@ if no events found: []
       try {
         const response = await fetch(this.baseUrl, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
-            'Content-Type': 'application/json',
-          },
+            headers: {
+              'Authorization': `Bearer ${this.apiKey}`,
+              'Content-Type': 'application/json',
+            },
             body: JSON.stringify({
               model: 'sonar-pro',
               messages: [
@@ -175,7 +184,7 @@ if no events found: []
         return data.choices[0]?.message?.content || '';
       } catch (error: any) {
         lastError = error;
-        if (attempt < retries - 1 && String(error).includes('not valid JSON')) {
+        if (attempt === 0 && String(error).includes('not valid JSON')) {
           // Wait before retry
           await new Promise(resolve => setTimeout(resolve, 500));
           continue;
@@ -256,7 +265,7 @@ if no events found: []
         } catch (error: any) {
           lastError = error;
           
-          // If aborted due to timeout, don't retry
+            // If aborted due to timeout, don't retry
           if (controller.signal.aborted) {
             throw new Error(`Query timed out after ${timeoutMs}ms`);
           }
