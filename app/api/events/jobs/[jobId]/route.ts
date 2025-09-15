@@ -189,6 +189,7 @@ export async function GET(
     const isTerminal = [
       JobStatus.SUCCESS,
       JobStatus.PARTIAL_SUCCESS,
+      JobStatus.EMPTY,
       JobStatus.FAILED,
       JobStatus.CANCELLED
     ].includes(job.status);

@@ -1,85 +1,32 @@
-import { EventSearchJob, JobStatus } from '../types/jobs';
+/**
+ * Centralized status derivation & counter recomputation.
+ */
+import { EventSearchJob, JobStatus, ProgressState } from '../types/jobs';
 
-export interface IntegrityInfo {
-  mismatchCompleted: boolean;
-  mismatchFailed: boolean;
-  countedCompleted: number;
-  countedFailed: number;
-  expectedCompleted: number;
-  expectedFailed: number;
-  finalStatus: JobStatus;
-  needsRepair: boolean;
+export function recomputeCounters(job: EventSearchJob) {
+  const states = Object.values(job.progress.categoryStates);
+  job.progress.completedCategories = states.filter(s => s.state === ProgressState.COMPLETED).length;
+  job.progress.failedCategories = states.filter(s => s.state === ProgressState.FAILED).length;
 }
 
-/**
- * Builds integrity information for a job by analyzing its progress and category states.
- * Detects mismatches between aggregated counters and actual category states.
- */
-export function buildIntegrityInfo(job: EventSearchJob): IntegrityInfo {
-  const { progress } = job;
-  const { categoryStates, totalCategories, completedCategories, failedCategories } = progress;
+export function deriveFinalStatus(job: EventSearchJob): JobStatus {
+  const states = Object.values(job.progress.categoryStates);
+  if (states.length === 0) return JobStatus.FAILED;
 
-  // Count actual states from categoryStates
-  let actualCompleted = 0;
-  let actualFailed = 0;
+  const total = states.length;
+  const completed = states.filter(s => s.state === ProgressState.COMPLETED).length;
+  const failed = states.filter(s => s.state === ProgressState.FAILED).length;
+  const active = states.some(s => s.state === ProgressState.IN_PROGRESS || s.state === ProgressState.RETRIED);
 
-  for (const [, state] of Object.entries(categoryStates)) {
-    if (state.state === 'completed') {
-      actualCompleted++;
-    } else if (state.state === 'failed') {
-      actualFailed++;
-    }
-  }
+  if (active) return job.status; // not yet final
 
-  // Detect mismatches
-  const mismatchCompleted = actualCompleted !== completedCategories;
-  const mismatchFailed = actualFailed !== failedCategories;
+  const eventCount = job.events?.length ?? 0;
 
-  // Determine final status based on actual counts
-  let finalStatus: JobStatus;
-  if (actualCompleted === totalCategories) {
-    finalStatus = JobStatus.SUCCESS;
-  } else if (actualCompleted > 0) {
-    finalStatus = JobStatus.PARTIAL_SUCCESS;
-  } else if (actualFailed === totalCategories) {
-    finalStatus = JobStatus.FAILED;
-  } else {
-    // Some categories might still be in progress or not started
-    finalStatus = job.status; // Keep current status
-  }
+  if (completed === total && eventCount === 0) return JobStatus.EMPTY;
+  if (completed === total && eventCount > 0) return JobStatus.SUCCESS;
+  if (completed > 0 && failed > 0) return JobStatus.PARTIAL_SUCCESS;
+  if (failed === total) return JobStatus.FAILED;
 
-  const needsRepair = mismatchCompleted || mismatchFailed || finalStatus !== job.status;
-
-  return {
-    mismatchCompleted,
-    mismatchFailed,
-    countedCompleted: actualCompleted,
-    countedFailed: actualFailed,
-    expectedCompleted: completedCategories,
-    expectedFailed: failedCategories,
-    finalStatus,
-    needsRepair
-  };
-}
-
-/**
- * Repairs job progress by recalculating counters from category states
- * and updating the job status accordingly.
- */
-export function repairJobProgress(job: EventSearchJob): Partial<EventSearchJob> {
-  const integrity = buildIntegrityInfo(job);
-  
-  if (!integrity.needsRepair) {
-    return {}; // No repair needed
-  }
-
-  return {
-    status: integrity.finalStatus,
-    progress: {
-      ...job.progress,
-      completedCategories: integrity.countedCompleted,
-      failedCategories: integrity.countedFailed
-    },
-    updatedAt: new Date().toISOString()
-  };
+  // Fallback: treat ambiguous as FAILED.
+  return JobStatus.FAILED;
 }

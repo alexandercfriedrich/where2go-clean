@@ -1,13 +1,6 @@
 /**
- * Background worker for processing event search jobs.
- * 
- * DEPRECATION NOTICE: The start() loop method is deprecated and kept for legacy purposes only.
- * For serverless environments, use the new processPendingJobsOnce() function from worker/process-once.ts
- * which provides Redis-based distributed locking and one-shot batch processing.
- * 
- * The processJob() method remains unchanged and is the single source of truth for job processing logic.
- * 
- * @fileoverview Serial job processor with timeout, retry, and partial success handling.
+ * Simplified single-job processor (no internal polling loop).
+ * All orchestration remains in worker/process-once.ts.
  */
 
 import { getJobStore } from '../lib/new-backend/redis/jobStore';
@@ -16,6 +9,7 @@ import { getPerplexityClient } from '../lib/new-backend/services/perplexityClien
 import { normalizeCategories } from '../lib/new-backend/categories/normalize';
 import { createComponentLogger } from '../lib/new-backend/utils/log';
 import { createError, ErrorCode, fromError } from '../lib/new-backend/utils/errors';
+import { recomputeCounters, deriveFinalStatus } from '../lib/new-backend/jobs/status';
 import { 
   JobStatus, 
   ProgressState, 
@@ -27,142 +21,42 @@ import { type MainCategory } from '../lib/new-backend/categories/categoryMap';
 
 const logger = createComponentLogger('EventsWorker');
 
-/**
- * Worker configuration.
- */
 interface WorkerConfig {
-  /** Polling interval when no jobs are available (milliseconds) */
-  pollingIntervalMs: number;
-  
-  /** Timeout for processing a single category (milliseconds) */
   categoryTimeoutMs: number;
-  
-  /** Maximum retries per category */
   categoryMaxRetries: number;
-  
-  /** Delay between retries (milliseconds) */
   retryDelayMs: number;
-  
-  /** Default cache TTL for events (seconds) */
   defaultCacheTtlSeconds: number;
-  
-  /** Whether worker should keep running */
-  keepRunning: boolean;
 }
 
-/**
- * Default worker configuration.
- */
 const DEFAULT_CONFIG: WorkerConfig = {
-  pollingIntervalMs: 5000, // Poll every 5 seconds
-  categoryTimeoutMs: 25000, // 25 seconds
+  categoryTimeoutMs: 25000,
   categoryMaxRetries: 2,
   retryDelayMs: 1000,
-  defaultCacheTtlSeconds: 3600, // 1 hour
-  keepRunning: true
+  defaultCacheTtlSeconds: 3600,
 };
 
-/**
- * Background worker for processing event search jobs.
- */
 export class NewEventsWorker {
   private config: WorkerConfig;
   private jobStore = getJobStore();
   private eventCache = getEventCache();
   private perplexityClient = getPerplexityClient();
-  private isRunning = false;
-  private shouldStop = false;
 
   constructor(config: Partial<WorkerConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
     
     logger.info('New events worker initialized', {
-      pollingIntervalMs: this.config.pollingIntervalMs,
       categoryTimeoutMs: this.config.categoryTimeoutMs,
       categoryMaxRetries: this.config.categoryMaxRetries
     });
   }
 
   /**
-   * Start the worker loop.
-   * Continuously processes jobs from the queue.
-   */
-  async start(): Promise<void> {
-    if (this.isRunning) {
-      logger.warn('Worker is already running');
-      return;
-    }
-
-    this.isRunning = true;
-    this.shouldStop = false;
-
-    logger.info('Starting new events worker');
-
-    try {
-      while (this.config.keepRunning && !this.shouldStop) {
-        try {
-          // Get next job from queue (non-blocking)
-          const jobId = await this.jobStore.dequeueJob();
-          
-          if (!jobId) {
-            // No job available, wait before polling again
-            await this.delay(this.config.pollingIntervalMs);
-            continue;
-          }
-
-          logger.info('Processing job from queue', { jobId });
-          
-          // Process the job
-          await this.processJob(jobId);
-
-        } catch (error) {
-          const appError = fromError(error, ErrorCode.JOB_PROCESSING_FAILED);
-          logger.error('Error in worker loop', { error: appError });
-          
-          // Continue processing other jobs after a short delay
-          await this.delay(1000);
-        }
-      }
-
-    } finally {
-      this.isRunning = false;
-      logger.info('New events worker stopped');
-    }
-  }
-
-  /**
-   * Stop the worker gracefully.
-   */
-  async stop(): Promise<void> {
-    if (!this.isRunning) {
-      logger.warn('Worker is not running');
-      return;
-    }
-
-    logger.info('Stopping new events worker');
-    this.shouldStop = true;
-
-    // Wait for current job to complete (with timeout)
-    let attempts = 0;
-    while (this.isRunning && attempts < 30) {
-      await this.delay(1000);
-      attempts++;
-    }
-
-    if (this.isRunning) {
-      logger.warn('Worker did not stop gracefully within 30 seconds');
-    }
-  }
-
-  /**
    * Process a single job.
-   * Handles job state transitions and partial success scenarios.
    */
   async processJob(jobId: string): Promise<void> {
     const startTime = Date.now();
     
     try {
-      // Get job details
       const job = await this.jobStore.getJob(jobId);
       
       if (!job) {
@@ -185,22 +79,18 @@ export class NewEventsWorker {
         categoryCount: job.categories.length
       });
 
-      // Update job to running status
       await this.updateJobStatus(job, JobStatus.RUNNING, {
         startedAt: new Date().toISOString()
       });
 
-      // Normalize categories
       const normalizedCategories = normalizeCategories(job.categories);
       
-      // Check cache for existing events
       const cacheResult = await this.eventCache.getEventsForCategories(
         job.city,
         job.date,
         normalizedCategories
       );
 
-      // Start with cached events
       let allEvents = Object.values(cacheResult.cachedEvents).flat();
 
       // Update progress with cached categories
@@ -228,7 +118,6 @@ export class NewEventsWorker {
           );
           
           if (categoryEvents.length > 0) {
-            // Cache the events
             await this.eventCache.cacheEvents(
               job.city,
               job.date,
@@ -237,7 +126,6 @@ export class NewEventsWorker {
               this.config.defaultCacheTtlSeconds
             );
 
-            // Add to all events
             allEvents.push(...categoryEvents);
 
             await this.updateCategoryState(job, category, {
@@ -252,14 +140,14 @@ export class NewEventsWorker {
               eventCount: categoryEvents.length
             });
           } else {
-            // Category processed but no events found
+            // Zero parsed events currently treated as failure (can be adapted later)
             await this.updateCategoryState(job, category, {
-              state: ProgressState.COMPLETED,
+              state: ProgressState.FAILED,
               completedAt: new Date().toISOString(),
-              eventCount: 0
+              error: 'No events found'
             });
 
-            logger.info('Category processed with no events', {
+            logger.info('Category processed with no events - treated as failure', {
               jobId,
               category
             });
@@ -281,52 +169,35 @@ export class NewEventsWorker {
           });
         }
 
-        // Update job with current events (progress is updated by updateCategoryState)
         await this.updateJobProgress(job, {
           events: allEvents
         });
       }
 
-      // Get final counters from the updated job progress
-      const { completedCategories, failedCategories } = job.progress;
+      // Finalize with centralized status logic
+      const finalJob = await this.jobStore.getJob(jobId);
+      if (finalJob) {
+        recomputeCounters(finalJob);
+        const finalStatus = deriveFinalStatus(finalJob);
 
-      // Determine final job status
-      const totalCategories = normalizedCategories.length;
-      let finalStatus: JobStatus;
-      
-      if (completedCategories === totalCategories) {
-        finalStatus = JobStatus.SUCCESS;
-      } else if (completedCategories > 0) {
-        finalStatus = JobStatus.PARTIAL_SUCCESS;
-      } else {
-        finalStatus = JobStatus.FAILED;
+        await this.updateJobStatus(finalJob, finalStatus, {
+          completedAt: new Date().toISOString(),
+          events: allEvents,
+          progress: finalJob.progress
+        });
+
+        const processingTime = Date.now() - startTime;
+
+        logger.info('Job processing completed', {
+          jobId,
+          finalStatus,
+          totalCategories: finalJob.progress.totalCategories,
+          completedCategories: finalJob.progress.completedCategories,
+          failedCategories: finalJob.progress.failedCategories,
+          totalEvents: allEvents.length,
+          processingTimeMs: processingTime
+        });
       }
-
-      // Final progress update with correct counts
-      const finalProgress = {
-        ...job.progress,
-        completedCategories,
-        failedCategories
-      };
-
-      // Update final job status
-      await this.updateJobStatus(job, finalStatus, {
-        completedAt: new Date().toISOString(),
-        events: allEvents,
-        progress: finalProgress
-      });
-
-      const processingTime = Date.now() - startTime;
-
-      logger.info('Job processing completed', {
-        jobId,
-        finalStatus,
-        totalCategories,
-        completedCategories,
-        failedCategories,
-        totalEvents: allEvents.length,
-        processingTimeMs: processingTime
-      });
 
     } catch (error) {
       const appError = fromError(error, ErrorCode.JOB_PROCESSING_FAILED);
@@ -337,7 +208,6 @@ export class NewEventsWorker {
         processingTimeMs: Date.now() - startTime
       });
 
-      // Update job to failed status
       try {
         const job = await this.jobStore.getJob(jobId);
         if (job) {
@@ -355,9 +225,6 @@ export class NewEventsWorker {
     }
   }
 
-  /**
-   * Process a category with retry logic and timeout.
-   */
   private async processCategoryWithRetry(
     job: EventSearchJob,
     category: MainCategory
@@ -366,14 +233,12 @@ export class NewEventsWorker {
 
     while (retryCount <= this.config.categoryMaxRetries) {
       try {
-        // Update category state to in progress
         await this.updateCategoryState(job, category, {
           state: ProgressState.IN_PROGRESS,
           startedAt: new Date().toISOString(),
           retryCount
         });
 
-        // Process with timeout
         const events = await this.processCategoryWithTimeout(job, category);
         
         return events;
@@ -389,18 +254,15 @@ export class NewEventsWorker {
             error: appError
           });
 
-          // Update category state for retry
           await this.updateCategoryState(job, category, {
             state: ProgressState.RETRIED,
             retryCount: retryCount + 1,
             error: appError.message
           });
 
-          // Wait before retry with exponential backoff
           await this.delay(this.config.retryDelayMs * Math.pow(2, retryCount));
           retryCount++;
         } else {
-          // All retries exhausted
           logger.error('Category processing failed after all retries', {
             jobId: job.id,
             category,
@@ -412,29 +274,23 @@ export class NewEventsWorker {
       }
     }
 
-    // Should never reach here
     throw createError(
       ErrorCode.CATEGORY_PROCESSING_FAILED,
       `Category processing failed after ${this.config.categoryMaxRetries + 1} attempts`
     );
   }
 
-  /**
-   * Process a category with timeout using AbortController.
-   */
   private async processCategoryWithTimeout(
     job: EventSearchJob,
     category: MainCategory
   ): Promise<EventData[]> {
     const abortController = new AbortController();
     
-    // Set timeout
     const timeoutId = setTimeout(() => {
       abortController.abort();
     }, this.config.categoryTimeoutMs);
 
     try {
-      // Check for lock
       const isLocked = await this.eventCache.isLocked(job.city, job.date, category);
       if (isLocked) {
         throw createError(
@@ -443,7 +299,6 @@ export class NewEventsWorker {
         );
       }
 
-      // Acquire lock
       const lockAcquired = await this.eventCache.acquireLock(job.city, job.date, category);
       if (!lockAcquired) {
         throw createError(
@@ -453,7 +308,6 @@ export class NewEventsWorker {
       }
 
       try {
-        // Search for events using AI
         const searchResult = await this.perplexityClient.searchCategory(
           job.city,
           job.date,
@@ -471,7 +325,6 @@ export class NewEventsWorker {
         return searchResult.response.events;
 
       } finally {
-        // Always release lock
         await this.eventCache.releaseLock(job.city, job.date, category);
       }
 
@@ -480,9 +333,6 @@ export class NewEventsWorker {
     }
   }
 
-  /**
-   * Update job status and metadata.
-   */
   private async updateJobStatus(
     job: EventSearchJob,
     status: JobStatus,
@@ -494,9 +344,6 @@ export class NewEventsWorker {
     });
   }
 
-  /**
-   * Update job progress without changing status.
-   */
   private async updateJobProgress(
     job: EventSearchJob,
     updates: Partial<EventSearchJob>
@@ -504,9 +351,6 @@ export class NewEventsWorker {
     await this.jobStore.updateJob(job.id, updates);
   }
 
-  /**
-   * Update category state within job progress.
-   */
   private async updateCategoryState(
     job: EventSearchJob,
     category: string,
@@ -527,88 +371,37 @@ export class NewEventsWorker {
       [category]: updatedState
     };
 
-    // Recalculate progress counters from category states
-    let completedCategories = 0;
-    let failedCategories = 0;
-
-    for (const [, state] of Object.entries(updatedCategoryStates)) {
-      if (state.state === ProgressState.COMPLETED) {
-        completedCategories++;
-      } else if (state.state === ProgressState.FAILED) {
-        failedCategories++;
+    recomputeCounters({
+      ...job,
+      progress: {
+        ...job.progress,
+        categoryStates: updatedCategoryStates
       }
-    }
+    });
 
     const updatedProgress = {
       ...job.progress,
       categoryStates: updatedCategoryStates,
-      completedCategories,
-      failedCategories
+      completedCategories: Object.values(updatedCategoryStates).filter(s => s.state === ProgressState.COMPLETED).length,
+      failedCategories: Object.values(updatedCategoryStates).filter(s => s.state === ProgressState.FAILED).length
     };
 
     await this.jobStore.updateJob(job.id, {
       progress: updatedProgress
     });
 
-    // Update local job reference to keep it in sync
     job.progress = updatedProgress;
   }
 
-  /**
-   * Delay execution for specified milliseconds.
-   */
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  /**
-   * Get worker status.
-   */
   getStatus(): {
-    isRunning: boolean;
-    shouldStop: boolean;
     config: WorkerConfig;
   } {
     return {
-      isRunning: this.isRunning,
-      shouldStop: this.shouldStop,
       config: this.config
     };
   }
-}
-
-/**
- * Main entry point for running the worker as a standalone process.
- */
-async function main() {
-  const worker = new NewEventsWorker();
-  
-  // Handle graceful shutdown
-  process.on('SIGINT', async () => {
-    logger.info('Received SIGINT, stopping worker');
-    await worker.stop();
-    process.exit(0);
-  });
-
-  process.on('SIGTERM', async () => {
-    logger.info('Received SIGTERM, stopping worker');
-    await worker.stop();
-    process.exit(0);
-  });
-
-  // Start worker
-  try {
-    await worker.start();
-  } catch (error) {
-    logger.error('Worker crashed', { error: fromError(error) });
-    process.exit(1);
-  }
-}
-
-// Run main if this file is executed directly
-if (require.main === module) {
-  main().catch(error => {
-    console.error('Failed to start worker:', error);
-    process.exit(1);
-  });
 }
