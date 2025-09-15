@@ -64,8 +64,8 @@ export class NewEventsWorker {
         return;
       }
 
-      if (job.status !== JobStatus.PENDING) {
-        logger.warn('Job is not in pending status', { 
+      if (job.status !== JobStatus.PENDING && job.status !== JobStatus.RUNNING) {
+        logger.warn('Job is not in processable status', { 
           jobId, 
           status: job.status 
         });
@@ -79,9 +79,12 @@ export class NewEventsWorker {
         categoryCount: job.categories.length
       });
 
-      await this.updateJobStatus(job, JobStatus.RUNNING, {
-        startedAt: new Date().toISOString()
-      });
+      // Update to RUNNING status if currently PENDING
+      if (job.status === JobStatus.PENDING) {
+        await this.updateJobStatus(job, JobStatus.RUNNING, {
+          startedAt: new Date().toISOString()
+        });
+      }
 
       const normalizedCategories = normalizeCategories(job.categories);
       
