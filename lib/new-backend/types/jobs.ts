@@ -1,14 +1,8 @@
 /**
- * Core job & progress domain types (unified, refactored).
+ * Core job & progress domain types.
  */
-
 import { EventData } from './events';
 
-/**
- * High-level lifecycle states for an event search job.
- *
- * EMPTY: All categories processed (no failures) but zero events found.
- */
 export enum JobStatus {
   PENDING = 'pending',
   RUNNING = 'running',
@@ -19,9 +13,6 @@ export enum JobStatus {
   CANCELLED = 'cancelled'
 }
 
-/**
- * Per-category fine-grained processing states.
- */
 export enum ProgressState {
   NOT_STARTED = 'not_started',
   IN_PROGRESS = 'in_progress',
@@ -73,5 +64,5 @@ export interface CreateJobParams {
 export interface CreateJobResult {
   job: EventSearchJob;
   isNew: boolean;
-  isStale?: boolean;
+  isStale: boolean;
 }
