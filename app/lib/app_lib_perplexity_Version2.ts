@@ -262,15 +262,26 @@ if no events found: []
             events: [], // Will be populated by aggregator
             timestamp: Date.now()
           };
-        } catch (error: any) {
-          lastError = error;
+        } catch (error: unknown) {
+          // Ensure lastError is always an Error instance
+          if (error instanceof Error) {
+            lastError = error;
+          } else {
+            lastError = new Error(typeof error === 'string' ? error : 'Unknown error');
+          }
           
-            // If aborted due to timeout, don't retry
+          // If aborted due to timeout, don't retry
           if (controller.signal.aborted) {
             throw new Error(`Query timed out after ${timeoutMs}ms`);
           }
           
-          console.error(`Query attempt ${attempt + 1}/${maxRetries} failed for query:`, query.substring(0, 100) + '...', error.message);
+          const errorMessage =
+            error instanceof Error
+              ? error.message
+              : typeof error === 'string'
+                ? error
+                : 'Unknown error';
+          console.error(`Query attempt ${attempt + 1}/${maxRetries} failed for query:`, query.substring(0, 100) + '...', errorMessage);
           
           // Don't retry on last attempt
           if (attempt < maxRetries - 1) {
