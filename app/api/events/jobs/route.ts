@@ -4,6 +4,8 @@ import { normalizeCategories } from '../../../../lib/new-backend/categories/norm
 import { createComponentLogger } from '../../../../lib/new-backend/utils/log';
 import { createError, createHttpError, ErrorCode, fromError } from '../../../../lib/new-backend/utils/errors';
 import { CreateJobRequestSchema, safeValidate } from '../../../../lib/new-backend/validation/schemas';
+import { NewEventsWorker } from '../../../../worker/new-events-worker';
+import { JobStatus } from '../../../../lib/new-backend/types/jobs';
 
 const logger = createComponentLogger('JobsAPI');
 
@@ -40,10 +42,23 @@ export async function POST(request: NextRequest) {
     });
 
     if (result.isNew) {
-      triggerProcessingFireAndForget(result.job.id, request).catch(err => {
-        logger.warn('Processing trigger failed (non-fatal)', {
+      // Start worker processing directly (fire-and-forget)
+      startJobProcessingFireAndForget(result.job.id).catch(err => {
+        logger.error('Failed to start job processing', {
           jobId: result.job.id,
-            error: err instanceof Error ? err.message : String(err)
+          error: err instanceof Error ? err.message : String(err)
+        });
+        
+        // Fallback: mark job as failed if we can't start processing
+        jobStore.updateJob(result.job.id, {
+          status: JobStatus.FAILED,
+          completedAt: new Date().toISOString(),
+          error: 'Failed to start processing'
+        }).catch(updateErr => {
+          logger.error('Failed to update job status after processing start failure', {
+            jobId: result.job.id,
+            error: updateErr instanceof Error ? updateErr.message : String(updateErr)
+          });
         });
       });
     }
@@ -96,38 +111,25 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function resolveBaseUrl(req: NextRequest): string {
-  // 1. Explicit override
-  if (process.env.NEXT_PUBLIC_BASE_URL) {
-    return process.env.NEXT_PUBLIC_BASE_URL.replace(/\/$/, '');
-  }
-  // 2. Request origin (works in Next runtime)
-  if (req.nextUrl?.origin) {
-    return req.nextUrl.origin;
-  }
-  // 3. Vercel URL fallback
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
-  }
-  // 4. Local dev fallback
-  return 'http://localhost:3000';
-}
-
-async function triggerProcessingFireAndForget(sourceJobId: string, req: NextRequest) {
-  const base = resolveBaseUrl(req);
-  const url = `${base}/api/events/process`;
-
+async function startJobProcessingFireAndForget(jobId: string) {
+  logger.info('Starting job processing', { jobId });
+  
   try {
-    await fetch(url, { method: 'POST' });
-    logger.info('Triggered batch processing', {
-      sourceJobId,
-      url: url.replace(base, '[base]')
+    const worker = new NewEventsWorker();
+    // Start processing asynchronously (no await)
+    worker.processJob(jobId).catch(error => {
+      logger.error('Job processing failed asynchronously', {
+        jobId,
+        error: error instanceof Error ? error.message : String(error)
+      });
     });
-  } catch (e) {
-    logger.warn('Failed to trigger batch processing', {
-      sourceJobId,
-      url: url.replace(base, '[base]'),
-      error: e instanceof Error ? e.message : String(e)
+    
+    logger.info('Job processing started successfully', { jobId });
+  } catch (error) {
+    logger.error('Failed to start job processing', {
+      jobId,
+      error: error instanceof Error ? error.message : String(error)
     });
+    throw error;
   }
 }
