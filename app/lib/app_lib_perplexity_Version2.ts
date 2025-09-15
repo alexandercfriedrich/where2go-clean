@@ -73,7 +73,7 @@ Search multiple sources including:
 ${websiteSection}
 
 Return ONLY a valid JSON array with NO explanations, markdown, or code blocks. 
-If no events found, return: []
+if no events found, return: []
 
 `;
   }
