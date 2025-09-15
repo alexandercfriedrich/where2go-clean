@@ -177,30 +177,22 @@ The following options can be configured by modifying the request in `page.tsx`:
 - **Background processing**: Uses `x-vercel-background: '1'` header for reliable execution
 - **Minimum timeout on Vercel**: 60 seconds per category to reduce flakiness with external APIs
 
-### Progressive Updates
+### Progressive Updates (Polling-Based)
 
-The application now provides reliable progressive updates:
-- Results are pushed to the job store after each category completes
-- Events appear in the UI as they are found, not just at the end
-- "Neu" badges indicate newly found events
-- Toast notifications show progress with event counts
+The application provides incremental ("progressive") updates using a polling + job store mechanism:
+- After each category is processed, aggregated events are written to the job store
+- The frontend polls and merges new events, marking fresh ones with a "Neu" badge
+- Toast notifications show category progress and newly added event counts
+- Status message updates to "Suche läuft – Ergebnisse werden ergänzt" during progressive loading
 - Enhanced Event Cards remain visible with clickable addresses and multiple link types
-- Detailed search query information per category
-- Raw API responses for troubleshooting  
+- Debug mode surfaces raw API response summaries, parsing metrics, and phase statistics
 - **Enhanced metrics**: Parsed event counts, added counts, and total counts per search step
-- Complete search timeline and performance metrics
 - **Phase statistics**: Shows how many events are parsed, merged, and deduplicated at each step
 
-The debug panel appears at the bottom of the page when debug mode is active and shows comprehensive information about each search step.
+**Removed:** A separate SSE streaming endpoint (`/api/events/progressive-search`) formerly existed but was never wired into the UI. It has been removed to reduce maintenance overhead. See `docs/DEPRECATIONS.md` for details.
 
-### Progressive Updates
-
-The application supports progressive loading of search results:
-- Results appear as they are found, reducing perceived wait time
-- New events are highlighted with a "Neu" badge and glow animation
-- Toast notifications show when new events are discovered
-- Search continues in the background while showing initial results
-- Status message updates to "Suche läuft – Ergebnisse werden ergänzt" during progressive loading
+**Future Considerations:**
+- Re-introduce streaming (SSE or WebSockets) for lower latency and cancellation support if user needs justify added complexity
 
 ### API
 

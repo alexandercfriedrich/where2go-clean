@@ -125,16 +125,8 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      // Progressive results: If enabled and we have partial cache hits, 
-      // we could potentially return cached results first
-      if (options?.progressive && Object.keys(cacheResult.cachedEvents).length > 0) {
-        // For now, just log that progressive mode is requested
-        // TODO: Implement actual progressive results with streaming
-        if (debugMode) {
-          console.log('DEBUG: Progressive mode requested with partial cache hit');
-          console.log('DEBUG: Could return cached results first, then add missing categories');
-        }
-      }
+      // Removed unused progressive streaming placeholder block.
+      // NOTE: If future streaming is required, integrate SSE/WebSocket here when options.progressive is true.
 
       // Partial cache hit - proceed with searching missing categories
       if (Object.keys(cacheResult.cachedEvents).length > 0) {
