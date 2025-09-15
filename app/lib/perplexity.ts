@@ -46,9 +46,15 @@ Search multiple sources including:
       customQuerySection = `\nCustom search context for ${city}: ${hotCity.defaultSearchQuery}`;
     }
 
+    // Get the category list for reference in the prompt
+    const categoryList = buildCategoryListForPrompt();
+
     return `
 IMPORTANT: Search for comprehensive ${category} events in ${city} on ${date} across multiple sources.
 WICHTIG: Suche nach allen ${category}-Veranstaltungen und Events in ${city} am ${date}.${customQuerySection}
+
+Context - Event categories include: DJ Sets/Electronic, Live-Konzerte, LGBTQ+, and others from this full list:
+${categoryList}
 
 Return ONLY a valid JSON array with NO explanations, markdown, or code blocks. 
 Do not include any explanatory text. Each event object must include these EXACT fields:
