@@ -157,23 +157,23 @@ if no events found: []
       try {
         const response = await fetch(this.baseUrl, {
           method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${this.apiKey}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: 'sonar-pro',
-              messages: [
-                {
-                  role: 'user',
-                  content: prompt
-                }
-              ],
-              max_tokens: options?.max_tokens || 20000,
-              temperature: options?.temperature || 0.2,
-              stream: false
-            }),
-            signal // Use AbortSignal for timeout handling
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'sonar-pro',
+            messages: [
+              {
+                role: 'user',
+                content: prompt
+              }
+            ],
+            max_tokens: options?.max_tokens || 20000,
+            temperature: options?.temperature || 0.2,
+            stream: false
+          }),
+          signal // Use AbortSignal for timeout handling
         });
 
         if (!response.ok) {
