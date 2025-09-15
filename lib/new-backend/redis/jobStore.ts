@@ -1,95 +1,38 @@
 /**
- * Job store implementation for the new backend system.
- * This module provides job persistence with signature-based deduplication.
- * 
- * @fileoverview Job storage with Redis backend - Redis configuration is required.
+ * Simplified Redis job store (no implicit final status logic).
  */
-
 import { getRedisClient, REDIS_KEYS } from './redisClient';
 import { createComponentLogger } from '../utils/log';
-import { createError, ErrorCode, fromError, type AppError } from '../utils/errors';
-import { 
-  type EventSearchJob, 
-  type CreateJobParams, 
-  type CreateJobResult, 
+import { fromError, ErrorCode, createError } from '../utils/errors';
+import {
+  EventSearchJob,
+  CreateJobParams,
+  CreateJobResult,
   JobStatus,
-  ProgressState 
+  ProgressState
 } from '../types/jobs';
 import { generateJobId, generateJobSignature } from '../utils/hash';
-import { buildIntegrityInfo, repairJobProgress } from '../jobs/status';
 
 const logger = createComponentLogger('JobStore');
 
-/**
- * Job store interface for managing event search jobs.
- */
+const DEFAULT_JOB_TTL = 3600;
+const JOB_STALENESS_THRESHOLD = 1800;
+
 export interface JobStore {
-  /**
-   * Create a new job or return existing if signature matches.
-   */
   createJob(params: CreateJobParams): Promise<CreateJobResult>;
-
-  /**
-   * Get a job by its ID.
-   */
   getJob(jobId: string): Promise<EventSearchJob | null>;
-
-  /**
-   * Update job status and metadata.
-   */
   updateJob(jobId: string, updates: Partial<EventSearchJob>): Promise<void>;
-
-  /**
-   * Get next job from processing queue (blocking).
-   */
   dequeueJob(timeoutSeconds?: number): Promise<string | null>;
-
-  /**
-   * Get job queue length.
-   */
   getQueueLength(): Promise<number>;
-
-  /**
-   * Delete a job and its related data.
-   */
   deleteJob(jobId: string): Promise<void>;
-
-  /**
-   * Find job by signature.
-   */
   findJobBySignature(signature: string): Promise<EventSearchJob | null>;
-
-  /**
-   * Check if job is stale (should be recreated).
-   */
   isJobStale(job: EventSearchJob): boolean;
-
-  /**
-   * Initialize progress for categories if not properly set.
-   */
   initializeProgress(job: EventSearchJob): EventSearchJob;
 }
 
-/**
- * Default job TTL in seconds (1 hour).
- */
-const DEFAULT_JOB_TTL = 3600;
-
-/**
- * Job staleness threshold in seconds (30 minutes).
- * Jobs older than this are considered stale and may be recreated.
- */
-const JOB_STALENESS_THRESHOLD = 1800;
-
-/**
- * Redis-backed job store implementation.
- */
 export class RedisJobStore implements JobStore {
   private redisClient = getRedisClient();
 
-  /**
-   * Create a new job or return existing if signature matches.
-   */
   async createJob(params: CreateJobParams): Promise<CreateJobResult> {
     try {
       logger.info('Creating job', { 
@@ -100,7 +43,6 @@ export class RedisJobStore implements JobStore {
 
       const signature = generateJobSignature(params.city, params.date, params.categories);
       
-      // Check for existing job with same signature
       const existingJob = await this.findJobBySignature(signature);
       
       if (existingJob) {
@@ -119,13 +61,11 @@ export class RedisJobStore implements JobStore {
             isStale: false
           };
         } else {
-          // Remove stale job before creating new one
           await this.deleteJob(existingJob.id);
           logger.info('Removed stale job', { jobId: existingJob.id });
         }
       }
 
-      // Create new job
       const jobId = generateJobId();
       const now = new Date().toISOString();
       const ttlSeconds = params.ttlSeconds || DEFAULT_JOB_TTL;
@@ -136,7 +76,7 @@ export class RedisJobStore implements JobStore {
         status: JobStatus.PENDING,
         city: params.city,
         date: params.date,
-        categories: [...params.categories], // Copy array
+        categories: [...params.categories],
         events: [],
         progress: {
           totalCategories: params.categories.length,
@@ -154,13 +94,8 @@ export class RedisJobStore implements JobStore {
         ttlSeconds
       };
 
-      // Store job in Redis
       await this.storeJob(job);
-      
-      // Update signature index
       await this.updateSignatureIndex(signature, jobId);
-
-      // Add job to processing queue
       await this.enqueueJob(jobId);
 
       logger.info('Created new job', { 
@@ -170,7 +105,8 @@ export class RedisJobStore implements JobStore {
 
       return {
         job,
-        isNew: true
+        isNew: true,
+        isStale: false
       };
 
     } catch (error) {
@@ -180,9 +116,6 @@ export class RedisJobStore implements JobStore {
     }
   }
 
-  /**
-   * Get a job by its ID.
-   */
   async getJob(jobId: string): Promise<EventSearchJob | null> {
     try {
       return await this.redisClient.executeOperation(async (client) => {
@@ -192,17 +125,13 @@ export class RedisJobStore implements JobStore {
           return null;
         }
 
-        // Enhanced JSON parsing with better error handling
         let job: EventSearchJob;
         try {
-          // Handle case where Redis client auto-parses JSON (Upstash behavior)
           if (typeof jobData === 'object' && jobData !== null) {
             job = jobData as EventSearchJob;
           } else if (typeof jobData === 'string') {
-            // Handle case where Redis returns string (standard Redis behavior)
             job = JSON.parse(jobData) as EventSearchJob;
           } else {
-            // Unexpected data type
             throw new Error(`Unexpected data type: ${typeof jobData}`);
           }
         } catch (parseError) {
@@ -213,43 +142,13 @@ export class RedisJobStore implements JobStore {
             parseError: parseError instanceof Error ? parseError.message : String(parseError)
           });
           
-          // Clean up corrupted data
           await client.del(REDIS_KEYS.JOB(jobId));
-          
           return null;
         }
 
-        // Initialize progress if needed
+        // Structural repair only - do basic initialization
         job = this.initializeProgress(job);
-
-        // Perform sanity repair
-        const integrity = buildIntegrityInfo(job);
-        if (integrity.needsRepair) {
-          logger.info('Repairing job progress integrity', {
-            jobId,
-            mismatchCompleted: integrity.mismatchCompleted,
-            mismatchFailed: integrity.mismatchFailed,
-            expectedCompleted: integrity.expectedCompleted,
-            actualCompleted: integrity.countedCompleted,
-            expectedFailed: integrity.expectedFailed,
-            actualFailed: integrity.countedFailed,
-            oldStatus: job.status,
-            newStatus: integrity.finalStatus
-          });
-
-          const repairs = repairJobProgress(job);
-          if (Object.keys(repairs).length > 0) {
-            job = { ...job, ...repairs };
-            
-            // Store the repaired job back to Redis
-            await client.set(
-              REDIS_KEYS.JOB(jobId),
-              JSON.stringify(job),
-              { ex: job.ttlSeconds }
-            );
-          }
-        }
-
+        
         return job;
       }, `getJob(${jobId})`);
 
@@ -260,13 +159,9 @@ export class RedisJobStore implements JobStore {
     }
   }
 
-  /**
-   * Update job status and metadata.
-   */
   async updateJob(jobId: string, updates: Partial<EventSearchJob>): Promise<void> {
     try {
       await this.redisClient.executeOperation(async (client) => {
-        // Get current job data
         const currentJobData = await client.get(REDIS_KEYS.JOB(jobId));
         
         if (!currentJobData) {
@@ -276,14 +171,11 @@ export class RedisJobStore implements JobStore {
           );
         }
 
-        // Enhanced JSON parsing with error handling
         let currentJob: EventSearchJob;
         try {
-          // Handle case where Redis client auto-parses JSON (Upstash behavior)
           if (typeof currentJobData === 'object' && currentJobData !== null) {
             currentJob = currentJobData as EventSearchJob;
           } else if (typeof currentJobData === 'string') {
-            // Handle case where Redis returns string (standard Redis behavior)
             currentJob = JSON.parse(currentJobData) as EventSearchJob;
           } else {
             throw new Error(`Unexpected data type: ${typeof currentJobData}`);
@@ -298,29 +190,23 @@ export class RedisJobStore implements JobStore {
           
           throw createError(
             ErrorCode.JOB_PROCESSING_FAILED,
-            `Job data corrupted, cannot update: ${jobId}`,
-            { parseError: parseError instanceof Error ? parseError.message : String(parseError) }
+            `Job data corrupted for ${jobId}`
           );
         }
-        
-        // Merge updates
-        const updatedJob: EventSearchJob = {
+
+        const updatedJob = {
           ...currentJob,
           ...updates,
           updatedAt: new Date().toISOString()
         };
 
-        // Store updated job
         await client.set(
           REDIS_KEYS.JOB(jobId),
           JSON.stringify(updatedJob),
           { ex: updatedJob.ttlSeconds }
         );
 
-        logger.debug('Updated job', { 
-          jobId, 
-          updatedFields: Object.keys(updates) 
-        });
+        logger.debug('Job updated', { jobId, updatedFields: Object.keys(updates) });
       }, `updateJob(${jobId})`);
 
     } catch (error) {
@@ -330,23 +216,11 @@ export class RedisJobStore implements JobStore {
     }
   }
 
-  /**
-   * Get next job from processing queue (non-blocking).
-   * Note: This replaces the blocking blpop operation since HTTP-based Redis
-   * services don't support blocking operations.
-   */
-  async dequeueJob(): Promise<string | null> {
+  async dequeueJob(timeoutSeconds: number = 0): Promise<string | null> {
     try {
       return await this.redisClient.executeOperation(async (client) => {
-        const jobId = await client.lpop(REDIS_KEYS.JOB_QUEUE);
-        
-        if (!jobId) {
-          return null;
-        }
-
-        logger.debug('Dequeued job for processing', { jobId });
-        
-        return jobId;
+        // HTTP-based Redis (Upstash) doesn't support blocking operations like blpop
+        return await client.lpop(REDIS_KEYS.JOB_QUEUE);
       }, 'dequeueJob');
 
     } catch (error) {
@@ -356,9 +230,6 @@ export class RedisJobStore implements JobStore {
     }
   }
 
-  /**
-   * Get job queue length.
-   */
   async getQueueLength(): Promise<number> {
     try {
       return await this.redisClient.executeOperation(async (client) => {
@@ -372,188 +243,77 @@ export class RedisJobStore implements JobStore {
     }
   }
 
-  /**
-   * Delete a job and its related data.
-   */
   async deleteJob(jobId: string): Promise<void> {
     try {
       await this.redisClient.executeOperation(async (client) => {
-        // Get job to find signature
-        const jobData = await client.get(REDIS_KEYS.JOB(jobId));
+        const job = await this.getJob(jobId);
         
-        if (jobData) {
-          const job = JSON.parse(jobData) as EventSearchJob;
-          
-          // Remove signature index
+        await client.del(REDIS_KEYS.JOB(jobId));
+        
+        if (job) {
           await client.del(REDIS_KEYS.JOB_SIGNATURE_INDEX(job.signature));
         }
 
-        // Remove job data
-        await client.del(REDIS_KEYS.JOB(jobId));
-        
-        logger.debug('Deleted job', { jobId });
+        logger.debug('Job deleted', { jobId });
       }, `deleteJob(${jobId})`);
 
     } catch (error) {
-      const appError = fromError(error, ErrorCode.REDIS_OPERATION_FAILED);
+      const appError = fromError(error, ErrorCode.JOB_PROCESSING_FAILED);
       logger.error('Failed to delete job', { jobId, error: appError });
       throw appError;
     }
   }
 
-  /**
-   * Find job by signature.
-   */
   async findJobBySignature(signature: string): Promise<EventSearchJob | null> {
     try {
       return await this.redisClient.executeOperation(async (client) => {
-        // Get job ID from signature index
         const jobId = await client.get(REDIS_KEYS.JOB_SIGNATURE_INDEX(signature));
         
         if (!jobId) {
           return null;
         }
 
-        // Get job data
-        const jobData = await client.get(REDIS_KEYS.JOB(jobId));
-        
-        if (!jobData) {
-          // Clean up stale signature index
-          await client.del(REDIS_KEYS.JOB_SIGNATURE_INDEX(signature));
-          return null;
-        }
-
-        // Enhanced JSON parsing with better error handling
-        try {
-          // Handle case where Redis client auto-parses JSON (Upstash behavior)
-          if (typeof jobData === 'object' && jobData !== null) {
-            return jobData as EventSearchJob;
-          }
-          
-          // Handle case where Redis returns string (standard Redis behavior)
-          if (typeof jobData === 'string') {
-            return JSON.parse(jobData) as EventSearchJob;
-          }
-          
-          // Unexpected data type
-          throw new Error(`Unexpected data type: ${typeof jobData}`);
-          
-        } catch (parseError) {
-          logger.error('Invalid job data in Redis - corrupted JSON', {
-            jobId,
-            dataType: typeof jobData,
-            dataPreview: String(jobData).substring(0, 100),
-            parseError: parseError instanceof Error ? parseError.message : String(parseError)
-          });
-          
-          // Clean up corrupted data
-          await client.del(REDIS_KEYS.JOB(jobId));
-          await client.del(REDIS_KEYS.JOB_SIGNATURE_INDEX(signature));
-          
-          return null;
-        }
+        return await this.getJob(jobId);
       }, `findJobBySignature(${signature.substring(0, 8)}...)`);
 
     } catch (error) {
       const appError = fromError(error, ErrorCode.REDIS_OPERATION_FAILED);
-      logger.error('Failed to find job by signature', { 
-        signature: signature.substring(0, 8) + '...', 
-        error: appError 
-      });
+      logger.error('Failed to find job by signature', { signature, error: appError });
       throw appError;
     }
   }
 
-  /**
-   * Check if job is stale (should be recreated).
-   */
   isJobStale(job: EventSearchJob): boolean {
     const now = Date.now();
     const createdAt = new Date(job.createdAt).getTime();
-    const age = (now - createdAt) / 1000; // Age in seconds
-
-    // Job is stale if:
-    // 1. It's older than staleness threshold
-    // 2. It's in a terminal state (SUCCESS, FAILED, CANCELLED) and old
-    // 3. It's been running too long without updates
+    const ageSeconds = (now - createdAt) / 1000;
     
-    if (age > JOB_STALENESS_THRESHOLD) {
-      return true;
-    }
-
-    if ([JobStatus.SUCCESS, JobStatus.FAILED, JobStatus.CANCELLED].includes(job.status)) {
-      // Terminal jobs are stale after 5 minutes
-      return age > 300;
-    }
-
-    if (job.status === JobStatus.RUNNING) {
-      const updatedAt = new Date(job.updatedAt).getTime();
-      const timeSinceUpdate = (now - updatedAt) / 1000;
-      
-      // Running jobs are stale if no updates for 10 minutes
-      return timeSinceUpdate > 600;
-    }
-
-    return false;
+    return ageSeconds > JOB_STALENESS_THRESHOLD;
   }
 
-  /**
-   * Initialize progress for categories if not properly set.
-   */
   initializeProgress(job: EventSearchJob): EventSearchJob {
-    const { progress, categories } = job;
-    
-    // Check if progress needs initialization
-    let needsInit = false;
-    
-    // Ensure all categories have category states
-    for (const category of categories) {
-      if (!progress.categoryStates[category]) {
-        needsInit = true;
-        break;
-      }
-    }
-    
-    // Remove category states for categories no longer in the job
-    const currentCategories = new Set(categories);
-    for (const category of Object.keys(progress.categoryStates)) {
-      if (!currentCategories.has(category)) {
-        needsInit = true;
-        break;
-      }
-    }
-    
-    if (!needsInit) {
-      return job;
-    }
-    
-    logger.info('Initializing job progress', { 
-      jobId: job.id, 
-      categories: categories.length 
-    });
-    
-    // Initialize missing category states
-    const categoryStates: Record<string, any> = {};
-    for (const category of categories) {
-      categoryStates[category] = progress.categoryStates[category] || {
-        state: ProgressState.NOT_STARTED,
-        retryCount: 0
+    if (!job.progress || !job.progress.categoryStates) {
+      const categoryStates = Object.fromEntries(
+        job.categories.map(cat => [cat, {
+          state: ProgressState.NOT_STARTED,
+          retryCount: 0
+        }])
+      );
+
+      return {
+        ...job,
+        progress: {
+          totalCategories: job.categories.length,
+          completedCategories: 0,
+          failedCategories: 0,
+          categoryStates
+        }
       };
     }
-    
-    return {
-      ...job,
-      progress: {
-        ...progress,
-        totalCategories: categories.length,
-        categoryStates
-      }
-    };
+
+    return job;
   }
 
-  /**
-   * Store job in Redis with TTL.
-   */
   private async storeJob(job: EventSearchJob): Promise<void> {
     await this.redisClient.executeOperation(async (client) => {
       await client.set(
@@ -564,22 +324,16 @@ export class RedisJobStore implements JobStore {
     }, `storeJob(${job.id})`);
   }
 
-  /**
-   * Update signature index for job deduplication.
-   */
   private async updateSignatureIndex(signature: string, jobId: string): Promise<void> {
     await this.redisClient.executeOperation(async (client) => {
       await client.set(
         REDIS_KEYS.JOB_SIGNATURE_INDEX(signature),
         jobId,
-        { ex: DEFAULT_JOB_TTL } // Same TTL as job
+        { ex: DEFAULT_JOB_TTL }
       );
     }, `updateSignatureIndex(${signature.substring(0, 8)}...)`);
   }
 
-  /**
-   * Add job to processing queue.
-   */
   private async enqueueJob(jobId: string): Promise<void> {
     await this.redisClient.executeOperation(async (client) => {
       await client.rpush(REDIS_KEYS.JOB_QUEUE, jobId);
@@ -587,33 +341,11 @@ export class RedisJobStore implements JobStore {
   }
 }
 
-/**
- * Global job store instance.
- */
-let jobStore: JobStore | null = null;
+let jobStoreInstance: JobStore | null = null;
 
-/**
- * Get the global job store instance.
- * Requires Redis configuration - throws CONFIG_ERROR if not available.
- */
 export function getJobStore(): JobStore {
-  if (!jobStore) {
-    // Check if Redis is configured
-    const hasRedisConfig = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN;
-    
-    if (!hasRedisConfig) {
-      throw createError(
-        ErrorCode.CONFIG_ERROR,
-        'Redis configuration required for job store. Please set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables.',
-        { 
-          hint: 'For production deployment, configure Redis. For local development, ensure Redis environment variables are set.' 
-        }
-      );
-    }
-
-    logger.info('Using Redis job store');
-    jobStore = new RedisJobStore();
+  if (!jobStoreInstance) {
+    jobStoreInstance = new RedisJobStore();
   }
-  
-  return jobStore;
+  return jobStoreInstance;
 }

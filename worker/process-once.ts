@@ -81,7 +81,7 @@ export async function processPendingJobsOnce(partial?: Partial<ProcessConfig>) {
     maxRunMs: cfg.maxRunMs
   });
 
-  const worker = new NewEventsWorker({ keepRunning: false });
+  const worker = new NewEventsWorker();
   const startedAt = Date.now();
   let processedJobs = 0;
   let lastExtension = Date.now();
