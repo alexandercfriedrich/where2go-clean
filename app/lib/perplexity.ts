@@ -49,30 +49,43 @@ Search multiple sources including:
     "IMPORTANT: Search for comprehensive ${category} events in ${city} on ${date} across multiple sources.
     WICHTIG: Suche nach allen ${category}-Veranstaltungen und Events in ${city} am ${date}. ${customQuerySection}
 
-    MANDATORY JSON FORMAT: Return ONLY a valid JSON array with NO explanations, markdown, or code blocks. 
-    Each event object must include these EXACT fields:
+    ${websiteSection}
 
-{
-  \"title\": \"string - event name\",
-  \"date\": \"string - YYYY-MM-DD format\", 
-  \"time\": \"string - HH:MM format (optional)\",
-  \"endTime\": \"string - HH:MM format (optional)\",
-  \"venue\": \"string - venue name\",
-  \"address\": \"string - complete address as 'Street Number, ZIP City, Country' (optional)\",
-  \"category\": \"string - ${category}\",
-  \"eventType\": \"string - specific subcategory (optional)\",
-  \"price\": \"string - entry cost (optional)\",
-  \"ticketPrice\": \"string - ticket cost (optional)\",
-  \"ageRestrictions\": \"string - age requirements (optional)\",
-  \"description\": \"string - brief description (optional)\",
-  \"website\": \"string - event URL\",
-  \"bookingLink\": \"string - ticket URL (optional)\"
-}
-${websiteSection}
+    Perform thorough multi-source search for maximum event discovery!!!
 
-Perform thorough multi-source search for maximum event discovery!!!
-If no events found, return: []
+    MANDATORY JSON OUTPUT - EXACT FORMAT AND ORDER:
+    Return ONLY a valid JSON array with NO explanations, markdown, or code blocks.
+    Each event object MUST follow this EXACT field order:
 
+    [
+      {
+        "title": "Exact Event Name",
+        "date": "2025-09-15",
+        "time": "20:00",
+        "endTime": "23:00",
+        "venue": "Venue Name", 
+        "address": "Complete Street Number, ZIP City, Country",
+        "category": "${category}",
+        "eventType": "Specific Subcategory",
+        "price": "Entry Cost Information",
+        "ticketPrice": "Ticket Cost Information",
+        "ageRestrictions": "Age Requirements",
+        "description": "Brief Event Description",
+        "website": "https://event-website-url.com",
+        "bookingLink": "https://ticket-booking-url.com"
+      }
+    ]
+
+    STRICT FIELD RULES:
+    1. Follow EXACT field sequence above - never change order
+    2. REQUIRED fields: title, date, venue, category, website
+    3. Use null for missing optional fields (time, endTime, address, eventType, price, ticketPrice, ageRestrictions, description, bookingLink)
+    4. Date format: YYYY-MM-DD (exactly)
+    5. Time format: HH:MM (exactly)
+    6. Never use empty strings "" - use null instead
+    7. Never omit required fields
+    
+    If no events found, return: []
 `;
   }
 
@@ -95,29 +108,43 @@ WICHTIG: Suche nach allen Veranstaltungen und Events in ${city} am ${date} der f
 9. Universitäts- & Studentenevents
 10. Szene-Events & Underground Events & Alternative Events
 
-REQUIRED: Return ONLY a valid JSON array of event objects. Do not include any explanatory text, markdown formatting, code fences, or additional content.
+MANDATORY JSON OUTPUT - EXACT FORMAT AND ORDER:
+Return ONLY a valid JSON array of event objects. Do not include any explanatory text, markdown formatting, code fences, or additional content.
 
-Each event object must have these exact field names:
-{
-  "title": "string - event name",
-  "date": "string - YYYY-MM-DD format", 
-  "time": "string - HH:MM format (optional)",
-  "endTime": "string - HH:MM format (optional)",
-  "venue": "string - venue name",
-  "address": "string - full address like 'Straße Hausnr, PLZ Stadt, Land' (optional)",
-  "category": "string - must be one of: DJ Sets/Electronic, Clubs/Discos, Live-Konzerte, Open Air, Museen, LGBTQ+, Comedy/Kabarett, Theater/Performance, Film, Food/Culinary, Sport, Familien/Kids, Kunst/Design, Wellness/Spirituell, Networking/Business, Natur/Outdoor",
-  "eventType": "string - specific event type (optional)",
-  "price": "string - entry price (optional)", 
-  "ticketPrice": "string - ticket price (optional)",
-  "ageRestrictions": "string - age requirements (optional)",
-  "description": "string - short description (optional)",
-  "website": "string - event website URL",
-  "bookingLink": "string - ticket booking URL (optional)"
-}
+Each event object MUST follow this EXACT field order:
+
+[
+  {
+    "title": "Exact Event Name",
+    "date": "2025-09-15", 
+    "time": "20:00",
+    "endTime": "23:00",
+    "venue": "Venue Name",
+    "address": "Complete Street Number, ZIP City, Country",
+    "category": "DJ Sets/Electronic",
+    "eventType": "Specific Event Type",
+    "price": "Entry Price Information", 
+    "ticketPrice": "Ticket Price Information",
+    "ageRestrictions": "Age Requirements",
+    "description": "Brief Event Description",
+    "website": "https://event-website-url.com",
+    "bookingLink": "https://ticket-booking-url.com"
+  }
+]
+
+STRICT FIELD RULES:
+1. Follow EXACT field sequence above - never change order
+2. REQUIRED fields: title, date, venue, category, website
+3. Use null for missing optional fields (time, endTime, address, eventType, price, ticketPrice, ageRestrictions, description, bookingLink)
+4. Date format: YYYY-MM-DD (exactly)
+5. Time format: HH:MM (exactly)
+6. Category must be one of: "DJ Sets/Electronic", "Clubs/Discos", "Live-Konzerte", "Open Air", "Museen", "LGBTQ+", "Comedy/Kabarett", "Theater/Performance", "Film", "Food/Culinary", "Sport", "Familien/Kids", "Kunst/Design", "Sonstige"
+7. Never use empty strings "" - use null instead
+8. Never omit required fields
 
 If no events are found, return: []
 
-WICHTIG: Suche nach ALLEN Events in ${city} am ${date}. Antworte AUSSCHLIESSLICH mit gültigem JSON Array. Keine Erklärungen, kein Fließtext, kein Markdown, keine Code-Blöcke.
+WICHTIG: Suche nach ALLEN Events in ${city} am ${date}. Antworte AUSSCHLIESSLICH mit gültigem JSON Array in der exakten Feldanordnung. Keine Erklärungen, kein Fließtext, kein Markdown, keine Code-Blöcke.
 
 Falls keine Events gefunden: []
 `;
