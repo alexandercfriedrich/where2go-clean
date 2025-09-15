@@ -25,10 +25,8 @@ describe('Prompt Structure Validation', () => {
       expect(prompt).toContain('Antworte NUR mit gültigem JSON Array');
       expect(prompt).toContain('Falls keine Events gefunden: []');
       
-      // Verify category list is mentioned
+      // Verify category list is mentioned in the context of the provided category
       expect(prompt).toContain('DJ Sets/Electronic');
-      expect(prompt).toContain('Live-Konzerte');
-      expect(prompt).toContain('LGBTQ+');
     });
   });
 
@@ -42,11 +40,15 @@ describe('Prompt Structure Validation', () => {
       expect(prompt).toContain('Do not include any explanatory text');
       expect(prompt).toContain('If no events are found, return: []');
       
-      // Verify comprehensive category coverage
-      expect(prompt).toContain('Konzerte & Musik');
-      expect(prompt).toContain('Theater & Kabarett');
-      expect(prompt).toContain('LGBT+ Events');
-      expect(prompt).toContain('Universitäts- & Studentenevents');
+      // Verify comprehensive category coverage - now using canonical 20 categories
+      expect(prompt).toContain('DJ Sets/Electronic');
+      expect(prompt).toContain('Live-Konzerte');
+      expect(prompt).toContain('LGBTQ+');
+      expect(prompt).toContain('Natur/Outdoor');
+      
+      // Verify we have all 20 canonical categories numbered 1-20
+      expect(prompt).toContain('1. DJ Sets/Electronic');
+      expect(prompt).toContain('20. Soziales/Community');
       
       // Verify bilingual guardrails
       expect(prompt).toContain('AUSSCHLIESSLICH mit gültigem JSON Array');
