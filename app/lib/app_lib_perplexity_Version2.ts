@@ -175,7 +175,7 @@ if no events found: []
         return data.choices[0]?.message?.content || '';
       } catch (error: any) {
         lastError = error;
-        if (attempt === 0 && String(error).includes('not valid JSON')) {
+        if (attempt < retries - 1 && String(error).includes('not valid JSON')) {
           // Wait before retry
           await new Promise(resolve => setTimeout(resolve, 500));
           continue;
