@@ -23,6 +23,7 @@ export interface RedisClient {
   expire(key: string, seconds: number): Promise<number>;
   ttl(key: string): Promise<number>;
   lpush(key: string, ...values: string[]): Promise<number>;
+  rpush(key: string, ...values: string[]): Promise<number>;
   lpop(key: string): Promise<string | null>;
   llen(key: string): Promise<number>;
   hget(key: string, field: string): Promise<string | null>;

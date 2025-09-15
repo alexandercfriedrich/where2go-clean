@@ -154,6 +154,9 @@ export class RedisJobStore implements JobStore {
       // Update signature index
       await this.updateSignatureIndex(signature, jobId);
 
+      // Add job to processing queue
+      await this.enqueueJob(jobId);
+
       logger.info('Created new job', { 
         jobId,
         signature: signature.substring(0, 8) + '...' 
@@ -481,6 +484,15 @@ export class RedisJobStore implements JobStore {
         { ex: DEFAULT_JOB_TTL } // Same TTL as job
       );
     }, `updateSignatureIndex(${signature.substring(0, 8)}...)`);
+  }
+
+  /**
+   * Add job to processing queue.
+   */
+  private async enqueueJob(jobId: string): Promise<void> {
+    await this.redisClient.executeOperation(async (client) => {
+      await client.rpush(REDIS_KEYS.JOB_QUEUE, jobId);
+    }, `enqueueJob(${jobId})`);
   }
 }
 
