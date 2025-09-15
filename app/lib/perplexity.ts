@@ -2,6 +2,7 @@
 
 import { EventData, PerplexityResult, QueryOptions } from './types';
 import { getCityWebsitesForCategories, getHotCity } from './hotCityStore';
+import { EVENT_CATEGORIES, buildCategoryListForPrompt, allowedCategoriesForSchema } from './eventCategories';
 
 export class PerplexityService {
   private readonly apiKey: string;
@@ -15,8 +16,59 @@ export class PerplexityService {
 
   /**
    * Builds a query prompt for a specific category with strict JSON schema
+   * Made public for testing purposes
    */
-  private async buildCategoryPrompt(city: string, date: string, category: string): Promise<string> {
+  public buildCategoryPrompt(city: string, date: string, category: string): string {
+    // Get hot city configuration and specific websites (simplified for testing)
+    let websiteSection = `
+Search multiple sources including:
+- Local event platforms for ${city}
+- Official venue websites and social media  
+- ${city} tourism and culture sites
+- Ticketing platforms active in ${city}
+- Entertainment and nightlife directories of ${city}
+- Category-specific platforms for ${category}`;
+
+    return `
+IMPORTANT: Search for comprehensive ${category} events in ${city} on ${date} across multiple sources.
+WICHTIG: Suche nach allen ${category}-Veranstaltungen und Events in ${city} am ${date}.
+
+MANDATORY JSON FORMAT: Return ONLY a valid JSON array with NO explanations, markdown, or code blocks. 
+Do not include any explanatory text, markdown formatting, code fences, or additional content.
+Antworte NUR mit gültigem JSON Array, kein Fließtext, kein Markdown.
+
+Each event object must include these EXACT fields:
+
+{
+  \"title\": \"string - event name\",
+  \"date\": \"string - YYYY-MM-DD format\", 
+  \"time\": \"string - HH:MM format (optional)\",
+  \"endTime\": \"string - HH:MM format (optional)\",
+  \"venue\": \"string - venue name\",
+  \"address\": \"string - complete address as 'Street Number, ZIP City, Country' (optional)\",
+  \"category\": \"string - ${category}\",
+  \"eventType\": \"string - specific subcategory (optional)\",
+  \"price\": \"string - entry cost (optional)\",
+  \"ticketPrice\": \"string - ticket cost (optional)\",
+  \"ageRestrictions\": \"string - age requirements (optional)\",
+  \"description\": \"string - brief description (optional)\",
+  \"website\": \"string - event URL\",
+  \"bookingLink\": \"string - ticket booking URL (optional)\"
+}
+${websiteSection}
+
+Return ONLY a valid JSON array with NO explanations, markdown, or code blocks. 
+If no events are found, return: []
+Falls keine Events gefunden: []
+
+`;
+  }
+
+  /**
+   * Builds a query prompt for a specific category with full async hot city support
+   * This is the version used in production
+   */
+  private async buildCategoryPromptAsync(city: string, date: string, category: string): Promise<string> {
     // Get hot city configuration and specific websites
     const hotCity = await getHotCity(city);
     const cityWebsites = await getCityWebsitesForCategories(city, [category]);
@@ -77,44 +129,46 @@ If no events found, return: []
   }
 
   /**
-   * Builds a general query prompt with strict JSON schema
+   * Builds a general query prompt with strict JSON schema using all 20 canonical categories
    */
   private buildGeneralPrompt(city: string, date: string): string {
+    const categoryList = buildCategoryListForPrompt();
+    const allowedCategories = allowedCategoriesForSchema();
+    
     return `
-IMPORTANT: Search for comprehensive events in ${city} on ${date} across these categories:
+IMPORTANT: Search for comprehensive events in ${city} on ${date} across ALL these categories:
+WICHTIG: Suche nach allen Events in ${city} am ${date} in ALLEN folgenden Kategorien:
 
-1. Konzerte & Musik (Klassik, Rock, Pop, Jazz, Elektronik)
-2. Theater & Kabarett & Comedy & Musicals  
-3. Museen & Ausstellungen & Galerien (auch Sonderausstellungen)
-4. Clubs & DJ-Sets & Partys & Electronic Music Events
-5. Bars & Rooftop Events & Afterwork Events
-6. Open-Air Events & Festivals & Outdoor Events
-7. LGBT+ Events & Queer Events & Pride Events
-8. Kinder- & Familienveranstaltungen
-9. Universitäts- & Studentenevents
-10. Szene-Events & Underground Events & Alternative Events
+${categoryList}
 
-REQUIRED: Return ONLY a valid JSON array of event objects. Do not include any explanatory text, markdown formatting, code fences, or additional content.
+MANDATORY JSON FORMAT: Return ONLY a valid JSON array with NO explanations, markdown, or code blocks.
+OBLIGATORISCHES JSON FORMAT: Antworte AUSSCHLIESSLICH mit gültigem JSON Array, kein Fließtext, kein Markdown.
 
-Each event object must have these exact field names:
+Do not include any explanatory text, markdown formatting, code fences, or additional content.
+
+Each event object must include these EXACT fields:
+Jedes Event-Objekt muss diese EXAKTEN Felder enthalten:
+
 {
   "title": "string - event name",
   "date": "string - YYYY-MM-DD format", 
   "time": "string - HH:MM format (optional)",
   "endTime": "string - HH:MM format (optional)",
   "venue": "string - venue name",
-  "address": "string - full address like 'Straße Hausnr, PLZ Stadt, Land' (optional)",
-  "category": "string - must be one of: DJ Sets/Electronic, Clubs/Discos, Live-Konzerte, Open Air, Museen, LGBTQ+, Comedy/Kabarett, Theater/Performance, Film, Food/Culinary, Sport, Familien/Kids, Kunst/Design, Wellness/Spirituell, Networking/Business, Natur/Outdoor",
-  "eventType": "string - specific event type (optional)",
-  "price": "string - entry price (optional)", 
-  "ticketPrice": "string - ticket price (optional)",
+  "address": "string - complete address as 'Street Number, ZIP City, Country' (optional)",
+  "category": "string - must be one of: ${allowedCategories}",
+  "eventType": "string - specific subcategory (optional)",
+  "price": "string - entry cost (optional)",
+  "ticketPrice": "string - ticket cost (optional)",
   "ageRestrictions": "string - age requirements (optional)",
-  "description": "string - short description (optional)",
-  "website": "string - event website URL",
-  "bookingLink": "string - ticket booking URL (optional)"
+  "description": "string - brief description (optional)",
+  "website": "string - event URL",
+  "bookingLink": "string - ticket URL (optional)"
 }
+
 Return ONLY a valid JSON array with NO explanations, markdown, or code blocks. 
-if no events found: []
+If no events are found, return: []
+Falls keine Events gefunden: []
 `;
   }
 
@@ -123,28 +177,16 @@ if no events found: []
    */
   private async createQueries(city: string, date: string, categories?: string[]): Promise<string[]> {
     if (!categories || categories.length === 0) {
-      // Use the original general query
+      // Use the general query with all 20 canonical categories
       return [this.buildGeneralPrompt(city, date)];
     }
 
-    // Create specific queries for each category
-    const categoryMap: { [key: string]: string } = {
-      'musik': 'Konzerte & Musik (Klassik, Rock, Pop, Jazz, Elektronik)',
-      'theater': 'Theater & Kabarett & Comedy & Musicals',
-      'museen': 'Museen & Ausstellungen & Galerien (auch Sonderausstellungen)',
-      'clubs': 'Clubs & DJ-Sets & Partys & Electronic Music Events',
-      'bars': 'Bars & Rooftop Events & Afterwork Events',
-      'outdoor': 'Open-Air Events & Festivals & Outdoor Events',
-      'lgbt': 'LGBT+ Events & Queer Events & Pride Events',
-      'familie': 'Kinder- & Familienveranstaltungen',
-      'studenten': 'Universitäts- & Studentenevents',
-      'alternative': 'Szene-Events & Underground Events & Alternative Events'
-    };
-
+    // Create specific queries for each provided category (already expected to be canonical main categories)
     const queries: string[] = [];
     for (const category of categories) {
-      const categoryName = categoryMap[category.toLowerCase()] || category;
-      const prompt = await this.buildCategoryPrompt(city, date, categoryName);
+      // Use the canonical category name directly - no mapping needed
+      // Categories passed here should already be the canonical main category names
+      const prompt = await this.buildCategoryPromptAsync(city, date, category);
       queries.push(prompt);
     }
 
