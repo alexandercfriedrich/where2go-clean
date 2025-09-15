@@ -13,14 +13,21 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validation = safeValidate(CreateJobRequestSchema, body);
     if (!validation.success) {
-      const error = createError(ErrorCode.INVALID_INPUT, 'Invalid request body', { issues: validation.errors });
+      const error = createError(
+        ErrorCode.INVALID_INPUT,
+        'Invalid request body',
+        { issues: validation.errors }
+      );
       return NextResponse.json(createHttpError(400, error), { status: 400 });
     }
 
     const { city, date, categories, options } = validation.data!;
     const normalizedCategories = normalizeCategories(categories);
     if (normalizedCategories.length === 0) {
-      const error = createError(ErrorCode.INVALID_INPUT, 'No valid categories after normalization');
+      const error = createError(
+        ErrorCode.INVALID_INPUT,
+        'No valid categories after normalization'
+      );
       return NextResponse.json(createHttpError(400, error), { status: 400 });
     }
 
@@ -33,10 +40,10 @@ export async function POST(request: NextRequest) {
     });
 
     if (result.isNew) {
-      triggerProcessingFireAndForget(result.job.id).catch(err => {
+      triggerProcessingFireAndForget(result.job.id, request).catch(err => {
         logger.warn('Processing trigger failed (non-fatal)', {
           jobId: result.job.id,
-          error: err instanceof Error ? err.message : String(err)
+            error: err instanceof Error ? err.message : String(err)
         });
       });
     }
@@ -70,28 +77,56 @@ export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const includeStats = searchParams.get('stats') === 'true';
   if (!includeStats) {
-    const error = createError(ErrorCode.INVALID_INPUT, 'This endpoint only supports stats=true parameter');
+    const error = createError(
+      ErrorCode.INVALID_INPUT,
+      'This endpoint only supports stats=true parameter'
+    );
     return NextResponse.json(createHttpError(400, error), { status: 400 });
   }
   try {
     const jobStore = getJobStore();
     const queueLength = await jobStore.getQueueLength();
-    return NextResponse.json({ success: true, data: { queueLength, timestamp: new Date().toISOString() } });
+    return NextResponse.json({
+      success: true,
+      data: { queueLength, timestamp: new Date().toISOString() }
+    });
   } catch (error) {
     const appError = fromError(error);
     return NextResponse.json(createHttpError(500, appError), { status: 500 });
   }
 }
 
-async function triggerProcessingFireAndForget(sourceJobId: string) {
-  const base = process.env.NEXT_PUBLIC_BASE_URL || '';
+function resolveBaseUrl(req: NextRequest): string {
+  // 1. Explicit override
+  if (process.env.NEXT_PUBLIC_BASE_URL) {
+    return process.env.NEXT_PUBLIC_BASE_URL.replace(/\/$/, '');
+  }
+  // 2. Request origin (works in Next runtime)
+  if (req.nextUrl?.origin) {
+    return req.nextUrl.origin;
+  }
+  // 3. Vercel URL fallback
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  // 4. Local dev fallback
+  return 'http://localhost:3000';
+}
+
+async function triggerProcessingFireAndForget(sourceJobId: string, req: NextRequest) {
+  const base = resolveBaseUrl(req);
   const url = `${base}/api/events/process`;
+
   try {
     await fetch(url, { method: 'POST' });
-    logger.info('Triggered batch processing', { sourceJobId, url });
+    logger.info('Triggered batch processing', {
+      sourceJobId,
+      url: url.replace(base, '[base]')
+    });
   } catch (e) {
     logger.warn('Failed to trigger batch processing', {
       sourceJobId,
+      url: url.replace(base, '[base]'),
       error: e instanceof Error ? e.message : String(e)
     });
   }
