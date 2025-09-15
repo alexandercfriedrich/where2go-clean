@@ -1,6 +1,11 @@
 /**
  * Background worker for processing event search jobs.
- * This worker runs as a separate Node.js process and processes jobs serially.
+ * 
+ * DEPRECATION NOTICE: The start() loop method is deprecated and kept for legacy purposes only.
+ * For serverless environments, use the new processPendingJobsOnce() function from worker/process-once.ts
+ * which provides Redis-based distributed locking and one-shot batch processing.
+ * 
+ * The processJob() method remains unchanged and is the single source of truth for job processing logic.
  * 
  * @fileoverview Serial job processor with timeout, retry, and partial success handling.
  */
@@ -197,8 +202,6 @@ export class NewEventsWorker {
 
       // Start with cached events
       let allEvents = Object.values(cacheResult.cachedEvents).flat();
-      let completedCategories = 0;
-      let failedCategories = 0;
 
       // Update progress with cached categories
       for (const category of Object.keys(cacheResult.cachedEvents)) {
@@ -207,7 +210,6 @@ export class NewEventsWorker {
           completedAt: new Date().toISOString(),
           eventCount: cacheResult.cachedEvents[category].length
         });
-        completedCategories++;
       }
 
       logger.info('Loaded events from cache', {
@@ -237,7 +239,6 @@ export class NewEventsWorker {
 
             // Add to all events
             allEvents.push(...categoryEvents);
-            completedCategories++;
 
             await this.updateCategoryState(job, category, {
               state: ProgressState.COMPLETED,
@@ -252,8 +253,6 @@ export class NewEventsWorker {
             });
           } else {
             // Category processed but no events found
-            completedCategories++;
-            
             await this.updateCategoryState(job, category, {
               state: ProgressState.COMPLETED,
               completedAt: new Date().toISOString(),
@@ -268,7 +267,6 @@ export class NewEventsWorker {
 
         } catch (error) {
           const appError = fromError(error, ErrorCode.CATEGORY_PROCESSING_FAILED);
-          failedCategories++;
 
           await this.updateCategoryState(job, category, {
             state: ProgressState.FAILED,
@@ -283,16 +281,14 @@ export class NewEventsWorker {
           });
         }
 
-        // Update job progress
+        // Update job with current events (progress is updated by updateCategoryState)
         await this.updateJobProgress(job, {
-          events: allEvents,
-          progress: {
-            ...job.progress,
-            completedCategories,
-            failedCategories
-          }
+          events: allEvents
         });
       }
+
+      // Get final counters from the updated job progress
+      const { completedCategories, failedCategories } = job.progress;
 
       // Determine final job status
       const totalCategories = normalizedCategories.length;
@@ -306,15 +302,18 @@ export class NewEventsWorker {
         finalStatus = JobStatus.FAILED;
       }
 
+      // Final progress update with correct counts
+      const finalProgress = {
+        ...job.progress,
+        completedCategories,
+        failedCategories
+      };
+
       // Update final job status
       await this.updateJobStatus(job, finalStatus, {
         completedAt: new Date().toISOString(),
         events: allEvents,
-        progress: {
-          ...job.progress,
-          completedCategories,
-          failedCategories
-        }
+        progress: finalProgress
       });
 
       const processingTime = Date.now() - startTime;
@@ -523,17 +522,36 @@ export class NewEventsWorker {
       ...stateUpdates
     };
 
+    const updatedCategoryStates = {
+      ...job.progress.categoryStates,
+      [category]: updatedState
+    };
+
+    // Recalculate progress counters from category states
+    let completedCategories = 0;
+    let failedCategories = 0;
+
+    for (const [, state] of Object.entries(updatedCategoryStates)) {
+      if (state.state === ProgressState.COMPLETED) {
+        completedCategories++;
+      } else if (state.state === ProgressState.FAILED) {
+        failedCategories++;
+      }
+    }
+
     const updatedProgress = {
       ...job.progress,
-      categoryStates: {
-        ...job.progress.categoryStates,
-        [category]: updatedState
-      }
+      categoryStates: updatedCategoryStates,
+      completedCategories,
+      failedCategories
     };
 
     await this.jobStore.updateJob(job.id, {
       progress: updatedProgress
     });
+
+    // Update local job reference to keep it in sync
+    job.progress = updatedProgress;
   }
 
   /**

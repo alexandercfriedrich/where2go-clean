@@ -16,6 +16,7 @@ import {
   ProgressState 
 } from '../types/jobs';
 import { generateJobId, generateJobSignature } from '../utils/hash';
+import { buildIntegrityInfo, repairJobProgress } from '../jobs/status';
 
 const logger = createComponentLogger('JobStore');
 
@@ -62,6 +63,11 @@ export interface JobStore {
    * Check if job is stale (should be recreated).
    */
   isJobStale(job: EventSearchJob): boolean;
+
+  /**
+   * Initialize progress for categories if not properly set.
+   */
+  initializeProgress(job: EventSearchJob): EventSearchJob;
 }
 
 /**
@@ -154,6 +160,9 @@ export class RedisJobStore implements JobStore {
       // Update signature index
       await this.updateSignatureIndex(signature, jobId);
 
+      // Add job to processing queue
+      await this.enqueueJob(jobId);
+
       logger.info('Created new job', { 
         jobId,
         signature: signature.substring(0, 8) + '...' 
@@ -184,20 +193,18 @@ export class RedisJobStore implements JobStore {
         }
 
         // Enhanced JSON parsing with better error handling
+        let job: EventSearchJob;
         try {
           // Handle case where Redis client auto-parses JSON (Upstash behavior)
           if (typeof jobData === 'object' && jobData !== null) {
-            return jobData as EventSearchJob;
+            job = jobData as EventSearchJob;
+          } else if (typeof jobData === 'string') {
+            // Handle case where Redis returns string (standard Redis behavior)
+            job = JSON.parse(jobData) as EventSearchJob;
+          } else {
+            // Unexpected data type
+            throw new Error(`Unexpected data type: ${typeof jobData}`);
           }
-          
-          // Handle case where Redis returns string (standard Redis behavior)
-          if (typeof jobData === 'string') {
-            return JSON.parse(jobData) as EventSearchJob;
-          }
-          
-          // Unexpected data type
-          throw new Error(`Unexpected data type: ${typeof jobData}`);
-          
         } catch (parseError) {
           logger.error('Invalid job data in Redis - corrupted JSON', {
             jobId,
@@ -211,6 +218,39 @@ export class RedisJobStore implements JobStore {
           
           return null;
         }
+
+        // Initialize progress if needed
+        job = this.initializeProgress(job);
+
+        // Perform sanity repair
+        const integrity = buildIntegrityInfo(job);
+        if (integrity.needsRepair) {
+          logger.info('Repairing job progress integrity', {
+            jobId,
+            mismatchCompleted: integrity.mismatchCompleted,
+            mismatchFailed: integrity.mismatchFailed,
+            expectedCompleted: integrity.expectedCompleted,
+            actualCompleted: integrity.countedCompleted,
+            expectedFailed: integrity.expectedFailed,
+            actualFailed: integrity.countedFailed,
+            oldStatus: job.status,
+            newStatus: integrity.finalStatus
+          });
+
+          const repairs = repairJobProgress(job);
+          if (Object.keys(repairs).length > 0) {
+            job = { ...job, ...repairs };
+            
+            // Store the repaired job back to Redis
+            await client.set(
+              REDIS_KEYS.JOB(jobId),
+              JSON.stringify(job),
+              { ex: job.ttlSeconds }
+            );
+          }
+        }
+
+        return job;
       }, `getJob(${jobId})`);
 
     } catch (error) {
@@ -458,6 +498,60 @@ export class RedisJobStore implements JobStore {
   }
 
   /**
+   * Initialize progress for categories if not properly set.
+   */
+  initializeProgress(job: EventSearchJob): EventSearchJob {
+    const { progress, categories } = job;
+    
+    // Check if progress needs initialization
+    let needsInit = false;
+    
+    // Ensure all categories have category states
+    for (const category of categories) {
+      if (!progress.categoryStates[category]) {
+        needsInit = true;
+        break;
+      }
+    }
+    
+    // Remove category states for categories no longer in the job
+    const currentCategories = new Set(categories);
+    for (const category of Object.keys(progress.categoryStates)) {
+      if (!currentCategories.has(category)) {
+        needsInit = true;
+        break;
+      }
+    }
+    
+    if (!needsInit) {
+      return job;
+    }
+    
+    logger.info('Initializing job progress', { 
+      jobId: job.id, 
+      categories: categories.length 
+    });
+    
+    // Initialize missing category states
+    const categoryStates: Record<string, any> = {};
+    for (const category of categories) {
+      categoryStates[category] = progress.categoryStates[category] || {
+        state: ProgressState.NOT_STARTED,
+        retryCount: 0
+      };
+    }
+    
+    return {
+      ...job,
+      progress: {
+        ...progress,
+        totalCategories: categories.length,
+        categoryStates
+      }
+    };
+  }
+
+  /**
    * Store job in Redis with TTL.
    */
   private async storeJob(job: EventSearchJob): Promise<void> {
@@ -481,6 +575,15 @@ export class RedisJobStore implements JobStore {
         { ex: DEFAULT_JOB_TTL } // Same TTL as job
       );
     }, `updateSignatureIndex(${signature.substring(0, 8)}...)`);
+  }
+
+  /**
+   * Add job to processing queue.
+   */
+  private async enqueueJob(jobId: string): Promise<void> {
+    await this.redisClient.executeOperation(async (client) => {
+      await client.rpush(REDIS_KEYS.JOB_QUEUE, jobId);
+    }, `enqueueJob(${jobId})`);
   }
 }
 
