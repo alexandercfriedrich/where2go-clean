@@ -256,7 +256,7 @@ if no events found: []
         } catch (error: any) {
           lastError = error;
           
-            // If aborted due to timeout, don't retry
+          // If aborted due to timeout, don't retry
           if (controller.signal.aborted) {
             throw new Error(`Query timed out after ${timeoutMs}ms`);
           }
