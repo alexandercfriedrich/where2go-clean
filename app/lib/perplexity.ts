@@ -70,7 +70,7 @@ Search multiple sources including:
 }
 ${websiteSection}
 
-Perform thorough multi-source search for maximum event discovery!!!
+Return ONLY a valid JSON array with NO explanations, markdown, or code blocks. 
 If no events found, return: []
 
 `;
@@ -82,7 +82,6 @@ If no events found, return: []
   private buildGeneralPrompt(city: string, date: string): string {
     return `
 IMPORTANT: Search for comprehensive events in ${city} on ${date} across these categories:
-WICHTIG: Suche nach allen Veranstaltungen und Events in ${city} am ${date} der folgenden Kategorien:
 
 1. Konzerte & Musik (Klassik, Rock, Pop, Jazz, Elektronik)
 2. Theater & Kabarett & Comedy & Musicals  
@@ -114,12 +113,8 @@ Each event object must have these exact field names:
   "website": "string - event website URL",
   "bookingLink": "string - ticket booking URL (optional)"
 }
-
-If no events are found, return: []
-
-WICHTIG: Suche nach ALLEN Events in ${city} am ${date}. Antworte AUSSCHLIESSLICH mit gültigem JSON Array. Keine Erklärungen, kein Fließtext, kein Markdown, keine Code-Blöcke.
-
-Falls keine Events gefunden: []
+Return ONLY a valid JSON array with NO explanations, markdown, or code blocks. 
+if no events found: []
 `;
   }
 
