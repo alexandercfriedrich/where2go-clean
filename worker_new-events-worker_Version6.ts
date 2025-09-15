@@ -171,7 +171,11 @@ export class NewEventsWorker {
     const tm = setTimeout(() => controller.abort(), timeoutMs);
     try {
       // Integrate with existing perplexity client signature; adapt if needed.
-      const response = await this.perplexity.searchCategory?.(job.city, job.date, category, {
+      if (typeof this.perplexity.searchCategory !== 'function') {
+        logger.error('searchCategory method is not available on perplexity client', { jobId: job.id, category });
+        return [];
+      }
+      const response = await this.perplexity.searchCategory(job.city, job.date, category, {
         signal: controller.signal
       });
       const raw = response?.raw || '';
