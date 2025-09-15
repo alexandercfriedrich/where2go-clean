@@ -106,10 +106,11 @@ export class NewEventsWorker {
         while (attempt <= this.opts.categoryMaxRetries && !success) {
           attempt++;
           try {
-            collected = await this.fetchCategory(job, cat, this.opts.categoryTimeoutMs);
+            const { events, rawResponseLength } = await this.fetchCategory(job, cat, this.opts.categoryTimeoutMs);
+            collected = events;
             if (collected.length === 0) {
               // Treat zero parsed (with presumably non-empty raw) as failure for transparency.
-              throw new Error('No events parsed');
+              throw new Error(`No events parsed for category '${cat}'. Raw response length: ${rawResponseLength}`);
             }
             success = true;
           } catch (err) {
