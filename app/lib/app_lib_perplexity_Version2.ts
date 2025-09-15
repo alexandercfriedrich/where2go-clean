@@ -123,23 +123,14 @@ if no events found: []
       return [this.buildGeneralPrompt(city, date)];
     }
 
-    // Create specific queries for each category
-    const categoryMap: { [key: string]: string } = {
-      'musik': 'Konzerte & Musik (Klassik, Rock, Pop, Jazz, Elektronik)',
-      'theater': 'Theater & Kabarett & Comedy & Musicals',
-      'museen': 'Museen & Ausstellungen & Galerien (auch Sonderausstellungen)',
-      'clubs': 'Clubs & DJ-Sets & Partys & Electronic Music Events',
-      'bars': 'Bars & Rooftop Events & Afterwork Events',
-      'outdoor': 'Open-Air Events & Festivals & Outdoor Events',
-      'lgbt': 'LGBT+ Events & Queer Events & Pride Events',
-      'familie': 'Kinder- & Familienveranstaltungen',
-      'studenten': 'Universitäts- & Studentenevents',
-      'alternative': 'Szene-Events & Underground Events & Alternative Events'
-    };
-
+    // Create specific queries for each category using dynamic eventCategories system
     const queries: string[] = [];
     for (const category of categories) {
-      const categoryName = categoryMap[category.toLowerCase()] || category;
+      // Use buildCategoryListForPrompt or similar from eventCategories to get human-readable name
+      // If buildCategoryListForPrompt returns an array, find the matching category object
+      const categoryList = buildCategoryListForPrompt();
+      const categoryObj = categoryList.find(cat => cat.slug.toLowerCase() === category.toLowerCase());
+      const categoryName = categoryObj ? categoryObj.name : category;
       const prompt = await this.buildCategoryPrompt(city, date, categoryName);
       queries.push(prompt);
     }
