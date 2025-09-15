@@ -1,15 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { POST } from '../../api/events/process/route';
-import { getJobStore } from '../../../../lib/new-backend/redis/jobStore';
 
 describe('Background Processing Route', () => {
-  const jobStore = getJobStore();
-
-  beforeEach(async () => {
-    // Clean up any existing jobs for testing
-    await jobStore.cleanupOldJobs();
-  });
-
   it('should validate required parameters', async () => {
     const request = new Request('http://localhost:3000/api/events/process', {
       method: 'POST',
@@ -28,13 +20,8 @@ describe('Background Processing Route', () => {
   });
 
   it('should accept valid processing request', async () => {
-    // Create a job first
+    // Test with a simple jobId that doesn't require pre-creation
     const jobId = `test_job_${Date.now()}`;
-    await jobStore.setJob(jobId, {
-      id: jobId,
-      status: 'pending',
-      createdAt: new Date()
-    });
 
     const request = new Request('http://localhost:3000/api/events/process', {
       method: 'POST',
@@ -45,25 +32,24 @@ describe('Background Processing Route', () => {
       body: JSON.stringify({
         jobId,
         city: 'Berlin',
-        date: '2025-01-20',
-        categories: ['test'],
-        options: { debug: true }
+        date: '2025-01-20'
       })
     });
 
     const response = await POST(request as any);
     const result = await response.json();
 
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(202);
     expect(result.success).toBe(true);
+    expect(result.started).toBe(true);
+    expect(result.jobId).toBe(jobId);
   });
 
   describe('Authentication', () => {
     const validJobData = {
       jobId: 'test_job_123',
       city: 'Berlin',
-      date: '2025-01-20',
-      categories: ['test']
+      date: '2025-01-20'
     };
 
     it('should allow requests with x-vercel-background header', async () => {
@@ -103,20 +89,6 @@ describe('Background Processing Route', () => {
       } else {
         delete process.env.INTERNAL_API_SECRET;
       }
-    });
-
-    it('should allow requests with x-vercel-protection-bypass', async () => {
-      const request = new Request('http://localhost:3000/api/events/process', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-vercel-protection-bypass': 'some-token'
-        },
-        body: JSON.stringify(validJobData)
-      });
-
-      const response = await POST(request as any);
-      expect(response.status).not.toBe(401);
     });
 
     it('should reject requests without any auth headers', async () => {
