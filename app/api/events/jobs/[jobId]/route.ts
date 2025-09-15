@@ -119,9 +119,24 @@ export async function GET(
       let events = job.events || [];
       let cacheInfo: any = undefined;
 
+      logger.debug('Processing events request', {
+        jobId,
+        includeEvents,
+        aggregateFromCache,
+        jobEventCount: events.length,
+        jobStatus: job.status
+      });
+
       // Aggregate events from cache if requested and job doesn't have events yet
       if (aggregateFromCache && (events.length === 0 || job.status === JobStatus.RUNNING)) {
         try {
+          logger.debug('Attempting cache aggregation', {
+            jobId,
+            jobEventCount: events.length,
+            jobStatus: job.status,
+            categories: job.categories
+          });
+
           const eventCache = getEventCache();
           const cacheResult = await eventCache.getEventsForCategories(
             job.city,
@@ -131,9 +146,29 @@ export async function GET(
 
           const cachedEvents = Object.values(cacheResult.cachedEvents).flat();
           
+          logger.debug('Cache aggregation result', {
+            jobId,
+            cachedEventCount: cachedEvents.length,
+            cachedCategories: Object.keys(cacheResult.cachedEvents),
+            missingCategories: cacheResult.missingCategories
+          });
+          
           // Use cached events if we have more than job events, or if job has no events
-          if (cachedEvents.length > events.length) {
+          const shouldUseCachedEvents = cachedEvents.length > events.length;
+          if (shouldUseCachedEvents) {
             events = cachedEvents;
+            logger.debug('Using cached events', {
+              jobId,
+              originalEventCount: job.events?.length || 0,
+              newEventCount: events.length
+            });
+          } else {
+            logger.debug('Keeping job events', {
+              jobId,
+              jobEventCount: events.length,
+              cachedEventCount: cachedEvents.length,
+              reason: cachedEvents.length <= events.length ? 'cache has same or fewer events' : 'unknown'
+            });
           }
 
           // Provide cache information
@@ -142,7 +177,7 @@ export async function GET(
             cachedCategories: Object.keys(cacheResult.cachedEvents),
             missingCategories: cacheResult.missingCategories,
             cacheMetadata: cacheResult.cacheMetadata,
-            usedCachedEvents: cachedEvents.length > 0
+            usedCachedEvents: shouldUseCachedEvents
           };
 
           logger.debug('Aggregated events from cache', {
@@ -160,6 +195,15 @@ export async function GET(
           });
           // Continue with job events only
         }
+      } else {
+        logger.debug('Skipping cache aggregation', {
+          jobId,
+          aggregateFromCache,
+          jobEventCount: events.length,
+          jobStatus: job.status,
+          reason: !aggregateFromCache ? 'aggregateFromCache=false' : 
+                  (events.length > 0 && job.status !== JobStatus.RUNNING) ? 'job has events and status not RUNNING' : 'unknown'
+        });
       }
 
       responseData.events = events;
