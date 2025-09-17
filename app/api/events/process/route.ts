@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { EventData } from '@/lib/types';
 import { eventsCache } from '@/lib/cache';
-import InMemoryCache from '@/lib/cache';
 import { createPerplexityService } from '@/lib/perplexity';
 import { eventAggregator } from '@/lib/aggregator';
 import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
 import { getJobStore } from '@/lib/jobStore';
-import { getSubcategoriesForMainCategory } from '@/categories';
-import { EVENT_CATEGORIES } from '@/lib/eventCategories';
+import { EVENT_CATEGORIES, mapToMainCategories } from '@/lib/eventCategories';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
-
 const DEFAULT_CATEGORIES = EVENT_CATEGORIES;
 
 export async function POST(request: NextRequest) {
@@ -22,16 +18,13 @@ export async function POST(request: NextRequest) {
     }
 
     const jobStore = getJobStore();
-    const existingJob = await jobStore.getJob(jobId);
-    if (!existingJob) {
+    const job = await jobStore.getJob(jobId);
+    if (!job) {
       return NextResponse.json({ error: 'Job not found' }, { status: 404 });
     }
 
-    const categoryList: string[] = (categories && categories.length > 0)
-      ? categories
-      : DEFAULT_CATEGORIES;
-
-    const mainCategories = Array.from(new Set(categoryList));
+    let effective = (categories && categories.length > 0) ? categories : DEFAULT_CATEGORIES;
+    effective = options?.forceAllCategories ? DEFAULT_CATEGORIES : mapToMainCategories(effective);
 
     const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
     if (!PERPLEXITY_API_KEY) {
@@ -40,36 +33,31 @@ export async function POST(request: NextRequest) {
     }
 
     const service = createPerplexityService(PERPLEXITY_API_KEY);
-    if (!service) {
-      await jobStore.updateJob(jobId, { status: 'error', error: 'Failed to initialize service' });
-      return NextResponse.json({ error: 'Service init failed' }, { status: 500 });
-    }
+    const results = await service.executeMultiQuery(city, date, effective, options || {});
 
-    const results = await service.executeMultiQuery(city, date, mainCategories, options);
     const parsed = eventAggregator.aggregateResults(results);
-
     const ttlSeconds = computeTTLSecondsForEvents(parsed);
-    const categoriesSeen = new Set<string>();
-    for (const event of parsed) {
-      if (event.category && !categoriesSeen.has(event.category)) {
-        const catEvents = parsed.filter(e => e.category === event.category);
-        eventsCache.setEventsByCategory(city, date, event.category, catEvents, ttlSeconds);
-        categoriesSeen.add(event.category);
-      }
+
+    // Cache per category
+    const grouped: Record<string, any[]> = {};
+    for (const ev of parsed) {
+      if (!ev.category) continue;
+      if (!grouped[ev.category]) grouped[ev.category] = [];
+      grouped[ev.category].push(ev);
+    }
+    for (const cat of Object.keys(grouped)) {
+      eventsCache.setEventsByCategory(city, date, cat, grouped[cat], ttlSeconds);
     }
 
     const finalEvents = eventAggregator.deduplicateEvents([
-      ...(existingJob.events || []),
+      ...(job.events || []),
       ...parsed
     ]);
 
     await jobStore.updateJob(jobId, {
       status: 'done',
       events: finalEvents,
-      progress: {
-        completedCategories: mainCategories.length,
-        totalCategories: mainCategories.length
-      },
+      progress: { completedCategories: effective.length, totalCategories: effective.length },
       lastUpdateAt: new Date().toISOString()
     });
 
@@ -77,8 +65,7 @@ export async function POST(request: NextRequest) {
       jobId,
       status: 'done',
       events: finalEvents,
-      cached: false,
-      categoriesProcessed: mainCategories,
+      categoriesProcessed: effective,
       ttlApplied: ttlSeconds
     });
 
