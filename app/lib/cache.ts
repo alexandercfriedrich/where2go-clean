@@ -2,7 +2,7 @@
 // Phase 2A: Kategorie-Normalisierung via eventCategories (Single Source of Truth)
 
 import { CacheEntry } from './types';
-import { normalizeCategory } from './eventCategories';
+import { normalizeCategory as canonicalCategory } from './eventCategories';
 
 class InMemoryCache {
   private cache = new Map<string, CacheEntry<any>>();
@@ -63,11 +63,11 @@ class InMemoryCache {
     return `${city.toLowerCase().trim()}_${date}_${this.normalizeCategory(category)}`;
   }
 
-  // Jetzt zentrale Normalisierung (Fallback: Trim)
+  // Jetzt zentrale Normalisierung (Alias für Import, kein rekursiver Self-Call)
   static normalizeCategory(category: string): string {
     if (!category) return '';
-    const norm = normalizeCategory(category);
-    return norm?.trim() || category.trim();
+    const norm = canonicalCategory(category);
+    return (norm || category).trim();
   }
 
   getEventsByCategories(city: string, date: string, categories: string[]): {
