@@ -22,7 +22,6 @@ interface EventData {
 
 const ALL_SUPER_CATEGORIES = EVENT_CATEGORIES;
 const MAX_CATEGORY_SELECTION = 3;
-const MAX_POLLS = 60;
 
 export default function Home() {
   const { t } = useTranslation();
@@ -34,42 +33,25 @@ export default function Home() {
   const [events, setEvents] = useState<EventData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [jobStatus, setJobStatus] = useState<'idle' | 'pending' | 'done' | 'error'>('idle');
-  const [pollCount, setPollCount] = useState(0);
-  const [progress, setProgress] = useState<{completedCategories: number, totalCategories: number} | null>(null);
-  const [newEvents, setNewEvents] = useState<Set<string>>(new Set());
-  const [debugMode, setDebugMode] = useState(false);
-  const [toast, setToast] = useState<{show: boolean, message: string}>({show: false, message: ''});
-  const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean, totalEvents: number, cachedEvents: number} | null>(null);
-
-  const [isDesign1, setIsDesign1] = useState(false);
   const [searchSubmitted, setSearchSubmitted] = useState(false);
-  const [searchedSuperCategories, setSearchedSuperCategories] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState<string>('Alle');
+  const [searchedSuperCategories, setSearchedSuperCategories] = useState<string[]>([]);
+  const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean, totalEvents: number, cachedEvents: number} | null>(null);
+  const [toast, setToast] = useState<{show:boolean; message:string}>({show:false,message:''});
+  const [debugMode, setDebugMode] = useState(false);
 
-  const pollInterval = useRef<ReturnType<typeof setTimeout> | null>(null);
   const eventsRef = useRef<EventData[]>([]);
-  const pollCountRef = useRef(0);
-  const eventsGridRef = useRef<HTMLDivElement>(null);
+  eventsRef.current = events;
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setDebugMode(params.get('debug') === '1');
-    const design = params.get('design') || '1';
-    setIsDesign1(design === '1');
   }, []);
-
-  useEffect(() => { eventsRef.current = events; }, [events]);
-
-  const getSelectedSubcategories = (): string[] =>
-    selectedSuperCategories.flatMap(superCat => EVENT_CATEGORY_SUBCATEGORIES[superCat] || []);
 
   const toggleSuperCategory = (category: string) => {
     setCategoryLimitError(null);
     setSelectedSuperCategories(prev => {
-      if (prev.includes(category)) {
-        return prev.filter(c => c !== category);
-      }
+      if (prev.includes(category)) return prev.filter(c => c !== category);
       if (prev.length >= MAX_CATEGORY_SELECTION) {
         setCategoryLimitError(`Du kannst maximal ${MAX_CATEGORY_SELECTION} Kategorien auswählen.`);
         return prev;
@@ -77,6 +59,9 @@ export default function Home() {
       return [...prev, category];
     });
   };
+
+  const getSelectedSubcategories = (): string[] =>
+    selectedSuperCategories.flatMap(c => EVENT_CATEGORY_SUBCATEGORIES[c] || []);
 
   function formatDateForAPI(): string {
     const today = new Date();
@@ -100,10 +85,6 @@ export default function Home() {
     setLoading(true);
     setError(null);
     setEvents([]);
-    setNewEvents(new Set());
-    setJobStatus('pending');
-    setPollCount(0);
-    setProgress(null);
     setCacheInfo(null);
     setSearchSubmitted(true);
     setSearchedSuperCategories([...selectedSuperCategories]);
@@ -119,9 +100,8 @@ export default function Home() {
           categories: getSelectedSubcategories(),
           options: {
             temperature: 0.2,
-            max_tokens: 12000,
+            max_tokens: 12000, // Increased: richer subcategory expansion
             debug: debugMode,
-            disableCache: debugMode,
             expandedSubcategories: true,
             minEventsPerCategory: 14
           }
@@ -132,31 +112,22 @@ export default function Home() {
         throw new Error(data.error || `Serverfehler ${res.status}`);
       }
       const data = await res.json();
-      if (data.status === 'completed') {
-        setEvents(data.events || []);
-        setCacheInfo(data.cacheInfo);
-        setJobStatus('done');
-        setLoading(false);
-        setToast({show:true,message:`${data.events?.length || 0} Events geladen`});
-        setTimeout(()=> setToast({show:false,message:''}), 3000);
-      } else {
-        setLoading(false);
-        setJobStatus('done');
-      }
+      setEvents(data.events || []);
+      setCacheInfo(data.cacheInfo || null);
+      setLoading(false);
+      setToast({show:true,message:`${data.events?.length || 0} Events geladen`});
+      setTimeout(()=> setToast({show:false,message:''}), 3000);
     } catch (e:any) {
       setError(e.message || 'Fehler bei der Suche');
       setLoading(false);
-      setJobStatus('error');
     }
   }
 
-  const createEventKey = (ev: EventData) => `${ev.title}_${ev.date}_${ev.venue}`;
-
   const displayedEvents = (() => {
-    if (!isDesign1 || !searchSubmitted) return events;
+    if (!searchSubmitted) return events;
     if (activeFilter === 'Alle') return events;
-    const selectedSubs = EVENT_CATEGORY_SUBCATEGORIES[activeFilter] || [];
-    return events.filter(e => selectedSubs.includes(e.category));
+    const subs = EVENT_CATEGORY_SUBCATEGORIES[activeFilter] || [];
+    return events.filter(e => subs.includes(e.category));
   })();
 
   const getCategoryCounts = () => {
@@ -213,8 +184,24 @@ export default function Home() {
                 ))}
               </div>
               {categoryLimitError && <div style={{color:'red'}}>{categoryLimitError}</div>}
+              <div style={{marginTop:'6px'}}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedSuperCategories(ALL_SUPER_CATEGORIES.slice(0, MAX_CATEGORY_SELECTION));
+                    setCategoryLimitError(null);
+                  }}
+                >Auto-Auswahl (erste {MAX_CATEGORY_SELECTION})</button>{' '}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedSuperCategories([]);
+                    setCategoryLimitError(null);
+                  }}
+                >Zurücksetzen</button>
+              </div>
             </div>
-            <button type="submit">Events suchen</button>
+            <button type="submit" style={{marginTop:'12px'}}>Events suchen</button>
           </form>
         </div>
       </section>
@@ -222,42 +209,43 @@ export default function Home() {
       <div className="container">
         {loading && <p>Suche läuft...</p>}
         {error && <p style={{color:'red'}}>{error}</p>}
-        {!loading && !error && displayedEvents.length === 0 && <p>Keine Events gefunden.</p>}
+        {!loading && !error && searchSubmitted && displayedEvents.length === 0 && <p>Keine Events gefunden.</p>}
         {cacheInfo && (
-          <div style={{margin:'12px 0', fontSize:'0.9rem', color:'#666'}}>
+          <div style={{margin:'12px 0', fontSize:'0.85rem', color:'#666'}}>
             {cacheInfo.fromCache
               ? `📁 ${cacheInfo.cachedEvents} Events aus Cache`
               : `🔄 ${cacheInfo.totalEvents} Events frisch`}
           </div>
         )}
-        {isDesign1 && searchSubmitted && (
-          <div className="filter-chips">
+
+        {searchSubmitted && (
+          <div style={{display:'flex', gap:'8px', flexWrap:'wrap', marginBottom:'16px'}}>
             <button
-              className={activeFilter==='Alle'?'active':''}
               onClick={()=>setActiveFilter('Alle')}
+              style={{background: activeFilter==='Alle'?'#222':'#eee', color: activeFilter==='Alle'?'#fff':'#000'}}
             >Alle ({getCategoryCounts()['Alle']})</button>
             {searchedSuperCategories.map(cat => (
               <button
                 key={cat}
-                className={activeFilter===cat?'active':''}
                 onClick={()=>setActiveFilter(cat)}
-              >
-                {cat} ({getCategoryCounts()[cat]||0})
-              </button>
+                style={{background: activeFilter===cat?'#222':'#eee', color: activeFilter===cat?'#fff':'#000'}}
+              >{cat} ({getCategoryCounts()[cat] || 0})</button>
             ))}
           </div>
         )}
-        <div className="events-grid" ref={eventsGridRef}>
+
+        <div className="events-grid">
           {displayedEvents.map(ev => {
-            const key = createEventKey(ev);
+            const key = `${ev.title}_${ev.date}_${ev.venue}`;
             return (
               <div key={key} className="event-card">
                 <h3>{ev.title}</h3>
                 <div>{ev.date}{ev.time && ` • ${ev.time}`}</div>
                 <div>{ev.venue}</div>
                 <div>{ev.category}</div>
-                {ev.price && <div>{ev.price}</div>}
-                {ev.website && <a href={ev.website} target="_blank">Website →</a>}
+                {(ev.price || ev.ticketPrice) && <div>{ev.ticketPrice || ev.price}</div>}
+                {ev.website && <a href={ev.website} target="_blank" rel="noopener noreferrer">Website →</a>}
+                {ev.description && <p style={{fontSize:'0.85rem'}}>{ev.description}</p>}
               </div>
             );
           })}
@@ -265,9 +253,11 @@ export default function Home() {
       </div>
 
       {toast.show && (
-        <div className="toast-container">
-          <div className="toast">{toast.message}</div>
-        </div>
+        <div style={{
+          position:'fixed', bottom:'20px', right:'20px',
+          background:'#222', color:'#fff', padding:'10px 16px',
+          borderRadius:'6px'
+        }}>{toast.message}</div>
       )}
     </div>
   );
