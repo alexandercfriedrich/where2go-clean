@@ -33,13 +33,14 @@ jobs:
       - name: Validate category count (expect exactly 20 main categories)
         run: |
           set -e
-          # Zählt Vorkommen von '"<Kategorie>": [' im Hauptobjekt
-            count=$(grep -o '": \[' app/lib/eventCategories.ts | wc -l | tr -d ' ')
-            if [ "$count" -ne 20 ]; then
-              echo "❌ Erwartet 20 Hauptkategorien, gefunden: $count"
-              exit 1
-            fi
-            echo "✅ Kategorie-Anzahl OK (20)."
+          # Präziser: Nur Zeilenanfang + Anführungszeichen + Schlüssel + ": ["
+          count=$(grep -Eo '^[[:space:]]*"[A-Za-z0-9+üÜäÄöÖß /&-]+": \[' app/lib/eventCategories.ts | wc -l | tr -d ' ')
+          if [ "$count" -ne 20 ]; then
+            echo "❌ Erwartet 20 Hauptkategorien, gefunden: $count"
+            grep -Eo '^[[:space:]]*"[A-Za-z0-9+üÜäÄöÖß /&-]+": \[' app/lib/eventCategories.ts || true
+            exit 1
+          fi
+          echo "✅ Kategorie-Anzahl OK (20)."
 
       - name: Check prompt builder presence
         run: |
