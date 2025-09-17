@@ -1,7 +1,14 @@
 // Perplexity AI service abstraction (Phase 2B enhanced)
-// Adds: expanded subcategory prompts, per-category query logging, optional all-categories expansion.
+// Adds: expanded subcategory prompts, per-category query logging, optional all-categories expansion,
+// API key validation and safer options handling.
 
-import { EVENT_CATEGORIES, buildExpandedCategoryContext, buildCategoryListForPrompt, allowedCategoriesForSchema, mapToMainCategories } from './eventCategories';
+import {
+  EVENT_CATEGORIES,
+  buildExpandedCategoryContext,
+  buildCategoryListForPrompt,
+  allowedCategoriesForSchema,
+  mapToMainCategories
+} from './eventCategories';
 import { PerplexityResult } from './types';
 
 interface PerplexityOptions {
@@ -9,9 +16,9 @@ interface PerplexityOptions {
   max_tokens?: number;
   debug?: boolean;
   disableCache?: boolean;
-  expandedSubcategories?: boolean;  // NEW
-  forceAllCategories?: boolean;     // NEW
-  minEventsPerCategory?: number;    // NEW (guideline only)
+  expandedSubcategories?: boolean;
+  forceAllCategories?: boolean;
+  minEventsPerCategory?: number;
   hotCity?: any;
   additionalSources?: any[];
 }
@@ -24,8 +31,12 @@ interface PplxApiRequest {
 }
 
 export function createPerplexityService(apiKey: string) {
+  if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === '') {
+    throw new Error('Perplexity API key is required and must be a non-empty string.');
+  }
+
   const baseUrl = 'https://api.perplexity.ai/chat/completions';
-  const model = 'sonar'; // adjust if needed
+  const model = 'sonar';
 
   async function call(prompt: string, options: PerplexityOptions): Promise<string> {
     const body: PplxApiRequest = {
@@ -39,7 +50,7 @@ export function createPerplexityService(apiKey: string) {
     };
 
     if (options.debug || process.env.LOG_PPLX_QUERIES === '1') {
-      console.log('[PPLX:REQUEST]', JSON.stringify({ promptSnippet: prompt.slice(0, 400), len: prompt.length }, null, 2));
+      console.log('[PPLX:REQUEST]', JSON.stringify({ first400: prompt.slice(0, 400), length: prompt.length }, null, 2));
     }
 
     const res = await fetch(baseUrl, {
@@ -61,68 +72,69 @@ export function createPerplexityService(apiKey: string) {
   }
 
   function buildSystemPrompt(options: PerplexityOptions): string {
-    const base = `You are an Event Discovery Intelligence Agent.
-You MUST output ONLY a JSON array of event objects when requested.
+    return `You are an Event Discovery Intelligence Agent.
+You MUST output ONLY a JSON array of event objects.
+
 Allowed main categories:
 ${buildCategoryListForPrompt()}
 
-Schema fields (flexible):
-title, category, date, time, venue, price, website, endTime, address, ticketPrice, eventType, description, bookingLink, ageRestrictions
+Fields:
+title, category, date, time, venue, price, website,
+endTime, address, ticketPrice, eventType, description,
+bookingLink, ageRestrictions
 
 Rules:
-- category MUST be EXACT one of: ${allowedCategoriesForSchema()}
-- Do NOT hallucinate prices; if unknown leave price empty.
-- Provide diversity (genres, price ranges, venues).
-- Avoid duplicates.
-
-Return ONLY the JSON array; no explanation.`;
-    return base;
+- "category" must be EXACTLY one of: ${allowedCategoriesForSchema()}
+- If price unknown: empty string
+- Provide diversity (venues, price levels, sub-genres)
+- Avoid duplicates
+- Return ONLY the JSON array (no commentary).`;
   }
 
-  function buildGeneralPrompt(city: string, date: string, options: PerplexityOptions): string {
+  function buildGeneralPrompt(city: string, date: string): string {
     return `Find diverse events for ${city} on ${date}.
-Return ONLY JSON array.
-Include multiple categories.`;
+Return ONLY a JSON array. Include multiple main categories if possible.`;
   }
 
-  function buildCategoryPrompt(city: string, date: string, mainCategory: string, options: PerplexityOptions): string {
-    const expanded = options.expandedSubcategories !== false; // default true
+  function buildCategoryPrompt(
+    city: string,
+    date: string,
+    mainCategory: string,
+    options: PerplexityOptions
+  ): string {
+    const expanded = options.expandedSubcategories !== false;
     const minEvents = options.minEventsPerCategory ?? 12;
 
-    const contextBlock = expanded
+    const categoryContext = expanded
       ? buildExpandedCategoryContext(mainCategory)
-      : `Main Category: ${mainCategory}
-(Short mode: subcategory expansion disabled)`;
+      : `Main Category: ${mainCategory}\n(Subcategory expansion disabled)`;
 
     const hotCityPart = options.hotCity
-      ? `City Profile Context (hot city):
+      ? `City Profile:
 Name: ${options.hotCity.name}
-Known For: ${options.hotCity.keywords?.join(', ') || 'n/a'}
-`
+Known For: ${options.hotCity.keywords?.join(', ') || 'n/a'}\n`
       : '';
 
     const additionalSources = (options.additionalSources || [])
-      .map((s: any) => `- ${s.name || s.url || JSON.stringify(s).slice(0,60)}`)
+      .map((s: any) => `- ${s.name || s.url || JSON.stringify(s).slice(0, 60)}`)
       .join('\n');
 
     const sourcesBlock = additionalSources
-      ? `Candidate local sources (may scrape mentally / recall):
-${additionalSources}\n`
+      ? `Candidate local sources:\n${additionalSources}\n`
       : '';
 
-    return `${hotCityPart}${sourcesBlock}${contextBlock}
+    return `${hotCityPart}${sourcesBlock}${categoryContext}
 
 City: ${city}
 Target Date: ${date}
 
 Task:
-1. Collect at least ${minEvents} high-quality events for the main category (mix from subcategories).
-2. Ensure date relevance (exact date or clearly active that day).
-3. If insufficient real events → include plausible but mark with "description": "Plausible/Unverified".
-4. Include ticket/booking links where obvious.
+1. Produce at least ${minEvents} well-sourced events (use subcategory diversity).
+2. If insufficient confirmed events: include plausible ones with description "Plausible/Unverified".
+3. Include booking/ticket links where obvious.
 
 Output:
-Return ONLY a JSON array of event objects.
+ONLY a JSON array of event objects.
 
 Example minimal object:
 {"title":"Example","category":"${mainCategory}","date":"${date}","venue":"Example Venue","price":"","website":""}`;
@@ -134,7 +146,7 @@ Example minimal object:
     categories: string[],
     options: PerplexityOptions = {}
   ): Promise<PerplexityResult[]> {
-    let effectiveCategories = categories;
+    let effectiveCategories: string[];
 
     if (options.forceAllCategories) {
       effectiveCategories = EVENT_CATEGORIES;
@@ -142,30 +154,22 @@ Example minimal object:
       effectiveCategories = mapToMainCategories(categories);
     }
 
+    // Fallback to general prompt if nothing remains
     if (effectiveCategories.length === 0) {
-      // fallback: if user gave only subcategories that collapsed → at least do general search
-      effectiveCategories = [];
+      const prompt = buildGeneralPrompt(city, date);
+      const response = await call(prompt, options);
+      return [{ query: prompt, response }];
     }
 
     const results: PerplexityResult[] = [];
-
-    if (effectiveCategories.length === 0) {
-      const prompt = buildGeneralPrompt(city, date, options);
-      const response = await call(prompt, options);
-      results.push({ query: prompt, response });
-      return results;
-    }
-
-    // Parallel with simple concurrency control (optional later)
     for (const cat of effectiveCategories) {
       const prompt = buildCategoryPrompt(city, date, cat, options);
       if (options.debug || process.env.LOG_PPLX_QUERIES === '1') {
-        console.log(`[PPLX:QUERY][${cat}] length=${prompt.length}`);
+        console.log(`[PPLX:QUERY][${cat}] len=${prompt.length}`);
       }
       const response = await call(prompt, options);
       results.push({ query: prompt, response });
     }
-
     return results;
   }
 
