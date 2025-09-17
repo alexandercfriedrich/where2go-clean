@@ -115,51 +115,31 @@ export function allowedCategoriesForSchema(): string {
   return EVENT_CATEGORIES.join(', ');
 }
 
-// Token Map for normalization of common inputs & variants
 export const NORMALIZATION_TOKEN_MAP: Record<string,string> = {
-  // DJ / Electronic
   "techno":"DJ Sets/Electronic","edm":"DJ Sets/Electronic","house":"DJ Sets/Electronic","trance":"DJ Sets/Electronic",
   "minimal":"DJ Sets/Electronic","hardstyle":"DJ Sets/Electronic","hardcore":"DJ Sets/Electronic","breakbeat":"DJ Sets/Electronic",
   "dubstep":"DJ Sets/Electronic","electronic":"DJ Sets/Electronic","future":"DJ Sets/Electronic","goa":"DJ Sets/Electronic",
-  // Open Air
   "festival":"Open Air","festivals":"Open Air","openair":"Open Air","open-air":"Open Air",
-  // LGBTQ+
   "queer":"LGBTQ+","pride":"LGBTQ+","gay":"LGBTQ+","lesbian":"LGBTQ+","lgbt":"LGBTQ+","lgbtq":"LGBTQ+",
-  // Clubs
   "after-hour":"Clubs/Discos","afterhours":"Clubs/Discos","rave":"Clubs/Discos","club":"Clubs/Discos","party":"Clubs/Discos","disco":"Clubs/Discos","nightclub":"Clubs/Discos","nightlife":"Clubs/Discos",
-  // Food
   "wein":"Food/Culinary","wine":"Food/Culinary","beer":"Food/Culinary","bier":"Food/Culinary","cocktail":"Food/Culinary",
   "food":"Food/Culinary","essen":"Food/Culinary","culinary":"Food/Culinary","kulinarisch":"Food/Culinary",
-  // Bildung
   "workshop":"Bildung/Lernen","workshops":"Bildung/Lernen","seminar":"Bildung/Lernen","seminars":"Bildung/Lernen",
   "hackathon":"Bildung/Lernen","kurs":"Bildung/Lernen","kurse":"Bildung/Lernen","course":"Bildung/Lernen",
   "learning":"Bildung/Lernen","bildung":"Bildung/Lernen","education":"Bildung/Lernen",
-  // Business
   "startup":"Networking/Business","business":"Networking/Business","networking":"Networking/Business","meetup":"Networking/Business",
-  // Natur
   "hiking":"Natur/Outdoor","wandern":"Natur/Outdoor","nature":"Natur/Outdoor","natur":"Natur/Outdoor","outdoor":"Natur/Outdoor",
-  // Kultur
   "kultur":"Kultur/Traditionen","culture":"Kultur/Traditionen","tradition":"Kultur/Traditionen","heritage":"Kultur/Traditionen",
-  // Märkte
   "markt":"Märkte/Shopping","market":"Märkte/Shopping","shopping":"Märkte/Shopping","flohmarkt":"Märkte/Shopping","vintage":"Märkte/Shopping",
-  // Soziales
   "sozial":"Soziales/Community","social":"Soziales/Community","community":"Soziales/Community","volunteer":"Soziales/Community","charity":"Soziales/Community",
-  // Live-Konzerte (häufige Tag-Wörter)
   "jazz":"Live-Konzerte","rock":"Live-Konzerte","pop":"Live-Konzerte","musik":"Live-Konzerte","music":"Live-Konzerte","klassik":"Live-Konzerte","classical":"Live-Konzerte",
-  // Theater / Performance
   "theater":"Theater/Performance","theatre":"Theater/Performance","performance":"Theater/Performance","opera":"Theater/Performance","musical":"Theater/Performance",
-  // Comedy
   "comedy":"Comedy/Kabarett","kabarett":"Comedy/Kabarett","standup":"Comedy/Kabarett","stand-up":"Comedy/Kabarett",
-  // Kunst / Museen
   "kunst":"Kunst/Design","art":"Kunst/Design","design":"Kunst/Design","gallery":"Kunst/Design","galerie":"Kunst/Design",
   "museum":"Museen","museen":"Museen","exhibition":"Museen","ausstellung":"Museen",
-  // Sport
   "sport":"Sport","sports":"Sport","yoga":"Sport","pilates":"Sport","fitness":"Sport",
-  // Familien
   "family":"Familien/Kids","familie":"Familien/Kids","kids":"Familien/Kids","kinder":"Familien/Kids","children":"Familien/Kids",
-  // Film
   "film":"Film","films":"Film","movie":"Film","movies":"Film","cinema":"Film","kino":"Film",
-  // Wellness
   "wellness":"Wellness/Spirituell","meditation":"Wellness/Spirituell","spa":"Wellness/Spirituell","mindfulness":"Wellness/Spirituell","spirituell":"Wellness/Spirituell"
 };
 
@@ -168,24 +148,18 @@ export function normalizeCategory(input: string): string {
   const trimmed = input.trim();
   if (!trimmed) return trimmed;
 
-  // a) exact main
   if (EVENT_CATEGORY_SUBCATEGORIES[trimmed]) return trimmed;
 
   const lower = trimmed.toLowerCase();
-
-  // b) token map
   if (NORMALIZATION_TOKEN_MAP[lower]) return NORMALIZATION_TOKEN_MAP[lower];
 
-  // c) subcategory match
   for (const [main, subs] of Object.entries(EVENT_CATEGORY_SUBCATEGORIES)) {
     if (subs.some(s => s.toLowerCase() === lower)) return main;
   }
 
-  // d) lowercase equality with main
   const lc = EVENT_CATEGORIES.find(c => c.toLowerCase() === lower);
   if (lc) return lc;
 
-  // e) fallback: return original (will be invalidated if not a main category)
   return trimmed;
 }
 
@@ -202,8 +176,6 @@ export function validateAndNormalizeEvents(events: any[]): any[] {
         const norm = normalizeCategory(e.category);
         if (isValidCategory(norm)) {
           e.category = norm;
-        } else {
-            // keep raw so downstream logic could still inspect
         }
       }
       return e;
