@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { EVENT_CATEGORY_SUBCATEGORIES } from './lib/eventCategories';
 import { useTranslation } from './lib/useTranslation';
 
@@ -38,37 +38,7 @@ export default function Home() {
   const [activeFilter, setActiveFilter] = useState('Alle');
   const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean; totalEvents: number; cachedEvents: number} | null>(null);
   const [toast, setToast] = useState<{show:boolean; message:string}>({show:false,message:''});
-
-  // Dark Mode
-  const [darkMode, setDarkMode] = useState<boolean>(false);
-
-  // Init theme (prefers-color-scheme + localStorage)
-  useEffect(() => {
-    const stored = localStorage.getItem('w2g-theme');
-    if (stored === 'dark') {
-      setDarkMode(true);
-      document.documentElement.setAttribute('data-theme','dark');
-      return;
-    }
-    if (stored === 'light') {
-      setDarkMode(false);
-      document.documentElement.setAttribute('data-theme','light');
-      return;
-    }
-    // no stored: detect system
-    const prefers = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    setDarkMode(prefers);
-    document.documentElement.setAttribute('data-theme', prefers ? 'dark':'light');
-  }, []);
-
-  const toggleTheme = () => {
-    setDarkMode(prev => {
-      const next = !prev;
-      document.documentElement.setAttribute('data-theme', next ? 'dark':'light');
-      localStorage.setItem('w2g-theme', next ? 'dark':'light');
-      return next;
-    });
-  };
+  const resultsAnchorRef = useRef<HTMLDivElement | null>(null);
 
   const toggleSuperCategory = (cat: string) => {
     setCategoryLimitError(null);
@@ -99,6 +69,45 @@ export default function Home() {
     return customDate || today.toISOString().split('T')[0];
   }
 
+  // Date formatting for card header
+  function formatEventDateTime(dateStr: string, startTime?: string, endTime?: string) {
+    const dateObj = new Date(dateStr);
+    if (isNaN(dateObj.getTime())) return { date: dateStr, time: startTime || '' };
+
+    const weekday = dateObj.toLocaleDateString('en-GB', { weekday: 'short' }); // Fri
+    const day = dateObj.getDate();
+    const monthLabel = dateObj.toLocaleDateString('en-GB', { month: 'short' }); // Sept
+    const year = dateObj.getFullYear();
+    const ordinal = (d: number) => {
+      if (d === 1 || d === 21 || d === 31) return `${d}st`;
+      if (d === 2 || d === 22) return `${d}nd`;
+      if (d === 3 || d === 23) return `${d}rd`;
+      return `${d}th`;
+    };
+    const dateFormatted = `${weekday}. ${ordinal(day)} ${monthLabel} ${year}`;
+
+    const fmtTime = (val?: string) => {
+      if (!val) return '';
+      const m = val.match(/^(\d{1,2}):(\d{2})/);
+      if (!m) return val;
+      let h = parseInt(m[1], 10);
+      const min = m[2];
+      const ampm = h >= 12 ? 'pm' : 'am';
+      h = h % 12;
+      if (h === 0) h = 12;
+      return `${h}:${min} ${ampm}`;
+    };
+
+    let timeLabel = '';
+    if (startTime && endTime) {
+      timeLabel = `${fmtTime(startTime)} - ${fmtTime(endTime)}`;
+    } else if (startTime) {
+      timeLabel = fmtTime(startTime);
+    }
+
+    return { date: dateFormatted, time: timeLabel };
+  }
+
   async function searchEvents() {
     if (!city.trim()) {
       setError('Bitte gib eine Stadt ein.');
@@ -119,13 +128,13 @@ export default function Home() {
         body:JSON.stringify({
           city: city.trim(),
           date: formatDateForAPI(),
-          categories: getSelectedSubcategories(),
-          options: {
-            temperature: 0.2,
-            max_tokens: 12000,
-            expandedSubcategories: true,
-            minEventsPerCategory: 14
-          }
+            categories: getSelectedSubcategories(),
+            options: {
+              temperature: 0.2,
+              max_tokens: 12000,
+              expandedSubcategories: true,
+              minEventsPerCategory: 14
+            }
         })
       });
       if(!res.ok){
@@ -138,6 +147,14 @@ export default function Home() {
       setLoading(false);
       setToast({show:true,message:`${data.events?.length || 0} Events geladen`});
       setTimeout(()=> setToast({show:false,message:''}), 3000);
+
+      // Scroll to results
+      requestAnimationFrame(() => {
+        if (resultsAnchorRef.current) {
+          resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+
     } catch(e:any){
       setError(e.message || 'Fehler bei der Suche');
       setLoading(false);
@@ -161,51 +178,54 @@ export default function Home() {
   };
 
   const eventIcon = (cat: string) => {
-    const iconStyle: any = { width:'16px', height:'16px', strokeWidth:'2' };
-    switch(cat){
+    const iconProps = { width:16, height:16, strokeWidth:2 };
+    switch (cat) {
       case 'DJ Sets/Electronic':
       case 'Clubs/Discos':
-        return <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>;
+        return (
+          <svg {...iconProps as any} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+          </svg>
+        );
       case 'Live-Konzerte':
-        return <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3v18"/><path d="M8 21l4-7 4 7"/><path d="M8 3l4 7 4-7"/></svg>;
-      case 'Film':
-        return <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>;
+        return (
+          <svg {...iconProps as any} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M12 3v18"/><path d="M8 21l4-7 4 7"/><path d="M8 3l4 7 4-7"/>
+          </svg>
+        );
       default:
-        return <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/></svg>;
+        return (
+          <svg {...iconProps as any} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+            <line x1="7" y1="7" x2="7.01" y2="7"/>
+          </svg>
+        );
     }
+  };
+
+  const renderPrice = (ev: EventData) => {
+    const p = ev.ticketPrice || ev.price;
+    if (!p) return null;
+    return <div className="event-price-line">{p}</div>;
   };
 
   return (
     <div className="min-h-screen">
-      {/* Header + Logo + Theme Toggle */}
       <div className="header">
         <div className="header-logo-wrapper">
-          <img src="/where2go-full.svg" alt="Where2Go Logo" />
+          <img src="/where2go-full.svg" alt="Where2Go" />
         </div>
-        <button
-          className="theme-toggle"
-          onClick={toggleTheme}
-          aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
-          type="button"
-        >
-          {darkMode ? (
-            <>
-              <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.364 6.364-1.414-1.414M8.05 8.05 6.636 6.636m0 10.728 1.414-1.414m9.9-9.9-1.414 1.414" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-              Light
-            </>
-          ) : (
-            <>
-              <svg viewBox="0 0 24 24" fill="none"><path d="M21 12.79A9 9 0 0 1 11.21 3 7 7 0 1 0 21 12.79Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
-              Dark
-            </>
-          )}
-        </button>
+        <div className="premium-box">
+          <a href="#premium" className="premium-link">
+            <span className="premium-icon">⭐</span> Premium
+          </a>
+        </div>
       </div>
 
       <section className="hero">
         <div className="container">
           <h1>Where2Go</h1>
-          <p>{t('page.tagline')}</p>
+          <p>Entdecke die besten Events in deiner Stadt!</p>
         </div>
       </section>
 
@@ -220,43 +240,42 @@ export default function Home() {
           >
             <div className="form-row">
               <div className="form-group">
-                <label htmlFor="city">{t('form.city')}</label>
+                <label htmlFor="city">Stadt</label>
                 <input
                   id="city"
                   className="form-input"
                   value={city}
                   onChange={e=>setCity(e.target.value)}
-                  placeholder={t('form.cityPlaceholder')}
+                  placeholder="z.B. Berlin, Hamburg ..."
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="timePeriod">{t('form.timePeriod')}</label>
+                <label htmlFor="timePeriod">Zeitraum</label>
                 <select
                   id="timePeriod"
                   className="form-input"
                   value={timePeriod}
                   onChange={e=>setTimePeriod(e.target.value)}
                 >
-                  <option value="heute">{t('time.today')}</option>
-                  <option value="morgen">{t('time.tomorrow')}</option>
-                  <option value="kommendes-wochenende">{t('time.upcomingWeekend')}</option>
-                  <option value="benutzerdefiniert">{t('time.custom')}</option>
+                  <option value="heute">Heute</option>
+                  <option value="morgen">Morgen</option>
+                  <option value="kommendes-wochenende">Kommendes Wochenende</option>
+                  <option value="benutzerdefiniert">Benutzerdefiniert</option>
                 </select>
               </div>
+              {timePeriod === 'benutzerdefiniert' && (
+                <div className="form-group form-group-full">
+                  <label htmlFor="customDate">Datum</label>
+                  <input
+                    id="customDate"
+                    type="date"
+                    className="form-input"
+                    value={customDate}
+                    onChange={e=>setCustomDate(e.target.value)}
+                  />
+                </div>
+              )}
             </div>
-
-            {timePeriod === 'benutzerdefiniert' && (
-              <div className="form-group">
-                <label htmlFor="customDate">Datum</label>
-                <input
-                  id="customDate"
-                  type="date"
-                  className="form-input"
-                  value={customDate}
-                  onChange={e=>setCustomDate(e.target.value)}
-                />
-              </div>
-            )}
 
             <div className="categories-section">
               <label className="categories-label">Kategorien</label>
@@ -284,7 +303,9 @@ export default function Home() {
                     setSelectedSuperCategories(ALL_SUPER_CATEGORIES.slice(0, MAX_CATEGORY_SELECTION));
                     setCategoryLimitError(null);
                   }}
-                >{`Max. ${MAX_CATEGORY_SELECTION} auswählen`}</button>
+                >
+                  {`Max. ${MAX_CATEGORY_SELECTION} auswählen`}
+                </button>
                 <button
                   type="button"
                   className="btn-secondary"
@@ -292,39 +313,39 @@ export default function Home() {
                     setSelectedSuperCategories([]);
                     setCategoryLimitError(null);
                   }}
-                >Alle abwählen</button>
+                >
+                  Alle abwählen
+                </button>
               </div>
-              {categoryLimitError && <div style={{color:'var(--color-danger)', fontSize:12}}>{categoryLimitError}</div>}
+              {categoryLimitError && <div className="cat-error">{categoryLimitError}</div>}
             </div>
 
-            <button type="submit" className="btn-search">
-              {t('button.searchEvents')}
-            </button>
+            <button type="submit" className="btn-search">Events suchen</button>
           </form>
         </div>
       </section>
 
-      <div className="container">
-        <div className="content-with-sidebar">
+      <div className="container" ref={resultsAnchorRef}>
+        <div className={searchSubmitted ? 'content-with-sidebar' : ''}>
           {searchSubmitted && (
             <aside className="filter-sidebar">
-              <h3 className="sidebar-title">Filter</h3>
+              <h3 className="sidebar-title">Filter & Kategorien</h3>
               <div className="filter-chips">
                 <button
                   className={`filter-chip ${activeFilter==='Alle' ? 'filter-chip-active':''}`}
                   onClick={()=>setActiveFilter('Alle')}
                 >
-                  Alle
+                  <span>Alle</span>
                   <span className="filter-count">{getCategoryCounts()['Alle']}</span>
                 </button>
-                {searchedSuperCategories.map(c => (
+                {searchedSuperCategories.map(cat => (
                   <button
-                    key={c}
-                    className={`filter-chip ${activeFilter===c ? 'filter-chip-active':''}`}
-                    onClick={()=>setActiveFilter(c)}
+                    key={cat}
+                    className={`filter-chip ${activeFilter===cat ? 'filter-chip-active':''}`}
+                    onClick={()=>setActiveFilter(cat)}
                   >
-                    {c}
-                    <span className="filter-count">{getCategoryCounts()[c] || 0}</span>
+                    <span>{cat}</span>
+                    <span className="filter-count">{getCategoryCounts()[cat] || 0}</span>
                   </button>
                 ))}
               </div>
@@ -335,28 +356,26 @@ export default function Home() {
             {error && <div className="error">{error}</div>}
             {loading && (
               <div className="loading">
-                <div className="loading-spinner"></div>
+                <div className="loading-spinner" />
                 <p>Suche läuft...</p>
               </div>
             )}
+
             {!loading && !error && searchSubmitted && displayedEvents.length === 0 && (
               <div className="empty-state">
                 <h3>Keine Events gefunden</h3>
                 <p>Probiere andere Kategorien oder ein anderes Datum.</p>
               </div>
             )}
+
             {cacheInfo && displayedEvents.length > 0 && (
-              <div style={{
-                textAlign:'center',
-                margin:'10px 0 18px',
-                fontSize:'0.85rem',
-                color:'var(--color-text-dim)'
-              }}>
+              <div className="cache-info-banner">
                 {cacheInfo.fromCache
                   ? `📁 ${cacheInfo.cachedEvents} Events aus Cache`
-                  : `🔄 ${cacheInfo.totalEvents} Events geladen`}
+                  : `🔄 ${cacheInfo.totalEvents} Events frisch geladen`}
               </div>
             )}
+
             {displayedEvents.length > 0 && (
               <div className="events-grid">
                 {displayedEvents.map(ev => {
@@ -365,63 +384,102 @@ export default function Home() {
                     searchedSuperCategories.find(c => EVENT_CATEGORY_SUBCATEGORIES[c]?.includes(ev.category)) ||
                     ALL_SUPER_CATEGORIES.find(c => EVENT_CATEGORY_SUBCATEGORIES[c]?.includes(ev.category)) ||
                     ev.category;
+
+                  const { date: formattedDate, time: formattedTime } =
+                    formatEventDateTime(ev.date, ev.time, ev.endTime);
+
                   return (
                     <div key={key} className="event-card">
                       <h3 className="event-title">{ev.title}</h3>
-                      <div className="event-datetime">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                      <div className="event-meta-line">
+                        <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                          <line x1="16" y1="2" x2="16" y2="6"/>
+                          <line x1="8" y1="2" x2="8" y2="6"/>
+                          <line x1="3" y1="10" x2="21" y2="10"/>
                         </svg>
-                        {ev.date}{ev.time && ` • ${ev.time}`}{ev.endTime && ` - ${ev.endTime}`}
+                        <span>{formattedDate}</span>
+                        {formattedTime && (
+                          <>
+                            <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                              <circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/>
+                            </svg>
+                            <span>{formattedTime}</span>
+                          </>
+                        )}
                       </div>
-                      <div className="event-location-d1">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <div className="event-meta-line">
+                        <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
                           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
                         </svg>
                         <a
                           href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.address || ev.venue)}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="event-venue-link"
-                        >{ev.venue}</a>
+                          className="venue-link"
+                        >
+                          {ev.venue}
+                        </a>
                       </div>
                       {superCat && (
-                        <div className="event-category">
-                          {eventIcon(superCat)}
-                          {superCat}
+                        <div className="event-meta-line">
+                          <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+                          </svg>
+                          <span>{superCat}</span>
                         </div>
                       )}
-                      {(ev.price || ev.ticketPrice) && (
-                        <div className="event-price-d1">{ev.ticketPrice || ev.price}</div>
+                      {ev.eventType && (
+                        <div className="event-meta-line">
+                          <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M20 9V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2"/>
+                            <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V9s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+                            <line x1="4" y1="22" x2="4" y2="15"/>
+                            <line x1="20" y1="22" x2="20" y2="15"/>
+                          </svg>
+                          <span>{ev.eventType}</span>
+                        </div>
+                      )}
+                      {ev.ageRestrictions && (
+                        <div className="event-meta-line">
+                          <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                          </svg>
+                          <span>{ev.ageRestrictions}</span>
+                        </div>
                       )}
                       {ev.description && (
-                        <div className="event-description">{ev.description}</div>
+                        <div className="event-description">
+                          {ev.description}
+                        </div>
                       )}
-                      <div className="event-bottom-row">
-                        <div />
-                        <div className="event-actions">
+                      {renderPrice(ev)}
+
+                      {(ev.website || ev.bookingLink) && (
+                        <div className="event-actions-row">
                           {ev.website && (
                             <a
-                              className="event-action-btn event-info-btn"
                               href={ev.website}
                               target="_blank"
                               rel="noopener noreferrer"
+                              className="btn-outline"
                             >
-                              Info
+                              Mehr Info
                             </a>
                           )}
                           {ev.bookingLink && (
                             <a
-                              className="event-action-btn event-tickets-btn"
                               href={ev.bookingLink}
                               target="_blank"
                               rel="noopener noreferrer"
+                              className="btn-outline tickets"
                             >
                               Tickets
                             </a>
                           )}
                         </div>
-                      </div>
+                      )}
                     </div>
                   );
                 })}
