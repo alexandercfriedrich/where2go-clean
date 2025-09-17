@@ -4,7 +4,6 @@
 // Hier führen wir nur eine weiche Normalisierung (Lowercase Tokens → Roh-Kategorie bleibt stehen).
 
 import { EventData } from './types';
-import { normalizeCategory } from './eventCategories';
 
 function ensureProtocol(url: string): string {
   if (!url) return '';
