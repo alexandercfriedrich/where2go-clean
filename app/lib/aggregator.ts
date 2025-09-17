@@ -166,8 +166,8 @@ export class EventAggregator {
       if (t.startsWith('{') && t.endsWith('}')) {
         try {
           const raw = JSON.parse(t);
-            const ev = this.createEventFromObject(raw, requestCategory, requestDate);
-            if (ev.title) out.push(ev);
+          const ev = this.createEventFromObject(raw, requestCategory, requestDate);
+          if (ev.title) out.push(ev);
         } catch {/* ignore */}
       }
     }
