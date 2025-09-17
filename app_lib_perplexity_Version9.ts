@@ -134,10 +134,10 @@ if no events found: []
       try {
         const response = await fetch(this.baseUrl, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${this.apiKey}`,
-            'Content-Type': 'application/json',
-          },
+            headers: {
+              'Authorization': `Bearer ${this.apiKey}`,
+              'Content-Type': 'application/json',
+            },
           body: JSON.stringify({
             model: 'sonar-pro',
             messages: [{ role: 'user', content: prompt }],
