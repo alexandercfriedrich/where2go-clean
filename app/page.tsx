@@ -40,6 +40,26 @@ export default function Home() {
   const [toast, setToast] = useState<{show:boolean; message:string}>({show:false,message:''});
   const resultsAnchorRef = useRef<HTMLDivElement | null>(null);
 
+  // Force design1.css load (and remove any other design css)
+  useEffect(() => {
+    const id = 'w2g-design-css';
+    const href = '/designs/design1.css';
+    let link = document.getElementById(id) as HTMLLinkElement | null;
+    if (link) {
+      if (link.getAttribute('href') !== href) link.setAttribute('href', href);
+    } else {
+      link = document.createElement('link');
+      link.id = id;
+      link.rel = 'stylesheet';
+      link.href = href;
+      document.head.appendChild(link);
+    }
+    document.querySelectorAll('link[href*="/designs/design"]').forEach(l => {
+      const el = l as HTMLLinkElement;
+      if (!el.href.endsWith('design1.css')) el.parentElement?.removeChild(el);
+    });
+  }, []);
+
   const toggleSuperCategory = (cat: string) => {
     setCategoryLimitError(null);
     setSelectedSuperCategories(prev => {
@@ -69,7 +89,6 @@ export default function Home() {
     return customDate || today.toISOString().split('T')[0];
   }
 
-  // Date formatting for card header
   function formatEventDateTime(dateStr: string, startTime?: string, endTime?: string) {
     const dateObj = new Date(dateStr);
     if (isNaN(dateObj.getTime())) return { date: dateStr, time: startTime || '' };
@@ -104,7 +123,6 @@ export default function Home() {
     } else if (startTime) {
       timeLabel = fmtTime(startTime);
     }
-
     return { date: dateFormatted, time: timeLabel };
   }
 
@@ -128,13 +146,13 @@ export default function Home() {
         body:JSON.stringify({
           city: city.trim(),
           date: formatDateForAPI(),
-            categories: getSelectedSubcategories(),
-            options: {
-              temperature: 0.2,
-              max_tokens: 12000,
-              expandedSubcategories: true,
-              minEventsPerCategory: 14
-            }
+          categories: getSelectedSubcategories(),
+          options: {
+            temperature: 0.2,
+            max_tokens: 12000,
+            expandedSubcategories: true,
+            minEventsPerCategory: 14
+          }
         })
       });
       if(!res.ok){
@@ -154,7 +172,6 @@ export default function Home() {
           resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       });
-
     } catch(e:any){
       setError(e.message || 'Fehler bei der Suche');
       setLoading(false);
@@ -213,7 +230,8 @@ export default function Home() {
     <div className="min-h-screen">
       <div className="header">
         <div className="header-logo-wrapper">
-          <img src="/where2go-full.svg" alt="Where2Go" />
+          {/* PNG-Logo verwenden (nicht SVG) */}
+          <img src="/where2go-full.png" alt="Where2Go" />
         </div>
         <div className="premium-box">
           <a href="#premium" className="premium-link">
@@ -354,9 +372,28 @@ export default function Home() {
 
           <main className="main-content">
             {error && <div className="error">{error}</div>}
+
             {loading && (
               <div className="loading">
-                <div className="loading-spinner" />
+                {/* Kreative, edle Loader-Animation */}
+                <div className="w2g-loader-wrapper">
+                  <div className="w2g-loader">
+                    <svg viewBox="-50 -50 100 100" aria-hidden="true">
+                      <g className="ring ring--1">
+                        <circle cx="0" cy="0" r="40" />
+                      </g>
+                      <g className="ring ring--2">
+                        <circle cx="0" cy="0" r="28" />
+                      </g>
+                      <g className="ring ring--3">
+                        <circle cx="0" cy="0" r="16" />
+                      </g>
+                    </svg>
+                    <span className="orb orb--a" />
+                    <span className="orb orb--b" />
+                    <span className="orb orb--c" />
+                  </div>
+                </div>
                 <p>Suche läuft...</p>
               </div>
             )}
@@ -391,6 +428,7 @@ export default function Home() {
                   return (
                     <div key={key} className="event-card">
                       <h3 className="event-title">{ev.title}</h3>
+
                       <div className="event-meta-line">
                         <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
                           <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
@@ -408,6 +446,7 @@ export default function Home() {
                           </>
                         )}
                       </div>
+
                       <div className="event-meta-line">
                         <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
                           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
@@ -421,6 +460,7 @@ export default function Home() {
                           {ev.venue}
                         </a>
                       </div>
+
                       {superCat && (
                         <div className="event-meta-line">
                           <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -429,6 +469,7 @@ export default function Home() {
                           <span>{superCat}</span>
                         </div>
                       )}
+
                       {ev.eventType && (
                         <div className="event-meta-line">
                           <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -440,6 +481,7 @@ export default function Home() {
                           <span>{ev.eventType}</span>
                         </div>
                       )}
+
                       {ev.ageRestrictions && (
                         <div className="event-meta-line">
                           <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -449,11 +491,13 @@ export default function Home() {
                           <span>{ev.ageRestrictions}</span>
                         </div>
                       )}
+
                       {ev.description && (
                         <div className="event-description">
                           {ev.description}
                         </div>
                       )}
+
                       {renderPrice(ev)}
 
                       {(ev.website || ev.bookingLink) && (
