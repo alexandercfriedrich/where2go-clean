@@ -6,7 +6,10 @@ import { eventAggregator } from '@/lib/aggregator';
 import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
 import { getJobStore } from '@/lib/jobStore';
 import { getHotCity, getCityWebsitesForCategories } from '@/lib/hotCityStore';
-import { EVENT_CATEGORIES, mapToMainCategories, normalizeCategory } from '@/lib/eventCategories';
+import {
+  EVENT_CATEGORIES,
+  mapToMainCategories
+} from '@/lib/eventCategories';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -20,23 +23,6 @@ const DEFAULT_PPLX_OPTIONS = {
 
 const jobStore = getJobStore();
 
-async function scheduleBackgroundProcessing(
-  request: NextRequest,
-  jobId: string,
-  city: string,
-  date: string,
-  mainCategories: string[],
-  mergedOptions: any
-) {
-  // Background job logic unchanged – separate route /process handles heavy.
-  try {
-    // This could enqueue a background function trigger if you use Vercel background features.
-    // For simplicity we keep existing mechanism (not modified here).
-  } catch (error) {
-    console.error('Schedule background processing error:', error);
-  }
-}
-
 export async function POST(request: NextRequest) {
   try {
     const body: RequestBody & { options?: any } = await request.json();
@@ -46,32 +32,40 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Stadt und Datum sind erforderlich' }, { status: 400 });
     }
 
-    // New: map subcategories → main categories early
-    let requestedCategories = options.forceAllCategories ? EVENT_CATEGORIES : mapToMainCategories(categories);
-    if (requestedCategories.length === 0 && !options.forceAllCategories) {
-      // Fallback: general search scenario (handled later by perplexity service)
-      requestedCategories = [];
+    // Merge defaults first (Fix: options used earlier previously)
+    const mergedOptions = {
+      ...DEFAULT_PPLX_OPTIONS,
+      ...options
+    };
+
+    // Compute requested categories
+    let requestedCategories = mergedOptions.forceAllCategories
+      ? EVENT_CATEGORIES
+      : mapToMainCategories(categories);
+
+    if (requestedCategories.length === 0 && !mergedOptions.forceAllCategories) {
+      requestedCategories = []; // will trigger general query mode below
     }
 
+    // Hot city enrichment
     let hotCityData: any = null;
     let additionalSources: any[] = [];
     try {
       hotCityData = await getHotCity(city);
       if (hotCityData) {
-        additionalSources = await getCityWebsitesForCategories(city, requestedCategories.length ? requestedCategories : EVENT_CATEGORIES);
+        additionalSources = await getCityWebsitesForCategories(
+          city,
+          requestedCategories.length ? requestedCategories : EVENT_CATEGORIES
+        );
       }
-    } catch (err) {
-      console.error('Hot City enrichment error:', err);
+    } catch (e) {
+      console.error('Hot city enrichment failed:', e);
     }
 
-    const mergedOptions = {
-      ...DEFAULT_PPLX_OPTIONS,
-      ...options,
-      hotCity: hotCityData,
-      additionalSources
-    };
+    mergedOptions.hotCity = hotCityData;
+    mergedOptions.additionalSources = additionalSources;
 
-    const disableCache = mergedOptions?.disableCache === true || mergedOptions?.debug === true;
+    const disableCache = mergedOptions.disableCache === true || mergedOptions.debug === true;
 
     let cachedEvents: EventData[] = [];
     let missingCategories: string[] = [];
@@ -85,16 +79,11 @@ export async function POST(request: NextRequest) {
       cachedEvents = eventAggregator.deduplicateEvents(cachedEvents);
       missingCategories = cacheResult.missingCategories;
       cacheInfo = cacheResult.cacheInfo;
-    } else {
-      if (requestedCategories.length > 0) {
-        missingCategories = requestedCategories;
-        requestedCategories.forEach(c => {
-          cacheInfo[c] = { fromCache: false, eventCount: 0 };
-        });
-      } else {
-        // no category-based caching if general mode
-        missingCategories = [];
-      }
+    } else if (requestedCategories.length > 0) {
+      missingCategories = requestedCategories;
+      requestedCategories.forEach(c => {
+        cacheInfo[c] = { fromCache: false, eventCount: 0 };
+      });
     }
 
     if (missingCategories.length === 0 && requestedCategories.length > 0) {
@@ -105,9 +94,9 @@ export async function POST(request: NextRequest) {
         message: `${cachedEvents.length} Events aus dem Cache`,
         cacheInfo: {
           fromCache: true,
-            totalEvents: cachedEvents.length,
-            cachedEvents: cachedEvents.length,
-            cacheBreakdown: cacheInfo
+          totalEvents: cachedEvents.length,
+          cachedEvents: cachedEvents.length,
+          cacheBreakdown: cacheInfo
         }
       });
     }
@@ -118,12 +107,15 @@ export async function POST(request: NextRequest) {
     }
 
     const service = createPerplexityService(PERPLEXITY_API_KEY);
+    const pplxResults = await service.executeMultiQuery(
+      city,
+      date,
+      missingCategories,
+      mergedOptions
+    );
 
-    // Execute queries
-    const pplxResults = await service.executeMultiQuery(city, date, missingCategories, mergedOptions);
     const newParsed = eventAggregator.aggregateResults(pplxResults);
 
-    // Cache each category’s events
     const ttlSeconds = computeTTLSecondsForEvents(newParsed);
     const perCategoryGroups: Record<string, EventData[]> = {};
     for (const ev of newParsed) {
