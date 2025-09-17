@@ -36,7 +36,7 @@ export function createPerplexityService(apiKey: string) {
   }
 
   const baseUrl = 'https://api.perplexity.ai/chat/completions';
-  const model = 'sonar';
+  const model = 'sonar-pro';
 
   async function call(prompt: string, options: PerplexityOptions): Promise<string> {
     const body: PplxApiRequest = {
@@ -45,7 +45,7 @@ export function createPerplexityService(apiKey: string) {
         { role: 'system', content: buildSystemPrompt(options) },
         { role: 'user', content: prompt }
       ],
-      max_tokens: options.max_tokens || 4000,
+      max_tokens: options.max_tokens || 5000,
       temperature: options.temperature ?? 0.2
     };
 
@@ -72,8 +72,7 @@ export function createPerplexityService(apiKey: string) {
   }
 
   function buildSystemPrompt(options: PerplexityOptions): string {
-    return `You are an Event Discovery Intelligence Agent.
-You MUST output ONLY a JSON array of event objects.
+    return `You are an event search specialist. Respond exclusively in JSON format and ensure all available information is returned in a structured manner.
 
 Allowed main categories:
 ${buildCategoryListForPrompt()}
@@ -88,12 +87,13 @@ Rules:
 - If price unknown: use empty string
 - Provide diversity (venues, price levels, sub-genres)
 - Avoid duplicates
-- Return ONLY the JSON array (no commentary).`;
+- Return ONLY the JSON array (No explanatory text outside the JSON structure).`;
   }
 
   function buildGeneralPrompt(city: string, date: string): string {
-    return `Find diverse events for ${city} on ${date}.
-Return ONLY a JSON array. Include multiple main categories if possible.`;
+    return `Search for ALL available events in ${city} on ${date}.
+Return ONLY the JSON array (No explanatory text outside the JSON structure).
+Include multiple main categories if possible.`;
   }
 
   function buildCategoryPrompt(
