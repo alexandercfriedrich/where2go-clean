@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import '../public/designs/design1.css';
 
 export const metadata: Metadata = {
   title: 'Where2Go - Entdecke Events in deiner Stadt!',
