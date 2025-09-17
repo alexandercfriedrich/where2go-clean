@@ -6,8 +6,8 @@ import { useTranslation } from './lib/useTranslation';
 interface EventData {
   title: string;
   category: string;
-  date: string;
-  time: string;
+  date: string;     // erwartet YYYY-MM-DD
+  time: string;     // optional "HH:mm"
   venue: string;
   price: string;
   website: string;
@@ -20,7 +20,7 @@ interface EventData {
   ageRestrictions?: string;
 }
 
-type Orb = { id: number; angle: number; vx: number; vy: number; fly: boolean };
+type Orb = { id: number; angle: number; radius: number; speed: number };
 
 const ALL_SUPER_CATEGORIES = Object.keys(EVENT_CATEGORY_SUBCATEGORIES);
 const MAX_CATEGORY_SELECTION = 3;
@@ -31,20 +31,25 @@ export default function Home() {
   const [timePeriod, setTimePeriod] = useState('heute');
   const [customDate, setCustomDate] = useState('');
   const [showDateDropdown, setShowDateDropdown] = useState(false);
+
   const [selectedSuperCategories, setSelectedSuperCategories] = useState<string[]>([]);
   const [categoryLimitError, setCategoryLimitError] = useState<string | null>(null);
+
   const [events, setEvents] = useState<EventData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const [searchSubmitted, setSearchSubmitted] = useState(false);
   const [searchedSuperCategories, setSearchedSuperCategories] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState('Alle');
+
   const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean; totalEvents: number; cachedEvents: number} | null>(null);
   const [toast, setToast] = useState<{show:boolean; message:string}>({show:false,message:''});
+
   const resultsAnchorRef = useRef<HTMLDivElement | null>(null);
   const timeSelectWrapperRef = useRef<HTMLDivElement | null>(null);
 
-  // Ensure design1.css is loaded and no other design CSS interferes
+  // sicherstellen, dass design1.css geladen ist
   useEffect(() => {
     const id = 'w2g-design-css';
     const href = '/designs/design1.css';
@@ -64,7 +69,7 @@ export default function Home() {
     });
   }, []);
 
-  // Close date dropdown on outside click or Escape
+  // close date dropdown on outside/Escape
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!showDateDropdown) return;
@@ -98,18 +103,45 @@ export default function Home() {
   const getSelectedSubcategories = (): string[] =>
     selectedSuperCategories.flatMap(superCat => EVENT_CATEGORY_SUBCATEGORIES[superCat]);
 
+  // Date helpers
+  function toISODate(d: Date): string {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+  function todayISO() { return toISODate(new Date()); }
+  function tomorrowISO() { const d = new Date(); d.setDate(d.getDate()+1); return toISODate(d); }
+  function nextWeekendDatesISO(): string[] {
+    const t = new Date();
+    const day = t.getDay(); // 0 So ... 6 Sa
+    // Nächster Freitag
+    const offset = (5 - day + 7) % 7;
+    const fri = new Date(t); fri.setDate(t.getDate() + offset);
+    const sat = new Date(fri); sat.setDate(fri.getDate() + 1);
+    const sun = new Date(fri); sun.setDate(fri.getDate() + 2);
+    return [toISODate(fri), toISODate(sat), toISODate(sun)];
+  }
+
   function formatDateForAPI(): string {
-    const today = new Date();
-    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
-    if (timePeriod === 'heute') return today.toISOString().split('T')[0];
-    if (timePeriod === 'morgen') return tomorrow.toISOString().split('T')[0];
+    if (timePeriod === 'heute') return todayISO();
+    if (timePeriod === 'morgen') return tomorrowISO();
+    if (timePeriod === 'kommendes-wochenende') return nextWeekendDatesISO()[0];
+    return customDate || todayISO();
+  }
+
+  function matchesSelectedDate(ev: EventData): boolean {
+    const evDate = ev.date?.slice(0,10);
+    if (!evDate) return true;
+    if (timePeriod === 'heute') return evDate === todayISO();
+    if (timePeriod === 'morgen') return evDate === tomorrowISO();
     if (timePeriod === 'kommendes-wochenende') {
-      const nextFriday = new Date(today);
-      const diff = (5 - today.getDay() + 7) % 7;
-      nextFriday.setDate(today.getDate() + diff);
-      return nextFriday.toISOString().split('T')[0];
+      const wk = nextWeekendDatesISO();
+      return wk.includes(evDate);
     }
-    return customDate || today.toISOString().split('T')[0];
+    // benutzerdefiniert
+    if (customDate) return evDate === customDate;
+    return true;
   }
 
   function formatEventDateTime(dateStr: string, startTime?: string, endTime?: string) {
@@ -149,6 +181,48 @@ export default function Home() {
     return { date: dateFormatted, time: timeLabel };
   }
 
+  // Preis-Formatierung
+  function guessCurrencyByCity(c: string): { symbol: string; code: string } {
+    const cityLC = c.toLowerCase();
+    const EUR = { symbol: '€', code: 'EUR' };
+    const USD = { symbol: '$', code: 'USD' };
+    const GBP = { symbol: '£', code: 'GBP' };
+    const CHF = { symbol: 'CHF', code: 'CHF' };
+
+    if (/miami|new york|los angeles|san francisco|chicago|usa|united states|orlando/.test(cityLC)) return USD;
+    if (/london|manchester|uk|united kingdom|edinburgh|leeds|birmingham/.test(cityLC)) return GBP;
+    if (/zurich|zürich|geneva|genf|basel|bern|switzerland|schweiz/.test(cityLC)) return CHF;
+    // default viele EU → EUR
+    return EUR;
+  }
+
+  function normalizePriceString(p: string) {
+    return p.replace(/\s+/g, ' ').trim();
+  }
+
+  function formatPriceDisplay(p: string): string {
+    if (!p) return 'Keine Preisinfos';
+    const str = normalizePriceString(p);
+    // bereits vorhandene Währung
+    if (/[€$£]|EUR|USD|GBP|CHF|PLN|CZK|HUF|DKK|SEK|NOK|CAD|AUD/i.test(str)) {
+      // vereinheitliche € Abstand
+      return str.replace(/(\d)\s*€/, '$1 €');
+    }
+    if (/anfrage/i.test(str)) return 'Preis auf Anfrage';
+    // reine Zahlen oder Bereiche
+    const cur = guessCurrencyByCity(city);
+    const range = str.match(/^(\d+)\s*[-–]\s*(\d+)$/);
+    if (range) {
+      return `${range[1]}–${range[2]} ${cur.symbol}`;
+    }
+    const single = str.match(/^(\d+)(?:[.,](\d{1,2}))?$/);
+    if (single) {
+      const val = single[2] ? `${single[1]},${single[2]}` : single[1];
+      return `${val} ${cur.symbol}`;
+    }
+    return str; // falls sonstiger Text
+  }
+
   async function searchEvents() {
     if (!city.trim()) {
       setError('Bitte gib eine Stadt ein.');
@@ -186,14 +260,10 @@ export default function Home() {
       setEvents(data.events || []);
       setCacheInfo(data.cacheInfo || null);
       setLoading(false);
-      setToast({show:true,message:`${data.events?.length || 0} Events geladen`});
-      setTimeout(()=> setToast({show:false,message:''}), 3000);
-
-      requestAnimationFrame(() => {
-        if (resultsAnchorRef.current) {
-          resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      });
+      setTimeout(()=> setToast({show:false, message:''}), 2000);
+      if (resultsAnchorRef.current) {
+        resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     } catch(e:any){
       setError(e.message || 'Fehler bei der Suche');
       setLoading(false);
@@ -201,17 +271,19 @@ export default function Home() {
   }
 
   const displayedEvents = (() => {
-    if (!searchSubmitted) return events;
-    if (activeFilter === 'Alle') return events;
+    // erst Datum, dann Kategorie
+    const dateFiltered = events.filter(matchesSelectedDate);
+    if (!searchSubmitted) return dateFiltered;
+    if (activeFilter === 'Alle') return dateFiltered;
     const subs = EVENT_CATEGORY_SUBCATEGORIES[activeFilter] || [];
-    return events.filter(e => subs.includes(e.category));
+    return dateFiltered.filter(e => subs.includes(e.category));
   })();
 
   const getCategoryCounts = () => {
-    const counts: Record<string, number> = { 'Alle': events.length };
+    const counts: Record<string, number> = { 'Alle': events.filter(matchesSelectedDate).length };
     searchedSuperCategories.forEach(cat => {
       const subs = EVENT_CATEGORY_SUBCATEGORIES[cat] || [];
-      counts[cat] = events.filter(e => subs.includes(e.category)).length;
+      counts[cat] = events.filter(e => subs.includes(e.category)).filter(matchesSelectedDate).length;
     });
     return counts;
   };
@@ -244,28 +316,28 @@ export default function Home() {
 
   const renderPrice = (ev: EventData) => {
     const p = ev.ticketPrice || ev.price;
-    if (!p) return <span className="price-chip">Preis</span>;
-    return <span className="price-chip">{p}</span>;
+    const text = p ? formatPriceDisplay(p) : 'Keine Preisinfos';
+    return <span className="price-chip">{text}</span>;
   };
 
   return (
     <div className="min-h-screen">
-      <div className="header">
-        <div className="header-logo-wrapper">
-          {/* PNG-Logo verwenden */}
-          <img src="/where2go-full.png" alt="Where2Go" />
+      <header className="header">
+        <div className="container header-inner">
+          <div className="header-logo-wrapper small-left">
+            <img src="/where2go-full.png" alt="Where2Go" />
+          </div>
+          <div className="premium-box">
+            <a href="#premium" className="premium-link">
+              <span className="premium-icon">⭐</span> Premium
+            </a>
+          </div>
         </div>
-        <div className="premium-box">
-          <a href="#premium" className="premium-link">
-            <span className="premium-icon">⭐</span> Premium
-          </a>
-        </div>
-      </div>
+      </header>
 
       <section className="hero">
         <div className="container">
-          {/* Titel entfernt wie gewünscht */}
-          {/* <h1>Where2Go</h1> */}
+          {/* Überschrift entfernt */}
           <p>Entdecke die besten Events in deiner Stadt!</p>
         </div>
       </section>
@@ -290,6 +362,7 @@ export default function Home() {
                   placeholder="z.B. Berlin, Hamburg ..."
                 />
               </div>
+
               <div className="form-group select-with-dropdown" ref={timeSelectWrapperRef}>
                 <label htmlFor="timePeriod">Zeitraum</label>
                 <select
@@ -315,24 +388,12 @@ export default function Home() {
                   <option value="benutzerdefiniert">Benutzerdefiniert</option>
                 </select>
 
-                {/* Dropdown für Datum – keine Extra-Zeile */}
                 {showDateDropdown && (
                   <div className="date-dropdown" role="dialog" aria-label="Datum wählen">
-                    <div className="date-row">
-                      <input
-                        type="date"
-                        className="date-input"
-                        value={customDate}
-                        onChange={e=>setCustomDate(e.target.value)}
-                      />
-                      <button
-                        type="button"
-                        className="date-apply"
-                        onClick={()=> setShowDateDropdown(false)}
-                      >
-                        Setzen
-                      </button>
-                    </div>
+                    <TwoMonthCalendar
+                      value={customDate}
+                      onSelect={(iso) => { setCustomDate(iso); setShowDateDropdown(false); }}
+                    />
                     <div className="date-hint">Minimalistisch – dunkle Outline und dezente Typografie.</div>
                   </div>
                 )}
@@ -419,7 +480,7 @@ export default function Home() {
 
             {loading && (
               <div className="loading">
-                <W2GLoader />
+                <W2GLoader5 />
                 <p>Suche läuft...</p>
               </div>
             )}
@@ -489,9 +550,7 @@ export default function Home() {
 
                       {superCat && (
                         <div className="event-meta-line">
-                          <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
-                          </svg>
+                          {eventIcon(superCat)}
                           <span>{superCat}</span>
                         </div>
                       )}
@@ -524,7 +583,7 @@ export default function Home() {
                         </div>
                       )}
 
-                      {/* CTA-Leiste: Preis | Mehr Info | Tickets – gleich verteilt */}
+                      {/* CTA: Preis | Mehr Info | Tickets */}
                       <div className="event-cta-row">
                         {renderPrice(ev)}
                         {ev.website ? (
@@ -533,7 +592,6 @@ export default function Home() {
                             target="_blank"
                             rel="noopener noreferrer"
                             className="btn-outline with-icon"
-                            aria-label="Mehr Informationen"
                           >
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                               <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
@@ -547,7 +605,6 @@ export default function Home() {
                             target="_blank"
                             rel="noopener noreferrer"
                             className="btn-outline tickets with-icon"
-                            aria-label="Tickets kaufen"
                           >
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                               <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/>
@@ -581,63 +638,125 @@ export default function Home() {
   );
 }
 
-/* Kreative Loader-Komponente mit 15 Orbs – alle 10s fliegt einer weg */
-function W2GLoader() {
-  const [orbs, setOrbs] = useState<Orb[]>([]);
-  const intervalRef = useRef<number | null>(null);
+/* Zwei-Monats-Kalender (Cross-Browser, ohne native date inputs) */
+function TwoMonthCalendar({
+  value,
+  onSelect
+}: {
+  value: string;
+  onSelect: (iso: string) => void;
+}) {
+  const [baseMonth, setBaseMonth] = useState(() => {
+    const d = value ? new Date(value) : new Date();
+    d.setDate(1);
+    return d;
+  });
 
-  useEffect(() => {
-    // 15 Orbs mit zufälliger Start-Position (Winkel) und Zufallsvektor
-    const init: Orb[] = Array.from({ length: 15 }).map((_, i) => {
-      const angle = Math.random() * 360;
-      const rad = Math.random() * Math.PI * 2;
-      const vx = Math.cos(rad);
-      const vy = Math.sin(rad);
-      return { id: i, angle, vx, vy, fly: false };
-    });
-    setOrbs(init);
+  function monthLabel(d: Date) {
+    return d.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+  }
+  function addMonths(d: Date, n: number) {
+    const nd = new Date(d);
+    nd.setMonth(nd.getMonth() + n);
+    return nd;
+  }
+  function startOfWeek(d: Date) {
+    const nd = new Date(d);
+    const day = (nd.getDay() + 6) % 7; // Montag=0
+    nd.setDate(nd.getDate() - day);
+    nd.setHours(0,0,0,0);
+    return nd;
+  }
+  function daysMatrix(monthStart: Date) {
+    const first = new Date(monthStart);
+    first.setDate(1);
+    const start = startOfWeek(first);
+    const weeks: Date[][] = [];
+    let cur = new Date(start);
+    for (let w=0; w<6; w++) {
+      const row: Date[] = [];
+      for (let i=0; i<7; i++) {
+        row.push(new Date(cur));
+        cur.setDate(cur.getDate()+1);
+      }
+      weeks.push(row);
+    }
+    return weeks;
+  }
+  function isSameDay(a: Date, b: Date) {
+    return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+  }
+  const selected = value ? new Date(value) : null;
 
-    intervalRef.current = window.setInterval(() => {
-      setOrbs(prev => {
-        const idx = prev.findIndex(o => !o.fly);
-        if (idx === -1) return prev;
-        const next = [...prev];
-        next[idx] = { ...next[idx], fly: true };
-        return next;
-      });
-    }, 10000);
-
-    return () => {
-      if (intervalRef.current) window.clearInterval(intervalRef.current);
-    };
-  }, []);
+  const months = [0,1].map(i => addMonths(baseMonth, i));
+  const weeksArr = months.map(m => daysMatrix(m));
 
   return (
+    <div className="calendar">
+      <div className="calendar-nav">
+        <button type="button" className="cal-btn" onClick={()=>setBaseMonth(addMonths(baseMonth,-1))} aria-label="Vorheriger Monat">‹</button>
+        <div className="cal-titles">
+          <div className="cal-title">{monthLabel(months[0])}</div>
+          <div className="cal-title">{monthLabel(months[1])}</div>
+        </div>
+        <button type="button" className="cal-btn" onClick={()=>setBaseMonth(addMonths(baseMonth,1))} aria-label="Nächster Monat">›</button>
+      </div>
+
+      <div className="calendar-grids">
+        {weeksArr.map((weeks, idx) => (
+          <div key={idx} className="cal-grid">
+            <div className="cal-head">Mo</div><div className="cal-head">Di</div><div className="cal-head">Mi</div><div className="cal-head">Do</div><div className="cal-head">Fr</div><div className="cal-head">Sa</div><div className="cal-head">So</div>
+            {weeks.flat().map((d,i) => {
+              const inMonth = d.getMonth()===months[idx].getMonth();
+              const isSel = selected && isSameDay(d, selected);
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  className={`cal-day ${inMonth ? '' : 'cal-day--muted'} ${isSel ? 'cal-day--sel' : ''}`}
+                  onClick={()=> onSelect(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`)}
+                >
+                  {d.getDate()}
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* Loader: 5 Kreise, edle s/w-Bewegung mit verteilter Dynamik */
+function W2GLoader5() {
+  const [orbs] = useState<Orb[]>(
+    Array.from({length:5}).map((_,i)=>({
+      id:i,
+      angle: (360/5)*i,
+      radius: 12 + i*4,
+      speed: 0.6 + i*0.12
+    }))
+  );
+  return (
     <div className="w2g-loader-wrapper">
-      <div className="w2g-loader w2g-loader--v2">
+      <div className="w2g-loader w2g-loader--v3" aria-label="Laden">
         <svg viewBox="-50 -50 100 100" aria-hidden="true">
           <g className="ring ring--1"><circle cx="0" cy="0" r="40" /></g>
           <g className="ring ring--2"><circle cx="0" cy="0" r="28" /></g>
           <g className="ring ring--3"><circle cx="0" cy="0" r="16" /></g>
         </svg>
-        {orbs.map(o => (
+        {orbs.map(o=>(
           <span
             key={o.id}
-            className={`orb ${o.fly ? 'orb--fly' : ''}`}
+            className="orb5"
             style={
               {
-                // @ts-ignore custom CSS props
+                // @ts-ignore custom props
                 '--angle': `${o.angle}deg`,
-                '--vx': o.vx,
-                '--vy': o.vy
+                '--radius': `${o.radius}px`,
+                '--speed': `${o.speed}s`
               } as React.CSSProperties
             }
-            onAnimationEnd={(e) => {
-              if ((e.target as HTMLElement).classList.contains('orb--fly')) {
-                // Nach dem Wegfliegen entfernen
-                setOrbs(prev => prev.filter(x => x.id !== o.id));
-              }
-            }}
           />
         ))}
       </div>
