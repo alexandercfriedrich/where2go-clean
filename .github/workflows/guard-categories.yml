@@ -1,0 +1,62 @@
+name: Guard Categories & Stray Files
+
+on:
+  pull_request:
+    paths:
+      - 'app/lib/eventCategories.ts'
+      - 'app/categories.ts'
+      - '.github/workflows/guard-categories.yml'
+      - '**/*.ts'
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fail on stray Version files
+        run: |
+          set -e
+          matches=$(git ls-files "*_Version*.ts" || true)
+          if [ -n "$matches" ]; then
+            echo "❌ Stray *_Version*.ts Dateien gefunden:"
+            echo "$matches"
+            exit 1
+          else
+            echo "✅ Keine Stray Version-Dateien."
+          fi
+
+      - name: Validate category count (expect exactly 20 main categories)
+        run: |
+          set -e
+          # Zählt Vorkommen von '"<Kategorie>": [' im Hauptobjekt
+            count=$(grep -o '": \[' app/lib/eventCategories.ts | wc -l | tr -d ' ')
+            if [ "$count" -ne 20 ]; then
+              echo "❌ Erwartet 20 Hauptkategorien, gefunden: $count"
+              exit 1
+            fi
+            echo "✅ Kategorie-Anzahl OK (20)."
+
+      - name: Check prompt builder presence
+        run: |
+          if ! grep -q "buildCategoryListForPrompt" app/lib/eventCategories.ts; then
+            echo "❌ buildCategoryListForPrompt fehlt."
+            exit 1
+          fi
+          echo "✅ buildCategoryListForPrompt vorhanden."
+
+      - name: Basic syntax sanity on eventCategories.ts
+        run: |
+          if grep -q "<<<<<<<" app/lib/eventCategories.ts; then
+            echo "❌ Merge-Konfliktmarker in eventCategories.ts gefunden."
+            exit 1
+          fi
+          echo "✅ Keine Konfliktmarker."
+
+      - name: Report summary
+        run: |
+          echo "Alle Guards bestanden."
