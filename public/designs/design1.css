@@ -23,6 +23,13 @@
   --transition: .18s cubic-bezier(.4,0,.2,1);
   --font: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
   --content-max: 1180px;
+
+  /* Tweaks requested */
+  --chip-active-bg: #2b2f35;  /* dunkelgrau für aktive Chips/Kategorien */
+  --chip-active-text: #ffffff;
+  --ticket-green: #1aa064;
+  --ticket-green-hover: #138a54;
+  --ticket-green-bg: #f1fcf6;
 }
 
 * { box-sizing:border-box; }
@@ -197,12 +204,17 @@ a:hover { color:var(--accent-alt-hover); }
   margin:0;
 }
 .category-checkbox:has(input:checked) {
-  background:#111;
-  color:#fff;
-  border-color:#111;
+  background: var(--chip-active-bg);  /* dunkelgrau */
+  color: var(--chip-active-text);
+  border-color: var(--chip-active-bg);
   font-weight:500;
 }
+/* Checkbox in Schwarz/Weiß-Optik im aktiven Zustand */
+.category-checkbox:has(input:checked) input {
+  accent-color: #ffffff;
+}
 
+/* Category actions */
 .categories-actions {
   display:flex;
   gap:12px;
@@ -300,9 +312,9 @@ a:hover { color:var(--accent-alt-hover); }
   background:#f3f4f5;
 }
 .filter-chip-active {
-  background:#222;
-  color:#fff;
-  border-color:#222;
+  background: var(--chip-active-bg);  /* dunkelgrau statt schwarz */
+  color: #fff;
+  border-color: var(--chip-active-bg);
 }
 .filter-count {
   font-size:11px;
@@ -370,13 +382,14 @@ a:hover { color:var(--accent-alt-hover); }
   margin:5px 0;
 }
 
+/* Venue-Link: blau und unterstrichen */
 .venue-link {
-  color:var(--text);
-  font-weight:500;
+  color:var(--accent-alt);
+  font-weight:600;
   text-decoration:underline;
   text-underline-offset:2px;
 }
-.venue-link:hover { text-decoration:none; }
+.venue-link:hover { color:var(--accent-alt-hover); }
 
 .event-description {
   margin-top:10px;
@@ -419,14 +432,15 @@ a:hover { color:var(--accent-alt-hover); }
   background:#f3f5f7;
   border-color:#c9ccd1;
 }
+/* Tickets: grün umrandet mit dezentem Grün */
 .btn-outline.tickets {
-  border-color:#20a568;
-  color:#11643e;
-  background:#f1fcf6;
+  border-color: var(--ticket-green);
+  color: #11643e;
+  background: var(--ticket-green-bg);
 }
 .btn-outline.tickets:hover {
-  background:#e7f9f1;
-  border-color:#178a55;
+  border-color: var(--ticket-green-hover);
+  background: #e9f8f1;
 }
 
 /* States */
@@ -435,16 +449,76 @@ a:hover { color:var(--accent-alt-hover); }
   padding:60px 0;
   color:var(--text-dim);
 }
-.loading-spinner {
-  width:36px;
-  height:36px;
-  border:4px solid var(--border);
-  border-top:4px solid var(--accent-alt);
-  border-radius:50%;
-  margin:0 auto 16px;
-  animation:spin .85s linear infinite;
+
+/* Kreative Where2Go Loader Animation (feine Linien, schwarz/weiß) */
+.w2g-loader-wrapper {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin-bottom:14px;
 }
-@keyframes spin { to { transform:rotate(360deg); } }
+.w2g-loader {
+  position:relative;
+  width:120px;
+  height:120px;
+  filter: drop-shadow(0 2px 6px rgba(0,0,0,0.06));
+}
+.w2g-loader svg {
+  width:100%;
+  height:100%;
+  display:block;
+}
+.w2g-loader .ring circle {
+  fill:none;
+  stroke-linecap:round;
+}
+.ring--1 circle {
+  stroke:#151515;
+  stroke-width:1.8;
+  stroke-dasharray: 2 8;
+  animation: w2g-dash 2600ms linear infinite, w2g-rotate 9000ms linear infinite;
+}
+.ring--2 circle {
+  stroke:#444;
+  stroke-width:1.4;
+  stroke-dasharray: 1 6;
+  animation: w2g-dash 2000ms linear infinite reverse, w2g-rotate 6000ms linear infinite reverse;
+}
+.ring--3 circle {
+  stroke:#777;
+  stroke-width:1.2;
+  stroke-dasharray: 0.6 4;
+  animation: w2g-dash 1600ms linear infinite, w2g-rotate 4000ms linear infinite;
+}
+
+/* Orbitierende Punkte */
+.w2g-loader .orb {
+  position:absolute;
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  border:2px solid #2b2f35;
+  top:50%;
+  left:50%;
+  transform-origin: -26px 0;
+  animation: w2g-orbit 2400ms ease-in-out infinite;
+  background: transparent;
+}
+.w2g-loader .orb--a { transform-origin: -36px 0; animation-duration: 2800ms; opacity:.9; }
+.w2g-loader .orb--b { transform-origin: -26px 0; animation-duration: 2200ms; opacity:.75; }
+.w2g-loader .orb--c { transform-origin: -16px 0; animation-duration: 1800ms; opacity:.6; }
+
+@keyframes w2g-rotate {
+  to { transform: rotate(360deg); }
+}
+@keyframes w2g-dash {
+  to { stroke-dashoffset: -100; }
+}
+@keyframes w2g-orbit {
+  0%   { transform: rotate(0deg) translateX(0) }
+  50%  { transform: rotate(180deg) translateX(0) }
+  100% { transform: rotate(360deg) translateX(0) }
+}
 
 .error {
   background:#ffe9e4;
