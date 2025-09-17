@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { EVENT_CATEGORY_SUBCATEGORIES } from './lib/eventCategories';
 import { useTranslation } from './lib/useTranslation';
 
@@ -39,12 +39,36 @@ export default function Home() {
   const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean; totalEvents: number; cachedEvents: number} | null>(null);
   const [toast, setToast] = useState<{show:boolean; message:string}>({show:false,message:''});
 
-  // Debug Mode (URL ?debug=1)
-  const [debugMode, setDebugMode] = useState(false);
+  // Dark Mode
+  const [darkMode, setDarkMode] = useState<boolean>(false);
+
+  // Init theme (prefers-color-scheme + localStorage)
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    setDebugMode(params.get('debug') === '1');
+    const stored = localStorage.getItem('w2g-theme');
+    if (stored === 'dark') {
+      setDarkMode(true);
+      document.documentElement.setAttribute('data-theme','dark');
+      return;
+    }
+    if (stored === 'light') {
+      setDarkMode(false);
+      document.documentElement.setAttribute('data-theme','light');
+      return;
+    }
+    // no stored: detect system
+    const prefers = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    setDarkMode(prefers);
+    document.documentElement.setAttribute('data-theme', prefers ? 'dark':'light');
   }, []);
+
+  const toggleTheme = () => {
+    setDarkMode(prev => {
+      const next = !prev;
+      document.documentElement.setAttribute('data-theme', next ? 'dark':'light');
+      localStorage.setItem('w2g-theme', next ? 'dark':'light');
+      return next;
+    });
+  };
 
   const toggleSuperCategory = (cat: string) => {
     setCategoryLimitError(null);
@@ -61,7 +85,6 @@ export default function Home() {
   const getSelectedSubcategories = (): string[] =>
     selectedSuperCategories.flatMap(superCat => EVENT_CATEGORY_SUBCATEGORIES[superCat]);
 
-  // Date handling
   function formatDateForAPI(): string {
     const today = new Date();
     const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
@@ -100,7 +123,6 @@ export default function Home() {
           options: {
             temperature: 0.2,
             max_tokens: 12000,
-            debug: debugMode,
             expandedSubcategories: true,
             minEventsPerCategory: 14
           }
@@ -122,7 +144,6 @@ export default function Home() {
     }
   }
 
-  // Filtering for activeFilter
   const displayedEvents = (() => {
     if (!searchSubmitted) return events;
     if (activeFilter === 'Alle') return events;
@@ -156,14 +177,38 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
-      {/* Header mit neuem Logo */}
+      {/* Header + Logo + Theme Toggle */}
       <div className="header">
         <div className="header-logo-wrapper">
           <img src="/where2go-full.svg" alt="Where2Go Logo" />
         </div>
+        <button
+          className="theme-toggle"
+          onClick={toggleTheme}
+          aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          type="button"
+        >
+          {darkMode ? (
+            <>
+              <svg viewBox="0 0 24 24" fill="none"><path d="M12 3v2m0 14v2m9-9h-2M5 12H3m15.364 6.364-1.414-1.414M8.05 8.05 6.636 6.636m0 10.728 1.414-1.414m9.9-9.9-1.414 1.414" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+              Light
+            </>
+          ) : (
+            <>
+              <svg viewBox="0 0 24 24" fill="none"><path d="M21 12.79A9 9 0 0 1 11.21 3 7 7 0 1 0 21 12.79Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/></svg>
+              Dark
+            </>
+          )}
+        </button>
       </div>
 
-      {/* Search Section */}
+      <section className="hero">
+        <div className="container">
+          <h1>Where2Go</h1>
+          <p>{t('page.tagline')}</p>
+        </div>
+      </section>
+
       <section className="search-section">
         <div className="container">
           <form
@@ -177,8 +222,8 @@ export default function Home() {
               <div className="form-group">
                 <label htmlFor="city">{t('form.city')}</label>
                 <input
-                  className="form-input"
                   id="city"
+                  className="form-input"
                   value={city}
                   onChange={e=>setCity(e.target.value)}
                   placeholder={t('form.cityPlaceholder')}
@@ -187,8 +232,8 @@ export default function Home() {
               <div className="form-group">
                 <label htmlFor="timePeriod">{t('form.timePeriod')}</label>
                 <select
-                  className="form-input"
                   id="timePeriod"
+                  className="form-input"
                   value={timePeriod}
                   onChange={e=>setTimePeriod(e.target.value)}
                 >
@@ -204,9 +249,9 @@ export default function Home() {
               <div className="form-group">
                 <label htmlFor="customDate">Datum</label>
                 <input
-                  className="form-input"
                   id="customDate"
                   type="date"
+                  className="form-input"
                   value={customDate}
                   onChange={e=>setCustomDate(e.target.value)}
                 />
@@ -249,10 +294,10 @@ export default function Home() {
                   }}
                 >Alle abwählen</button>
               </div>
-              {categoryLimitError && <div style={{color:'red', marginTop:4}}>{categoryLimitError}</div>}
+              {categoryLimitError && <div style={{color:'var(--color-danger)', fontSize:12}}>{categoryLimitError}</div>}
             </div>
 
-            <button className="btn-search" type="submit">
+            <button type="submit" className="btn-search">
               {t('button.searchEvents')}
             </button>
           </form>
@@ -279,88 +324,110 @@ export default function Home() {
                     onClick={()=>setActiveFilter(c)}
                   >
                     {c}
-                    <span className="filter-count">
-                      {getCategoryCounts()[c] || 0}
-                    </span>
+                    <span className="filter-count">{getCategoryCounts()[c] || 0}</span>
                   </button>
                 ))}
               </div>
             </aside>
           )}
 
-            <main className="main-content">
-              {error && <div className="error">{error}</div>}
-              {loading && <div className="loading"><div className="loading-spinner"></div><p>Suche läuft...</p></div>}
-              {!loading && !error && searchSubmitted && displayedEvents.length === 0 && (
-                <div className="empty-state">
-                  <h3>Keine Events gefunden</h3>
-                  <p>Probiere andere Kategorien oder ein anderes Datum.</p>
-                </div>
-              )}
-              {cacheInfo && !!displayedEvents.length && (
-                <div style={{textAlign:'center', margin:'10px 0 14px', fontSize:'0.85rem', color:'#666'}}>
-                  {cacheInfo.fromCache
-                    ? `📁 ${cacheInfo.cachedEvents} Events aus Cache`
-                    : `🔄 ${cacheInfo.totalEvents} Events geladen`}
-                </div>
-              )}
-
-              {displayedEvents.length > 0 && (
-                <div className="events-grid">
-                  {displayedEvents.map(ev => {
-                    const key = `${ev.title}_${ev.date}_${ev.venue}`;
-                    const superCat = searchedSuperCategories.find(c => EVENT_CATEGORY_SUBCATEGORIES[c]?.includes(ev.category)) ||
-                      ALL_SUPER_CATEGORIES.find(c => EVENT_CATEGORY_SUBCATEGORIES[c]?.includes(ev.category)) ||
-                      ev.category;
-                    return (
-                      <div key={key} className="event-card">
-                        <h3 className="event-title">{ev.title}</h3>
-                        <div className="event-datetime">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-                          </svg>
-                          {ev.date}{ev.time && ` • ${ev.time}`}{ev.endTime && ` - ${ev.endTime}`}
+          <main className="main-content">
+            {error && <div className="error">{error}</div>}
+            {loading && (
+              <div className="loading">
+                <div className="loading-spinner"></div>
+                <p>Suche läuft...</p>
+              </div>
+            )}
+            {!loading && !error && searchSubmitted && displayedEvents.length === 0 && (
+              <div className="empty-state">
+                <h3>Keine Events gefunden</h3>
+                <p>Probiere andere Kategorien oder ein anderes Datum.</p>
+              </div>
+            )}
+            {cacheInfo && displayedEvents.length > 0 && (
+              <div style={{
+                textAlign:'center',
+                margin:'10px 0 18px',
+                fontSize:'0.85rem',
+                color:'var(--color-text-dim)'
+              }}>
+                {cacheInfo.fromCache
+                  ? `📁 ${cacheInfo.cachedEvents} Events aus Cache`
+                  : `🔄 ${cacheInfo.totalEvents} Events geladen`}
+              </div>
+            )}
+            {displayedEvents.length > 0 && (
+              <div className="events-grid">
+                {displayedEvents.map(ev => {
+                  const key = `${ev.title}_${ev.date}_${ev.venue}`;
+                  const superCat =
+                    searchedSuperCategories.find(c => EVENT_CATEGORY_SUBCATEGORIES[c]?.includes(ev.category)) ||
+                    ALL_SUPER_CATEGORIES.find(c => EVENT_CATEGORY_SUBCATEGORIES[c]?.includes(ev.category)) ||
+                    ev.category;
+                  return (
+                    <div key={key} className="event-card">
+                      <h3 className="event-title">{ev.title}</h3>
+                      <div className="event-datetime">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                        </svg>
+                        {ev.date}{ev.time && ` • ${ev.time}`}{ev.endTime && ` - ${ev.endTime}`}
+                      </div>
+                      <div className="event-location-d1">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+                        </svg>
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.address || ev.venue)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="event-venue-link"
+                        >{ev.venue}</a>
+                      </div>
+                      {superCat && (
+                        <div className="event-category">
+                          {eventIcon(superCat)}
+                          {superCat}
                         </div>
-                        <div className="event-location-d1">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-                          </svg>
-                          <a
-                            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.address || ev.venue)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="event-venue-link"
-                          >{ev.venue}</a>
-                        </div>
-                        {superCat && (
-                          <div className="event-category">
-                            {eventIcon(superCat)}
-                            {superCat}
-                          </div>
-                        )}
-                        {ev.price && <div className="event-price-d1">{ev.price}</div>}
-                        {ev.description && <div className="event-description">{ev.description}</div>}
-                        <div className="event-bottom-row">
-                          <div />
-                          <div className="event-actions">
-                            {ev.website && (
-                              <a className="event-action-btn event-info-btn" href={ev.website} target="_blank" rel="noopener noreferrer">
-                                Info
-                              </a>
-                            )}
-                            {ev.bookingLink && (
-                              <a className="event-action-btn event-tickets-btn" href={ev.bookingLink} target="_blank" rel="noopener noreferrer">
-                                Tickets
-                              </a>
-                            )}
-                          </div>
+                      )}
+                      {(ev.price || ev.ticketPrice) && (
+                        <div className="event-price-d1">{ev.ticketPrice || ev.price}</div>
+                      )}
+                      {ev.description && (
+                        <div className="event-description">{ev.description}</div>
+                      )}
+                      <div className="event-bottom-row">
+                        <div />
+                        <div className="event-actions">
+                          {ev.website && (
+                            <a
+                              className="event-action-btn event-info-btn"
+                              href={ev.website}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Info
+                            </a>
+                          )}
+                          {ev.bookingLink && (
+                            <a
+                              className="event-action-btn event-tickets-btn"
+                              href={ev.bookingLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Tickets
+                            </a>
+                          )}
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </main>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </main>
         </div>
       </div>
 
