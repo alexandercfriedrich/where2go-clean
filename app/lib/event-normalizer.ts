@@ -1,67 +1,57 @@
-// Event normalization utility for mapping various field names to UI expected format
+// Event normalization utility (Phase 2A adjusted)
+// Aufgabe: Feld-Synonyme vereinheitlichen + URLs säubern.
+// Kategorie-Kanonisierung erfolgt über eventCategories.validateAndNormalizeEvents später im Aggregator.
+// Hier führen wir nur eine weiche Normalisierung (Lowercase Tokens → Roh-Kategorie bleibt stehen).
 
 import { EventData } from './types';
+import { normalizeCategory } from './eventCategories';
 
-/**
- * Normalizes a single event object by mapping common synonyms to expected field names
- * and ensuring proper data formatting.
- */
+function ensureProtocol(url: string): string {
+  if (!url) return '';
+  const trimmed = url.trim();
+  if (!trimmed) return '';
+  if (!/^https?:\/\//i.test(trimmed)) return `https://${trimmed}`;
+  return trimmed;
+}
+
+// Normalisiert ein einzelnes Event (Feldsynonyme)
 export function normalizeEvent(rawEvent: any): EventData {
-  // Helper to get first available value from array of possible field names
-  const getField = (fieldNames: string[]): string => {
-    for (const name of fieldNames) {
-      const value = rawEvent[name];
-      if (value !== undefined && value !== null && String(value).trim() !== '') {
-        return String(value).trim();
+  const getField = (names: string[]): string => {
+    for (const n of names) {
+      const val = rawEvent?.[n];
+      if (val !== undefined && val !== null && String(val).trim() !== '') {
+        return String(val).trim();
       }
     }
     return '';
   };
 
-  // Helper to normalize URLs - ensure they have a protocol
-  const normalizeUrl = (url: string): string => {
-    if (!url) return '';
-    const trimmed = url.trim();
-    if (!trimmed) return '';
-    
-    // Add https:// if no protocol is present
-    if (!trimmed.match(/^https?:\/\//i)) {
-      return `https://${trimmed}`;
-    }
-    return trimmed;
-  };
+  const categoryRaw = getField(['category', 'type', 'categories', 'eventType']);
+  const categorySoft = categoryRaw || 'Event'; // Wird später kanonisiert/gefiltert
 
-  // Map fields using common synonyms
   const normalized: EventData = {
-    // Required fields
     title: getField(['title', 'name', 'eventTitle', 'event_name', 'eventName']),
-    category: getField(['category', 'type', 'categories', 'eventType']) || 'Event',
+    category: categorySoft,
     date: getField(['date', 'dateISO', 'date_str', 'startDate', 'eventDate']),
     time: getField(['time', 'start_time', 'startTime', 'eventTime']),
     venue: getField(['venue', 'location', 'place', 'venueName', 'eventVenue']),
     price: getField(['price', 'ticketPrice', 'cost', 'eventPrice']) || 'Preis auf Anfrage',
-    website: normalizeUrl(getField(['website', 'url', 'link', 'source', 'source_url', 'eventUrl'])),
+    website: ensureProtocol(getField(['website', 'url', 'link', 'source', 'source_url', 'eventUrl'])),
 
-    // Optional fields
     endTime: getField(['endTime', 'end_time', 'endingTime']),
     address: getField(['address', 'address_line', 'fullAddress', 'venueAddress']),
     ticketPrice: getField(['ticketPrice', 'ticket_price', 'tickets_price']),
     eventType: getField(['eventType', 'type', 'categoryType', 'event_type']),
     description: getField(['description', 'summary', 'shortDescription', 'desc']),
-    bookingLink: normalizeUrl(getField(['bookingLink', 'tickets_url', 'ticket', 'ticket_url', 'ticketLink', 'booking_url'])),
+    bookingLink: ensureProtocol(getField(['bookingLink', 'tickets_url', 'ticket', 'ticket_url', 'ticketLink', 'booking_url'])),
     ageRestrictions: getField(['ageRestrictions', 'age', 'minimum_age', 'age_restriction'])
   };
 
   return normalized;
 }
 
-/**
- * Normalizes an array of event objects
- */
+// Array-Normalisierung
 export function normalizeEvents(rawEvents: any[]): EventData[] {
-  if (!Array.isArray(rawEvents)) {
-    return [];
-  }
-
+  if (!Array.isArray(rawEvents)) return [];
   return rawEvents.map(normalizeEvent);
 }
