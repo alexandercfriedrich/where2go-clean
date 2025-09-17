@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { EVENT_CATEGORY_SUBCATEGORIES } from './lib/eventCategories';
 import { useTranslation } from './lib/useTranslation';
 
@@ -20,6 +20,8 @@ interface EventData {
   ageRestrictions?: string;
 }
 
+type Orb = { id: number; angle: number; vx: number; vy: number; fly: boolean };
+
 const ALL_SUPER_CATEGORIES = Object.keys(EVENT_CATEGORY_SUBCATEGORIES);
 const MAX_CATEGORY_SELECTION = 3;
 
@@ -28,6 +30,7 @@ export default function Home() {
   const [city, setCity] = useState('');
   const [timePeriod, setTimePeriod] = useState('heute');
   const [customDate, setCustomDate] = useState('');
+  const [showDateDropdown, setShowDateDropdown] = useState(false);
   const [selectedSuperCategories, setSelectedSuperCategories] = useState<string[]>([]);
   const [categoryLimitError, setCategoryLimitError] = useState<string | null>(null);
   const [events, setEvents] = useState<EventData[]>([]);
@@ -39,8 +42,9 @@ export default function Home() {
   const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean; totalEvents: number; cachedEvents: number} | null>(null);
   const [toast, setToast] = useState<{show:boolean; message:string}>({show:false,message:''});
   const resultsAnchorRef = useRef<HTMLDivElement | null>(null);
+  const timeSelectWrapperRef = useRef<HTMLDivElement | null>(null);
 
-  // Force design1.css load (and remove any other design css)
+  // Ensure design1.css is loaded and no other design CSS interferes
   useEffect(() => {
     const id = 'w2g-design-css';
     const href = '/designs/design1.css';
@@ -59,6 +63,25 @@ export default function Home() {
       if (!el.href.endsWith('design1.css')) el.parentElement?.removeChild(el);
     });
   }, []);
+
+  // Close date dropdown on outside click or Escape
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!showDateDropdown) return;
+      if (timeSelectWrapperRef.current && !timeSelectWrapperRef.current.contains(e.target as Node)) {
+        setShowDateDropdown(false);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setShowDateDropdown(false);
+    }
+    document.addEventListener('mousedown', onDocClick);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDocClick);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [showDateDropdown]);
 
   const toggleSuperCategory = (cat: string) => {
     setCategoryLimitError(null);
@@ -166,7 +189,6 @@ export default function Home() {
       setToast({show:true,message:`${data.events?.length || 0} Events geladen`});
       setTimeout(()=> setToast({show:false,message:''}), 3000);
 
-      // Scroll to results
       requestAnimationFrame(() => {
         if (resultsAnchorRef.current) {
           resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -222,15 +244,15 @@ export default function Home() {
 
   const renderPrice = (ev: EventData) => {
     const p = ev.ticketPrice || ev.price;
-    if (!p) return null;
-    return <div className="event-price-line">{p}</div>;
+    if (!p) return <span className="price-chip">Preis</span>;
+    return <span className="price-chip">{p}</span>;
   };
 
   return (
     <div className="min-h-screen">
       <div className="header">
         <div className="header-logo-wrapper">
-          {/* PNG-Logo verwenden (nicht SVG) */}
+          {/* PNG-Logo verwenden */}
           <img src="/where2go-full.png" alt="Where2Go" />
         </div>
         <div className="premium-box">
@@ -242,7 +264,8 @@ export default function Home() {
 
       <section className="hero">
         <div className="container">
-          <h1>Where2Go</h1>
+          {/* Titel entfernt wie gewünscht */}
+          {/* <h1>Where2Go</h1> */}
           <p>Entdecke die besten Events in deiner Stadt!</p>
         </div>
       </section>
@@ -267,32 +290,53 @@ export default function Home() {
                   placeholder="z.B. Berlin, Hamburg ..."
                 />
               </div>
-              <div className="form-group">
+              <div className="form-group select-with-dropdown" ref={timeSelectWrapperRef}>
                 <label htmlFor="timePeriod">Zeitraum</label>
                 <select
                   id="timePeriod"
                   className="form-input"
                   value={timePeriod}
-                  onChange={e=>setTimePeriod(e.target.value)}
+                  onChange={e=>{
+                    const val = e.target.value;
+                    setTimePeriod(val);
+                    if (val === 'benutzerdefiniert') {
+                      setShowDateDropdown(true);
+                    } else {
+                      setShowDateDropdown(false);
+                    }
+                  }}
+                  onClick={() => {
+                    if (timePeriod === 'benutzerdefiniert') setShowDateDropdown(v => !v);
+                  }}
                 >
                   <option value="heute">Heute</option>
                   <option value="morgen">Morgen</option>
                   <option value="kommendes-wochenende">Kommendes Wochenende</option>
                   <option value="benutzerdefiniert">Benutzerdefiniert</option>
                 </select>
+
+                {/* Dropdown für Datum – keine Extra-Zeile */}
+                {showDateDropdown && (
+                  <div className="date-dropdown" role="dialog" aria-label="Datum wählen">
+                    <div className="date-row">
+                      <input
+                        type="date"
+                        className="date-input"
+                        value={customDate}
+                        onChange={e=>setCustomDate(e.target.value)}
+                      />
+                      <button
+                        type="button"
+                        className="date-apply"
+                        onClick={()=> setShowDateDropdown(false)}
+                      >
+                        Setzen
+                      </button>
+                    </div>
+                    <div className="date-hint">Minimalistisch – dunkle Outline und dezente Typografie.</div>
+                  </div>
+                )}
               </div>
-              {timePeriod === 'benutzerdefiniert' && (
-                <div className="form-group form-group-full">
-                  <label htmlFor="customDate">Datum</label>
-                  <input
-                    id="customDate"
-                    type="date"
-                    className="form-input"
-                    value={customDate}
-                    onChange={e=>setCustomDate(e.target.value)}
-                  />
-                </div>
-              )}
             </div>
 
             <div className="categories-section">
@@ -375,25 +419,7 @@ export default function Home() {
 
             {loading && (
               <div className="loading">
-                {/* Kreative, edle Loader-Animation */}
-                <div className="w2g-loader-wrapper">
-                  <div className="w2g-loader">
-                    <svg viewBox="-50 -50 100 100" aria-hidden="true">
-                      <g className="ring ring--1">
-                        <circle cx="0" cy="0" r="40" />
-                      </g>
-                      <g className="ring ring--2">
-                        <circle cx="0" cy="0" r="28" />
-                      </g>
-                      <g className="ring ring--3">
-                        <circle cx="0" cy="0" r="16" />
-                      </g>
-                    </svg>
-                    <span className="orb orb--a" />
-                    <span className="orb orb--b" />
-                    <span className="orb orb--c" />
-                  </div>
-                </div>
+                <W2GLoader />
                 <p>Suche läuft...</p>
               </div>
             )}
@@ -498,32 +524,39 @@ export default function Home() {
                         </div>
                       )}
 
-                      {renderPrice(ev)}
-
-                      {(ev.website || ev.bookingLink) && (
-                        <div className="event-actions-row">
-                          {ev.website && (
-                            <a
-                              href={ev.website}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="btn-outline"
-                            >
-                              Mehr Info
-                            </a>
-                          )}
-                          {ev.bookingLink && (
-                            <a
-                              href={ev.bookingLink}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="btn-outline tickets"
-                            >
-                              Tickets
-                            </a>
-                          )}
-                        </div>
-                      )}
+                      {/* CTA-Leiste: Preis | Mehr Info | Tickets – gleich verteilt */}
+                      <div className="event-cta-row">
+                        {renderPrice(ev)}
+                        {ev.website ? (
+                          <a
+                            href={ev.website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn-outline with-icon"
+                            aria-label="Mehr Informationen"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                            </svg>
+                            Mehr Info
+                          </a>
+                        ) : <span />}
+                        {ev.bookingLink ? (
+                          <a
+                            href={ev.bookingLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn-outline tickets with-icon"
+                            aria-label="Tickets kaufen"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/>
+                              <path d="M13 7v2M13 11v2M13 15v2"/>
+                            </svg>
+                            Tickets
+                          </a>
+                        ) : <span />}
+                      </div>
                     </div>
                   );
                 })}
@@ -544,6 +577,70 @@ export default function Home() {
           <p>© 2025 Where2Go - Entdecke deine Stadt neu</p>
         </div>
       </footer>
+    </div>
+  );
+}
+
+/* Kreative Loader-Komponente mit 15 Orbs – alle 10s fliegt einer weg */
+function W2GLoader() {
+  const [orbs, setOrbs] = useState<Orb[]>([]);
+  const intervalRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    // 15 Orbs mit zufälliger Start-Position (Winkel) und Zufallsvektor
+    const init: Orb[] = Array.from({ length: 15 }).map((_, i) => {
+      const angle = Math.random() * 360;
+      const rad = Math.random() * Math.PI * 2;
+      const vx = Math.cos(rad);
+      const vy = Math.sin(rad);
+      return { id: i, angle, vx, vy, fly: false };
+    });
+    setOrbs(init);
+
+    intervalRef.current = window.setInterval(() => {
+      setOrbs(prev => {
+        const idx = prev.findIndex(o => !o.fly);
+        if (idx === -1) return prev;
+        const next = [...prev];
+        next[idx] = { ...next[idx], fly: true };
+        return next;
+      });
+    }, 10000);
+
+    return () => {
+      if (intervalRef.current) window.clearInterval(intervalRef.current);
+    };
+  }, []);
+
+  return (
+    <div className="w2g-loader-wrapper">
+      <div className="w2g-loader w2g-loader--v2">
+        <svg viewBox="-50 -50 100 100" aria-hidden="true">
+          <g className="ring ring--1"><circle cx="0" cy="0" r="40" /></g>
+          <g className="ring ring--2"><circle cx="0" cy="0" r="28" /></g>
+          <g className="ring ring--3"><circle cx="0" cy="0" r="16" /></g>
+        </svg>
+        {orbs.map(o => (
+          <span
+            key={o.id}
+            className={`orb ${o.fly ? 'orb--fly' : ''}`}
+            style={
+              {
+                // @ts-ignore custom CSS props
+                '--angle': `${o.angle}deg`,
+                '--vx': o.vx,
+                '--vy': o.vy
+              } as React.CSSProperties
+            }
+            onAnimationEnd={(e) => {
+              if ((e.target as HTMLElement).classList.contains('orb--fly')) {
+                // Nach dem Wegfliegen entfernen
+                setOrbs(prev => prev.filter(x => x.id !== o.id));
+              }
+            }}
+          />
+        ))}
+      </div>
     </div>
   );
 }
