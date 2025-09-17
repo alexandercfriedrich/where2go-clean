@@ -6,8 +6,8 @@ import { useTranslation } from './lib/useTranslation';
 interface EventData {
   title: string;
   category: string;
-  date: string;     // erwartet YYYY-MM-DD
-  time: string;     // optional "HH:mm"
+  date: string;     // YYYY-MM-DD
+  time: string;     // "HH:mm"
   venue: string;
   price: string;
   website: string;
@@ -19,8 +19,6 @@ interface EventData {
   bookingLink?: string;
   ageRestrictions?: string;
 }
-
-type Orb = { id: number; angle: number; radius: number; speed: number };
 
 const ALL_SUPER_CATEGORIES = Object.keys(EVENT_CATEGORY_SUBCATEGORIES);
 const MAX_CATEGORY_SELECTION = 3;
@@ -49,7 +47,7 @@ export default function Home() {
   const resultsAnchorRef = useRef<HTMLDivElement | null>(null);
   const timeSelectWrapperRef = useRef<HTMLDivElement | null>(null);
 
-  // sicherstellen, dass design1.css geladen ist
+  // design1.css laden und andere Designs entfernen
   useEffect(() => {
     const id = 'w2g-design-css';
     const href = '/designs/design1.css';
@@ -69,7 +67,7 @@ export default function Home() {
     });
   }, []);
 
-  // close date dropdown on outside/Escape
+  // Dropdown außerhalb/Escape schließen
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!showDateDropdown) return;
@@ -115,12 +113,16 @@ export default function Home() {
   function nextWeekendDatesISO(): string[] {
     const t = new Date();
     const day = t.getDay(); // 0 So ... 6 Sa
-    // Nächster Freitag
-    const offset = (5 - day + 7) % 7;
+    const offset = (5 - day + 7) % 7; // nächster Freitag
     const fri = new Date(t); fri.setDate(t.getDate() + offset);
     const sat = new Date(fri); sat.setDate(fri.getDate() + 1);
     const sun = new Date(fri); sun.setDate(fri.getDate() + 2);
     return [toISODate(fri), toISODate(sat), toISODate(sun)];
+  }
+  function formatLabelDE(iso: string) {
+    if (!iso) return 'Benutzerdefiniert';
+    const [y,m,d] = iso.split('-');
+    return `${d}.${m}.${y}`;
   }
 
   function formatDateForAPI(): string {
@@ -139,7 +141,6 @@ export default function Home() {
       const wk = nextWeekendDatesISO();
       return wk.includes(evDate);
     }
-    // benutzerdefiniert
     if (customDate) return evDate === customDate;
     return true;
   }
@@ -181,46 +182,28 @@ export default function Home() {
     return { date: dateFormatted, time: timeLabel };
   }
 
-  // Preis-Formatierung
-  function guessCurrencyByCity(c: string): { symbol: string; code: string } {
+  // Preisformat
+  function guessCurrencyByCity(c: string) {
     const cityLC = c.toLowerCase();
-    const EUR = { symbol: '€', code: 'EUR' };
-    const USD = { symbol: '$', code: 'USD' };
-    const GBP = { symbol: '£', code: 'GBP' };
-    const CHF = { symbol: 'CHF', code: 'CHF' };
-
-    if (/miami|new york|los angeles|san francisco|chicago|usa|united states|orlando/.test(cityLC)) return USD;
-    if (/london|manchester|uk|united kingdom|edinburgh|leeds|birmingham/.test(cityLC)) return GBP;
-    if (/zurich|zürich|geneva|genf|basel|bern|switzerland|schweiz/.test(cityLC)) return CHF;
-    // default viele EU → EUR
-    return EUR;
+    if (/miami|new york|los angeles|san francisco|usa|united states|orlando/.test(cityLC)) return { symbol: '$', code: 'USD' };
+    if (/london|uk|united kingdom|manchester|edinburgh/.test(cityLC)) return { symbol: '£', code: 'GBP' };
+    if (/zurich|zürich|geneva|genf|basel|bern|switzerland|schweiz/.test(cityLC)) return { symbol: 'CHF', code: 'CHF' };
+    return { symbol: '€', code: 'EUR' };
   }
-
-  function normalizePriceString(p: string) {
-    return p.replace(/\s+/g, ' ').trim();
-  }
-
+  function normalizePriceString(p: string) { return p.replace(/\s+/g, ' ').trim(); }
   function formatPriceDisplay(p: string): string {
     if (!p) return 'Keine Preisinfos';
     const str = normalizePriceString(p);
-    // bereits vorhandene Währung
     if (/[€$£]|EUR|USD|GBP|CHF|PLN|CZK|HUF|DKK|SEK|NOK|CAD|AUD/i.test(str)) {
-      // vereinheitliche € Abstand
       return str.replace(/(\d)\s*€/, '$1 €');
     }
     if (/anfrage/i.test(str)) return 'Preis auf Anfrage';
-    // reine Zahlen oder Bereiche
     const cur = guessCurrencyByCity(city);
     const range = str.match(/^(\d+)\s*[-–]\s*(\d+)$/);
-    if (range) {
-      return `${range[1]}–${range[2]} ${cur.symbol}`;
-    }
+    if (range) return `${range[1]}–${range[2]} ${cur.symbol}`;
     const single = str.match(/^(\d+)(?:[.,](\d{1,2}))?$/);
-    if (single) {
-      const val = single[2] ? `${single[1]},${single[2]}` : single[1];
-      return `${val} ${cur.symbol}`;
-    }
-    return str; // falls sonstiger Text
+    if (single) return `${single[1]}${single[2] ? ','+single[2] : ''} ${cur.symbol}`;
+    return str;
   }
 
   async function searchEvents() {
@@ -271,7 +254,6 @@ export default function Home() {
   }
 
   const displayedEvents = (() => {
-    // erst Datum, dann Kategorie
     const dateFiltered = events.filter(matchesSelectedDate);
     if (!searchSubmitted) return dateFiltered;
     if (activeFilter === 'Alle') return dateFiltered;
@@ -337,7 +319,6 @@ export default function Home() {
 
       <section className="hero">
         <div className="container">
-          {/* Überschrift entfernt */}
           <p>Entdecke die besten Events in deiner Stadt!</p>
         </div>
       </section>
@@ -373,6 +354,7 @@ export default function Home() {
                     const val = e.target.value;
                     setTimePeriod(val);
                     if (val === 'benutzerdefiniert') {
+                      if (!customDate) setCustomDate(todayISO());
                       setShowDateDropdown(true);
                     } else {
                       setShowDateDropdown(false);
@@ -385,16 +367,16 @@ export default function Home() {
                   <option value="heute">Heute</option>
                   <option value="morgen">Morgen</option>
                   <option value="kommendes-wochenende">Kommendes Wochenende</option>
-                  <option value="benutzerdefiniert">Benutzerdefiniert</option>
+                  <option value="benutzerdefiniert">{customDate ? formatLabelDE(customDate) : 'Benutzerdefiniert'}</option>
                 </select>
 
                 {showDateDropdown && (
                   <div className="date-dropdown" role="dialog" aria-label="Datum wählen">
                     <TwoMonthCalendar
-                      value={customDate}
+                      value={customDate || todayISO()}
+                      minISO={todayISO()}
                       onSelect={(iso) => { setCustomDate(iso); setShowDateDropdown(false); }}
                     />
-                    <div className="date-hint">Minimalistisch – dunkle Outline und dezente Typografie.</div>
                   </div>
                 )}
               </div>
@@ -578,12 +560,9 @@ export default function Home() {
                       )}
 
                       {ev.description && (
-                        <div className="event-description">
-                          {ev.description}
-                        </div>
+                        <div className="event-description">{ev.description}</div>
                       )}
 
-                      {/* CTA: Preis | Mehr Info | Tickets */}
                       <div className="event-cta-row">
                         {renderPrice(ev)}
                         {ev.website ? (
@@ -638,12 +617,14 @@ export default function Home() {
   );
 }
 
-/* Zwei-Monats-Kalender (Cross-Browser, ohne native date inputs) */
+/* Zwei-Monats-Kalender mit Min-Datum, Auswahl & Disabled-Days */
 function TwoMonthCalendar({
   value,
+  minISO,
   onSelect
 }: {
   value: string;
+  minISO: string;
   onSelect: (iso: string) => void;
 }) {
   const [baseMonth, setBaseMonth] = useState(() => {
@@ -687,6 +668,7 @@ function TwoMonthCalendar({
     return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
   }
   const selected = value ? new Date(value) : null;
+  const minDate = new Date(minISO);
 
   const months = [0,1].map(i => addMonths(baseMonth, i));
   const weeksArr = months.map(m => daysMatrix(m));
@@ -708,13 +690,18 @@ function TwoMonthCalendar({
             <div className="cal-head">Mo</div><div className="cal-head">Di</div><div className="cal-head">Mi</div><div className="cal-head">Do</div><div className="cal-head">Fr</div><div className="cal-head">Sa</div><div className="cal-head">So</div>
             {weeks.flat().map((d,i) => {
               const inMonth = d.getMonth()===months[idx].getMonth();
+              const disabled = d < new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate());
               const isSel = selected && isSameDay(d, selected);
               return (
                 <button
                   key={i}
                   type="button"
-                  className={`cal-day ${inMonth ? '' : 'cal-day--muted'} ${isSel ? 'cal-day--sel' : ''}`}
-                  onClick={()=> onSelect(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`)}
+                  className={`cal-day ${inMonth ? '' : 'cal-day--muted'} ${isSel ? 'cal-day--sel' : ''} ${disabled ? 'cal-day--disabled' : ''}`}
+                  onClick={()=>{
+                    if (disabled) return;
+                    onSelect(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+                  }}
+                  disabled={disabled}
                 >
                   {d.getDate()}
                 </button>
@@ -727,14 +714,14 @@ function TwoMonthCalendar({
   );
 }
 
-/* Loader: 5 Kreise, edle s/w-Bewegung mit verteilter Dynamik */
+/* Loader: 5 ruhige s/w Kreise */
 function W2GLoader5() {
-  const [orbs] = useState<Orb[]>(
+  const [orbs] = useState(
     Array.from({length:5}).map((_,i)=>({
       id:i,
       angle: (360/5)*i,
       radius: 12 + i*4,
-      speed: 0.6 + i*0.12
+      speed: 0.7 + i*0.12
     }))
   );
   return (
