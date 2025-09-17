@@ -203,8 +203,7 @@ export function validateAndNormalizeEvents(events: any[]): any[] {
         if (isValidCategory(norm)) {
           e.category = norm;
         } else {
-            // keep raw so downstream logic could still inspect; or remove:
-            // delete e.category;
+            // keep raw so downstream logic could still inspect
         }
       }
       return e;
