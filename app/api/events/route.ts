@@ -1,217 +1,152 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { RequestBody, EventData, JobStatus, DebugInfo } from '@/lib/types';
+import { RequestBody, EventData } from '@/lib/types';
 import { eventsCache } from '@/lib/cache';
-import InMemoryCache from '@/lib/cache';
 import { createPerplexityService } from '@/lib/perplexity';
 import { eventAggregator } from '@/lib/aggregator';
 import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
 import { getJobStore } from '@/lib/jobStore';
 import { getHotCity, getCityWebsitesForCategories } from '@/lib/hotCityStore';
-import { getMainCategoriesForAICalls } from '@/categories';
-import { EVENT_CATEGORIES } from '@/lib/eventCategories';
+import {
+  EVENT_CATEGORIES,
+  mapToMainCategories
+} from '@/lib/eventCategories';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
 const DEFAULT_CATEGORIES = EVENT_CATEGORIES;
-
 const DEFAULT_PPLX_OPTIONS = {
   temperature: 0.2,
-  max_tokens: 10000
+  max_tokens: 10000,
+  expandedSubcategories: true
 };
 
 const jobStore = getJobStore();
 
-async function scheduleBackgroundProcessing(
-  request: NextRequest,
-  jobId: string,
-  city: string,
-  date: string,
-  categories: string[],
-  options: any
-) {
-  const isVercel = process.env.VERCEL === '1';
-  
-  if (isVercel) {
-    const deploymentUrl = request.headers.get('x-vercel-deployment-url');
-    const host = deploymentUrl || request.headers.get('x-forwarded-host') || request.headers.get('host');
-    const protocol = 'https';
-    
-    if (!host) throw new Error('Unable to determine host for background processing');
-    
-    const backgroundUrl = `${protocol}://${host}/api/events/process`;
-    console.log('Scheduling background processing via Vercel:', backgroundUrl);
-
-    const protectionBypass = process.env.PROTECTION_BYPASS_TOKEN;
-    const internalSecret = process.env.INTERNAL_API_SECRET;
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'x-vercel-background': '1',
-    };
-    if (protectionBypass) headers['x-vercel-protection-bypass'] = protectionBypass;
-    if (internalSecret) headers['x-internal-secret'] = internalSecret;
-    
-    const response = await fetch(backgroundUrl, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ jobId, city, date, categories, options })
-    });
-    
-    if (!response.ok) throw new Error(`Background scheduling failed: ${response.status} ${response.statusText}`);
-    
-    console.log('Background processing scheduled successfully');
-    
-  } else {
-    const localUrl = 'http://localhost:3000/api/events/process';
-    console.log('Local dev background call:', localUrl);
-    
-    fetch(localUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-vercel-background': '1' },
-      body: JSON.stringify({ jobId, city, date, categories, options })
-    }).catch(error => console.error('Local background request failed:', error));
-  }
-}
-
 export async function POST(request: NextRequest) {
   try {
-    const body: RequestBody = await request.json();
-    const { city, date, categories, options } = body;
+    const body: RequestBody & { options?: any } = await request.json();
+    const { city, date, categories = [], options = {} } = body;
 
     if (!city || !date) {
       return NextResponse.json({ error: 'Stadt und Datum sind erforderlich' }, { status: 400 });
     }
 
-    const effectiveCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
-    
+    // Merge defaults first (Fix: options used earlier previously)
+    const mergedOptions = {
+      ...DEFAULT_PPLX_OPTIONS,
+      ...options
+    };
+
+    // Compute requested categories
+    let requestedCategories = mergedOptions.forceAllCategories
+      ? EVENT_CATEGORIES
+      : mapToMainCategories(categories);
+
+    if (requestedCategories.length === 0 && !mergedOptions.forceAllCategories) {
+      requestedCategories = []; // will trigger general query mode below
+    }
+
+    // Hot city enrichment
     let hotCityData: any = null;
     let additionalSources: any[] = [];
     try {
       hotCityData = await getHotCity(city);
       if (hotCityData) {
-        console.log(`Hot City: ${city}`);
-        additionalSources = await getCityWebsitesForCategories(city, effectiveCategories);
-        console.log(`Additional sources: ${additionalSources.length}`);
+        additionalSources = await getCityWebsitesForCategories(
+          city,
+          requestedCategories.length ? requestedCategories : EVENT_CATEGORIES
+        );
       }
-    } catch (error) {
-      console.error('Hot City fetch error:', error);
+    } catch (e) {
+      console.error('Hot city enrichment failed:', e);
     }
 
-    const mergedOptions = { 
-      ...DEFAULT_PPLX_OPTIONS, 
-      ...options,
-      hotCity: hotCityData,
-      additionalSources
-    };
+    mergedOptions.hotCity = hotCityData;
+    mergedOptions.additionalSources = additionalSources;
 
-    const disableCache = mergedOptions?.disableCache === true || mergedOptions?.debug === true;
+    const disableCache = mergedOptions.disableCache === true || mergedOptions.debug === true;
 
-    let allCachedEvents: EventData[] = [];
+    let cachedEvents: EventData[] = [];
     let missingCategories: string[] = [];
     let cacheInfo: { [category: string]: { fromCache: boolean; eventCount: number } } = {};
 
-    if (!disableCache) {
-      const cacheResult = eventsCache.getEventsByCategories(city, date, effectiveCategories);
-      const cachedEventsList: EventData[] = [];
-      for (const category in cacheResult.cachedEvents) {
-        cachedEventsList.push(...cacheResult.cachedEvents[category]);
+    if (!disableCache && requestedCategories.length > 0) {
+      const cacheResult = eventsCache.getEventsByCategories(city, date, requestedCategories);
+      for (const cat in cacheResult.cachedEvents) {
+        cachedEvents.push(...cacheResult.cachedEvents[cat]);
       }
-      allCachedEvents = eventAggregator.deduplicateEvents(cachedEventsList);
+      cachedEvents = eventAggregator.deduplicateEvents(cachedEvents);
       missingCategories = cacheResult.missingCategories;
       cacheInfo = cacheResult.cacheInfo;
-    } else {
-      console.log('Cache bypass enabled');
-      missingCategories = effectiveCategories;
-      effectiveCategories.forEach(category => {
-        cacheInfo[category] = { fromCache: false, eventCount: 0 };
+    } else if (requestedCategories.length > 0) {
+      missingCategories = requestedCategories;
+      requestedCategories.forEach(c => {
+        cacheInfo[c] = { fromCache: false, eventCount: 0 };
       });
     }
 
-    if (missingCategories.length === 0) {
+    if (missingCategories.length === 0 && requestedCategories.length > 0) {
       return NextResponse.json({
-        events: allCachedEvents,
         status: 'completed',
+        events: cachedEvents,
         cached: true,
+        message: `${cachedEvents.length} Events aus dem Cache`,
         cacheInfo: {
           fromCache: true,
-          totalEvents: allCachedEvents.length,
-          cachedEvents: allCachedEvents.length,
+          totalEvents: cachedEvents.length,
+          cachedEvents: cachedEvents.length,
           cacheBreakdown: cacheInfo
-        },
-        message: allCachedEvents.length > 0 
-          ? `${allCachedEvents.length} Events aus dem Cache geladen`
-          : 'Keine Events gefunden'
+        }
       });
     }
 
-    const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-
-    const job: JobStatus = {
-      id: jobId,
-      status: 'processing',
-      events: allCachedEvents,
-      createdAt: new Date(),
-      cacheInfo: {
-        fromCache: allCachedEvents.length > 0,
-        totalEvents: allCachedEvents.length,
-        cachedEvents: allCachedEvents.length,
-        cacheBreakdown: cacheInfo
-      },
-      progress: {
-        completedCategories: effectiveCategories.length - missingCategories.length,
-        totalCategories: effectiveCategories.length
-      }
-    };
-
-    await jobStore.setJob(jobId, job);
-
-    if (options?.debug) {
-      const debugInfo: DebugInfo = {
-        createdAt: new Date(),
-        city,
-        date,
-        categories: effectiveCategories,
-        options: mergedOptions,
-        steps: []
-      };
-      await jobStore.setDebugInfo(jobId, debugInfo);
+    const PERPLEXITY_API_KEY = process.env.PERPLEXITY_API_KEY;
+    if (!PERPLEXITY_API_KEY) {
+      return NextResponse.json({ error: 'Perplexity API Key fehlt' }, { status: 500 });
     }
 
-    const mainCategoriesForAI = getMainCategoriesForAICalls(missingCategories);
-    
-    try {
-      console.log(`Missing categories: ${missingCategories.length} -> AI main categories: ${mainCategoriesForAI.length}`);
-      await scheduleBackgroundProcessing(request, jobId, city, date, mainCategoriesForAI, mergedOptions);
-    } catch (scheduleError) {
-      console.error('Schedule background error:', scheduleError);
-      await jobStore.updateJob(jobId, {
-        status: 'error',
-        error: 'Failed to schedule background processing'
-      });
-      return NextResponse.json({ error: 'Failed to schedule background processing' }, { status: 500 });
+    const service = createPerplexityService(PERPLEXITY_API_KEY);
+    const pplxResults = await service.executeMultiQuery(
+      city,
+      date,
+      missingCategories,
+      mergedOptions
+    );
+
+    const newParsed = eventAggregator.aggregateResults(pplxResults);
+
+    const ttlSeconds = computeTTLSecondsForEvents(newParsed);
+    const perCategoryGroups: Record<string, EventData[]> = {};
+    for (const ev of newParsed) {
+      if (!ev.category) continue;
+      if (!perCategoryGroups[ev.category]) perCategoryGroups[ev.category] = [];
+      perCategoryGroups[ev.category].push(ev);
     }
+    for (const cat of Object.keys(perCategoryGroups)) {
+      eventsCache.setEventsByCategory(city, date, cat, perCategoryGroups[cat], ttlSeconds);
+      cacheInfo[cat] = { fromCache: false, eventCount: perCategoryGroups[cat].length };
+    }
+
+    const combined = eventAggregator.deduplicateEvents([...cachedEvents, ...newParsed]);
 
     return NextResponse.json({
-      jobId,
-      status: 'partial',
-      events: allCachedEvents,
-      cached: allCachedEvents.length > 0,
-      processing: missingCategories.length > 0,
+      status: 'completed',
+      events: combined,
+      cached: cachedEvents.length > 0,
+      newlyFetched: Object.keys(perCategoryGroups),
       cacheInfo: {
-        fromCache: allCachedEvents.length > 0,
-        totalEvents: allCachedEvents.length,
-        cachedEvents: allCachedEvents.length,
+        fromCache: cachedEvents.length > 0,
+        totalEvents: combined.length,
+        cachedEvents: cachedEvents.length,
         cacheBreakdown: cacheInfo
       },
-      progress: {
-        completedCategories: effectiveCategories.length - missingCategories.length,
-        totalCategories: effectiveCategories.length,
-        missingCategories: missingCategories
+      queryCategories: missingCategories,
+      optionsUsed: {
+        expandedSubcategories: mergedOptions.expandedSubcategories,
+        forceAllCategories: mergedOptions.forceAllCategories
       },
-      message: allCachedEvents.length > 0 
-        ? `${allCachedEvents.length} Events aus dem Cache geladen, ${missingCategories.length} Kategorien werden verarbeitet...`
-        : `${missingCategories.length} Kategorien werden verarbeitet...`
+      ttlApplied: ttlSeconds
     });
 
   } catch (error) {

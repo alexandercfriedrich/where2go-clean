@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - 'app/lib/eventCategories.ts'
-      - 'app/categories.ts'
       - '.github/workflows/guard-categories.yml'
       - '**/*.ts'
 

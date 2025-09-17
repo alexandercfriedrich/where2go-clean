@@ -1,4 +1,5 @@
-// Phase 1 + 1.1: Single source of truth for 20 main event categories + normalization & validation utilities
+// Single Source of Truth for event categories, subcategories and normalization
+// Phase 2B – categories.ts entfernt; alle Exporte nur noch hier.
 
 export const EVENT_CATEGORY_SUBCATEGORIES: Record<string, string[]> = {
   "DJ Sets/Electronic": [
@@ -13,42 +14,85 @@ export const EVENT_CATEGORY_SUBCATEGORIES: Record<string, string[]> = {
     "Cocktail Lounges"
   ],
   "Live-Konzerte": [
-    "Live-Konzerte","Klassische Musik/Classical","Rock/Pop/Alternative","Jazz/Blues","Folk/Singer-Songwriter",
-    "Hip-Hop/Rap","Metal/Hardcore","Indie/Alternative","World Music","Country/Americana","R&B/Soul",
-    "Experimental/Avant-garde","Chamber Music","Orchestra/Symphony","Band Performances","Solo Artists",
-    "Album Release Shows","Tribute Bands","Open Mic Nights","Acoustic Sessions","Choral Music","New Age/Ambient"
-  ],
-  "Open Air": [
-    "Open Air","Music Festivals","Outdoor Concerts","Beach Events","Park Gatherings","Rooftop Events","Garden Parties",
-    "Street Festivals","Market Events","Outdoor Cinema","Picnic Events","Nature Events","Camping/Glamping Events",
-    "Adventure Tours","Food Truck Festivals","Craft Fairs (Outdoor)","Sports Festivals"
-  ],
-  "Museen": [
-    "Museen","Kunstgalerien/Art Galleries","Ausstellungen/Exhibitions","Kulturelle Institutionen","Historische Stätten",
-    "Architektur Tours","Science Museums","Interactive Exhibitions","Private Collections","Art Fairs","Museum Nights",
-    "Educational Tours","Virtual Reality Experiences","Photography Exhibitions","Natural History","Technology Museums",
-    "Local History"
-  ],
-  "LGBTQ+": [
-    "LGBTQ+","Pride Events","Queer Parties","Drag Shows","LGBTQ+ Clubs","Community Events","Support Groups",
-    "Diversity Celebrations","Inclusive Events","Rainbow Events","Trans Events","Lesbian Events","Gay Events",
-    "Bisexual Events","Non-binary Events","Coming Out Support","LGBTQ+ Film Screenings"
-  ],
-  "Comedy/Kabarett": [
-    "Comedy/Kabarett","Stand-up Comedy","Improvisational Theater","Satirical Shows","Variety Shows","Comedy Clubs",
-    "Humor Events","Roast Shows","Open Mic Comedy","Political Satire","Musical Comedy","Sketch Shows",
-    "Comedy Festivals","Story Slam","Comedy Workshops"
+    "Live-Konzerte","Rock/Pop/Alternative","Indie Music","Jazz/Blues","Hip-Hop/Rap","Classical/Orchestral",
+    "Metal/Hard Rock","Singer-Songwriter","World Music","Folk/Acoustic","Punk/Hardcore","Soul/Funk",
+    "Reggae/Dub","Latin Music","Choir/Vocal Ensembles","Tribute Bands","Electronic Live Acts","Experimental Music"
   ],
   "Theater/Performance": [
-    "Theater/Performance","Drama/Schauspiel","Musicals","Opera/Operette","Ballet/Dance","Contemporary Dance",
-    "Performance Art","Experimental Theater","Children Theater","Street Performance","Mime/Physical Theater",
-    "Puppet Theater","Immersive Theater","Site-specific Performance","Cabaret Shows","Burlesque","Circus Arts",
-    "Storytelling","Poetry Slams","Spoken Word"
+    "Theater/Performance","Plays/Theater","Musicals","Improv/Improvisation","Opera/Oper","Dance Performances",
+    "Ballet","Contemporary Dance","Performance Art","Puppetry","Physical Theater","Experimental Stage",
+    "One-Man Shows","Storytelling","Stand-Up Theater","Street Theater","Drama Productions","Classical Theater"
+  ],
+  "Open Air": [
+    "Open Air","Outdoor Concerts","Street Festivals","Summer Festivals","Outdoor Cinema","Beer Gardens Events",
+    "Park Events","Rooftop Sessions","River/Waterfront Events","City Fair","Lantern Festivals","Harbor Events",
+    "Lake Events","Garden Parties","Fire Shows","Open-Air Theater","Sunset Sessions","Night Markets","Art in the Park"
+  ],
+  "Museen": [
+    "Museen","Special Exhibitions","Permanent Collections","Museum Tours","Late Night Museum","Interactive Exhibits",
+    "Archaeology","Science Exhibitions","Historical Shows","Photography Exhibitions","Design Exhibitions",
+    "Media Art","Modern Art Collections","Sculpture Exhibitions","Museum Workshops","Curator Talks","Audio Guide Events"
+  ],
+  "Comedy/Kabarett": [
+    "Comedy/Kabarett","Stand-up Comedy","Improv Comedy","Political Satire","Comedy Open Mic","Sketch Comedy",
+    "Dark Comedy","Character Comedy","Musical Comedy","Comedy Slams","Roast Events","Observational Comedy",
+    "Themed Comedy Nights","Comedy Battles","Late Night Style Comedy"
   ],
   "Film": [
-    "Film","Cinema/Movie Screenings","Film Festivals","Documentary Screenings","Independent Films","Foreign Films",
-    "Classic Cinema","Outdoor Cinema","Silent Films","Animation/Animated Films","Short Films","Film Premieres",
-    "Director Q&As","Film Discussions","Video Art","Experimental Film","Horror Film Nights","Cult Cinema"
+    "Film","Film Screenings","Film Festivals","Indie Film Nights","Documentary Screenings","Short Film Events",
+    "Cult Classics","Outdoor Cinema (Film)","Film Premieres","Director Talks","Retrospectives","Theme Film Nights",
+    "Animation Nights","International Cinema","Silent Films with Live Music"
+  ],
+  "Kunst/Design": [
+    "Kunst/Design","Art Exhibitions","Gallery Openings","Interactive Installations","Sculpture Exhibits",
+    "Design Showcases","Digital Art","Street Art Tours","Urban Art Exhibitions","Photography Openings","Light Art",
+    "Multimedia Installations","AR/VR Art","Performance-based Art","Conceptual Art","Art & Tech Hybrids",
+    "Sound Installations","Art Fairs","Pop-up Galleries"
+  ],
+  "Kultur/Traditionen": [
+    "Kultur/Traditionen","Cultural Festivals","Folk Events","Heritage Celebrations","Historical Reenactments",
+    "Traditional Music","Traditional Dance","Seasonal Customs","Processions/Parades","Regional Cuisine Events",
+    "Language Cultural Nights","Story Preservation Events","Craft Traditions","Ethnic Celebrations"
+  ],
+  "LGBTQ+": [
+    "LGBTQ+","Queer Parties","Drag Shows","LGBTQ+ Film","Queer Networking","Pride Events","Queer Art",
+    "Trans Visibility Events","Inclusive Sports","Queer Book Clubs","LGBTQ+ History Talks","Queer Safe Spaces",
+    "Drag Brunch","Ballroom/Vogue Events","Queer Workshops","Ally Events"
+  ],
+  "Bildung/Lernen": [
+    "Bildung/Lernen","Workshops","Kurse/Classes","Seminare/Seminars","Lectures/Vorträge","Language Exchange",
+    "Book Clubs","Study Groups","Academic Conferences","Skill Sharing","DIY Workshops","Conferences","Hackathons",
+    "STEM Education","Career Development","Continuing Education"
+  ],
+  "Networking/Business": [
+    "Networking/Business","Startup Events","Pitch Nights","Investor Meetups","Tech Meetups","Industry Panels",
+    "Business Breakfasts","Co-Founder Matchmaking","Women in Business","Freelancer Meetups","Career Fairs",
+    "Recruiting Events","Executive Roundtables","Product Launch Events","Innovation Labs","Corporate Hackathons"
+  ],
+  "Sport": [
+    "Sport","Football/Soccer","Basketball","Tennis","Fitness Events","Running/Marathon","Cycling Events","Swimming",
+    "Martial Arts","Yoga/Pilates","Extreme Sports","Winter Sports","Team Building Sports","Amateur Leagues",
+    "Sports Viewing Parties","Health & Wellness","Outdoor Sports","Indoor Sports","E-Sports","Adventure Racing"
+  ],
+  "Natur/Outdoor": [
+    "Natur/Outdoor","Hiking/Wandern","Nature Walks","Forest Bathing","River Activities","Climbing/Bouldering",
+    "Outdoor Survival","Bird Watching","Stargazing","Eco Tours","Nature Photography","Camping Events",
+    "Beach Cleanups","Trail Running","Canoeing/Kayak","Mountain Events","Wildlife Observation"
+  ],
+  "Wellness/Spirituell": [
+    "Wellness/Spirituell","Meditation Sessions","Yoga Events","Breathwork","Spiritual Gatherings","Sound Healing",
+    "Wellness Retreats","Holistic Health","Mindfulness Workshops","Energy Work","Detox Programs","Ayurveda Sessions",
+    "Tea Ceremonies","Chakra Workshops","Nature Healing","Mental Health Circles"
+  ],
+  "Soziales/Community": [
+    "Soziales/Community","Community Events","Volunteer Activities","Charity Events","Social Causes",
+    "Neighborhood Meetings","Cultural Exchange","Senior Events","Expat Events","Local Initiatives",
+    "Mutual Aid","Fundraising Dinners","Community Workshops","Donation Drives","Civic Engagement"
+  ],
+  "Märkte/Shopping": [
+    "Märkte/Shopping","Flohmarkt/Flea Markets","Vintage Markets","Handmade Markets","Antique Fairs","Shopping Events",
+    "Pop-up Shops","Designer Markets","Book Markets","Record Fairs","Seasonal Markets","Craft Bazaars",
+    "Night Markets (Shopping)","Fashion Sample Sales","Textile Fairs"
   ],
   "Food/Culinary": [
     "Food/Culinary","Wine Tasting","Beer Events/Beer Festivals","Cooking Classes","Food Markets",
@@ -56,58 +100,16 @@ export const EVENT_CATEGORY_SUBCATEGORIES: Record<string, string[]> = {
     "Whiskey/Spirits Tastings","Vegan/Vegetarian Events","International Cuisine","Local Specialties",
     "Food & Music Pairings","Farmers Markets","Gourmet Events","Street Food","Chef Demonstrations"
   ],
-  "Sport": [
-    "Sport","Football/Soccer","Basketball","Tennis","Fitness Events","Running/Marathon","Cycling Events","Swimming",
-    "Martial Arts","Yoga/Pilates","Extreme Sports","Winter Sports","Team Building Sports","Amateur Leagues",
-    "Sports Viewing Parties","Health & Wellness","Outdoor Sports","Indoor Sports","E-Sports","Adventure Racing"
-  ],
   "Familien/Kids": [
     "Familien/Kids","Children Events","Family Festivals","Kids Workshops","Educational Activities","Interactive Shows",
-    "Children Theater","Puppet Shows","Magic Shows","Storytelling for Kids","Arts & Crafts","Science for Kids",
-    "Music for Families","Outdoor Adventures","Birthday Parties","Holiday Events","Baby/Toddler Events","Teen Programs"
-  ],
-  "Kunst/Design": [
-    "Kunst/Design","Art Exhibitions","Design Markets","Craft Fairs","Artist Studios","Creative Workshops","Fashion Shows",
-    "Photography","Sculpture","Painting","Digital Art","Street Art","Installation Art","Textile Arts","Ceramics/Pottery",
-    "Jewelry Making","Architecture Events","Interior Design","Graphic Design","Art Auctions"
-  ],
-  "Wellness/Spirituell": [
-    "Wellness/Spirituell","Meditation Events","Yoga Classes","Spa Events","Mindfulness Workshops","Spiritual Retreats",
-    "Healing Sessions","Wellness Festivals","Breathwork","Sound Healing","Crystal Healing","Reiki Sessions",
-    "Holistic Health","Mental Health Support","Self-Care Events","Nature Therapy","Life Coaching","Nutrition Workshops"
-  ],
-  "Networking/Business": [
-    "Networking/Business","Business Meetups","Professional Development","Industry Conferences","Startup Events",
-    "Entrepreneurship","Career Fairs","Leadership Events","Trade Shows","B2B Events","Corporate Events","Innovation Hubs",
-    "Tech Meetups","Skills Workshops","Mentorship Programs","Investment Events","Coworking Events","Industry Mixers"
-  ],
-  "Natur/Outdoor": [
-    "Natur/Outdoor","Hiking/Walking Tours","Nature Tours","Wildlife Watching","Botanical Gardens","Park Events",
-    "Outdoor Adventures","Camping Events","Environmental Education","Eco-Tours","Outdoor Yoga","Nature Photography",
-    "Geocaching","Bird Watching","Gardening Workshops","Sustainability Events","Green Living","Conservation Events",
-    "Outdoor Fitness","Stargazing"
-  ],
-  "Kultur/Traditionen": [
-    "Kultur/Traditionen","Lokale Traditionen","Kulturelle Feste","Historische Reenactments","Volksfeste",
-    "Religiöse Feiern","Seasonal Celebrations","Cultural Heritage","Traditional Crafts","Folk Music/Dance",
-    "Local Legends Tours"
-  ],
-  "Märkte/Shopping": [
-    "Märkte/Shopping","Flohmarkt/Flea Markets","Vintage Markets","Handmade Markets","Antique Fairs","Shopping Events",
-    "Pop-up Shops","Designer Markets","Book Markets","Record Fairs","Seasonal Markets"
-  ],
-  "Bildung/Lernen": [
-    "Bildung/Lernen","Workshops","Kurse/Classes","Seminare/Seminars","Lectures/Vorträge","Language Exchange","Book Clubs",
-    "Study Groups","Academic Conferences","Skill Sharing","DIY Workshops"
-  ],
-  "Soziales/Community": [
-    "Soziales/Community","Community Events","Volunteer Activities","Charity Events","Social Causes",
-    "Neighborhood Meetings","Cultural Exchange","Senior Events","Singles Meetups","Expat Events","Local Initiatives"
+    "Science for Kids","Storytime","Puppet Shows","Family Theater","Parent-Child Activities","STEM Kids",
+    "Outdoor Play","Creative Learning","Cultural Kids Programs","Nature Discovery","Youth Sports"
   ]
 };
 
 export const EVENT_CATEGORIES = Object.keys(EVENT_CATEGORY_SUBCATEGORIES);
 
+// Build list for prompts
 export function buildCategoryListForPrompt(): string {
   return EVENT_CATEGORIES.map((c,i)=>`${i+1}. ${c}`).join('\n');
 }
@@ -115,6 +117,7 @@ export function allowedCategoriesForSchema(): string {
   return EVENT_CATEGORIES.join(', ');
 }
 
+// Token normalization map (expanded)
 export const NORMALIZATION_TOKEN_MAP: Record<string,string> = {
   "techno":"DJ Sets/Electronic","edm":"DJ Sets/Electronic","house":"DJ Sets/Electronic","trance":"DJ Sets/Electronic",
   "minimal":"DJ Sets/Electronic","hardstyle":"DJ Sets/Electronic","hardcore":"DJ Sets/Electronic","breakbeat":"DJ Sets/Electronic",
@@ -147,19 +150,14 @@ export function normalizeCategory(input: string): string {
   if (!input || typeof input !== 'string') return input;
   const trimmed = input.trim();
   if (!trimmed) return trimmed;
-
   if (EVENT_CATEGORY_SUBCATEGORIES[trimmed]) return trimmed;
-
   const lower = trimmed.toLowerCase();
   if (NORMALIZATION_TOKEN_MAP[lower]) return NORMALIZATION_TOKEN_MAP[lower];
-
   for (const [main, subs] of Object.entries(EVENT_CATEGORY_SUBCATEGORIES)) {
     if (subs.some(s => s.toLowerCase() === lower)) return main;
   }
-
   const lc = EVENT_CATEGORIES.find(c => c.toLowerCase() === lower);
   if (lc) return lc;
-
   return trimmed;
 }
 
@@ -174,11 +172,38 @@ export function validateAndNormalizeEvents(events: any[]): any[] {
     .map(e => {
       if (e.category) {
         const norm = normalizeCategory(e.category);
-        if (isValidCategory(norm)) {
-          e.category = norm;
-        }
+        if (isValidCategory(norm)) e.category = norm;
       }
       return e;
     })
     .filter(e => isValidCategory(e.category));
+}
+
+// New helper: map arbitrary (sub)category list → unique main categories
+export function mapToMainCategories(list: string[]): string[] {
+  const set = new Set<string>();
+  for (const c of list || []) {
+    const norm = normalizeCategory(c);
+    if (EVENT_CATEGORY_SUBCATEGORIES[norm]) set.add(norm);
+  }
+  return Array.from(set);
+}
+
+// Get subcategories of a main category
+export function getSubcategories(main: string): string[] {
+  return EVENT_CATEGORY_SUBCATEGORIES[main] || [];
+}
+
+// Build expanded prompt block for a main category with subcategories
+export function buildExpandedCategoryContext(main: string): string {
+  const subs = getSubcategories(main).filter(s => s !== main);
+  return `Main Category: ${main}
+Subcategories (semantic variations & niche forms):
+${subs.map(s => `- ${s}`).join('\n')}
+
+Instructions:
+1. Consider ALL subcategory nuances above.
+2. Include events that clearly belong but may use alternative naming.
+3. Aim for diversity (venues, formats, audiences).
+4. If sparse, combine official sources + plausible curated underground venues (label uncertain ones).`;
 }
