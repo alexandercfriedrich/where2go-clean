@@ -72,8 +72,7 @@ export function createPerplexityService(apiKey: string) {
   }
 
   function buildSystemPrompt(options: PerplexityOptions): string {
-    return `You are an Event Discovery Intelligence Agent.
-You MUST output ONLY a JSON array of event objects.
+    return `You are an event search specialist. Respond exclusively in JSON format and ensure all available information is returned in a structured manner.
 
 Allowed main categories:
 ${buildCategoryListForPrompt()}
@@ -88,12 +87,13 @@ Rules:
 - If price unknown: use empty string
 - Provide diversity (venues, price levels, sub-genres)
 - Avoid duplicates
-- Return ONLY the JSON array (no commentary).`;
+- Return ONLY the JSON array (No explanatory text outside the JSON structure).`;
   }
 
   function buildGeneralPrompt(city: string, date: string): string {
-    return `Find diverse events for ${city} on ${date}.
-Return ONLY a JSON array. Include multiple main categories if possible.`;
+    return `Search for ALL available events in ${city} on ${date}.
+Return ONLY the JSON array (No explanatory text outside the JSON structure).
+Include multiple main categories if possible.`;
   }
 
   function buildCategoryPrompt(
