@@ -1,6 +1,6 @@
 // Perplexity AI service abstraction (Phase 2B enhanced)
 // Adds: expanded subcategory prompts, per-category query logging, optional all-categories expansion,
-// API key validation and safer options handling.
+// API key validation and safer options handling. (Build fix: ensure PerplexityResult includes events & timestamp)
 
 import {
   EVENT_CATEGORIES,
@@ -85,7 +85,7 @@ bookingLink, ageRestrictions
 
 Rules:
 - "category" must be EXACTLY one of: ${allowedCategoriesForSchema()}
-- If price unknown: empty string
+- If price unknown: use empty string
 - Provide diversity (venues, price levels, sub-genres)
 - Avoid duplicates
 - Return ONLY the JSON array (no commentary).`;
@@ -158,7 +158,12 @@ Example minimal object:
     if (effectiveCategories.length === 0) {
       const prompt = buildGeneralPrompt(city, date);
       const response = await call(prompt, options);
-      return [{ query: prompt, response }];
+      return [{
+        query: prompt,
+        response,
+        events: [],           // build-fix: satisfy PerplexityResult
+        timestamp: Date.now() // build-fix
+      }];
     }
 
     const results: PerplexityResult[] = [];
@@ -168,7 +173,12 @@ Example minimal object:
         console.log(`[PPLX:QUERY][${cat}] len=${prompt.length}`);
       }
       const response = await call(prompt, options);
-      results.push({ query: prompt, response });
+      results.push({
+        query: prompt,
+        response,
+        events: [],            // aggregator will parse from response
+        timestamp: Date.now()
+      });
     }
     return results;
   }
