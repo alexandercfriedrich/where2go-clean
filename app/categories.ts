@@ -1,33 +1,26 @@
-import {
-  EVENT_CATEGORIES,
-  EVENT_CATEGORY_SUBCATEGORIES,
-  mapToMainCategories,
-} from '@/lib/eventCategories';
-
 /**
- * Gibt die Hauptkategorien zurück, die für AI-Aufrufe genutzt werden sollen.
- * - Wenn keine Kategorien angegeben sind, werden alle Hauptkategorien verwendet.
- * - Subkategorien werden auf Hauptkategorien gemappt.
- * - Deduplizierung ist sichergestellt.
+ * Liefert die Hauptkategorien für AI-Calls.
+ * Aktuell: dedupliziert einfach die übergebenen Kategorien.
+ * Hinweis: Kann später erweitert werden (Sub->Hauptkategorie-Mapping).
  */
 export function getMainCategoriesForAICalls(
   categories: string[] | undefined | null
 ): string[] {
-  if (!categories || categories.length === 0) return EVENT_CATEGORIES;
-  const mapped = mapToMainCategories(categories);
-  return Array.from(new Set(mapped.length > 0 ? mapped : EVENT_CATEGORIES));
+  if (!categories || categories.length === 0) return [];
+  return Array.from(new Set(categories));
 }
 
 /**
- * Liefert alle Subkategorien zu einer Hauptkategorie.
+ * Platzhalter für mögliche zukünftige Nutzung.
+ * Gibt Subkategorien einer Hauptkategorie zurück (derzeit leer).
  */
 export function getSubcategoriesForMainCategory(mainCategory: string): string[] {
-  return EVENT_CATEGORY_SUBCATEGORIES[mainCategory] || [];
+  return [];
 }
 
 /**
- * Hilfsfunktion: mehrere Hauptkategorien -> alle zugehörigen Subkategorien.
+ * Platzhalter: Hauptkategorien -> Subkategorien (derzeit leer).
  */
 export function flattenMainToSubcategories(mains: string[]): string[] {
-  return mains.flatMap((m) => EVENT_CATEGORY_SUBCATEGORIES[m] || []);
+  return [];
 }
