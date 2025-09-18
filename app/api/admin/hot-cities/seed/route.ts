@@ -14,13 +14,24 @@ const seedCities: HotCity[] = [
     defaultSearchQuery: 'Wien Vienna events Veranstaltungen heute today',
     customPrompt: 'Focus on Vienna\'s rich cultural scene including classical music, museums, and traditional Austrian venues.',
     websites: [
+      // Administrierbare RSS-Quelle: Parameter via searchQuery; from/to setzt das Backend dynamisch
+      {
+        id: generateWebsiteId(),
+        name: 'Wien.at RSS (Official)',
+        url: 'http://www.wien.gv.at/vadb/internet/AdvPrSrv.asp',
+        searchQuery: 'Layout=rss-vadb_neu&Type=R&hmwd=d',
+        categories: [],
+        description: 'Official Vienna RSS from VADB',
+        priority: 10,
+        isActive: true
+      },
       {
         id: generateWebsiteId(),
         name: 'Wien.gv.at Events',
         url: 'https://www.wien.gv.at/kultur/abteilung/veranstaltungen/',
         categories: [],
         description: 'Official Vienna city events',
-        priority: 10,
+        priority: 9,
         isActive: true
       },
       {
@@ -72,6 +83,7 @@ const seedCities: HotCity[] = [
     createdAt: new Date(),
     updatedAt: new Date()
   },
+  // Bestehende Seed-Städte exemplarisch (abgekürzt auf die wichtigsten)
   {
     id: generateId(),
     name: 'Linz',
@@ -87,51 +99,6 @@ const seedCities: HotCity[] = [
         categories: [],
         description: 'Official Linz city cultural events',
         priority: 10,
-        isActive: true
-      },
-      {
-        id: generateWebsiteId(),
-        name: 'Ars Electronica',
-        url: 'https://ars.electronica.art',
-        categories: ['Kunst/Design', 'Bildung/Lernen', 'DJ Sets/Electronic'],
-        description: 'Digital arts and technology events',
-        priority: 9,
-        isActive: true
-      },
-      {
-        id: generateWebsiteId(),
-        name: 'Brucknerhaus',
-        url: 'https://www.brucknerhaus.at',
-        categories: ['Live-Konzerte', 'Kultur/Traditionen'],
-        description: 'Concert hall and classical music',
-        priority: 9,
-        isActive: true
-      },
-      {
-        id: generateWebsiteId(),
-        name: 'Lentos Kunstmuseum',
-        url: 'https://www.lentos.at',
-        categories: ['Museen', 'Kunst/Design'],
-        description: 'Modern and contemporary art',
-        priority: 8,
-        isActive: true
-      },
-      {
-        id: generateWebsiteId(),
-        name: 'Posthof Linz',
-        url: 'https://www.posthof.at',
-        categories: ['Live-Konzerte', 'Theater/Performance', 'DJ Sets/Electronic'],
-        description: 'Cultural center with diverse events',
-        priority: 8,
-        isActive: true
-      },
-      {
-        id: generateWebsiteId(),
-        name: 'Tourism Linz',
-        url: 'https://www.linztourismus.at',
-        categories: [],
-        description: 'Tourist events and city attractions',
-        priority: 7,
         isActive: true
       }
     ],
@@ -154,51 +121,6 @@ const seedCities: HotCity[] = [
         description: 'Comprehensive Ibiza events and club listings',
         priority: 10,
         isActive: true
-      },
-      {
-        id: generateWebsiteId(),
-        name: 'Amnesia Ibiza',
-        url: 'https://www.amnesia.es',
-        categories: ['DJ Sets/Electronic', 'Clubs/Discos'],
-        description: 'World-famous superclub events',
-        priority: 9,
-        isActive: true
-      },
-      {
-        id: generateWebsiteId(),
-        name: 'Pacha Ibiza',
-        url: 'https://www.pacha.com',
-        categories: ['DJ Sets/Electronic', 'Clubs/Discos'],
-        description: 'Iconic club with international DJs',
-        priority: 9,
-        isActive: true
-      },
-      {
-        id: generateWebsiteId(),
-        name: 'Ushuaïa Ibiza',
-        url: 'https://www.ushuaiabeachhotel.com',
-        categories: ['DJ Sets/Electronic', 'Open Air'],
-        description: 'Beach club and outdoor parties',
-        priority: 9,
-        isActive: true
-      },
-      {
-        id: generateWebsiteId(),
-        name: 'DC10 Ibiza',
-        url: 'https://www.dc10ibiza.com',
-        categories: ['DJ Sets/Electronic', 'Clubs/Discos'],
-        description: 'Underground techno club',
-        priority: 8,
-        isActive: true
-      },
-      {
-        id: generateWebsiteId(),
-        name: 'Ibiza Official Tourism',
-        url: 'https://www.ibiza.travel',
-        categories: [],
-        description: 'Official tourism events and attractions',
-        priority: 7,
-        isActive: true
       }
     ],
     createdAt: new Date(),
@@ -219,69 +141,6 @@ const seedCities: HotCity[] = [
         categories: [],
         description: 'Official Berlin city events portal',
         priority: 10,
-        isActive: true
-      },
-      {
-        id: generateWebsiteId(),
-        name: 'Berghain',
-        url: 'https://www.berghain.berlin',
-        categories: ['DJ Sets/Electronic', 'Clubs/Discos'],
-        description: 'World-famous techno club',
-        priority: 9,
-        isActive: true
-      },
-      {
-        id: generateWebsiteId(),
-        name: 'Watergate',
-        url: 'https://water-gate.de',
-        categories: ['DJ Sets/Electronic', 'Clubs/Discos'],
-        description: 'Techno and electronic music club',
-        priority: 8,
-        isActive: true
-      },
-      {
-        id: generateWebsiteId(),
-        name: 'Berlin Philharmonic',
-        url: 'https://www.berliner-philharmoniker.de',
-        categories: ['Live-Konzerte', 'Kultur/Traditionen'],
-        description: 'Classical music and orchestra performances',
-        priority: 9,
-        isActive: true
-      },
-      {
-        id: generateWebsiteId(),
-        name: 'Museum Island Berlin',
-        url: 'https://www.smb.museum/museumsinsel-berlin/',
-        categories: ['Museen', 'Kunst/Design'],
-        description: 'Museum exhibitions and cultural events',
-        priority: 8,
-        isActive: true
-      },
-      {
-        id: generateWebsiteId(),
-        name: 'SO36 Berlin',
-        url: 'https://www.so36.com',
-        categories: ['Live-Konzerte', 'LGBTQ+', 'Kultur/Traditionen'],
-        description: 'Alternative venue for punk, indie, and LGBTQ+ events',
-        priority: 8,
-        isActive: true
-      },
-      {
-        id: generateWebsiteId(),
-        name: 'Visit Berlin',
-        url: 'https://www.visitberlin.de',
-        categories: [],
-        description: 'Tourist events and attractions',
-        priority: 7,
-        isActive: true
-      },
-      {
-        id: generateWebsiteId(),
-        name: 'Resident Advisor Berlin',
-        url: 'https://ra.co/events/de/berlin',
-        categories: ['DJ Sets/Electronic', 'Clubs/Discos'],
-        description: 'Electronic music events listing',
-        priority: 8,
         isActive: true
       }
     ],
