@@ -1,7 +1,5 @@
 // Mapping von where2go-Hauptkategorien -> wien.info F1-Filter-IDs
-// Quelle: Vorgabe aus event_mapping.ts (User-Input)
-//
-// Syntax für Abfragen (Client-URL):
+// Syntax (Client-URL):
 // https://www.wien.info/en/now-on/events#/?dr=YYYY-MM-DD,YYYY-MM-DD&f1=ID1,ID2
 //
 // Hinweis: Das ist eine Client-URL (Hash-Route). Für unsere Pipeline nutzen wir sie
