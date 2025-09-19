@@ -28,8 +28,9 @@ export async function POST(request: NextRequest) {
     if (requestedCategories.length > 0) {
       const cacheResult = eventsCache.getEventsByCategories(city, date, requestedCategories);
       const cachedCategories = Object.keys(cacheResult.cachedEvents);
-
-      cachedEvents = cachedCategories.flatMap(cat => cacheResult.cachedEvents[cat]).map(e => ({ ...e, source: (e as any).source || 'cache' }));
+      cachedEvents = cachedCategories
+        .flatMap(cat => cacheResult.cachedEvents[cat])
+        .map(e => ({ ...e, source: (e as any).source || 'cache' }));
       missingCategories = cacheResult.missingCategories;
       cacheInfo = cacheResult.cacheInfo;
     }
