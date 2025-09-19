@@ -36,7 +36,7 @@ export function createPerplexityService(apiKey: string) {
   }
 
   const baseUrl = 'https://api.perplexity.ai/chat/completions';
-  const model = 'sonar-pro';
+  const model = 'sonar';
 
   async function call(prompt: string, options: PerplexityOptions): Promise<string> {
     const body: PplxApiRequest = {
