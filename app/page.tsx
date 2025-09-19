@@ -18,7 +18,7 @@ interface EventData {
   description?: string;
   bookingLink?: string;
   ageRestrictions?: string;
-  source?: 'cache' | 'ai' | 'rss' | 'ra' | string; // Badge-Quelle
+  source?: 'cache' | 'ai' | 'rss' | 'ra' | string;
 }
 
 const ALL_SUPER_CATEGORIES = Object.keys(EVENT_CATEGORY_SUBCATEGORIES);
@@ -36,7 +36,7 @@ export default function Home() {
 
   const [events, setEvents] = useState<EventData[]>([]);
   const [loading, setLoading] = useState(false);
-  const [stepLoading, setStepLoading] = useState<string | null>(null); // progressive Status je Superkategorie
+  const [stepLoading, setStepLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [searchSubmitted, setSearchSubmitted] = useState(false);
@@ -240,7 +240,6 @@ export default function Home() {
       throw new Error(data.error || `Serverfehler ${res.status}`);
     }
     const data = await res.json();
-    // Quelle wird vom Backend jetzt gestempelt; falls nicht, lassen
     const incoming: EventData[] = data.events || [];
     setEvents(prev => dedupMerge(prev, incoming));
     if (data.cacheInfo) setCacheInfo(data.cacheInfo);
@@ -251,8 +250,8 @@ export default function Home() {
       setError('Bitte gib eine Stadt ein.');
       return;
     }
-    cancelRef.current.cancel = true; // existierende Läufe beenden
-    await new Promise(r=>setTimeout(r,0)); // Yield
+    cancelRef.current.cancel = true;
+    await new Promise(r => setTimeout(r, 0));
     cancelRef.current = { cancel:false };
 
     setLoading(true);
@@ -264,16 +263,12 @@ export default function Home() {
     setActiveFilter('Alle');
 
     try {
-      // Falls keine Auswahl getroffen wurde, alle Superkategorien (kann länger dauern)
       const superCats =
         selectedSuperCategories.length > 0 ? [...selectedSuperCategories] : [...ALL_SUPER_CATEGORIES];
-
-      // sequenziell für "versetztes" Laden
       for (const sc of superCats) {
         if (cancelRef.current.cancel) return;
         await fetchForSuperCategory(sc);
       }
-
       setLoading(false);
       setStepLoading(null);
       setTimeout(()=> setToast({show:false, message:''}), 2000);
@@ -656,6 +651,86 @@ export default function Home() {
           <p>© 2025 Where2Go - Entdecke deine Stadt neu</p>
         </div>
       </footer>
+
+      {/* Globale Style-Overrides für Badges, Filterleiste, Header-Zentrierung */}
+      <style jsx global>{`
+        .header-inner.header-centered {
+          position: relative;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          min-height:64px;
+        }
+        .header-inner.header-centered .premium-box {
+          position:absolute;
+          right:0;
+        }
+        .results-filter-bar {
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          gap:12px;
+          padding:10px 0 18px;
+        }
+        .filter-chips-inline {
+          display:flex;
+          flex-wrap:wrap;
+          gap:10px;
+        }
+        .filter-sidebar { display:none !important; }
+        .filter-chip {
+          display:flex; justify-content:space-between; align-items:center;
+          gap:8px;
+          font-size:13px; padding:10px 14px;
+          border:1px solid #dcdfe3;
+          background:transparent; border-radius:10px; cursor:pointer;
+          transition:background .2s, border-color .2s, color .2s;
+          color:#444; font-weight:500; text-align:left;
+        }
+        .filter-chip:hover { background:#f3f4f5; }
+        .filter-chip-active { background:#404040; color:#fff; border-color:#404040; }
+        .filter-chip-active:hover { background:#e5e7eb; color:#9aa0a6; }
+        .filter-count { font-size:11px; background:rgba(0,0,0,0.06); padding:3px 8px; border-radius:999px; color:inherit; font-weight:500; }
+        .filter-chip-active .filter-count { background:rgba(255,255,255,0.18); }
+        .category-checkbox {
+          display:flex; align-items:center; gap:8px; padding:8px 10px;
+          border:1px solid #dfe1e4; background:transparent; border-radius:8px;
+          font-size:13px; cursor:pointer; transition:background .2s, border-color .2s, color .2s;
+          color:#444;
+        }
+        .category-checkbox:hover { background:#f0f2f4; }
+        .category-checkbox input { accent-color:#222; width:14px; height:14px; cursor:pointer; margin:0; }
+        .category-checkbox:has(input:checked) { background:#404040; color:#fff; border-color:#404040; }
+        .category-checkbox:has(input:checked):hover { background:#e5e7eb; color:#9aa0a6; }
+        .category-checkbox:has(input:checked) input { accent-color:#ffffff; }
+        .btn-search {
+          border:none; background:#404040; color:#fff; font-size:15px; padding:14px 20px; border-radius:10px;
+          font-weight:500; letter-spacing:.4px; cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,0.08);
+          transition:background .2s, box-shadow .2s, transform .2s, color .2s;
+        }
+        .btn-search:hover { background:#222; }
+        @media (max-width: 600px) {
+          .search-form .form-row { gap:12px; }
+          .categories-section { gap:10px; }
+          .results-filter-bar { flex-direction:column; align-items:flex-start; gap:8px; }
+        }
+        .src-badge {
+          display:inline-block;
+          margin-left:8px;
+          font-size:11px;
+          line-height:1;
+          padding:3px 6px;
+          border-radius:999px;
+          border:1px solid rgba(0,0,0,0.18);
+          background:#f7f7f7;
+          color:#444;
+          vertical-align:middle;
+        }
+        .src-badge.src-ai    { background:#1f2937; color:#fff; border-color:#1f2937; }
+        .src-badge.src-rss   { background:#f59e0b; color:#111; border-color:#d97706; }
+        .src-badge.src-ra    { background:#0ea5e9; color:#fff; border-color:#0284c7; }
+        .src-badge.src-cache { background:#e5e7eb; color:#111; border-color:#d1d5db; }
+      `}</style>
     </div>
   );
 }
