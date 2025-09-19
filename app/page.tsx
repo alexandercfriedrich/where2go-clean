@@ -1,7 +1,8 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { EVENT_CATEGORY_SUBCATEGORIES } from './lib/eventCategories';
 import { useTranslation } from './lib/useTranslation';
+import { startJobPolling, deduplicateEvents } from './lib/polling';
 
 interface EventData {
   title: string;
@@ -18,6 +19,7 @@ interface EventData {
   description?: string;
   bookingLink?: string;
   ageRestrictions?: string;
+  source?: 'cache' | 'rss' | 'ai'; // Provenance information
 }
 
 const ALL_SUPER_CATEGORIES = Object.keys(EVENT_CATEGORY_SUBCATEGORIES);
@@ -43,6 +45,9 @@ export default function Home() {
 
   const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean; totalEvents: number; cachedEvents: number} | null>(null);
   const [toast, setToast] = useState<{show:boolean; message:string}>({show:false,message:''});
+
+  // Polling state for progressive loading
+  const [activePolling, setActivePolling] = useState<{jobId: string; cleanup: () => void} | null>(null);
 
   const resultsAnchorRef = useRef<HTMLDivElement | null>(null);
   const timeSelectWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -85,6 +90,15 @@ export default function Home() {
       document.removeEventListener('keydown', onKey);
     };
   }, [showDateDropdown]);
+
+  // Cleanup polling on component unmount
+  useEffect(() => {
+    return () => {
+      if (activePolling) {
+        activePolling.cleanup();
+      }
+    };
+  }, [activePolling]);
 
   const toggleSuperCategory = (cat: string) => {
     setCategoryLimitError(null);
@@ -211,6 +225,13 @@ export default function Home() {
       setError('Bitte gib eine Stadt ein.');
       return;
     }
+
+    // Stop any existing polling
+    if (activePolling) {
+      activePolling.cleanup();
+      setActivePolling(null);
+    }
+
     setLoading(true);
     setError(null);
     setEvents([]);
@@ -240,16 +261,64 @@ export default function Home() {
         throw new Error(data.error || `Serverfehler ${res.status}`);
       }
       const data = await res.json();
-      setEvents(data.events || []);
-      setCacheInfo(data.cacheInfo || null);
-      setLoading(false);
-      setTimeout(()=> setToast({show:false, message:''}), 2000);
-      if (resultsAnchorRef.current) {
-        resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      
+      // Handle two flows: completed response or pending with jobId
+      if (data.status === 'completed' || !data.jobId) {
+        // Flow A: Completed response (cache-hit only) -> render immediately
+        setEvents(data.events || []);
+        setCacheInfo(data.cacheInfo || null);
+        setLoading(false);
+        setTimeout(()=> setToast({show:false, message:''}), 2000);
+        if (resultsAnchorRef.current) {
+          resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      } else {
+        // Flow B: Pending response with jobId -> start polling
+        // Set initial events (if any from cache)
+        setEvents(data.events || []);
+        setCacheInfo(data.cacheInfo || null);
+        
+        // Create polling callbacks using functional updates to avoid stale closures
+        const getCurrent = () => events;
+        
+        const onEvents = (newEvents: EventData[], getCurrentFn: () => EventData[]) => {
+          setEvents((currentEvents) => {
+            return deduplicateEvents(currentEvents, newEvents);
+          });
+        };
+
+        const onDone = (finalEvents: EventData[], status: string) => {
+          setLoading(false);
+          setActivePolling(null);
+          setTimeout(()=> setToast({show:false, message:''}), 2000);
+          if (resultsAnchorRef.current) {
+            resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+          if (status === 'error') {
+            setError('Fehler beim Laden der Events');
+          }
+        };
+
+        // Start polling every 4 seconds, max 48 attempts (3+ minutes)
+        const cleanup = startJobPolling(data.jobId, onEvents, getCurrent, onDone, 4000, 48);
+        setActivePolling({ jobId: data.jobId, cleanup });
+        
+        // We keep loading state true until polling completes
+        // but show initial events if available
+        if (!data.events || data.events.length === 0) {
+          // If no initial events, show results area immediately for progressiveness
+          if (resultsAnchorRef.current) {
+            resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }
       }
     } catch(e:any){
       setError(e.message || 'Fehler bei der Suche');
       setLoading(false);
+      if (activePolling) {
+        activePolling.cleanup();
+        setActivePolling(null);
+      }
     }
   }
 
@@ -306,7 +375,7 @@ export default function Home() {
     <div className="min-h-screen">
       <header className="header">
         <div className="container header-inner">
-          <div className="header-logo-wrapper small-left">
+          <div className="header-logo-wrapper centered">
             <img src="/where2go-full.png" alt="Where2Go" />
           </div>
           <div className="premium-box">
@@ -316,12 +385,6 @@ export default function Home() {
           </div>
         </div>
       </header>
-
-      <section className="hero">
-        <div className="container">
-          <p>Entdecke die besten Events in deiner Stadt!</p>
-        </div>
-      </section>
 
       <section className="search-section">
         <div className="container">
@@ -431,58 +494,57 @@ export default function Home() {
       </section>
 
       <div className="container" ref={resultsAnchorRef}>
-        <div className={searchSubmitted ? 'content-with-sidebar' : ''}>
-          {searchSubmitted && (
-            <aside className="filter-sidebar">
-              <h3 className="sidebar-title">Filter & Kategorien</h3>
-              <div className="filter-chips">
+        {searchSubmitted && (
+          <div className="results-filter-bar">
+            <h3 className="sidebar-title">Filter & Kategorien</h3>
+            <div className="filter-chips-inline">
+              <button
+                className={`filter-chip ${activeFilter==='Alle' ? 'filter-chip-active':''}`}
+                onClick={()=>setActiveFilter('Alle')}
+              >
+                <span>Alle</span>
+                <span className="filter-count">{getCategoryCounts()['Alle']}</span>
+              </button>
+              {searchedSuperCategories.map(cat => (
                 <button
-                  className={`filter-chip ${activeFilter==='Alle' ? 'filter-chip-active':''}`}
-                  onClick={()=>setActiveFilter('Alle')}
+                  key={cat}
+                  className={`filter-chip ${activeFilter===cat ? 'filter-chip-active':''}`}
+                  onClick={()=>setActiveFilter(cat)}
                 >
-                  <span>Alle</span>
-                  <span className="filter-count">{getCategoryCounts()['Alle']}</span>
+                  <span>{cat}</span>
+                  <span className="filter-count">{getCategoryCounts()[cat] || 0}</span>
                 </button>
-                {searchedSuperCategories.map(cat => (
-                  <button
-                    key={cat}
-                    className={`filter-chip ${activeFilter===cat ? 'filter-chip-active':''}`}
-                    onClick={()=>setActiveFilter(cat)}
-                  >
-                    <span>{cat}</span>
-                    <span className="filter-count">{getCategoryCounts()[cat] || 0}</span>
-                  </button>
-                ))}
-              </div>
-            </aside>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <main className="main-content">
+          {error && <div className="error">{error}</div>}
+
+          {loading && (
+            <div className="loading">
+              <W2GLoader5 />
+              <p>Suche läuft...</p>
+            </div>
           )}
 
-          <main className="main-content">
-            {error && <div className="error">{error}</div>}
+          {!loading && !error && searchSubmitted && displayedEvents.length === 0 && (
+            <div className="empty-state">
+              <h3>Keine Events gefunden</h3>
+              <p>Probiere andere Kategorien oder ein anderes Datum.</p>
+            </div>
+          )}
 
-            {loading && (
-              <div className="loading">
-                <W2GLoader5 />
-                <p>Suche läuft...</p>
-              </div>
-            )}
+          {cacheInfo && displayedEvents.length > 0 && (
+            <div className="cache-info-banner">
+              {cacheInfo.fromCache
+                ? `📁 ${cacheInfo.cachedEvents} Events aus Cache`
+                : `🔄 ${cacheInfo.totalEvents} Events frisch geladen`}
+            </div>
+          )}
 
-            {!loading && !error && searchSubmitted && displayedEvents.length === 0 && (
-              <div className="empty-state">
-                <h3>Keine Events gefunden</h3>
-                <p>Probiere andere Kategorien oder ein anderes Datum.</p>
-              </div>
-            )}
-
-            {cacheInfo && displayedEvents.length > 0 && (
-              <div className="cache-info-banner">
-                {cacheInfo.fromCache
-                  ? `📁 ${cacheInfo.cachedEvents} Events aus Cache`
-                  : `🔄 ${cacheInfo.totalEvents} Events frisch geladen`}
-              </div>
-            )}
-
-            {displayedEvents.length > 0 && (
+          {displayedEvents.length > 0 && (
               <div className="events-grid">
                 {displayedEvents.map(ev => {
                   const key = `${ev.title}_${ev.date}_${ev.venue}`;
@@ -496,7 +558,14 @@ export default function Home() {
 
                   return (
                     <div key={key} className="event-card">
-                      <h3 className="event-title">{ev.title}</h3>
+                      <div className="event-title-row">
+                        <h3 className="event-title">{ev.title}</h3>
+                        {ev.source && (
+                          <span className={`provenance-badge provenance-${ev.source}`}>
+                            {ev.source === 'cache' ? 'Cache' : ev.source === 'rss' ? 'RSS' : 'KI'}
+                          </span>
+                        )}
+                      </div>
 
                       <div className="event-meta-line">
                         <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -599,7 +668,6 @@ export default function Home() {
               </div>
             )}
           </main>
-        </div>
       </div>
 
       {toast.show && (
