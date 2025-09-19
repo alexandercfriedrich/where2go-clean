@@ -19,6 +19,7 @@ interface EventData {
   description?: string;
   bookingLink?: string;
   ageRestrictions?: string;
+  source?: 'cache' | 'rss' | 'ai'; // Provenance information
 }
 
 const ALL_SUPER_CATEGORIES = Object.keys(EVENT_CATEGORY_SUBCATEGORIES);
@@ -374,7 +375,7 @@ export default function Home() {
     <div className="min-h-screen">
       <header className="header">
         <div className="container header-inner">
-          <div className="header-logo-wrapper small-left">
+          <div className="header-logo-wrapper centered">
             <img src="/where2go-full.png" alt="Where2Go" />
           </div>
           <div className="premium-box">
@@ -384,12 +385,6 @@ export default function Home() {
           </div>
         </div>
       </header>
-
-      <section className="hero">
-        <div className="container">
-          <p>Entdecke die besten Events in deiner Stadt!</p>
-        </div>
-      </section>
 
       <section className="search-section">
         <div className="container">
@@ -499,58 +494,57 @@ export default function Home() {
       </section>
 
       <div className="container" ref={resultsAnchorRef}>
-        <div className={searchSubmitted ? 'content-with-sidebar' : ''}>
-          {searchSubmitted && (
-            <aside className="filter-sidebar">
-              <h3 className="sidebar-title">Filter & Kategorien</h3>
-              <div className="filter-chips">
+        {searchSubmitted && (
+          <div className="results-filter-bar">
+            <h3 className="sidebar-title">Filter & Kategorien</h3>
+            <div className="filter-chips-inline">
+              <button
+                className={`filter-chip ${activeFilter==='Alle' ? 'filter-chip-active':''}`}
+                onClick={()=>setActiveFilter('Alle')}
+              >
+                <span>Alle</span>
+                <span className="filter-count">{getCategoryCounts()['Alle']}</span>
+              </button>
+              {searchedSuperCategories.map(cat => (
                 <button
-                  className={`filter-chip ${activeFilter==='Alle' ? 'filter-chip-active':''}`}
-                  onClick={()=>setActiveFilter('Alle')}
+                  key={cat}
+                  className={`filter-chip ${activeFilter===cat ? 'filter-chip-active':''}`}
+                  onClick={()=>setActiveFilter(cat)}
                 >
-                  <span>Alle</span>
-                  <span className="filter-count">{getCategoryCounts()['Alle']}</span>
+                  <span>{cat}</span>
+                  <span className="filter-count">{getCategoryCounts()[cat] || 0}</span>
                 </button>
-                {searchedSuperCategories.map(cat => (
-                  <button
-                    key={cat}
-                    className={`filter-chip ${activeFilter===cat ? 'filter-chip-active':''}`}
-                    onClick={()=>setActiveFilter(cat)}
-                  >
-                    <span>{cat}</span>
-                    <span className="filter-count">{getCategoryCounts()[cat] || 0}</span>
-                  </button>
-                ))}
-              </div>
-            </aside>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <main className="main-content">
+          {error && <div className="error">{error}</div>}
+
+          {loading && (
+            <div className="loading">
+              <W2GLoader5 />
+              <p>Suche läuft...</p>
+            </div>
           )}
 
-          <main className="main-content">
-            {error && <div className="error">{error}</div>}
+          {!loading && !error && searchSubmitted && displayedEvents.length === 0 && (
+            <div className="empty-state">
+              <h3>Keine Events gefunden</h3>
+              <p>Probiere andere Kategorien oder ein anderes Datum.</p>
+            </div>
+          )}
 
-            {loading && (
-              <div className="loading">
-                <W2GLoader5 />
-                <p>Suche läuft...</p>
-              </div>
-            )}
+          {cacheInfo && displayedEvents.length > 0 && (
+            <div className="cache-info-banner">
+              {cacheInfo.fromCache
+                ? `📁 ${cacheInfo.cachedEvents} Events aus Cache`
+                : `🔄 ${cacheInfo.totalEvents} Events frisch geladen`}
+            </div>
+          )}
 
-            {!loading && !error && searchSubmitted && displayedEvents.length === 0 && (
-              <div className="empty-state">
-                <h3>Keine Events gefunden</h3>
-                <p>Probiere andere Kategorien oder ein anderes Datum.</p>
-              </div>
-            )}
-
-            {cacheInfo && displayedEvents.length > 0 && (
-              <div className="cache-info-banner">
-                {cacheInfo.fromCache
-                  ? `📁 ${cacheInfo.cachedEvents} Events aus Cache`
-                  : `🔄 ${cacheInfo.totalEvents} Events frisch geladen`}
-              </div>
-            )}
-
-            {displayedEvents.length > 0 && (
+          {displayedEvents.length > 0 && (
               <div className="events-grid">
                 {displayedEvents.map(ev => {
                   const key = `${ev.title}_${ev.date}_${ev.venue}`;
@@ -564,7 +558,14 @@ export default function Home() {
 
                   return (
                     <div key={key} className="event-card">
-                      <h3 className="event-title">{ev.title}</h3>
+                      <div className="event-title-row">
+                        <h3 className="event-title">{ev.title}</h3>
+                        {ev.source && (
+                          <span className={`provenance-badge provenance-${ev.source}`}>
+                            {ev.source === 'cache' ? 'Cache' : ev.source === 'rss' ? 'RSS' : 'KI'}
+                          </span>
+                        )}
+                      </div>
 
                       <div className="event-meta-line">
                         <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -667,7 +668,6 @@ export default function Home() {
               </div>
             )}
           </main>
-        </div>
       </div>
 
       {toast.show && (

@@ -17,6 +17,7 @@ export interface EventData {
   description?: string;
   bookingLink?: string;
   ageRestrictions?: string;
+  source?: 'cache' | 'rss' | 'ai'; // Provenance information
 }
 
 export interface PerplexityResult {
