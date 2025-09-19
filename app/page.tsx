@@ -1,7 +1,8 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { EVENT_CATEGORY_SUBCATEGORIES } from './lib/eventCategories';
 import { useTranslation } from './lib/useTranslation';
+import { startJobPolling, deduplicateEvents } from './lib/polling';
 
 interface EventData {
   title: string;
@@ -44,6 +45,9 @@ export default function Home() {
   const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean; totalEvents: number; cachedEvents: number} | null>(null);
   const [toast, setToast] = useState<{show:boolean; message:string}>({show:false,message:''});
 
+  // Polling state for progressive loading
+  const [activePolling, setActivePolling] = useState<{jobId: string; cleanup: () => void} | null>(null);
+
   const resultsAnchorRef = useRef<HTMLDivElement | null>(null);
   const timeSelectWrapperRef = useRef<HTMLDivElement | null>(null);
 
@@ -85,6 +89,15 @@ export default function Home() {
       document.removeEventListener('keydown', onKey);
     };
   }, [showDateDropdown]);
+
+  // Cleanup polling on component unmount
+  useEffect(() => {
+    return () => {
+      if (activePolling) {
+        activePolling.cleanup();
+      }
+    };
+  }, [activePolling]);
 
   const toggleSuperCategory = (cat: string) => {
     setCategoryLimitError(null);
@@ -211,6 +224,13 @@ export default function Home() {
       setError('Bitte gib eine Stadt ein.');
       return;
     }
+
+    // Stop any existing polling
+    if (activePolling) {
+      activePolling.cleanup();
+      setActivePolling(null);
+    }
+
     setLoading(true);
     setError(null);
     setEvents([]);
@@ -240,16 +260,64 @@ export default function Home() {
         throw new Error(data.error || `Serverfehler ${res.status}`);
       }
       const data = await res.json();
-      setEvents(data.events || []);
-      setCacheInfo(data.cacheInfo || null);
-      setLoading(false);
-      setTimeout(()=> setToast({show:false, message:''}), 2000);
-      if (resultsAnchorRef.current) {
-        resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      
+      // Handle two flows: completed response or pending with jobId
+      if (data.status === 'completed' || !data.jobId) {
+        // Flow A: Completed response (cache-hit only) -> render immediately
+        setEvents(data.events || []);
+        setCacheInfo(data.cacheInfo || null);
+        setLoading(false);
+        setTimeout(()=> setToast({show:false, message:''}), 2000);
+        if (resultsAnchorRef.current) {
+          resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      } else {
+        // Flow B: Pending response with jobId -> start polling
+        // Set initial events (if any from cache)
+        setEvents(data.events || []);
+        setCacheInfo(data.cacheInfo || null);
+        
+        // Create polling callbacks using functional updates to avoid stale closures
+        const getCurrent = () => events;
+        
+        const onEvents = (newEvents: EventData[], getCurrentFn: () => EventData[]) => {
+          setEvents((currentEvents) => {
+            return deduplicateEvents(currentEvents, newEvents);
+          });
+        };
+
+        const onDone = (finalEvents: EventData[], status: string) => {
+          setLoading(false);
+          setActivePolling(null);
+          setTimeout(()=> setToast({show:false, message:''}), 2000);
+          if (resultsAnchorRef.current) {
+            resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+          if (status === 'error') {
+            setError('Fehler beim Laden der Events');
+          }
+        };
+
+        // Start polling every 4 seconds, max 48 attempts (3+ minutes)
+        const cleanup = startJobPolling(data.jobId, onEvents, getCurrent, onDone, 4000, 48);
+        setActivePolling({ jobId: data.jobId, cleanup });
+        
+        // We keep loading state true until polling completes
+        // but show initial events if available
+        if (!data.events || data.events.length === 0) {
+          // If no initial events, show results area immediately for progressiveness
+          if (resultsAnchorRef.current) {
+            resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }
       }
     } catch(e:any){
       setError(e.message || 'Fehler bei der Suche');
       setLoading(false);
+      if (activePolling) {
+        activePolling.cleanup();
+        setActivePolling(null);
+      }
     }
   }
 
