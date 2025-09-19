@@ -15,7 +15,6 @@ const DEFAULT_CATEGORIES = EVENT_CATEGORIES;
 export async function POST(request: NextRequest) {
   try {
     const { city, date, categories, options } = await request.json();
-    const debugMode = options?.debug === true;
 
     if (!city || !date) {
       return NextResponse.json({ error: 'Stadt und Datum sind erforderlich' }, { status: 400 });
@@ -32,7 +31,9 @@ export async function POST(request: NextRequest) {
       cachedEventsFlat.push(...cacheResult.cachedEvents[cat]);
     }
 
-    const dedupCached = eventAggregator.deduplicateEvents(cachedEventsFlat);
+    const dedupCached = eventAggregator.deduplicateEvents(
+      cachedEventsFlat.map(e => ({ ...e, source: (e as any).source || 'cache' }))
+    );
     const missingCategories = cacheResult.missingCategories;
 
     if (missingCategories.length === 0) {
@@ -61,7 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     const results = await service.executeMultiQuery(city, date, missingCategories, options);
-    const newEvents = eventAggregator.aggregateResults(results);
+    const newEvents = eventAggregator.aggregateResults(results).map(e => ({ ...e, source: (e as any).source || 'ai' }));
 
     const combined = eventAggregator.deduplicateEvents([...dedupCached, ...newEvents]);
 
