@@ -42,7 +42,6 @@ export function deduplicateEvents(existing: EventData[], newEvents: EventData[])
   const seen = new Set<string>();
   const result: EventData[] = [];
 
-  // Add existing events first
   for (const event of existing) {
     const key = `${event.title}_${event.date}_${event.venue}`.toLowerCase();
     if (!seen.has(key)) {
@@ -51,7 +50,6 @@ export function deduplicateEvents(existing: EventData[], newEvents: EventData[])
     }
   }
 
-  // Add new events, skipping duplicates
   for (const event of newEvents) {
     const key = `${event.title}_${event.date}_${event.venue}`.toLowerCase();
     if (!seen.has(key)) {
@@ -65,14 +63,6 @@ export function deduplicateEvents(existing: EventData[], newEvents: EventData[])
 
 /**
  * Starts polling for job status and progressively updates events.
- * 
- * @param jobId - The job ID to poll
- * @param onEvents - Callback when new events are received (use functional updates)
- * @param getCurrent - Function to get current events state
- * @param onDone - Callback when job is complete
- * @param intervalMs - Polling interval in milliseconds (default: 4000)
- * @param maxPolls - Maximum number of polls before giving up (default: 48)
- * @returns Cleanup function to stop polling
  */
 export function startJobPolling(
   jobId: string,
@@ -88,9 +78,8 @@ export function startJobPolling(
 
   const performPoll = async (): Promise<void> => {
     if (!isActive) return;
-    
     count++;
-    
+
     if (count > maxPolls) {
       cleanup();
       onDone(getCurrent(), 'timeout');
@@ -98,28 +87,31 @@ export function startJobPolling(
     }
 
     try {
-      const res = await fetch(`/api/jobs/${jobId}`);
+      // Wichtig: Caching verhindern, sonst sieht der Client u.U. alte Antworten
+      const res = await fetch(`/api/jobs/${jobId}`, { cache: 'no-store' });
       if (!res.ok) {
         throw new Error(`Status ${res.status}`);
       }
-      
+
       const job: JobStatus = await res.json();
-      
-      // Handle new events if present
+
+      // 1) Immer neue Events nach vorne durchreichen (falls vorhanden)
       if (job.events && job.events.length > 0) {
         onEvents(job.events, getCurrent);
       }
-      
-      // Check if job is complete
+
+      // 2) Abschlusszustand: finalEvents sicher aus letzter Antwort + aktuellem State mergen
       if (job.status === 'done' || job.status === 'error') {
+        const mergedFinal = job.events && job.events.length > 0
+          ? deduplicateEvents(getCurrent(), job.events)
+          : getCurrent();
         cleanup();
-        onDone(getCurrent(), job.status);
+        onDone(mergedFinal, job.status);
         return;
       }
-      
+
     } catch (err) {
       console.warn(`Polling attempt ${count} failed:`, err);
-      // Continue polling on errors, unless we've exceeded max attempts
       if (count >= maxPolls) {
         cleanup();
         onDone(getCurrent(), 'error');
@@ -135,10 +127,9 @@ export function startJobPolling(
     }
   };
 
-  // Start with immediate poll
+  // Sofortiger erster Poll
   performPoll();
-  
-  // Schedule regular polling
+  // Regelmäßig weiter pollen
   intervalId = setInterval(performPoll, intervalMs);
 
   return cleanup;
