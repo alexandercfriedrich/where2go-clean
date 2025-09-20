@@ -148,7 +148,9 @@ export async function POST(request: NextRequest) {
       for (const category in cacheResult.cachedEvents) {
         cachedEventsList.push(...cacheResult.cachedEvents[category]);
       }
-      allCachedEvents = eventAggregator.deduplicateEvents(cachedEventsList);
+      // Stamp cache provenance
+      const cachedStamped = cachedEventsList.map(e => ({ ...e, source: e.source ?? 'cache' as const }));
+      allCachedEvents = eventAggregator.deduplicateEvents(cachedStamped);
       missingCategories = cacheResult.missingCategories;
       cacheInfo = cacheResult.cacheInfo;
     } else {
@@ -198,15 +200,18 @@ export async function POST(request: NextRequest) {
           }
 
           if (rssResults.length) {
+            // Stamp RSS provenance
+            const rssStamped = rssResults.map(e => ({ ...e, source: e.source ?? 'rss' as const }));
+
             allCachedEvents = eventAggregator.deduplicateEvents([
               ...allCachedEvents,
-              ...rssResults
+              ...rssStamped
             ]);
 
             if (!disableCache) {
-              const ttlRss = computeTTLSecondsForEvents(rssResults);
+              const ttlRss = computeTTLSecondsForEvents(rssStamped);
               const grouped: Record<string, EventData[]> = {};
-              for (const ev of rssResults) {
+              for (const ev of rssStamped) {
                 if (!ev.category) continue;
                 if (!grouped[ev.category]) grouped[ev.category] = [];
                 grouped[ev.category].push(ev);
@@ -220,7 +225,7 @@ export async function POST(request: NextRequest) {
               }
             }
 
-            console.log(`Wien.at RSS merged: ${rssResults.length} events`);
+            console.log(`Wien.at RSS merged: ${rssStamped.length} events`);
           }
         }
       }

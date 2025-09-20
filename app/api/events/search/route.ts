@@ -32,7 +32,10 @@ export async function POST(request: NextRequest) {
       cachedEventsFlat.push(...cacheResult.cachedEvents[cat]);
     }
 
-    const dedupCached = eventAggregator.deduplicateEvents(cachedEventsFlat);
+    // Stamp cache provenance before dedup
+    const dedupCached = eventAggregator.deduplicateEvents(
+      cachedEventsFlat.map(e => ({ ...e, source: e.source ?? 'cache' as const }))
+    );
     const missingCategories = cacheResult.missingCategories;
 
     if (missingCategories.length === 0) {
@@ -61,7 +64,8 @@ export async function POST(request: NextRequest) {
     }
 
     const results = await service.executeMultiQuery(city, date, missingCategories, options);
-    const newEvents = eventAggregator.aggregateResults(results);
+    // Stamp AI provenance
+    const newEvents = eventAggregator.aggregateResults(results).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
 
     const combined = eventAggregator.deduplicateEvents([...dedupCached, ...newEvents]);
 
