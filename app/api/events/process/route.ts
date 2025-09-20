@@ -33,30 +33,48 @@ export async function POST(request: NextRequest) {
     }
 
     const service = createPerplexityService(PERPLEXITY_API_KEY);
-    const results = await service.executeMultiQuery(city, date, effective, options || {});
 
-    const parsed = eventAggregator.aggregateResults(results);
-    const ttlSeconds = computeTTLSecondsForEvents(parsed);
+    // Start with any existing events on the job
+    let runningEvents = eventAggregator.deduplicateEvents([...(job.events || [])]);
 
-    // Cache per category
-    const grouped: Record<string, any[]> = {};
-    for (const ev of parsed) {
-      if (!ev.category) continue;
-      if (!grouped[ev.category]) grouped[ev.category] = [];
-      grouped[ev.category].push(ev);
+    // Incremental processing per main category (to enable progressive loading)
+    for (let i = 0; i < effective.length; i++) {
+      const c = effective[i];
+
+      // Execute query for the single category c
+      const results = await service.executeMultiQuery(city, date, [c], options || {});
+      const parsedChunk = eventAggregator.aggregateResults(results).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
+
+      // Cache per category (from parsedChunk)
+      const ttlSeconds = computeTTLSecondsForEvents(parsedChunk);
+      const grouped: Record<string, any[]> = {};
+      for (const ev of parsedChunk) {
+        if (!ev.category) continue;
+        if (!grouped[ev.category]) grouped[ev.category] = [];
+        grouped[ev.category].push(ev);
+      }
+      for (const cat of Object.keys(grouped)) {
+        eventsCache.setEventsByCategory(city, date, cat, grouped[cat], ttlSeconds);
+      }
+
+      // Merge incrementally and update job as 'processing'
+      runningEvents = eventAggregator.deduplicateEvents([
+        ...runningEvents,
+        ...parsedChunk
+      ]);
+
+      await jobStore.updateJob(jobId, {
+        status: 'processing',
+        events: runningEvents,
+        progress: { completedCategories: i + 1, totalCategories: effective.length },
+        lastUpdateAt: new Date().toISOString()
+      });
     }
-    for (const cat of Object.keys(grouped)) {
-      eventsCache.setEventsByCategory(city, date, cat, grouped[cat], ttlSeconds);
-    }
 
-    const finalEvents = eventAggregator.deduplicateEvents([
-      ...(job.events || []),
-      ...parsed
-    ]);
-
+    // Finalize job
     await jobStore.updateJob(jobId, {
       status: 'done',
-      events: finalEvents,
+      events: runningEvents,
       progress: { completedCategories: effective.length, totalCategories: effective.length },
       lastUpdateAt: new Date().toISOString()
     });
@@ -64,9 +82,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       jobId,
       status: 'done',
-      events: finalEvents,
-      categoriesProcessed: effective,
-      ttlApplied: ttlSeconds
+      events: runningEvents,
+      categoriesProcessed: effective
     });
 
   } catch (error) {
