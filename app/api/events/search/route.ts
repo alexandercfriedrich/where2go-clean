@@ -15,6 +15,7 @@ const DEFAULT_CATEGORIES = EVENT_CATEGORIES;
 export async function POST(request: NextRequest) {
   try {
     const { city, date, categories, options } = await request.json();
+    const debugMode = options?.debug === true;
 
     if (!city || !date) {
       return NextResponse.json({ error: 'Stadt und Datum sind erforderlich' }, { status: 400 });
@@ -31,8 +32,9 @@ export async function POST(request: NextRequest) {
       cachedEventsFlat.push(...cacheResult.cachedEvents[cat]);
     }
 
+    // Stamp cache provenance before dedup
     const dedupCached = eventAggregator.deduplicateEvents(
-      cachedEventsFlat.map(e => ({ ...e, source: (e as any).source || 'cache' }))
+      cachedEventsFlat.map(e => ({ ...e, source: e.source ?? 'cache' as const }))
     );
     const missingCategories = cacheResult.missingCategories;
 
@@ -62,7 +64,8 @@ export async function POST(request: NextRequest) {
     }
 
     const results = await service.executeMultiQuery(city, date, missingCategories, options);
-    const newEvents = eventAggregator.aggregateResults(results).map(e => ({ ...e, source: (e as any).source || 'ai' }));
+    // Stamp AI provenance
+    const newEvents = eventAggregator.aggregateResults(results).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
 
     const combined = eventAggregator.deduplicateEvents([...dedupCached, ...newEvents]);
 
