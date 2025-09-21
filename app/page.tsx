@@ -1,7 +1,8 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { EVENT_CATEGORY_SUBCATEGORIES } from './lib/eventCategories';
 import { useTranslation } from './lib/useTranslation';
+import { startJobPolling, deduplicateEvents } from './lib/polling';
 
 interface EventData {
   title: string;
@@ -18,7 +19,7 @@ interface EventData {
   description?: string;
   bookingLink?: string;
   ageRestrictions?: string;
-  source?: 'cache' | 'ai' | 'rss' | 'ra' | string;
+  source?: 'cache' | 'rss' | 'ai'; // Provenance information
 }
 
 const ALL_SUPER_CATEGORIES = Object.keys(EVENT_CATEGORY_SUBCATEGORIES);
@@ -36,7 +37,6 @@ export default function Home() {
 
   const [events, setEvents] = useState<EventData[]>([]);
   const [loading, setLoading] = useState(false);
-  const [stepLoading, setStepLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [searchSubmitted, setSearchSubmitted] = useState(false);
@@ -46,9 +46,11 @@ export default function Home() {
   const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean; totalEvents: number; cachedEvents: number} | null>(null);
   const [toast, setToast] = useState<{show:boolean; message:string}>({show:false,message:''});
 
+  // Polling state for progressive loading
+  const [activePolling, setActivePolling] = useState<{jobId: string; cleanup: () => void} | null>(null);
+
   const resultsAnchorRef = useRef<HTMLDivElement | null>(null);
   const timeSelectWrapperRef = useRef<HTMLDivElement | null>(null);
-  const cancelRef = useRef<{cancel:boolean}>({cancel:false});
 
   // design1.css laden und andere Designs entfernen
   useEffect(() => {
@@ -89,6 +91,15 @@ export default function Home() {
     };
   }, [showDateDropdown]);
 
+  // Cleanup polling on component unmount
+  useEffect(() => {
+    return () => {
+      if (activePolling) {
+        activePolling.cleanup();
+      }
+    };
+  }, [activePolling]);
+
   const toggleSuperCategory = (cat: string) => {
     setCategoryLimitError(null);
     setSelectedSuperCategories(prev => {
@@ -101,8 +112,8 @@ export default function Home() {
     });
   };
 
-  const getSelectedSubcategories = (superCats: string[]): string[] =>
-    superCats.flatMap(superCat => EVENT_CATEGORY_SUBCATEGORIES[superCat]);
+  const getSelectedSubcategories = (): string[] =>
+    selectedSuperCategories.flatMap(superCat => EVENT_CATEGORY_SUBCATEGORIES[superCat]);
 
   // Date helpers
   function toISODate(d: Date): string {
@@ -209,50 +220,17 @@ export default function Home() {
     return str;
   }
 
-  function dedupMerge(current: EventData[], incoming: EventData[]) {
-    const map = new Map<string, EventData>();
-    for (const e of current) map.set(`${e.title}__${e.date}__${e.venue}`, e);
-    for (const e of incoming) map.set(`${e.title}__${e.date}__${e.venue}`, e);
-    return Array.from(map.values());
-  }
-
-  async function fetchForSuperCategory(superCat: string) {
-    const subs = EVENT_CATEGORY_SUBCATEGORIES[superCat] || [];
-    if (subs.length === 0) return;
-    setStepLoading(superCat);
-    const res = await fetch('/api/events', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        city: city.trim(),
-        date: formatDateForAPI(),
-        categories: subs,
-        options: {
-          temperature: 0.2,
-          max_tokens: 12000,
-          expandedSubcategories: true,
-          minEventsPerCategory: 14
-        }
-      })
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(()=> ({}));
-      throw new Error(data.error || `Serverfehler ${res.status}`);
-    }
-    const data = await res.json();
-    const incoming: EventData[] = data.events || [];
-    setEvents(prev => dedupMerge(prev, incoming));
-    if (data.cacheInfo) setCacheInfo(data.cacheInfo);
-  }
-
-  async function progressiveSearchEvents() {
+  async function searchEvents() {
     if (!city.trim()) {
       setError('Bitte gib eine Stadt ein.');
       return;
     }
-    cancelRef.current.cancel = true;
-    await new Promise(r => setTimeout(r, 0));
-    cancelRef.current = { cancel:false };
+
+    // Stop any existing polling
+    if (activePolling) {
+      activePolling.cleanup();
+      setActivePolling(null);
+    }
 
     setLoading(true);
     setError(null);
@@ -263,22 +241,84 @@ export default function Home() {
     setActiveFilter('Alle');
 
     try {
-      const superCats =
-        selectedSuperCategories.length > 0 ? [...selectedSuperCategories] : [...ALL_SUPER_CATEGORIES];
-      for (const sc of superCats) {
-        if (cancelRef.current.cancel) return;
-        await fetchForSuperCategory(sc);
+      const res = await fetch('/api/events', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          city: city.trim(),
+          date: formatDateForAPI(),
+          categories: getSelectedSubcategories(),
+          options: {
+            temperature: 0.2,
+            max_tokens: 12000,
+            expandedSubcategories: true,
+            minEventsPerCategory: 14
+          }
+        })
+      });
+      if(!res.ok){
+        const data = await res.json().catch(()=> ({}));
+        throw new Error(data.error || `Serverfehler ${res.status}`);
       }
-      setLoading(false);
-      setStepLoading(null);
-      setTimeout(()=> setToast({show:false, message:''}), 2000);
-      if (resultsAnchorRef.current) {
-        resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const data = await res.json();
+      
+      // Handle two flows: completed response or pending with jobId
+      if (data.status === 'completed' || !data.jobId) {
+        // Flow A: Completed response (cache-hit only) -> render immediately
+        setEvents(data.events || []);
+        setCacheInfo(data.cacheInfo || null);
+        setLoading(false);
+        setTimeout(()=> setToast({show:false, message:''}), 2000);
+        if (resultsAnchorRef.current) {
+          resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      } else {
+        // Flow B: Pending response with jobId -> start polling
+        // Set initial events (if any from cache)
+        setEvents(data.events || []);
+        setCacheInfo(data.cacheInfo || null);
+        
+        // Create polling callbacks using functional updates to avoid stale closures
+        const getCurrent = () => events;
+        
+        const onEvents = (newEvents: EventData[], getCurrentFn: () => EventData[]) => {
+          setEvents((currentEvents) => {
+            return deduplicateEvents(currentEvents, newEvents);
+          });
+        };
+
+        const onDone = (finalEvents: EventData[], status: string) => {
+          setLoading(false);
+          setActivePolling(null);
+          setTimeout(()=> setToast({show:false, message:''}), 2000);
+          if (resultsAnchorRef.current) {
+            resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+          if (status === 'error') {
+            setError('Fehler beim Laden der Events');
+          }
+        };
+
+        // Start polling every 4 seconds, max 48 attempts (3+ minutes)
+        const cleanup = startJobPolling(data.jobId, onEvents, getCurrent, onDone, 4000, 48);
+        setActivePolling({ jobId: data.jobId, cleanup });
+        
+        // We keep loading state true until polling completes
+        // but show initial events if available
+        if (!data.events || data.events.length === 0) {
+          // If no initial events, show results area immediately for progressiveness
+          if (resultsAnchorRef.current) {
+            resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }
       }
     } catch(e:any){
       setError(e.message || 'Fehler bei der Suche');
       setLoading(false);
-      setStepLoading(null);
+      if (activePolling) {
+        activePolling.cleanup();
+        setActivePolling(null);
+      }
     }
   }
 
@@ -331,21 +371,11 @@ export default function Home() {
     return <span className="price-chip">{text}</span>;
   };
 
-  const renderSourceBadge = (src?: string) => {
-    const label =
-      src === 'rss' ? 'RSS' :
-      src === 'ai'  ? 'KI'  :
-      src === 'ra'  ? 'API' :
-      src === 'cache' ? 'Cache' : null;
-    if (!label) return null;
-    return <span className={`src-badge src-${src}`}>{label}</span>;
-  };
-
   return (
     <div className="min-h-screen">
       <header className="header">
-        <div className="container header-inner header-centered">
-          <div className="header-logo-wrapper">
+        <div className="container header-inner">
+          <div className="header-logo-wrapper centered">
             <img src="/where2go-full.png" alt="Where2Go" />
           </div>
           <div className="premium-box">
@@ -362,7 +392,7 @@ export default function Home() {
             className="search-form"
             onSubmit={e => {
               e.preventDefault();
-              progressiveSearchEvents();
+              searchEvents();
             }}
           >
             <div className="form-row">
@@ -466,6 +496,7 @@ export default function Home() {
       <div className="container" ref={resultsAnchorRef}>
         {searchSubmitted && (
           <div className="results-filter-bar">
+            <h3 className="sidebar-title">Filter & Kategorien</h3>
             <div className="filter-chips-inline">
               <button
                 className={`filter-chip ${activeFilter==='Alle' ? 'filter-chip-active':''}`}
@@ -485,18 +516,13 @@ export default function Home() {
                 </button>
               ))}
             </div>
-            {stepLoading && (
-              <div className="progress-note">
-                Lädt Kategorie: {stepLoading} ...
-              </div>
-            )}
           </div>
         )}
 
         <main className="main-content">
           {error && <div className="error">{error}</div>}
 
-          {loading && events.length === 0 && (
+          {loading && (
             <div className="loading">
               <W2GLoader5 />
               <p>Suche läuft...</p>
@@ -519,125 +545,129 @@ export default function Home() {
           )}
 
           {displayedEvents.length > 0 && (
-            <div className="events-grid">
-              {displayedEvents.map(ev => {
-                const key = `${ev.title}_${ev.date}_${ev.venue}`;
-                const superCat =
-                  searchedSuperCategories.find(c => EVENT_CATEGORY_SUBCATEGORIES[c]?.includes(ev.category)) ||
-                  ALL_SUPER_CATEGORIES.find(c => EVENT_CATEGORY_SUBCATEGORIES[c]?.includes(ev.category)) ||
-                  ev.category;
+              <div className="events-grid">
+                {displayedEvents.map(ev => {
+                  const key = `${ev.title}_${ev.date}_${ev.venue}`;
+                  const superCat =
+                    searchedSuperCategories.find(c => EVENT_CATEGORY_SUBCATEGORIES[c]?.includes(ev.category)) ||
+                    ALL_SUPER_CATEGORIES.find(c => EVENT_CATEGORY_SUBCATEGORIES[c]?.includes(ev.category)) ||
+                    ev.category;
 
-                const { date: formattedDate, time: formattedTime } =
-                  formatEventDateTime(ev.date, ev.time, ev.endTime);
+                  const { date: formattedDate, time: formattedTime } =
+                    formatEventDateTime(ev.date, ev.time, ev.endTime);
 
-                return (
-                  <div key={key} className="event-card">
-                    <h3 className="event-title">
-                      {ev.title}
-                      {renderSourceBadge(ev.source)}
-                    </h3>
+                  return (
+                    <div key={key} className="event-card">
+                      <div className="event-title-row">
+                        <h3 className="event-title">{ev.title}</h3>
+                        {ev.source && (
+                          <span className={`provenance-badge provenance-${ev.source}`}>
+                            {ev.source === 'cache' ? 'Cache' : ev.source === 'rss' ? 'RSS' : 'KI'}
+                          </span>
+                        )}
+                      </div>
 
-                    <div className="event-meta-line">
-                      <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                        <line x1="16" y1="2" x2="16" y2="6"/>
-                        <line x1="8" y1="2" x2="8" y2="6"/>
-                        <line x1="3" y1="10" x2="21" y2="10"/>
-                      </svg>
-                      <span>{formattedDate}</span>
-                      {formattedTime && (
-                        <>
-                          <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/>
-                          </svg>
-                          <span>{formattedTime}</span>
-                        </>
+                      <div className="event-meta-line">
+                        <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                          <line x1="16" y1="2" x2="16" y2="6"/>
+                          <line x1="8" y1="2" x2="8" y2="6"/>
+                          <line x1="3" y1="10" x2="21" y2="10"/>
+                        </svg>
+                        <span>{formattedDate}</span>
+                        {formattedTime && (
+                          <>
+                            <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                              <circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/>
+                            </svg>
+                            <span>{formattedTime}</span>
+                          </>
+                        )}
+                      </div>
+
+                      <div className="event-meta-line">
+                        <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
+                        </svg>
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.address || ev.venue)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="venue-link"
+                        >
+                          {ev.venue}
+                        </a>
+                      </div>
+
+                      {superCat && (
+                        <div className="event-meta-line">
+                          {eventIcon(superCat)}
+                          <span>{superCat}</span>
+                        </div>
                       )}
-                    </div>
 
-                    <div className="event-meta-line">
-                      <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-                      </svg>
-                      <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.address || ev.venue)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="venue-link"
-                      >
-                        {ev.venue}
-                      </a>
-                    </div>
-
-                    {superCat && (
-                      <div className="event-meta-line">
-                        {eventIcon(superCat)}
-                        <span>{superCat}</span>
-                      </div>
-                    )}
-
-                    {ev.eventType && (
-                      <div className="event-meta-line">
-                        <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                          <path d="M20 9V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2"/>
-                          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V9s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
-                          <line x1="4" y1="22" x2="4" y2="15"/>
-                          <line x1="20" y1="22" x2="20" y2="15"/>
-                        </svg>
-                        <span>{ev.eventType}</span>
-                      </div>
-                    )}
-
-                    {ev.ageRestrictions && (
-                      <div className="event-meta-line">
-                        <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                          <circle cx="12" cy="12" r="10"/>
-                          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-                        </svg>
-                        <span>{ev.ageRestrictions}</span>
-                      </div>
-                    )}
-
-                    {ev.description && (
-                      <div className="event-description">{ev.description}</div>
-                    )}
-
-                    <div className="event-cta-row">
-                      {renderPrice(ev)}
-                      {ev.website ? (
-                        <a
-                          href={ev.website}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn-outline with-icon"
-                        >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                      {ev.eventType && (
+                        <div className="event-meta-line">
+                          <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M20 9V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2"/>
+                            <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V9s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+                            <line x1="4" y1="22" x2="4" y2="15"/>
+                            <line x1="20" y1="22" x2="20" y2="15"/>
                           </svg>
-                          Mehr Info
-                        </a>
-                      ) : <span />}
-                      {ev.bookingLink ? (
-                        <a
-                          href={ev.bookingLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn-outline tickets with-icon"
-                        >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/>
-                            <path d="M13 7v2M13 11v2M13 15v2"/>
+                          <span>{ev.eventType}</span>
+                        </div>
+                      )}
+
+                      {ev.ageRestrictions && (
+                        <div className="event-meta-line">
+                          <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
                           </svg>
-                          Tickets
-                        </a>
-                      ) : <span />}
+                          <span>{ev.ageRestrictions}</span>
+                        </div>
+                      )}
+
+                      {ev.description && (
+                        <div className="event-description">{ev.description}</div>
+                      )}
+
+                      <div className="event-cta-row">
+                        {renderPrice(ev)}
+                        {ev.website ? (
+                          <a
+                            href={ev.website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn-outline with-icon"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                            </svg>
+                            Mehr Info
+                          </a>
+                        ) : <span />}
+                        {ev.bookingLink ? (
+                          <a
+                            href={ev.bookingLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn-outline tickets with-icon"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/>
+                              <path d="M13 7v2M13 11v2M13 15v2"/>
+                            </svg>
+                            Tickets
+                          </a>
+                        ) : <span />}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </main>
+                  );
+                })}
+              </div>
+            )}
+          </main>
       </div>
 
       {toast.show && (
@@ -651,86 +681,6 @@ export default function Home() {
           <p>© 2025 Where2Go - Entdecke deine Stadt neu</p>
         </div>
       </footer>
-
-      {/* Globale Style-Overrides für Badges, Filterleiste, Header-Zentrierung */}
-      <style jsx global>{`
-        .header-inner.header-centered {
-          position: relative;
-          display:flex;
-          align-items:center;
-          justify-content:center;
-          min-height:64px;
-        }
-        .header-inner.header-centered .premium-box {
-          position:absolute;
-          right:0;
-        }
-        .results-filter-bar {
-          display:flex;
-          justify-content:space-between;
-          align-items:center;
-          gap:12px;
-          padding:10px 0 18px;
-        }
-        .filter-chips-inline {
-          display:flex;
-          flex-wrap:wrap;
-          gap:10px;
-        }
-        .filter-sidebar { display:none !important; }
-        .filter-chip {
-          display:flex; justify-content:space-between; align-items:center;
-          gap:8px;
-          font-size:13px; padding:10px 14px;
-          border:1px solid #dcdfe3;
-          background:transparent; border-radius:10px; cursor:pointer;
-          transition:background .2s, border-color .2s, color .2s;
-          color:#444; font-weight:500; text-align:left;
-        }
-        .filter-chip:hover { background:#f3f4f5; }
-        .filter-chip-active { background:#404040; color:#fff; border-color:#404040; }
-        .filter-chip-active:hover { background:#e5e7eb; color:#9aa0a6; }
-        .filter-count { font-size:11px; background:rgba(0,0,0,0.06); padding:3px 8px; border-radius:999px; color:inherit; font-weight:500; }
-        .filter-chip-active .filter-count { background:rgba(255,255,255,0.18); }
-        .category-checkbox {
-          display:flex; align-items:center; gap:8px; padding:8px 10px;
-          border:1px solid #dfe1e4; background:transparent; border-radius:8px;
-          font-size:13px; cursor:pointer; transition:background .2s, border-color .2s, color .2s;
-          color:#444;
-        }
-        .category-checkbox:hover { background:#f0f2f4; }
-        .category-checkbox input { accent-color:#222; width:14px; height:14px; cursor:pointer; margin:0; }
-        .category-checkbox:has(input:checked) { background:#404040; color:#fff; border-color:#404040; }
-        .category-checkbox:has(input:checked):hover { background:#e5e7eb; color:#9aa0a6; }
-        .category-checkbox:has(input:checked) input { accent-color:#ffffff; }
-        .btn-search {
-          border:none; background:#404040; color:#fff; font-size:15px; padding:14px 20px; border-radius:10px;
-          font-weight:500; letter-spacing:.4px; cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,0.08);
-          transition:background .2s, box-shadow .2s, transform .2s, color .2s;
-        }
-        .btn-search:hover { background:#222; }
-        @media (max-width: 600px) {
-          .search-form .form-row { gap:12px; }
-          .categories-section { gap:10px; }
-          .results-filter-bar { flex-direction:column; align-items:flex-start; gap:8px; }
-        }
-        .src-badge {
-          display:inline-block;
-          margin-left:8px;
-          font-size:11px;
-          line-height:1;
-          padding:3px 6px;
-          border-radius:999px;
-          border:1px solid rgba(0,0,0,0.18);
-          background:#f7f7f7;
-          color:#444;
-          vertical-align:middle;
-        }
-        .src-badge.src-ai    { background:#1f2937; color:#fff; border-color:#1f2937; }
-        .src-badge.src-rss   { background:#f59e0b; color:#111; border-color:#d97706; }
-        .src-badge.src-ra    { background:#0ea5e9; color:#fff; border-color:#0284c7; }
-        .src-badge.src-cache { background:#e5e7eb; color:#111; border-color:#d1d5db; }
-      `}</style>
     </div>
   );
 }
@@ -805,7 +755,13 @@ function TwoMonthCalendar({
       <div className="calendar-grids">
         {weeksArr.map((weeks, idx) => (
           <div key={idx} className="cal-grid">
-            <div className="cal-head">Mo</div><div className="cal-head">Di</div><div className="cal-head">Mi</div><div className="cal-head">Do</div><div className="cal-head">Fr</div><div className="cal-head">Sa</div><div className="cal-head">So</div>
+            <div className="cal-head">Mo</div>
+            <div className="cal-head">Di</div>
+            <div className="cal-head">Mi</div>
+            <div className="cal-head">Do</div>
+            <div className="cal-head">Fr</div>
+            <div className="cal-head">Sa</div>
+            <div className="cal-head">So</div>
             {weeks.flat().map((d,i) => {
               const inMonth = d.getMonth()===months[idx].getMonth();
               const disabled = d < new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate());
