@@ -1,13 +1,19 @@
 // Event aggregation and deduplication service
-// Phase 2A: Integrierte Normalisierung & Validierung
-
+// Phase 2: Integrated normalization, validation, and rejection metrics
 import { EventData, PerplexityResult } from './types';
 import { normalizeEvents } from './event-normalizer';
-import { validateAndNormalizeEvents, normalizeCategory } from './eventCategories';
+import { validateAndNormalizeEvents, normalizeCategory, isValidCategory } from './eventCategories';
 
 const TIME_24H_REGEX = /^\d{1,2}:\d{2}/;
 const DATE_ISO_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const DATE_DDMMYYYY_REGEX = /^\d{1,2}\.\d{1,2}\.\d{4}$/;
+
+export type AggregationMetrics = {
+  parsedCount: number;
+  normalizedCount: number;
+  dedupedCount: number;
+  rejectedInvalidCategory: number;
+};
 
 export class EventAggregator {
   aggregateResults(results: PerplexityResult[]): EventData[] {
@@ -17,45 +23,80 @@ export class EventAggregator {
       const events = this.parseEventsFromResponse(result.response, queryCategory);
       parsedRaw.push(...events);
     }
+    // Structural normalization (field names, shapes)
     const structurallyNormalized = normalizeEvents(parsedRaw);
+    // Canonical normalization + category validation in central SSOT
     const canonical = validateAndNormalizeEvents(structurallyNormalized);
+    // Deduplicate
     return this.deduplicateEvents(canonical);
+  }
+
+  aggregateWithMetrics(results: PerplexityResult[]): { events: EventData[]; metrics: AggregationMetrics } {
+    const metrics: AggregationMetrics = {
+      parsedCount: 0,
+      normalizedCount: 0,
+      dedupedCount: 0,
+      rejectedInvalidCategory: 0,
+    };
+
+    const parsedRaw: EventData[] = [];
+    for (const result of results) {
+      const queryCategory = this.extractCategoryFromQuery(result.query);
+      const events = this.parseEventsFromResponse(result.response, queryCategory);
+      metrics.parsedCount += events.length;
+      parsedRaw.push(...events);
+    }
+
+    const structurallyNormalized = normalizeEvents(parsedRaw);
+    // Count rejections caused by invalid categories prior to final filter
+    for (const e of structurallyNormalized) {
+      if (e.category && !isValidCategory(normalizeCategory(e.category))) {
+        metrics.rejectedInvalidCategory++;
+      }
+    }
+    const canonical = validateAndNormalizeEvents(structurallyNormalized);
+    metrics.normalizedCount = canonical.length;
+
+    const deduped = this.deduplicateEvents(canonical);
+    metrics.dedupedCount = deduped.length;
+
+    return { events: deduped, metrics };
   }
 
   private extractCategoryFromQuery(query: string): string | undefined {
     const hints: { [k: string]: string } = {
       'dj sets': 'DJ Sets/Electronic',
-      'electronic': 'DJ Sets/Electronic',
-      'clubs': 'Clubs/Discos',
-      'discos': 'Clubs/Discos',
-      'konzerte': 'Live-Konzerte',
-      'musik': 'Live-Konzerte',
+      electronic: 'DJ Sets/Electronic',
+      clubs: 'Clubs/Discos',
+      discos: 'Clubs/Discos',
+      konzerte: 'Live-Konzerte',
+      musik: 'Live-Konzerte',
       'open air': 'Open Air',
-      'festival': 'Open Air',
-      'museen': 'Museen',
-      'ausstellung': 'Museen',
-      'lgbtq': 'LGBTQ+',
-      'queer': 'LGBTQ+',
-      'pride': 'LGBTQ+',
-      'comedy': 'Comedy/Kabarett',
-      'kabarett': 'Comedy/Kabarett',
-      'theater': 'Theater/Performance',
+      festival: 'Open Air',
+      museen: 'Museen',
+      ausstellung: 'Museen',
+      lgbtq: 'LGBTQ+',
+      queer: 'LGBTQ+',
+      pride: 'LGBTQ+',
+      comedy: 'Comedy/Kabarett',
+      kabarett: 'Comedy/Kabarett',
+      theater: 'Theater/Performance',
       'performance ': 'Theater/Performance',
-      'film': 'Film',
-      'kino': 'Film',
-      'food': 'Food/Culinary',
-      'culinary': 'Food/Culinary',
-      'sport': 'Sport',
-      'familie': 'Familien/Kids',
-      'kinder': 'Familien/Kids',
-      'kunst': 'Kunst/Design',
-      'design': 'Kunst/Design',
-      'wellness': 'Wellness/Spirituell',
-      'spirituell': 'Wellness/Spirituell',
-      'networking': 'Networking/Business',
-      'business': 'Networking/Business',
-      'natur': 'Natur/Outdoor',
-      'outdoor': 'Natur/Outdoor'
+      film: 'Film',
+      kino: 'Film',
+      food: 'Food/Culinary',
+      culinary: 'Food/Culinary',
+      sport: 'Sport',
+      familie: 'Familien/Kids',
+      kinder: 'Familien/Kids',
+      kunst: 'Kunst/Design',
+      design: 'Kunst/Design',
+      wellness: 'Wellness/Spirituell',
+      spirituell: 'Wellness/Spirituell',
+      networking: 'Networking/Business',
+      business: 'Networking/Business',
+      natur: 'Natur/Outdoor',
+      outdoor: 'Natur/Outdoor',
     };
     const lower = query.toLowerCase();
     for (const [kw, cat] of Object.entries(hints)) {
@@ -68,10 +109,12 @@ export class EventAggregator {
     const events: EventData[] = [];
     try {
       const trimmed = responseText.trim();
-      if (!trimmed ||
-          trimmed.toLowerCase().includes('keine passenden events') ||
-          trimmed.toLowerCase().includes('keine events gefunden') ||
-          trimmed.toLowerCase().includes('no events found')) {
+      if (
+        !trimmed ||
+        trimmed.toLowerCase().includes('keine passenden events') ||
+        trimmed.toLowerCase().includes('keine events gefunden') ||
+        trimmed.toLowerCase().includes('no events found')
+      ) {
         return [];
       }
       try {
@@ -80,7 +123,9 @@ export class EventAggregator {
           const arr = this.parseJsonArray(json, requestCategory, requestDate);
           if (arr.length > 0) return arr;
         }
-      } catch {/* ignore */}
+      } catch {
+        /* ignore */
+      }
       const lineJson = this.parseJsonEvents(trimmed, requestCategory, requestDate);
       if (lineJson.length > 0) events.push(...lineJson);
       if (events.length === 0) {
@@ -99,17 +144,21 @@ export class EventAggregator {
   private parseMarkdownTable(text: string, requestCategory?: string, requestDate?: string): EventData[] {
     const events: EventData[] = [];
     const lines = text.split('\n');
-    const tableLines = lines.filter(l => l.trim().includes('|') && l.trim().split('|').length >= 3);
+    const tableLines = lines.filter((l) => l.trim().includes('|') && l.trim().split('|').length >= 3);
     if (tableLines.length < 2) return events;
+
     let startIndex = 1;
     const second = tableLines[1]?.trim();
-    if (second && (/^\|[\s\-\|]+\|$/.test(second) || second.split('|').every(c => c.trim() === '' || /^[\-\s]*$/.test(c.trim())))) {
+    if (second && (/^\|[\s\-|]+\|$/.test(second) || second.split('|').every((c) => c.trim() === '' || /^[\-\s]*$/.test(c.trim())))) {
       startIndex = 2;
     }
+
     for (let i = startIndex; i < tableLines.length; i++) {
       const line = tableLines[i].trim();
       if (!line || line.startsWith('|---') || line.includes('---')) continue;
-      const cols = line.split('|').map(c => c.trim())
+      const cols = line
+        .split('|')
+        .map((c) => c.trim())
         .filter((col, idx, arr) => !(idx === 0 && col === '') && !(idx === arr.length - 1 && col === ''));
       if (cols.length >= 3) {
         let event: EventData;
@@ -168,7 +217,9 @@ export class EventAggregator {
           const raw = JSON.parse(t);
           const ev = this.createEventFromObject(raw, requestCategory, requestDate);
           if (ev.title) out.push(ev);
-        } catch {/* ignore */}
+        } catch {
+          /* ignore */
+        }
       }
     }
     return out;
@@ -203,10 +254,9 @@ export class EventAggregator {
   private extractKeywordBasedEvents(text: string, requestCategory?: string, requestDate?: string): EventData[] {
     const events: EventData[] = [];
     const sentences = text
-      .split(/[.\n\r•\-\*]/)
-      .map(s => s.trim())
-      .filter(s => s.length > 10 && s.length < 200);
-
+      .split(/[.\n\r•\-*]/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 10 && s.length < 200);
     for (const s of sentences) {
       const lower = s.toLowerCase();
       if (lower.includes('keine events') || lower.includes('no events') || lower.includes('sorry')) continue;
@@ -220,11 +270,9 @@ export class EventAggregator {
     const timePattern = /(\d{1,2}:\d{2}|\d{1,2}\s*Uhr)/i;
     const datePattern = /(\d{1,2}\.?\d{1,2}\.?\d{2,4})/;
     const pricePattern = /(€\s?\d+|kostenlos|frei|free)/i;
-
     const time = line.match(timePattern)?.[1] || '';
     const date = line.match(datePattern)?.[1] || requestDate || '';
     const price = line.match(pricePattern)?.[1] || '';
-
     return {
       title: line.trim(),
       category: requestCategory || '',
@@ -233,7 +281,7 @@ export class EventAggregator {
       venue: '',
       price,
       website: '',
-      description: line.length > 80 ? line.slice(0, 120) + '...' : undefined
+      description: line.length > 80 ? line.slice(0, 120) + '...' : undefined,
     };
   }
 
@@ -242,7 +290,7 @@ export class EventAggregator {
     const keys = new Set<string>();
     for (const ev of events) {
       const key = `${this.normalizeTitle(ev.title)}_${this.normalizeVenue(ev.venue)}_${this.normalizeDate(ev.date)}`;
-      const fuzzy = unique.some(x => this.isFuzzyDuplicate(ev, x));
+      const fuzzy = unique.some((x) => this.isFuzzyDuplicate(ev, x));
       if (!keys.has(key) && !fuzzy) {
         keys.add(key);
         unique.push(ev);
@@ -251,16 +299,20 @@ export class EventAggregator {
     return unique;
   }
 
-  private normalizeTitle(t: string) { return t.toLowerCase().trim().replace(/[^\w\s]/g, '').replace(/\s+/g, ' '); }
-  private normalizeVenue(v: string) { return v.toLowerCase().trim().replace(/[^\w\s]/g, '').replace(/\s+/g, ' '); }
-  private normalizeDate(d: string) { return d.toLowerCase().trim().replace(/[^\d\-\/\.]/g, ''); }
-
+  private normalizeTitle(t: string) {
+    return t.toLowerCase().trim().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ');
+  }
+  private normalizeVenue(v: string) {
+    return v.toLowerCase().trim().replace(/[^\w\s]/g, '').replace(/\s+/g, ' ');
+  }
+  private normalizeDate(d: string) {
+    return d.toLowerCase().trim().replace(/[^\d\-\/.]/g, '');
+  }
   private isFuzzyDuplicate(a: EventData, b: EventData): boolean {
     const titleSim = this.sim(this.normalizeTitle(a.title), this.normalizeTitle(b.title));
     const venueSim = this.sim(this.normalizeVenue(a.venue), this.normalizeVenue(b.venue));
     return (titleSim > 0.8 && venueSim > 0.6) || (titleSim > 0.9 && venueSim > 0.9);
   }
-
   private sim(a: string, b: string): number {
     if (a === b) return 1;
     if (!a || !b) return 0;
@@ -270,8 +322,6 @@ export class EventAggregator {
     for (const ch of shorter) if (longer.includes(ch)) matches++;
     return matches / longer.length;
   }
-
-  // categorizeEvents() war veraltet und nutzte nicht die 20 kanonischen Kategorien – entfernt.
 }
 
 export const eventAggregator = new EventAggregator();
