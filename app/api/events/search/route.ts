@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { EventData } from '@/lib/types';
 import { eventsCache } from '@/lib/cache';
-import InMemoryCache from '@/lib/cache';
 import { createPerplexityService } from '@/lib/perplexity';
 import { eventAggregator } from '@/lib/aggregator';
 import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
@@ -15,29 +14,24 @@ const DEFAULT_CATEGORIES = EVENT_CATEGORIES;
 export async function POST(request: NextRequest) {
   try {
     const { city, date, categories, options } = await request.json();
-    const debugMode = options?.debug === true;
-
     if (!city || !date) {
       return NextResponse.json({ error: 'Stadt und Datum sind erforderlich' }, { status: 400 });
     }
 
-    const effectiveCategories: string[] = (categories && categories.length > 0)
-      ? categories
-      : DEFAULT_CATEGORIES;
+    const effectiveCategories: string[] = (categories && categories.length > 0) ? categories : DEFAULT_CATEGORIES;
 
     const cacheResult = eventsCache.getEventsByCategories(city, date, effectiveCategories);
-    const cachedCategories = Object.keys(cacheResult.cachedEvents);
     const cachedEventsFlat: EventData[] = [];
-    for (const cat of cachedCategories) {
+    for (const cat of Object.keys(cacheResult.cachedEvents)) {
       cachedEventsFlat.push(...cacheResult.cachedEvents[cat]);
     }
 
-    // Stamp cache provenance before dedup
+    // STAMP: cache provenance
     const dedupCached = eventAggregator.deduplicateEvents(
       cachedEventsFlat.map(e => ({ ...e, source: e.source ?? 'cache' as const }))
     );
-    const missingCategories = cacheResult.missingCategories;
 
+    const missingCategories = cacheResult.missingCategories;
     if (missingCategories.length === 0) {
       return NextResponse.json({
         events: dedupCached,
@@ -59,28 +53,25 @@ export async function POST(request: NextRequest) {
     }
 
     const service = createPerplexityService(PERPLEXITY_API_KEY);
-    if (!service) {
-      return NextResponse.json({ error: 'Service-Initialisierung fehlgeschlagen' }, { status: 500 });
-    }
-
     const results = await service.executeMultiQuery(city, date, missingCategories, options);
-    // Stamp AI provenance
+
+    // STAMP: ai provenance
     const newEvents = eventAggregator.aggregateResults(results).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
 
     const combined = eventAggregator.deduplicateEvents([...dedupCached, ...newEvents]);
 
     const ttlSeconds = computeTTLSecondsForEvents(newEvents);
-    const categoriesSeen = new Set<string>();
+    const seen = new Set<string>();
     for (const ev of newEvents) {
-      if (ev.category && !categoriesSeen.has(ev.category)) {
+      if (ev.category && !seen.has(ev.category)) {
         const catEvents = newEvents.filter(e => e.category === ev.category);
         eventsCache.setEventsByCategory(city, date, ev.category, catEvents, ttlSeconds);
-        categoriesSeen.add(ev.category);
+        seen.add(ev.category);
       }
     }
 
     const cacheBreakdown = { ...cacheResult.cacheInfo };
-    for (const cat of categoriesSeen) {
+    for (const cat of seen) {
       const catEvents = newEvents.filter(e => e.category === cat);
       cacheBreakdown[cat] = { fromCache: false, eventCount: catEvents.length };
     }
