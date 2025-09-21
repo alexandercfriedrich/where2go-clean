@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { EVENT_CATEGORY_SUBCATEGORIES } from './lib/eventCategories';
 import { useTranslation } from './lib/useTranslation';
+import { startJobPolling, deduplicateEvents } from './lib/polling';
 
 interface EventData {
   title: string;
@@ -18,7 +19,7 @@ interface EventData {
   description?: string;
   bookingLink?: string;
   ageRestrictions?: string;
-  source?: 'cache' | 'ai' | 'rss' | 'ra' | string;
+  source?: 'cache' | 'rss' | 'ai';
 }
 
 const ALL_SUPER_CATEGORIES = Object.keys(EVENT_CATEGORY_SUBCATEGORIES);
@@ -36,7 +37,6 @@ export default function Home() {
 
   const [events, setEvents] = useState<EventData[]>([]);
   const [loading, setLoading] = useState(false);
-  const [stepLoading, setStepLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [searchSubmitted, setSearchSubmitted] = useState(false);
@@ -46,11 +46,11 @@ export default function Home() {
   const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean; totalEvents: number; cachedEvents: number} | null>(null);
   const [toast, setToast] = useState<{show:boolean; message:string}>({show:false,message:''});
 
+  const [activePolling, setActivePolling] = useState<{jobId: string; cleanup: () => void} | null>(null);
+
   const resultsAnchorRef = useRef<HTMLDivElement | null>(null);
   const timeSelectWrapperRef = useRef<HTMLDivElement | null>(null);
-  const cancelRef = useRef<{cancel:boolean}>({cancel:false});
 
-  // design1.css laden und andere Designs entfernen
   useEffect(() => {
     const id = 'w2g-design-css';
     const href = '/designs/design1.css';
@@ -70,7 +70,6 @@ export default function Home() {
     });
   }, []);
 
-  // Dropdown außerhalb/Escape schließen
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!showDateDropdown) return;
@@ -89,6 +88,14 @@ export default function Home() {
     };
   }, [showDateDropdown]);
 
+  useEffect(() => {
+    return () => {
+      if (activePolling) {
+        activePolling.cleanup();
+      }
+    };
+  }, [activePolling]);
+
   const toggleSuperCategory = (cat: string) => {
     setCategoryLimitError(null);
     setSelectedSuperCategories(prev => {
@@ -101,8 +108,8 @@ export default function Home() {
     });
   };
 
-  const getSelectedSubcategories = (superCats: string[]): string[] =>
-    superCats.flatMap(superCat => EVENT_CATEGORY_SUBCATEGORIES[superCat]);
+  const getSelectedSubcategories = (): string[] =>
+    selectedSuperCategories.flatMap(superCat => EVENT_CATEGORY_SUBCATEGORIES[superCat]);
 
   // Date helpers
   function toISODate(d: Date): string {
@@ -115,8 +122,8 @@ export default function Home() {
   function tomorrowISO() { const d = new Date(); d.setDate(d.getDate()+1); return toISODate(d); }
   function nextWeekendDatesISO(): string[] {
     const t = new Date();
-    const day = t.getDay(); // 0 So ... 6 Sa
-    const offset = (5 - day + 7) % 7; // nächster Freitag
+    const day = t.getDay();
+    const offset = (5 - day + 7) % 7;
     const fri = new Date(t); fri.setDate(t.getDate() + offset);
     const sat = new Date(fri); sat.setDate(fri.getDate() + 1);
     const sun = new Date(fri); sun.setDate(fri.getDate() + 2);
@@ -148,111 +155,16 @@ export default function Home() {
     return true;
   }
 
-  function formatEventDateTime(dateStr: string, startTime?: string, endTime?: string) {
-    const dateObj = new Date(dateStr);
-    if (isNaN(dateObj.getTime())) return { date: dateStr, time: startTime || '' };
-
-    const weekday = dateObj.toLocaleDateString('en-GB', { weekday: 'short' }); // Fri
-    const day = dateObj.getDate();
-    const monthLabel = dateObj.toLocaleDateString('en-GB', { month: 'short' }); // Sept
-    const year = dateObj.getFullYear();
-    const ordinal = (d: number) => {
-      if (d === 1 || d === 21 || d === 31) return `${d}st`;
-      if (d === 2 || d === 22) return `${d}nd`;
-      if (d === 3 || d === 23) return `${d}rd`;
-      return `${d}th`;
-    };
-    const dateFormatted = `${weekday}. ${ordinal(day)} ${monthLabel} ${year}`;
-
-    const fmtTime = (val?: string) => {
-      if (!val) return '';
-      const m = val.match(/^(\d{1,2}):(\d{2})/);
-      if (!m) return val;
-      let h = parseInt(m[1], 10);
-      const min = m[2];
-      const ampm = h >= 12 ? 'pm' : 'am';
-      h = h % 12;
-      if (h === 0) h = 12;
-      return `${h}:${min} ${ampm}`;
-    };
-
-    let timeLabel = '';
-    if (startTime && endTime) {
-      timeLabel = `${fmtTime(startTime)} - ${fmtTime(endTime)}`;
-    } else if (startTime) {
-      timeLabel = fmtTime(startTime);
-    }
-    return { date: dateFormatted, time: timeLabel };
-  }
-
-  // Preisformat
-  function guessCurrencyByCity(c: string) {
-    const cityLC = c.toLowerCase();
-    if (/miami|new york|los angeles|san francisco|usa|united states|orlando/.test(cityLC)) return { symbol: '$', code: 'USD' };
-    if (/london|uk|united kingdom|manchester|edinburgh/.test(cityLC)) return { symbol: '£', code: 'GBP' };
-    if (/zurich|zürich|geneva|genf|basel|bern|switzerland|schweiz/.test(cityLC)) return { symbol: 'CHF', code: 'CHF' };
-    return { symbol: '€', code: 'EUR' };
-  }
-  function normalizePriceString(p: string) { return p.replace(/\s+/g, ' ').trim(); }
-  function formatPriceDisplay(p: string): string {
-    if (!p) return 'Keine Preisinfos';
-    const str = normalizePriceString(p);
-    if (/[€$£]|EUR|USD|GBP|CHF|PLN|CZK|HUF|DKK|SEK|NOK|CAD|AUD/i.test(str)) {
-      return str.replace(/(\d)\s*€/, '$1 €');
-    }
-    if (/anfrage/i.test(str)) return 'Preis auf Anfrage';
-    const cur = guessCurrencyByCity(city);
-    const range = str.match(/^(\d+)\s*[-–]\s*(\d+)$/);
-    if (range) return `${range[1]}–${range[2]} ${cur.symbol}`;
-    const single = str.match(/^(\d+)(?:[.,](\d{1,2}))?$/);
-    if (single) return `${single[1]}${single[2] ? ','+single[2] : ''} ${cur.symbol}`;
-    return str;
-  }
-
-  function dedupMerge(current: EventData[], incoming: EventData[]) {
-    const map = new Map<string, EventData>();
-    for (const e of current) map.set(`${e.title}__${e.date}__${e.venue}`, e);
-    for (const e of incoming) map.set(`${e.title}__${e.date}__${e.venue}`, e);
-    return Array.from(map.values());
-  }
-
-  async function fetchForSuperCategory(superCat: string) {
-    const subs = EVENT_CATEGORY_SUBCATEGORIES[superCat] || [];
-    if (subs.length === 0) return;
-    setStepLoading(superCat);
-    const res = await fetch('/api/events', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        city: city.trim(),
-        date: formatDateForAPI(),
-        categories: subs,
-        options: {
-          temperature: 0.2,
-          max_tokens: 12000,
-          expandedSubcategories: true,
-          minEventsPerCategory: 14
-        }
-      })
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(()=> ({}));
-      throw new Error(data.error || `Serverfehler ${res.status}`);
-    }
-    const data = await res.json();
-    const incoming: EventData[] = data.events || [];
-    setEvents(prev => dedupMerge(prev, incoming));
-    if (data.cacheInfo) setCacheInfo(data.cacheInfo);
-  }
-
-  async function progressiveSearchEvents() {
+  async function searchEvents() {
     if (!city.trim()) {
       setError('Bitte gib eine Stadt ein.');
       return;
     }
-    cancelRef.current.cancel = true;
-    await new Promise(r => setTimeout(r, 0));
-    cancelRef.current = { cancel:false };
+
+    if (activePolling) {
+      activePolling.cleanup();
+      setActivePolling(null);
+    }
 
     setLoading(true);
     setError(null);
@@ -263,22 +175,66 @@ export default function Home() {
     setActiveFilter('Alle');
 
     try {
-      const superCats =
-        selectedSuperCategories.length > 0 ? [...selectedSuperCategories] : [...ALL_SUPER_CATEGORIES];
-      for (const sc of superCats) {
-        if (cancelRef.current.cancel) return;
-        await fetchForSuperCategory(sc);
+      const res = await fetch('/api/events', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          city: city.trim(),
+          date: formatDateForAPI(),
+          categories: getSelectedSubcategories(),
+          options: {
+            temperature: 0.2,
+            max_tokens: 12000,
+            expandedSubcategories: true,
+            minEventsPerCategory: 14
+          }
+        })
+      });
+      if(!res.ok){
+        const data = await res.json().catch(()=> ({}));
+        throw new Error(data.error || `Serverfehler ${res.status}`);
       }
-      setLoading(false);
-      setStepLoading(null);
-      setTimeout(()=> setToast({show:false, message:''}), 2000);
-      if (resultsAnchorRef.current) {
-        resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const data = await res.json();
+
+      if (data.status === 'completed' || !data.jobId) {
+        // Sofortige Ergebnisse (Cache/RSS)
+        setEvents(data.events || []);
+        setCacheInfo(data.cacheInfo || null);
+        setLoading(false);
+      } else {
+        // Progressiver Flow
+        setEvents(data.events || []);
+        setCacheInfo(data.cacheInfo || null);
+
+        const getCurrent = () => events;
+
+        const onEvents = (newEvents: EventData[]) => {
+          setEvents((currentEvents) => deduplicateEvents(currentEvents, newEvents));
+        };
+
+        // ROBUST: finaler Merge + Fallback
+        const onDone = (finalEvents: EventData[], status: string) => {
+          setEvents((current) => {
+            if (Array.isArray(finalEvents) && finalEvents.length > 0) {
+              return deduplicateEvents(current, finalEvents);
+            }
+            return current;
+          });
+          setLoading(false);
+          setActivePolling(null);
+          if (status === 'error') setError('Fehler beim Laden der Events');
+        };
+
+        const cleanup = startJobPolling(data.jobId, onEvents, getCurrent, onDone, 4000, 48);
+        setActivePolling({ jobId: data.jobId, cleanup });
       }
     } catch(e:any){
       setError(e.message || 'Fehler bei der Suche');
       setLoading(false);
-      setStepLoading(null);
+      if (activePolling) {
+        activePolling.cleanup();
+        setActivePolling(null);
+      }
     }
   }
 
@@ -299,53 +255,24 @@ export default function Home() {
     return counts;
   };
 
-  const eventIcon = (cat: string) => {
-    const iconProps = { width:16, height:16, strokeWidth:2 };
-    switch (cat) {
-      case 'DJ Sets/Electronic':
-      case 'Clubs/Discos':
-        return (
-          <svg {...iconProps as any} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
-          </svg>
-        );
-      case 'Live-Konzerte':
-        return (
-          <svg {...iconProps as any} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M12 3v18"/><path d="M8 21l4-7 4 7"/><path d="M8 3l4 7 4-7"/>
-          </svg>
-        );
-      default:
-        return (
-          <svg {...iconProps as any} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-            <line x1="7" y1="7" x2="7.01" y2="7"/>
-          </svg>
-        );
-    }
-  };
+  const eventIcon = (cat: string) => (
+    <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
+      <line x1="7" y1="7" x2="7.01" y2="7"/>
+    </svg>
+  );
 
   const renderPrice = (ev: EventData) => {
     const p = ev.ticketPrice || ev.price;
-    const text = p ? formatPriceDisplay(p) : 'Keine Preisinfos';
+    const text = p ? p : 'Keine Preisinfos';
     return <span className="price-chip">{text}</span>;
-  };
-
-  const renderSourceBadge = (src?: string) => {
-    const label =
-      src === 'rss' ? 'RSS' :
-      src === 'ai'  ? 'KI'  :
-      src === 'ra'  ? 'API' :
-      src === 'cache' ? 'Cache' : null;
-    if (!label) return null;
-    return <span className={`src-badge src-${src}`}>{label}</span>;
   };
 
   return (
     <div className="min-h-screen">
       <header className="header">
-        <div className="container header-inner header-centered">
-          <div className="header-logo-wrapper">
+        <div className="container header-inner">
+          <div className="header-logo-wrapper centered">
             <img src="/where2go-full.png" alt="Where2Go" />
           </div>
           <div className="premium-box">
@@ -358,25 +285,13 @@ export default function Home() {
 
       <section className="search-section">
         <div className="container">
-          <form
-            className="search-form"
-            onSubmit={e => {
-              e.preventDefault();
-              progressiveSearchEvents();
-            }}
-          >
+          <form className="search-form" onSubmit={e => { e.preventDefault(); searchEvents(); }}>
+            {/* Stadt / Zeitraum / Kategorien UI bleibt unverändert */}
             <div className="form-row">
               <div className="form-group">
                 <label htmlFor="city">Stadt</label>
-                <input
-                  id="city"
-                  className="form-input"
-                  value={city}
-                  onChange={e=>setCity(e.target.value)}
-                  placeholder="z.B. Berlin, Hamburg ..."
-                />
+                <input id="city" className="form-input" value={city} onChange={e=>setCity(e.target.value)} placeholder="z.B. Wien, Berlin ..." />
               </div>
-
               <div className="form-group select-with-dropdown" ref={timeSelectWrapperRef}>
                 <label htmlFor="timePeriod">Zeitraum</label>
                 <select
@@ -464,39 +379,10 @@ export default function Home() {
       </section>
 
       <div className="container" ref={resultsAnchorRef}>
-        {searchSubmitted && (
-          <div className="results-filter-bar">
-            <div className="filter-chips-inline">
-              <button
-                className={`filter-chip ${activeFilter==='Alle' ? 'filter-chip-active':''}`}
-                onClick={()=>setActiveFilter('Alle')}
-              >
-                <span>Alle</span>
-                <span className="filter-count">{getCategoryCounts()['Alle']}</span>
-              </button>
-              {searchedSuperCategories.map(cat => (
-                <button
-                  key={cat}
-                  className={`filter-chip ${activeFilter===cat ? 'filter-chip-active':''}`}
-                  onClick={()=>setActiveFilter(cat)}
-                >
-                  <span>{cat}</span>
-                  <span className="filter-count">{getCategoryCounts()[cat] || 0}</span>
-                </button>
-              ))}
-            </div>
-            {stepLoading && (
-              <div className="progress-note">
-                Lädt Kategorie: {stepLoading} ...
-              </div>
-            )}
-          </div>
-        )}
-
         <main className="main-content">
           {error && <div className="error">{error}</div>}
 
-          {loading && events.length === 0 && (
+          {loading && (
             <div className="loading">
               <W2GLoader5 />
               <p>Suche läuft...</p>
@@ -522,20 +408,16 @@ export default function Home() {
             <div className="events-grid">
               {displayedEvents.map(ev => {
                 const key = `${ev.title}_${ev.date}_${ev.venue}`;
-                const superCat =
-                  searchedSuperCategories.find(c => EVENT_CATEGORY_SUBCATEGORIES[c]?.includes(ev.category)) ||
-                  ALL_SUPER_CATEGORIES.find(c => EVENT_CATEGORY_SUBCATEGORIES[c]?.includes(ev.category)) ||
-                  ev.category;
-
-                const { date: formattedDate, time: formattedTime } =
-                  formatEventDateTime(ev.date, ev.time, ev.endTime);
-
                 return (
                   <div key={key} className="event-card">
-                    <h3 className="event-title">
-                      {ev.title}
-                      {renderSourceBadge(ev.source)}
-                    </h3>
+                    <div className="event-title-row">
+                      <h3 className="event-title">{ev.title}</h3>
+                      {ev.source && (
+                        <span className={`provenance-badge provenance-${ev.source}`}>
+                          {ev.source === 'cache' ? 'Cache' : ev.source === 'rss' ? 'RSS' : 'KI'}
+                        </span>
+                      )}
+                    </div>
 
                     <div className="event-meta-line">
                       <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -544,15 +426,7 @@ export default function Home() {
                         <line x1="8" y1="2" x2="8" y2="6"/>
                         <line x1="3" y1="10" x2="21" y2="10"/>
                       </svg>
-                      <span>{formattedDate}</span>
-                      {formattedTime && (
-                        <>
-                          <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/>
-                          </svg>
-                          <span>{formattedTime}</span>
-                        </>
-                      )}
+                      <span>{ev.date}</span>
                     </div>
 
                     <div className="event-meta-line">
@@ -569,13 +443,6 @@ export default function Home() {
                       </a>
                     </div>
 
-                    {superCat && (
-                      <div className="event-meta-line">
-                        {eventIcon(superCat)}
-                        <span>{superCat}</span>
-                      </div>
-                    )}
-
                     {ev.eventType && (
                       <div className="event-meta-line">
                         <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -588,22 +455,12 @@ export default function Home() {
                       </div>
                     )}
 
-                    {ev.ageRestrictions && (
-                      <div className="event-meta-line">
-                        <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                          <circle cx="12" cy="12" r="10"/>
-                          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-                        </svg>
-                        <span>{ev.ageRestrictions}</span>
-                      </div>
-                    )}
-
                     {ev.description && (
                       <div className="event-description">{ev.description}</div>
                     )}
 
                     <div className="event-cta-row">
-                      {renderPrice(ev)}
+                      <span className="price-chip">{ev.ticketPrice || ev.price || 'Keine Preisinfos'}</span>
                       {ev.website ? (
                         <a
                           href={ev.website}
@@ -611,9 +468,6 @@ export default function Home() {
                           rel="noopener noreferrer"
                           className="btn-outline with-icon"
                         >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
-                          </svg>
                           Mehr Info
                         </a>
                       ) : <span />}
@@ -624,10 +478,6 @@ export default function Home() {
                           rel="noopener noreferrer"
                           className="btn-outline tickets with-icon"
                         >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/>
-                            <path d="M13 7v2M13 11v2M13 15v2"/>
-                          </svg>
                           Tickets
                         </a>
                       ) : <span />}
@@ -651,91 +501,11 @@ export default function Home() {
           <p>© 2025 Where2Go - Entdecke deine Stadt neu</p>
         </div>
       </footer>
-
-      {/* Globale Style-Overrides für Badges, Filterleiste, Header-Zentrierung */}
-      <style jsx global>{`
-        .header-inner.header-centered {
-          position: relative;
-          display:flex;
-          align-items:center;
-          justify-content:center;
-          min-height:64px;
-        }
-        .header-inner.header-centered .premium-box {
-          position:absolute;
-          right:0;
-        }
-        .results-filter-bar {
-          display:flex;
-          justify-content:space-between;
-          align-items:center;
-          gap:12px;
-          padding:10px 0 18px;
-        }
-        .filter-chips-inline {
-          display:flex;
-          flex-wrap:wrap;
-          gap:10px;
-        }
-        .filter-sidebar { display:none !important; }
-        .filter-chip {
-          display:flex; justify-content:space-between; align-items:center;
-          gap:8px;
-          font-size:13px; padding:10px 14px;
-          border:1px solid #dcdfe3;
-          background:transparent; border-radius:10px; cursor:pointer;
-          transition:background .2s, border-color .2s, color .2s;
-          color:#444; font-weight:500; text-align:left;
-        }
-        .filter-chip:hover { background:#f3f4f5; }
-        .filter-chip-active { background:#404040; color:#fff; border-color:#404040; }
-        .filter-chip-active:hover { background:#e5e7eb; color:#9aa0a6; }
-        .filter-count { font-size:11px; background:rgba(0,0,0,0.06); padding:3px 8px; border-radius:999px; color:inherit; font-weight:500; }
-        .filter-chip-active .filter-count { background:rgba(255,255,255,0.18); }
-        .category-checkbox {
-          display:flex; align-items:center; gap:8px; padding:8px 10px;
-          border:1px solid #dfe1e4; background:transparent; border-radius:8px;
-          font-size:13px; cursor:pointer; transition:background .2s, border-color .2s, color .2s;
-          color:#444;
-        }
-        .category-checkbox:hover { background:#f0f2f4; }
-        .category-checkbox input { accent-color:#222; width:14px; height:14px; cursor:pointer; margin:0; }
-        .category-checkbox:has(input:checked) { background:#404040; color:#fff; border-color:#404040; }
-        .category-checkbox:has(input:checked):hover { background:#e5e7eb; color:#9aa0a6; }
-        .category-checkbox:has(input:checked) input { accent-color:#ffffff; }
-        .btn-search {
-          border:none; background:#404040; color:#fff; font-size:15px; padding:14px 20px; border-radius:10px;
-          font-weight:500; letter-spacing:.4px; cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,0.08);
-          transition:background .2s, box-shadow .2s, transform .2s, color .2s;
-        }
-        .btn-search:hover { background:#222; }
-        @media (max-width: 600px) {
-          .search-form .form-row { gap:12px; }
-          .categories-section { gap:10px; }
-          .results-filter-bar { flex-direction:column; align-items:flex-start; gap:8px; }
-        }
-        .src-badge {
-          display:inline-block;
-          margin-left:8px;
-          font-size:11px;
-          line-height:1;
-          padding:3px 6px;
-          border-radius:999px;
-          border:1px solid rgba(0,0,0,0.18);
-          background:#f7f7f7;
-          color:#444;
-          vertical-align:middle;
-        }
-        .src-badge.src-ai    { background:#1f2937; color:#fff; border-color:#1f2937; }
-        .src-badge.src-rss   { background:#f59e0b; color:#111; border-color:#d97706; }
-        .src-badge.src-ra    { background:#0ea5e9; color:#fff; border-color:#0284c7; }
-        .src-badge.src-cache { background:#e5e7eb; color:#111; border-color:#d1d5db; }
-      `}</style>
     </div>
   );
 }
 
-/* Zwei-Monats-Kalender mit Min-Datum, Auswahl & Disabled-Days */
+/* Zwei-Monats-Kalender */
 function TwoMonthCalendar({
   value,
   minISO,
@@ -805,7 +575,13 @@ function TwoMonthCalendar({
       <div className="calendar-grids">
         {weeksArr.map((weeks, idx) => (
           <div key={idx} className="cal-grid">
-            <div className="cal-head">Mo</div><div className="cal-head">Di</div><div className="cal-head">Mi</div><div className="cal-head">Do</div><div className="cal-head">Fr</div><div className="cal-head">Sa</div><div className="cal-head">So</div>
+            <div className="cal-head">Mo</div>
+            <div className="cal-head">Di</div>
+            <div className="cal-head">Mi</div>
+            <div className="cal-head">Do</div>
+            <div className="cal-head">Fr</div>
+            <div className="cal-head">Sa</div>
+            <div className="cal-head">So</div>
             {weeks.flat().map((d,i) => {
               const inMonth = d.getMonth()===months[idx].getMonth();
               const disabled = d < new Date(minDate.getFullYear(), minDate.getMonth(), minDate.getDate());
@@ -817,7 +593,8 @@ function TwoMonthCalendar({
                   className={`cal-day ${inMonth ? '' : 'cal-day--muted'} ${isSel ? 'cal-day--sel' : ''} ${disabled ? 'cal-day--disabled' : ''}`}
                   onClick={()=>{
                     if (disabled) return;
-                    onSelect(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`);
+                    const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+                    onSelect(iso);
                   }}
                   disabled={disabled}
                 >
@@ -832,7 +609,7 @@ function TwoMonthCalendar({
   );
 }
 
-/* Loader: 5 ruhige s/w Kreise */
+/* Loader */
 function W2GLoader5() {
   const [orbs] = useState(
     Array.from({length:5}).map((_,i)=>({
