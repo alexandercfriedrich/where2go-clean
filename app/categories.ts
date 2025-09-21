@@ -1,52 +1,39 @@
 /**
- * Categories helper module - provides robust category mapping functionality.
- * This prevents build/runtime errors where '@/categories' was referenced.
+ * @deprecated Phase 2 - categories.ts removed in favor of lib/eventCategories as SSOT.
+ * All functionality has been consolidated into lib/eventCategories.
+ * This file will be deleted after migration is complete.
  * 
- * Re-exports functionality from lib/eventCategories for consistency.
+ * MIGRATION GUIDE:
+ * - Replace: import { ... } from '@/categories'
+ * - With: import { ... } from '@/lib/eventCategories'
+ * 
+ * Available exports in eventCategories:
+ * - EVENT_CATEGORIES (array of 20 main categories)
+ * - EVENT_CATEGORY_SUBCATEGORIES (mapping object)
+ * - normalizeCategory()
+ * - mapToMainCategories()
+ * - getSubcategories()
+ * - validateAndNormalizeEvents()
+ * - isValidCategory()
  */
 
-import { 
-  EVENT_CATEGORIES, 
-  mapToMainCategories, 
-  getSubcategories,
-  normalizeCategory 
+// Temporary re-exports for backward compatibility during Phase 2 migration
+export {
+  EVENT_CATEGORIES,
+  normalizeCategory as normalizeCategoryString,
+  mapToMainCategories as getMainCategoriesForAICalls,
+  getSubcategories as getSubcategoriesForMainCategory
 } from './lib/eventCategories';
 
-// Re-export main categories constant
-export { EVENT_CATEGORIES };
-
 /**
- * Maps any incoming categories to main categories using the robust mapping logic.
- * This prevents build/runtime errors and provides consistent categorization.
- */
-export function getMainCategoriesForAICalls(
-  categories: string[] | undefined | null
-): string[] {
-  if (!categories || categories.length === 0) return [];
-  return mapToMainCategories(categories);
-}
-
-/**
- * Gets subcategories for a main category using the existing robust logic.
- */
-export function getSubcategoriesForMainCategory(mainCategory: string): string[] {
-  return getSubcategories(mainCategory);
-}
-
-/**
- * Flattens main categories to their subcategories.
+ * @deprecated Use mapToMainCategories from lib/eventCategories
  */
 export function flattenMainToSubcategories(mains: string[]): string[] {
+  console.warn('flattenMainToSubcategories is deprecated. Use getSubcategories for individual categories.');
   const result: string[] = [];
+  const { getSubcategories } = require('./lib/eventCategories');
   for (const main of mains || []) {
     result.push(...getSubcategories(main));
   }
-  return Array.from(new Set(result)); // Deduplicate
-}
-
-/**
- * Normalize a category string to a main category.
- */
-export function normalizeCategoryString(category: string): string {
-  return normalizeCategory(category);
+  return Array.from(new Set(result));
 }
