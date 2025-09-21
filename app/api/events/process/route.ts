@@ -19,9 +19,7 @@ export async function POST(request: NextRequest) {
 
     const jobStore = getJobStore();
     const job = await jobStore.getJob(jobId);
-    if (!job) {
-      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
-    }
+    if (!job) return NextResponse.json({ error: 'Job not found' }, { status: 404 });
 
     let effective = (categories && categories.length > 0) ? categories : DEFAULT_CATEGORIES;
     effective = options?.forceAllCategories ? DEFAULT_CATEGORIES : mapToMainCategories(effective);
@@ -34,34 +32,29 @@ export async function POST(request: NextRequest) {
 
     const service = createPerplexityService(PERPLEXITY_API_KEY);
 
-    // Start with any existing events on the job
+    // Start with existing job events
     let runningEvents = eventAggregator.deduplicateEvents([...(job.events || [])]);
 
-    // Incremental processing per main category (to enable progressive loading)
+    // Incremental per main category
     for (let i = 0; i < effective.length; i++) {
       const c = effective[i];
 
-      // Execute query for the single category c
       const results = await service.executeMultiQuery(city, date, [c], options || {});
-      const parsedChunk = eventAggregator.aggregateResults(results).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
+      const chunk = eventAggregator.aggregateResults(results).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
 
-      // Cache per category (from parsedChunk)
-      const ttlSeconds = computeTTLSecondsForEvents(parsedChunk);
+      // Cache per category
+      const ttlSeconds = computeTTLSecondsForEvents(chunk);
       const grouped: Record<string, any[]> = {};
-      for (const ev of parsedChunk) {
+      for (const ev of chunk) {
         if (!ev.category) continue;
-        if (!grouped[ev.category]) grouped[ev.category] = [];
-        grouped[ev.category].push(ev);
+        (grouped[ev.category] ||= []).push(ev);
       }
       for (const cat of Object.keys(grouped)) {
         eventsCache.setEventsByCategory(city, date, cat, grouped[cat], ttlSeconds);
       }
 
-      // Merge incrementally and update job as 'processing'
-      runningEvents = eventAggregator.deduplicateEvents([
-        ...runningEvents,
-        ...parsedChunk
-      ]);
+      // Merge and publish progress
+      runningEvents = eventAggregator.deduplicateEvents([...runningEvents, ...chunk]);
 
       await jobStore.updateJob(jobId, {
         status: 'processing',
@@ -71,7 +64,6 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Finalize job
     await jobStore.updateJob(jobId, {
       status: 'done',
       events: runningEvents,
@@ -79,13 +71,7 @@ export async function POST(request: NextRequest) {
       lastUpdateAt: new Date().toISOString()
     });
 
-    return NextResponse.json({
-      jobId,
-      status: 'done',
-      events: runningEvents,
-      categoriesProcessed: effective
-    });
-
+    return NextResponse.json({ jobId, status: 'done', events: runningEvents, categoriesProcessed: effective });
   } catch (error) {
     console.error('Background processing error:', error);
     return NextResponse.json({ error: 'Processing failed' }, { status: 500 });
