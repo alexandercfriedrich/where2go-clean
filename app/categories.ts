@@ -1,15 +1,15 @@
 /**
  * Categories helper module - provides robust category mapping functionality.
  * This prevents build/runtime errors where '@/categories' was referenced.
- * 
+ *
  * Re-exports functionality from lib/eventCategories for consistency.
  */
 
-import { 
-  EVENT_CATEGORIES, 
-  mapToMainCategories, 
+import {
+  EVENT_CATEGORIES,
+  mapToMainCategories,
   getSubcategories,
-  normalizeCategory 
+  normalizeCategory
 } from './lib/eventCategories';
 
 // Re-export main categories constant
