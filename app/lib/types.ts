@@ -23,6 +23,12 @@ export interface EventData {
   source?: 'cache' | 'ai' | 'rss' | 'ra' | string;
 }
 
+// Antwort eines Perplexity-Requests, wie vom Aggregator erwartet
+export interface PerplexityResult {
+  query: string;
+  response: string;
+}
+
 // Request-Body für Suche
 export interface RequestBody {
   city: string;
