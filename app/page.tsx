@@ -272,7 +272,7 @@ export default function Home() {
     <div className="min-h-screen">
       <header className="header">
         <div className="container header-inner">
-          <div className="header-logo-wrapper centered">
+          <div className="header-logo-wrapper" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
             <img src="/where2go-full.png" alt="Where2Go" />
           </div>
           <div className="premium-box">
