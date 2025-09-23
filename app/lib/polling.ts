@@ -78,7 +78,6 @@ export function startJobPolling(
 
     polls += 1;
     if (polls > maxPolls) {
-      // Timeout if we exceeded allowed attempts
       onDone([], 'timeout');
       cleanup();
       return;
@@ -109,13 +108,11 @@ export function startJobPolling(
         return;
       }
     } catch (_err) {
-      // On fetch error: if we've reached maxPolls, report error and stop
       if (polls >= maxPolls) {
         onDone([], 'error');
         cleanup();
         return;
       }
-      // Otherwise, swallow and retry on next tick
     }
   };
 
