@@ -6,14 +6,12 @@ export type JobStatusResponse = JobStatus & { jobId?: string };
  * Normalizes potential legacy jobId → id while preserving the JobStatus shape.
  */
 export function normalizeJobStatusId(status: JobStatusResponse): JobStatus {
-  const id = status.id || status.jobId || '';
-  const { jobId, ...rest } = status;
-  return { ...rest, id };
+  const id = (status as any).id || status.jobId || '';
+  const { jobId, ...rest } = status as any;
+  return { ...rest, id } as JobStatus;
 }
 
-/**
- * Build a stable deduplication key based on title + date + venue.
- */
+// Build a stable deduplication key based on title + date + venue
 function eventKey(e: Pick<EventData, 'title' | 'date' | 'venue'>): string {
   const t = (e.title || '').trim().toLowerCase();
   const d = (e.date || '').trim().toLowerCase();
@@ -49,9 +47,7 @@ export function deduplicateEvents(existing: EventData[], incoming: EventData[]):
 
 /**
  * Polls job status with an immediate first poll and subsequent intervals.
- * Calls:
- * - onEvents(newChunk, getCurrent) when new events arrive
- * - onDone(finalEvents, 'done' | 'error' | 'timeout') when job finishes, errors, or times out
+ * Calls onEvents(newChunk, getCurrent) when new events arrive, and onDone(final, status) when complete/error/timeout.
  */
 export function startJobPolling(
   jobId: string,
@@ -85,34 +81,30 @@ export function startJobPolling(
 
     try {
       const res = await fetch(`/api/jobs/${jobId}`);
-      if (!res.ok) {
-        throw new Error(`Status ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+
       const statusJson = await res.json();
       const job: JobStatus = normalizeJobStatusId(statusJson);
-
       const incoming: EventData[] = Array.isArray(job.events) ? job.events : [];
 
-      // Compute new chunk vs current
+      // Only pass new events compared to current
       const current = getCurrent() || [];
       const currentKeys = new Set(current.map(eventKey));
       const newChunk = incoming.filter(ev => !currentKeys.has(eventKey(ev)));
-
-      if (newChunk.length > 0) {
-        onEvents(newChunk, getCurrent);
-      }
+      if (newChunk.length > 0) onEvents(newChunk, getCurrent);
 
       if (job.status === 'done') {
         onDone(incoming, 'done');
         cleanup();
         return;
       }
-    } catch (_err) {
+    } catch {
       if (polls >= maxPolls) {
         onDone([], 'error');
         cleanup();
         return;
       }
+      // Otherwise retry on next tick
     }
   };
 
