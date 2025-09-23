@@ -504,6 +504,63 @@ body {
   background: #059669;
 }
 
+/* Event CTA Row - Call to Action row with price and buttons */
+.event-cta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 15px;
+  flex-wrap: wrap;
+}
+
+/* Price chip styling */
+.price-chip {
+  background: #f8f9fa;
+  color: #495057;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border: 1px solid #e9ecef;
+}
+
+/* Outline button styling */
+.btn-outline {
+  background: transparent;
+  color: #667eea;
+  border: 2px solid #667eea;
+  padding: 8px 16px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.btn-outline:hover {
+  background: #667eea;
+  color: white;
+}
+
+.btn-outline.tickets {
+  color: #10b981;
+  border-color: #10b981;
+}
+
+.btn-outline.tickets:hover {
+  background: #10b981;
+  color: white;
+}
+
+/* Button with icon styling */
+.btn-outline.with-icon {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* Toast Notification */
 .toast-container {
   position: fixed;
