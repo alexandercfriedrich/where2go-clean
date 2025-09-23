@@ -1,4 +1,4 @@
-## Typography Setup for Design 2 (Minimalist)
+# Typography Setup for Design 2 (Minimalist)
 
 ## Font Family: Söhne Breit Leicht
 
