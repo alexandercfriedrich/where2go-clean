@@ -19,7 +19,7 @@ export interface EventData {
   bookingLink?: string;
   ageRestrictions?: string;
   cacheUntil?: string; // ISO string bis wann Event gecached werden darf
-  parsingWarning?: string | string[]; // von eventValidation.ts gesetzt
+  parsingWarning?: string | string[]; // set by eventValidation.ts
 
   // Herkunftsmarker für Badges
   source?: 'cache' | 'ai' | 'rss' | 'ra' | string;
