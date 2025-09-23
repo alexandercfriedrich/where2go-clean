@@ -46,7 +46,7 @@ export default function Home() {
   const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean; totalEvents: number; cachedEvents: number} | null>(null);
   const [toast, setToast] = useState<{show:boolean; message:string}>({show:false,message:''});
 
-  const [activePolling, setActivePolling] = useState<{jobId: string; cleanup: () => void} | null>(null);
+  const [activePolling, setActivePolling] = useState<{jobId: string; cleanup: () => void; pollInstanceId: number} | null>(null);
 
   const resultsAnchorRef = useRef<HTMLDivElement | null>(null);
   const timeSelectWrapperRef = useRef<HTMLDivElement | null>(null);
