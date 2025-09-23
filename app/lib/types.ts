@@ -29,6 +29,13 @@ export interface PerplexityResult {
   response: string;
 }
 
+// Cache-Eintrag (wird von app/lib/cache.ts verwendet)
+export interface CacheEntry<T = any> {
+  data: T;
+  timestamp: number; // ms since epoch
+  ttl: number;       // ms duration
+}
+
 // Request-Body für Suche
 export interface RequestBody {
   city: string;
