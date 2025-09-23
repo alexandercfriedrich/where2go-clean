@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { EVENT_CATEGORY_SUBCATEGORIES } from './lib/eventCategories';
 import { useTranslation } from './lib/useTranslation';
+import { startJobPolling, deduplicateEvents as dedupFront } from './lib/polling';
 
 interface EventData {
   title: string;
@@ -24,6 +25,10 @@ interface EventData {
 const ALL_SUPER_CATEGORIES = Object.keys(EVENT_CATEGORY_SUBCATEGORIES);
 const MAX_CATEGORY_SELECTION = 3;
 
+// Polling config
+const POLL_INTERVAL_MS = 4000;
+const MAX_POLLS = 48; // UI and tests may refer to 48; adjust here if you raise global window
+
 export default function Home() {
   const { t } = useTranslation();
   const [city, setCity] = useState('');
@@ -45,6 +50,10 @@ export default function Home() {
 
   const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean; totalEvents: number; cachedEvents: number} | null>(null);
   const [toast, setToast] = useState<{show:boolean; message:string}>({show:false,message:''});
+
+  // Active polling state (Fix: ensure pollInstanceId is provided)
+  const pollInstanceRef = useRef(0);
+  const [activePolling, setActivePolling] = useState<{ jobId: string; cleanup: () => void; pollInstanceId: number } | null>(null);
 
   const resultsAnchorRef = useRef<HTMLDivElement | null>(null);
   const timeSelectWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -210,10 +219,8 @@ export default function Home() {
   }
 
   function dedupMerge(current: EventData[], incoming: EventData[]) {
-    const map = new Map<string, EventData>();
-    for (const e of current) map.set(`${e.title}__${e.date}__${e.venue}`, e);
-    for (const e of incoming) map.set(`${e.title}__${e.date}__${e.venue}`, e);
-    return Array.from(map.values());
+    // Reuse front-end light dedup
+    return dedupFront(current, incoming);
   }
 
   async function fetchForSuperCategory(superCat: string) {
@@ -254,6 +261,12 @@ export default function Home() {
     await new Promise(r => setTimeout(r, 0));
     cancelRef.current = { cancel:false };
 
+    // Stop previous polling if any
+    if (activePolling) {
+      try { activePolling.cleanup(); } catch {}
+      setActivePolling(null);
+    }
+
     setLoading(true);
     setError(null);
     setEvents([]);
@@ -263,17 +276,51 @@ export default function Home() {
     setActiveFilter('Alle');
 
     try {
+      // Start background job (server will create a job and return jobId)
+      const jobRes = await fetch('/api/events/process', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify({
+          jobId: `job_${Date.now()}`,
+          city: city.trim(),
+          date: formatDateForAPI(),
+          categories: selectedSuperCategories.length ? getSelectedSubcategories(selectedSuperCategories) : [],
+          options: {
+            progressive: true
+          }
+        })
+      });
+      if (!jobRes.ok) {
+        const data = await jobRes.json().catch(()=> ({}));
+        throw new Error(data.error || `Serverfehler ${jobRes.status}`);
+      }
+      const data = await jobRes.json();
+
+      // Set up progressive polling
+      const onEvents = (chunk: EventData[], getCurrent: () => EventData[]) => {
+        setEvents(prev => dedupMerge(prev, chunk));
+      };
+      const getCurrent = () => events;
+      const onDone = (_final: EventData[], _status: string) => {
+        setStepLoading(null);
+        setLoading(false);
+        setTimeout(()=> setToast({show:false, message:''}), 2000);
+        if (resultsAnchorRef.current) {
+          resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      };
+      const cleanup = startJobPolling(data.jobId, onEvents, getCurrent, onDone, POLL_INTERVAL_MS, MAX_POLLS);
+
+      // FIX: provide pollInstanceId as required by type
+      const nextInstance = ++pollInstanceRef.current;
+      setActivePolling({ jobId: data.jobId, cleanup, pollInstanceId: nextInstance });
+
+      // Also trigger immediate UI fetch for selected super categories as fallback (optional)
       const superCats =
         selectedSuperCategories.length > 0 ? [...selectedSuperCategories] : [...ALL_SUPER_CATEGORIES];
       for (const sc of superCats) {
         if (cancelRef.current.cancel) return;
         await fetchForSuperCategory(sc);
-      }
-      setLoading(false);
-      setStepLoading(null);
-      setTimeout(()=> setToast({show:false, message:''}), 2000);
-      if (resultsAnchorRef.current) {
-        resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     } catch(e:any){
       setError(e.message || 'Fehler bei der Suche');
@@ -652,7 +699,7 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* Globale Style-Overrides für Badges, Filterleiste, Header-Zentrierung */}
+      {/* Globale Style-Overrides */}
       <style jsx global>{`
         .header-inner.header-centered {
           position: relative;

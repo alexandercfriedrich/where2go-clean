@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { RequestBody, EventData, JobStatus, DebugInfo } from '@/lib/types';
 import { eventsCache } from '@/lib/cache';
-import InMemoryCache from '@/lib/cache';
-import { createPerplexityService } from '@/lib/perplexity';
 import { eventAggregator } from '@/lib/aggregator';
 import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
 import { getJobStore } from '@/lib/jobStore';
@@ -19,6 +17,7 @@ import { buildWienInfoUrl, getWienInfoF1IdsForCategories } from '@/event_mapping
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
+// Default-Kategorien ausschließlich aus der SSOT ableiten
 const DEFAULT_CATEGORIES = EVENT_CATEGORIES;
 
 const DEFAULT_PPLX_OPTIONS = {
@@ -89,7 +88,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Stadt und Datum sind erforderlich' }, { status: 400 });
     }
 
-    const effectiveCategories = categories && categories.length > 0 ? categories : DEFAULT_CATEGORIES;
+    // Eingaben oder Defaults → immer zu HAUPTKATEGORIEN mappen (SSOT)
+    const requested = Array.isArray(categories) ? categories : [];
+    const effectiveInput = requested.length > 0 ? requested : DEFAULT_CATEGORIES;
+    const effectiveCategories = getMainCategoriesForAICalls(effectiveInput);
     
     // Hot City Konfiguration laden
     let hotCityData: any = null;
@@ -97,6 +99,7 @@ export async function POST(request: NextRequest) {
     try {
       hotCityData = await getHotCity(city);
       if (hotCityData) {
+        // Quellen gegen Hauptkategorien filtern/auflösen
         additionalSources = await getCityWebsitesForCategories(city, effectiveCategories);
         console.log(`Hot City '${city}' active – ${additionalSources.length} sources`);
       }
@@ -108,7 +111,7 @@ export async function POST(request: NextRequest) {
     try {
       const isVienna = /(^|\s)wien(\s|$)|vienna/.test(city.toLowerCase());
       if (isVienna) {
-        const mainCats = getMainCategoriesForAICalls(effectiveCategories);
+        const mainCats = effectiveCategories; // bereits gemappt
         const f1Ids = getWienInfoF1IdsForCategories(mainCats);
         if (f1Ids.length > 0) {
           const wienInfoUrl = buildWienInfoUrl(date, date, f1Ids);
@@ -171,7 +174,7 @@ export async function POST(request: NextRequest) {
         );
 
         if (rssSites.length) {
-          const mainCats = getMainCategoriesForAICalls(effectiveCategories);
+          const mainCats = effectiveCategories; // bereits gemappt
           const viennaKats = mapMainToViennaKats(mainCats);
           const rssResults: EventData[] = [];
 
