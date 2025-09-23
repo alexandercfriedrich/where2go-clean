@@ -17,7 +17,7 @@ function logLine(scope: string, data: Record<string, any>) {
 // Minimaler RSS-Parser (ohne externe Abhängigkeiten)
 function extractTag(xml: string, tag: string): string[] {
   const out: string[] = [];
-  const re = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'gi');
+  const re = new RegExp(`<${tag}[^>]*>([\s\S]*?)<\/${tag}>`, 'gi');
   let m: RegExpExecArray | null;
   while ((m = re.exec(xml)) !== null) {
     out.push(m[1].trim());
@@ -29,28 +29,31 @@ export async function fetchResidentAdvisorRss({ url, city, date }: Params): Prom
   try {
     logLine('rss:ra:request', { url, city, date });
     const res = await fetch(url, { headers: { 'User-Agent': 'where2go-bot/1.0' } });
+    
     if (!res.ok) {
       logLine('rss:ra:error', { url, status: res.status });
       return [];
     }
+    
     const xml = await res.text();
-
+    
     // Naiver RSS-Parser: sammelt item-Blöcke via Split (vereinfachter Ansatz)
     const itemsRaw = xml.split(/<item>/i).slice(1).map(block => block.split(/<\/item>/i)[0]);
-
     const out: EventData[] = [];
+    
     for (const block of itemsRaw) {
       const titles = extractTag(block, 'title');
       const links = extractTag(block, 'link');
       const pubDates = extractTag(block, 'pubDate');
+      
       const title = titles[0] || 'RA Event';
       const link = links[0] || '';
       const pubDate = pubDates[0] || '';
-
+      
       // Datum-Heuristik: falls pubDate vorhanden, sonst nimm requested date
       // Im Idealfall sollten wir das Event-Datum parsen; RSS bietet oft Event-Datum im Titel/Description.
       const eventDateISO = date;
-
+      
       out.push({
         title,
         category: 'Clubs/Discos', // Default; feineres Mapping möglich (Techno, DJ etc.)
@@ -59,10 +62,10 @@ export async function fetchResidentAdvisorRss({ url, city, date }: Params): Prom
         venue: '',
         price: '',
         website: link,
-        source: 'ra'
+        source: 'rss'
       });
     }
-
+    
     logLine('rss:ra:parse', { url, items: out.length });
     return out;
   } catch (e: any) {
