@@ -17,6 +17,7 @@ export interface EventData {
   description?: string;
   bookingLink?: string;
   ageRestrictions?: string;
+  parsingWarning?: string; // Warnings from tolerant parsing
   // Widened to cover UI badges and various sources safely
   source?: 'cache' | 'rss' | 'ai' | 'ra' | string; // Provenance information
 }
@@ -108,4 +109,34 @@ export interface DebugInfo {
   categories: string[];
   options?: any;
   steps: DebugStep[];
+}
+
+export interface HotCity {
+  id: string;
+  name: string;
+  country: string;
+  websites: HotCityWebsite[];
+  categories?: string[];
+  defaultSearchQuery: string;
+  customPrompt: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface HotCityWebsite {
+  id: string;
+  url: string;
+  name: string;
+  categories: string[];
+  description: string;
+  searchQuery?: string;
+  priority: number;
+  isActive: boolean;
+  isVenue?: boolean;
+  isVenuePrioritized?: boolean;
+  lastChecked?: Date;
+  status?: 'working' | 'broken' | 'unknown';
+  createdAt?: Date;
+  updatedAt?: Date;
 }

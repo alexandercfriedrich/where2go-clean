@@ -74,8 +74,7 @@ export function validateAndNormalizeEventsTolerant(events: any[]): EventData[] {
   return out;
 }
 
-function appendWarning(existing: string | string[] | undefined, warn: string): string | string[] {
+function appendWarning(existing: string | undefined, warn: string): string {
   if (!existing) return warn;
-  if (Array.isArray(existing)) return [...existing, warn];
-  return [existing, warn];
+  return `${existing}; ${warn}`;
 }
