@@ -18,6 +18,7 @@ export interface EventData {
   description?: string;
   bookingLink?: string;
   ageRestrictions?: string;
+  cacheUntil?: string; // ISO string bis wann Event gecached werden darf
 
   // Herkunftsmarker für Badges
   source?: 'cache' | 'ai' | 'rss' | 'ra' | string;
