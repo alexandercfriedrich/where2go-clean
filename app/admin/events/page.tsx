@@ -64,7 +64,6 @@ export default function AdminEventsPage() {
   };
 
   useEffect(() => {
-    // Initial load
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
