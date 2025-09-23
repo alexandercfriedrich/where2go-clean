@@ -360,9 +360,11 @@ export class EventAggregator {
   private logParseError(context: string, err: any, sample?: string) {
     const shouldLog = process.env.DEBUG_PARSING === '1' || process.env.NODE_ENV === 'development';
     if (!shouldLog) return;
-    const snippet = (sample || '').slice(0, 1000);
+    // For privacy, do not log raw sample data. Log only metadata.
     console.debug(`[parse-debug] ${context}:`, err?.message || err);
-    if (snippet) console.debug('[parse-debug] response/sample:', snippet);
+    if (sample) {
+      console.debug('[parse-debug] response/sample: [omitted for privacy] (length:', sample.length, 'characters)');
+    }
   }
 }
 
