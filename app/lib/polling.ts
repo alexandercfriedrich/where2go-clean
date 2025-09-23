@@ -23,7 +23,7 @@ export function deduplicateEvents(existing: EventData[], newEvents: EventData[])
   const seen = new Set<string>();
   const result: EventData[] = [];
   const add = (ev: EventData) => {
-    const key = `${ev.title}_${ev.date}_${ev.venue}`.toLowerCase();
+    const key = `${ev.title ?? ''}_${ev.date ?? ''}_${ev.venue ?? ''}`.toLowerCase();
     if (!seen.has(key)) { seen.add(key); result.push(ev); }
   };
   existing.forEach(add);
