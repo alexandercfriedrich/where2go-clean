@@ -18,6 +18,10 @@ export interface EventData {
   bookingLink?: string;
   ageRestrictions?: string;
   source?: 'cache' | 'rss' | 'ai'; // Provenance information
+
+  // New: parsing tolerance diagnostics (non-breaking, optional)
+  // Populated when we accept minimally valid events (e.g., missing title or category)
+  parsingWarning?: string | string[];
 }
 
 export interface PerplexityResult {
@@ -31,50 +35,26 @@ export interface RequestBody {
   city: string;
   date: string;
   categories?: string[];
-  options?: {
-    includeNearbyEvents?: boolean;
-    maxResults?: number;
-    priceRange?: string;
-    accessibility?: string;
-    debug?: boolean; // New debug flag
-    disableCache?: boolean; // Cache bypass flag
-    progressive?: boolean; // New progressive results flag
-  };
+  options?: any;
 }
 
 export interface JobStatus {
   id: string;
-  status: 'pending' | 'done' | 'error' | 'processing';
+  status: 'pending' | 'processing' | 'done' | 'error';
+  createdAt: Date;
   events?: EventData[];
   error?: string;
-  message?: string;
-  createdAt: Date;
-  debug?: DebugInfo; // New debug info
-  cacheInfo?: {
-    fromCache: boolean;
-    totalEvents: number;
-    cachedEvents: number;
-    categoriesFromCache?: string[];     // NEW: Categories that came from cache
-    categoriesSearched?: string[];      // NEW: Categories that were searched
-    cacheBreakdown?: {                  // NEW: Per-category breakdown
-      [category: string]: {
-        fromCache: boolean;
-        eventCount: number;
-      }
-    }
-  };
   progress?: {
     completedCategories: number;
     totalCategories: number;
-    missingCategories?: string[];
   };
-  lastUpdateAt?: string; // ISO date string
+  lastUpdateAt?: string;
+  debug?: DebugInfo;
 }
 
 export interface CacheEntry<T> {
-  data: T;
-  timestamp: number;
-  ttl: number;
+  value: T;
+  expiresAt: number;
 }
 
 export interface QueryOptions {
@@ -114,13 +94,11 @@ export interface HotCityWebsite {
   id: string;
   name: string;
   url: string;
-  categories: string[]; // Which categories this website covers
+  categories: string[];
   description?: string;
-  searchQuery?: string; // Custom search query for this website
-  priority: number; // Higher priority websites are searched first
-  isActive: boolean;
-  isVenue?: boolean; // Whether this website represents a physical venue
-  isVenuePrioritized?: boolean; // Whether this venue should be prioritized when events are found
+  searchQuery?: string;
+  priority?: number; // 1-10
+  isActive?: boolean;
 }
 
 export interface HotCity {
@@ -129,8 +107,8 @@ export interface HotCity {
   country: string;
   isActive: boolean;
   websites: HotCityWebsite[];
-  defaultSearchQuery?: string; // Default search query for this city
-  customPrompt?: string; // Custom prompt additions for this city
+  defaultSearchQuery?: string;
+  customPrompt?: string;
   createdAt: Date;
   updatedAt: Date;
 }
