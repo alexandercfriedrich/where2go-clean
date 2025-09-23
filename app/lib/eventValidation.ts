@@ -26,7 +26,7 @@ export function validateAndNormalizeEventsTolerant(events: any[]): EventData[] {
     const e: any = { ...raw };
 
     // Normalize primitives to strings, keep empties as ''
-    const s = (v: any) => (v == null ? '' : typeof v === 'string' ? v.trim() : String(v));
+    const s = (v: unknown) => (v == null ? '' : typeof v === 'string' ? v.trim() : String(v));
 
     const title = s(e.title);
     const venue = s(e.venue);
