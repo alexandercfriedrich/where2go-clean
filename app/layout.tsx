@@ -1,6 +1,9 @@
 import './globals.css';
 import type { Metadata } from 'next';
+// Basis-Design 1 früh laden, damit kein FOUC auftritt.
+// Der DesignCssLoader schaltet bei ?design=2 nachträglich auf design2.css um.
 import '../public/designs/design1.css';
+import DesignCssLoader from './components/DesignCssLoader';
 
 export const metadata: Metadata = {
   title: 'Where2Go - Entdecke Events in deiner Stadt!',
@@ -9,10 +12,7 @@ export const metadata: Metadata = {
   authors: [{ name: 'Where2Go Team' }],
   creator: 'Where2Go',
   publisher: 'Where2Go',
-  robots: {
-    index: true,
-    follow: true,
-  },
+  robots: { index: true, follow: true },
   openGraph: {
     type: 'website',
     locale: 'de_DE',
@@ -23,19 +23,15 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Where2Go - Alle Events. Weltweit. Eine Plattform.',
-    description: 'Finde Events in deiner Stadt',
   },
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="de" style={{ fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
-      <body className="antialiased">
+    <html lang="de">
+      <body>
+        {/* Lädt das gewünschte Design basierend auf ?design=… */}
+        <DesignCssLoader />
         {children}
       </body>
     </html>
