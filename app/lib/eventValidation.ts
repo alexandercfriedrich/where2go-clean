@@ -4,7 +4,7 @@ import { normalizeCategory, EVENT_CATEGORY_SUBCATEGORIES } from './eventCategori
 // Local whitelist for tolerant fallback categories that are not part of prompts
 const TOLERANT_EXTRA_CATEGORIES = new Set<string>(['Unclassified']);
 
-function isValidOrExtraCategory(cat: string): boolean {
+function isAcceptableCategory(cat: string): boolean {
   return !!EVENT_CATEGORY_SUBCATEGORIES[cat] || TOLERANT_EXTRA_CATEGORIES.has(cat);
 }
 
@@ -41,7 +41,7 @@ export function validateAndNormalizeEventsTolerant(events: any[]): EventData[] {
     let cat = catRaw || 'Unclassified';
     if (catRaw) {
       const norm = normalizeCategory(catRaw);
-      cat = isValidOrExtraCategory(norm) ? norm : 'Unclassified';
+      cat = isAcceptableCategory(norm) ? norm : 'Unclassified';
     } else {
       cat = 'Unclassified';
     }

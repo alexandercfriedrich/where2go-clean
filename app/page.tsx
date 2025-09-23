@@ -3,31 +3,14 @@ import { useEffect, useRef, useState } from 'react';
 import { EVENT_CATEGORY_SUBCATEGORIES } from './lib/eventCategories';
 import { useTranslation } from './lib/useTranslation';
 import { startJobPolling, deduplicateEvents as dedupFront } from './lib/polling';
-
-interface EventData {
-  title: string;
-  category: string;
-  date: string;     // YYYY-MM-DD
-  time: string;     // "HH:mm"
-  venue: string;
-  price: string;
-  website: string;
-  endTime?: string;
-  address?: string;
-  ticketPrice?: string;
-  eventType?: string;
-  description?: string;
-  bookingLink?: string;
-  ageRestrictions?: string;
-  source?: 'cache' | 'ai' | 'rss' | 'ra' | string;
-}
+import { EventData } from './lib/types';
 
 const ALL_SUPER_CATEGORIES = Object.keys(EVENT_CATEGORY_SUBCATEGORIES);
 const MAX_CATEGORY_SELECTION = 3;
 
 // Polling config
 const POLL_INTERVAL_MS = 4000;
-const MAX_POLLS = 48; // UI and tests may refer to 48; adjust here if you raise global window
+const MAX_POLLS = 104; // Increased from 48 to 104 for longer polling duration (tests expect 104)
 
 export default function Home() {
   const { t } = useTranslation();
