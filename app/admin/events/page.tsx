@@ -63,10 +63,7 @@ export default function AdminEventsPage() {
     }
   };
 
-  useEffect(() => {
-    void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  useEffect(() => { void load(); }, []); // initial load
 
   return (
     <div style={{ maxWidth: 1200, margin: '0 auto', padding: 20 }}>
@@ -161,8 +158,7 @@ export default function AdminEventsPage() {
                   >
                     <div style={{ fontWeight: 600 }}>{ev.title || '(ohne Titel)'}</div>
                     <div style={{ fontSize: 12, color: '#555' }}>
-                      {ev.category || '—'} • {ev.date || '—'}
-                      {ev.venue ? ` • ${ev.venue}` : ''}
+                      {ev.category || '—'} • {ev.date || '—'}{ev.venue ? ` • ${ev.venue}` : ''}
                     </div>
                     {ev.website && (
                       <div style={{ marginTop: 4 }}>
