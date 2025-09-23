@@ -17,7 +17,7 @@ export function middleware(request: NextRequest) {
       });
     }
 
-    // Decode Basic Auth credentials
+    // Decode Basic Auth credentials 
     const base64Credentials = authHeader.split(' ')[1];
     const credentials = atob(base64Credentials);
     const [username, password] = credentials.split(':');
