@@ -252,82 +252,79 @@ export default function Home() {
     if (data.cacheInfo) setCacheInfo(data.cacheInfo);
   }
 
-  async function progressiveSearchEvents() {
-    if (!city.trim()) {
-      setError('Bitte gib eine Stadt ein.');
-      return;
-    }
-    cancelRef.current.cancel = true;
-    await new Promise(r => setTimeout(r, 0));
-    cancelRef.current = { cancel:false };
-
-    // Stop previous polling if any
-    if (activePolling) {
-      try { activePolling.cleanup(); } catch {}
-      setActivePolling(null);
-    }
-
-    setLoading(true);
-    setError(null);
-    setEvents([]);
-    setCacheInfo(null);
-    setSearchSubmitted(true);
-    setSearchedSuperCategories([...selectedSuperCategories]);
-    setActiveFilter('Alle');
-
-    try {
-      // Start background job (server will create a job and return jobId)
-      const jobRes = await fetch('/api/events/process', {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json' },
-        body: JSON.stringify({
-          jobId: `job_${Date.now()}`,
-          city: city.trim(),
-          date: formatDateForAPI(),
-          categories: selectedSuperCategories.length ? getSelectedSubcategories(selectedSuperCategories) : [],
-          options: {
-            progressive: true
-          }
-        })
-      });
-      if (!jobRes.ok) {
-        const data = await jobRes.json().catch(()=> ({}));
-        throw new Error(data.error || `Serverfehler ${jobRes.status}`);
-      }
-      const data = await jobRes.json();
-
-      // Set up progressive polling
-      const onEvents = (chunk: EventData[], getCurrent: () => EventData[]) => {
-        setEvents(prev => dedupMerge(prev, chunk));
-      };
-      const getCurrent = () => events;
-      const onDone = (_final: EventData[], _status: string) => {
-        setStepLoading(null);
-        setLoading(false);
-        setTimeout(()=> setToast({show:false, message:''}), 2000);
-        if (resultsAnchorRef.current) {
-          resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      };
-      const cleanup = startJobPolling(data.jobId, onEvents, getCurrent, onDone, POLL_INTERVAL_MS, MAX_POLLS);
-
-      // FIX: provide pollInstanceId as required by type
-      const nextInstance = ++pollInstanceRef.current;
-      setActivePolling({ jobId: data.jobId, cleanup, pollInstanceId: nextInstance });
-
-      // Also trigger immediate UI fetch for selected super categories as fallback (optional)
-      const superCats =
-        selectedSuperCategories.length > 0 ? [...selectedSuperCategories] : [...ALL_SUPER_CATEGORIES];
-      for (const sc of superCats) {
-        if (cancelRef.current.cancel) return;
-        await fetchForSuperCategory(sc);
-      }
-    } catch(e:any){
-      setError(e.message || 'Fehler bei der Suche');
-      setLoading(false);
-      setStepLoading(null);
-    }
+  // ...
+async function progressiveSearchEvents() {
+  if (!city.trim()) {
+    setError('Bitte gib eine Stadt ein.');
+    return;
   }
+  cancelRef.current.cancel = true;
+  await new Promise(r => setTimeout(r, 0));
+  cancelRef.current = { cancel:false };
+
+  if (activePolling) {
+    try { activePolling.cleanup(); } catch {}
+    setActivePolling(null);
+  }
+
+  setLoading(true);
+  setError(null);
+  setEvents([]);
+  setCacheInfo(null);
+  setSearchSubmitted(true);
+  setSearchedSuperCategories([...selectedSuperCategories]);
+  setActiveFilter('Alle');
+
+  try {
+    // RICHTIG: Job per /api/events anlegen (keine jobId im Body mitschicken)
+    const jobRes = await fetch('/api/events', {
+      method: 'POST',
+      headers: { 'Content-Type':'application/json' },
+      body: JSON.stringify({
+        city: city.trim(),
+        date: formatDateForAPI(),
+        categories: selectedSuperCategories.length ? getSelectedSubcategories(selectedSuperCategories) : [],
+        options: {
+          progressive: true
+        }
+      })
+    });
+    if (!jobRes.ok) {
+      const data = await jobRes.json().catch(()=> ({}));
+      throw new Error(data.error || `Serverfehler ${jobRes.status}`);
+    }
+    const data = await jobRes.json();
+
+    const onEvents = (chunk: EventData[], _getCurrent: () => EventData[]) => {
+      setEvents(prev => dedupMerge(prev, chunk));
+    };
+    const getCurrent = () => events;
+    const onDone = (_final: EventData[], _status: string) => {
+      setStepLoading(null);
+      setLoading(false);
+      setTimeout(()=> setToast({show:false, message:''}), 2000);
+      if (resultsAnchorRef.current) {
+        resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    };
+
+    const cleanup = startJobPolling(data.jobId, onEvents, getCurrent, onDone, POLL_INTERVAL_MS, MAX_POLLS);
+    const nextInstance = ++pollInstanceRef.current;
+    setActivePolling({ jobId: data.jobId, cleanup, pollInstanceId: nextInstance });
+
+    // Optional: parallele UI-Fetches pro Superkategorie
+    const superCats =
+      selectedSuperCategories.length > 0 ? [...selectedSuperCategories] : [...ALL_SUPER_CATEGORIES];
+    for (const sc of superCats) {
+      if (cancelRef.current.cancel) return;
+      await fetchForSuperCategory(sc);
+    }
+  } catch(e:any){
+    setError(e.message || 'Fehler bei der Suche');
+    setLoading(false);
+    setStepLoading(null);
+  }
+}
 
   const displayedEvents = (() => {
     const dateFiltered = events.filter(matchesSelectedDate);
