@@ -184,3 +184,57 @@ a:hover { color: var(--color-accent-alt-hover); }
 .price-chip:hover {
   background: var(--chip-hover);
 }
+
+/* ---- Where2Go Loader (W2GLoader5) ---- */
+.w2g-loader-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-12, 24px) 0;
+}
+
+.w2g-loader {
+  position: relative;
+  width: 130px;
+  height: 130px;
+}
+
+.w2g-loader svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Ringe: keine Füllung, dezente Ränder */
+.w2g-loader .ring circle {
+  fill: none;
+  stroke: var(--color-border);
+  stroke-width: 2;
+  opacity: 0.55;
+}
+
+.w2g-loader .ring--2 circle { opacity: 0.35; }
+.w2g-loader .ring--3 circle { opacity: 0.25; }
+
+/* Orbital-Punkte */
+.orb5 {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px; /* optische Zentrierung */
+  border-radius: 50%;
+  background: var(--chip-active-bg, var(--color-text));
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.04);
+  transform: rotate(var(--angle, 0deg)) translateX(var(--radius, 20px)) translate(-50%, -50%);
+  transform-origin: center center;
+  animation: orb5-orbit var(--speed, 1.2s) linear infinite;
+  will-change: transform;
+}
+
+@keyframes orb5-orbit {
+  to {
+    transform: rotate(calc(var(--angle, 0deg) + 360deg)) translateX(var(--radius, 20px)) translate(-50%, -50%);
+  }
+}
