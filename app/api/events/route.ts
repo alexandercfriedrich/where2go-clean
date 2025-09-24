@@ -81,6 +81,10 @@ async function scheduleBackgroundProcessing(
 
 export async function POST(request: NextRequest) {
   try {
+    const url = new URL(request.url);
+    const qDebug = url.searchParams.get('debug') === '1';
+    const qVerbose = url.searchParams.get('verbose') === '1';
+
     const body: RequestBody = await request.json();
     const { city, date, categories, options } = body;
 
@@ -115,6 +119,9 @@ export async function POST(request: NextRequest) {
         const f1Ids = getWienInfoF1IdsForCategories(mainCats);
         if (f1Ids.length > 0) {
           const wienInfoUrl = buildWienInfoUrl(date, date, f1Ids);
+          if (qDebug) {
+            console.log('[WIEN.INFO:DISCOVERY]', { mainCats, url: wienInfoUrl });
+          }
           additionalSources = [
             ...additionalSources,
             {
@@ -136,10 +143,14 @@ export async function POST(request: NextRequest) {
       ...DEFAULT_PPLX_OPTIONS, 
       ...options,
       hotCity: hotCityData,
-      additionalSources
+      additionalSources,
+      // Debug/Verbose auch per Query-Param aktivierbar
+      debug: (options as any)?.debug === true || qDebug,
+      debugVerbose: (options as any)?.debugVerbose === true || qVerbose,
+      categoryConcurrency: (options as any)?.categoryConcurrency ?? 3
     };
 
-    const disableCache = mergedOptions?.disableCache === true || mergedOptions?.debug === true;
+    const disableCache = (mergedOptions as any)?.disableCache === true || (mergedOptions as any)?.debug === true;
 
     let allCachedEvents: EventData[] = [];
     let missingCategories: string[] = [];
@@ -274,7 +285,7 @@ export async function POST(request: NextRequest) {
 
     await jobStore.setJob(jobId, job);
 
-    if (options?.debug) {
+    if ((mergedOptions as any)?.debug) {
       const debugInfo: DebugInfo = {
         createdAt: new Date(),
         city,

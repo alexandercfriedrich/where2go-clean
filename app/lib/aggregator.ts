@@ -19,7 +19,19 @@ export class EventAggregator {
     }
     const structurallyNormalized = normalizeEvents(parsedRaw);
     const canonical = validateAndNormalizeEvents(structurallyNormalized);
-    return this.deduplicateEvents(canonical);
+    const deduped = this.deduplicateEvents(canonical);
+
+    if (process.env.LOG_AGG_DEBUG === '1') {
+      console.log('[AGG:SUMMARY]', {
+        inputResults: results.length,
+        parsedRaw: parsedRaw.length,
+        normalized: canonical.length,
+        deduped: deduped.length,
+        sample: deduped[0] || null
+      });
+    }
+
+    return deduped;
   }
 
   private extractCategoryFromQuery(query: string): string | undefined {

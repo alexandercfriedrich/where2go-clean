@@ -26,7 +26,7 @@ const ALL_SUPER_CATEGORIES = Object.keys(EVENT_CATEGORY_SUBCATEGORIES);
 const MAX_CATEGORY_SELECTION = 3;
 
 // Polling config
-const POLL_INTERVAL_MS = 4000;
+const POLL_INTERVAL_MS = 2000; // vorher 4000
 const MAX_POLLS = 48; // UI and tests may refer to 48; adjust here if you raise global window
 
 export default function Home() {
@@ -124,7 +124,7 @@ export default function Home() {
   function tomorrowISO() { const d = new Date(); d.setDate(d.getDate()+1); return toISODate(d); }
   function nextWeekendDatesISO(): string[] {
     const t = new Date();
-    const day = t.getDay(); // 0 So ... 6 Sa
+       const day = t.getDay(); // 0 So ... 6 Sa
     const offset = (5 - day + 7) % 7; // nächster Freitag
     const fri = new Date(t); fri.setDate(t.getDate() + offset);
     const sat = new Date(fri); sat.setDate(fri.getDate() + 1);

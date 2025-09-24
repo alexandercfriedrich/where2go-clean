@@ -4,8 +4,8 @@
  * - Parst RSS rudimentär ohne zusätzliche Dependencies
  * - Gibt Event-Objekte zurück (minimal, für Deployment ausreichend)
  *
- * Hinweis: Diese Implementierung ist bewusst leichtgewichtig und robust für den Build.
- * Sie kann später mit besserem XML-Parsing und Feld-Mapping erweitert werden.
+ * Hinweise:
+ * - LOG_RSS_DEBUG=1 aktiviert Request-/Response-Logging (URL, Dauer, Status, XML-Snippet).
  */
 
 type FetchOptions = {
@@ -150,13 +150,28 @@ export async function fetchWienAtEvents(opts: FetchOptions): Promise<any[]> {
 
   for (const kat of katList) {
     const url = buildVadbUrl(baseUrl, fromISO, toISO, extraQuery, kat);
+    const t0 = Date.now();
     try {
+      if (process.env.LOG_RSS_DEBUG === '1') {
+        console.log('[WIEN.AT:REQUEST]', { url, kat });
+      }
       const res = await fetch(url, { method: 'GET' });
+      const dt = Date.now() - t0;
+
       if (!res.ok) {
-        console.warn(`Wien.at RSS HTTP ${res.status} for ${url}`);
+        console.warn(`Wien.at RSS HTTP ${res.status} for ${url} (${dt}ms)`);
         continue;
       }
       const xml = await res.text();
+
+      if (process.env.LOG_RSS_DEBUG === '1') {
+        console.log('[WIEN.AT:RESPONSE]', {
+          dtMs: dt,
+          status: res.status,
+          xmlFirst600: xml.slice(0, 600)
+        });
+      }
+
       const items = parseRssItems(xml, kat);
       for (const ev of items) {
         const key = ev.id || ev.url || ev.title;
