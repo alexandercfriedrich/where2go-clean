@@ -13,6 +13,10 @@ const DEFAULT_CATEGORIES = EVENT_CATEGORIES;
 
 export async function POST(request: NextRequest) {
   try {
+    const url = new URL(request.url);
+    const qDebug = url.searchParams.get('debug') === '1';
+    const qVerbose = url.searchParams.get('verbose') === '1';
+
     const { city, date, categories, options } = await request.json();
     if (!city || !date) {
       return NextResponse.json({ error: 'Stadt und Datum sind erforderlich' }, { status: 400 });
@@ -53,7 +57,13 @@ export async function POST(request: NextRequest) {
     }
 
     const service = createPerplexityService(PERPLEXITY_API_KEY);
-    const results = await service.executeMultiQuery(city, date, missingCategories, options);
+    const mergedOptions = {
+      ...(options || {}),
+      debug: (options?.debug === true) || qDebug,
+      debugVerbose: (options?.debugVerbose === true) || qVerbose,
+      categoryConcurrency: options?.categoryConcurrency ?? 3
+    };
+    const results = await service.executeMultiQuery(city, date, missingCategories, mergedOptions);
 
     // STAMP: ai provenance
     const newEvents = eventAggregator.aggregateResults(results).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
