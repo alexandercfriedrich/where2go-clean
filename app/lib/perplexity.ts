@@ -1,6 +1,18 @@
-// Perplexity AI service abstraction (Phase 2B enhanced)
-// Adds: expanded subcategory prompts, per-category query logging, optional all-categories expansion,
-// API key validation and safer options handling. (Build fix: ensure PerplexityResult includes events & timestamp)
+// Perplexity AI service abstraction (enhanced version with debug + optional concurrency)
+//
+// Features:
+// - Per-category prompting (general fallback if no categories)
+// - Expanded subcategory context
+// - Optional parallel querying via categoryConcurrency
+// - Structured debug + verbose logging controlled by:
+//     options.debug / ?debug=1  or env LOG_PPLX_QUERIES=1  (short logs)
+//     options.debugVerbose      or env LOG_PPLX_VERBOSE=1  (full payload logs)
+// - Minimal patch applied: removed duplicate post-loop call in worker
+//
+// Notes:
+// - Parallel execution order in results array is NOT guaranteed when categoryConcurrency > 1
+//   (kept intentionally simple per "minimal patch" request).
+// - If deterministic ordering is later needed, capture index and sort before return.
 
 import {
   EVENT_CATEGORIES,
@@ -21,10 +33,8 @@ interface PerplexityOptions {
   minEventsPerCategory?: number;
   hotCity?: any;
   additionalSources?: any[];
-
-  // NEU: ausführliches Logging + parallele Verarbeitung
   debugVerbose?: boolean;
-  categoryConcurrency?: number; // Anzahl Kategorien parallel (1 = sequenziell)
+  categoryConcurrency?: number;
 }
 
 interface PplxApiRequest {
@@ -64,11 +74,7 @@ export function createPerplexityService(apiKey: string) {
       });
     }
     if (options.debugVerbose || process.env.LOG_PPLX_VERBOSE === '1') {
-      // Vollständiger Request inkl. System-/User-Messages
-      console.log('[PPLX:REQUEST:FULL]', {
-        model,
-        body
-      });
+      console.log('[PPLX:REQUEST:FULL]', { model, body });
     }
 
     const res = await fetch(baseUrl, {
@@ -83,7 +89,11 @@ export function createPerplexityService(apiKey: string) {
 
     if (!res.ok) {
       const txt = await res.text();
-      console.error('[PPLX:ERROR]', { status: res.status, dtMs: dt, textFirst400: txt.slice(0, 400) });
+      console.error('[PPLX:ERROR]', {
+        status: res.status,
+        dtMs: dt,
+        textFirst400: txt.slice(0, 400)
+      });
       throw new Error(`Perplexity API error ${res.status}: ${txt}`);
     }
 
@@ -97,11 +107,7 @@ export function createPerplexityService(apiKey: string) {
       });
     }
     if (options.debugVerbose || process.env.LOG_PPLX_VERBOSE === '1') {
-      // Vorsicht: groß – Vercel Log-Limits beachten
-      console.log('[PPLX:RESPONSE:FULL]', {
-        dtMs: dt,
-        raw: data
-      });
+      console.log('[PPLX:RESPONSE:FULL]', { dtMs: dt, raw: data });
     }
 
     const content = data?.choices?.[0]?.message?.content;
@@ -192,7 +198,6 @@ Example minimal object:
       effectiveCategories = mapToMainCategories(categories);
     }
 
-    // Fallback to general prompt if nothing remains
     if (effectiveCategories.length === 0) {
       const prompt = buildGeneralPrompt(city, date);
       if (options.debug || process.env.LOG_PPLX_QUERIES === '1') {
@@ -202,15 +207,15 @@ Example minimal object:
       return [{
         query: prompt,
         response,
-        events: [],           // build-fix: satisfy PerplexityResult
-        timestamp: Date.now() // build-fix
+        events: [],
+        timestamp: Date.now()
       }];
     }
 
     const results: PerplexityResult[] = [];
-
-    // Parallele Verarbeitung nach categoryConcurrency
     const cc = Math.max(1, options.categoryConcurrency ?? 1);
+
+    // Sequential path
     if (cc === 1) {
       for (const cat of effectiveCategories) {
         const prompt = buildCategoryPrompt(city, date, cat, options);
@@ -221,19 +226,20 @@ Example minimal object:
         results.push({
           query: prompt,
           response,
-          events: [],            // aggregator will parse from response
+          events: [],
           timestamp: Date.now()
         });
       }
       return results;
     }
 
-    // einfacher Worker-Pool
+    // Parallel worker pool (order not guaranteed)
     let idx = 0;
     async function worker() {
       while (idx < effectiveCategories.length) {
         const my = idx++;
         const cat = effectiveCategories[my];
+        if (!cat) break;
         const prompt = buildCategoryPrompt(city, date, cat, options);
         if (options.debug || process.env.LOG_PPLX_QUERIES === '1') {
           console.log(`[PPLX:QUERY][${cat}] len=${prompt.length}`);
@@ -247,8 +253,8 @@ Example minimal object:
         });
       }
     }
-    await Promise.all(Array.from({ length: cc }).map(() => worker()));
 
+    await Promise.all(Array.from({ length: cc }).map(() => worker()));
     return results;
   }
 
