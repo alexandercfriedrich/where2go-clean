@@ -35,14 +35,20 @@ export async function POST(request: NextRequest) {
     // Start with existing job events
     let runningEvents = eventAggregator.deduplicateEvents([...(job.events || [])]);
 
-    // Incremental per main category
-    for (let i = 0; i < effective.length; i++) {
-      const c = effective[i];
+    // NEU: Batch-Verarbeitung mehrerer Kategorien parallel
+    const concurrency = Math.max(1, options?.categoryConcurrency ?? 3);
 
-      const results = await service.executeMultiQuery(city, date, [c], options || {});
+    for (let i = 0; i < effective.length; i += concurrency) {
+      const batch = effective.slice(i, i + concurrency);
+
+      const results = await service.executeMultiQuery(city, date, batch, {
+        ...(options || {}),
+        categoryConcurrency: concurrency
+      });
+
       const chunk = eventAggregator.aggregateResults(results).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
 
-      // Cache per category
+      // Cache per Kategorie
       const ttlSeconds = computeTTLSecondsForEvents(chunk);
       const grouped: Record<string, any[]> = {};
       for (const ev of chunk) {
@@ -53,13 +59,13 @@ export async function POST(request: NextRequest) {
         eventsCache.setEventsByCategory(city, date, cat, grouped[cat], ttlSeconds);
       }
 
-      // Merge and publish progress
+      // Merge und Fortschritt updaten
       runningEvents = eventAggregator.deduplicateEvents([...runningEvents, ...chunk]);
 
       await jobStore.updateJob(jobId, {
         status: 'processing',
         events: runningEvents,
-        progress: { completedCategories: i + 1, totalCategories: effective.length },
+        progress: { completedCategories: Math.min(i + batch.length, effective.length), totalCategories: effective.length },
         lastUpdateAt: new Date().toISOString()
       });
     }
