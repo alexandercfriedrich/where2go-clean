@@ -19,6 +19,7 @@ export interface EventData {
   bookingLink?: string;
   ageRestrictions?: string;
   cacheUntil?: string; // ISO string bis wann Event gecached werden darf
+  parsingWarning?: string | string[]; // Warnings from parsing/validation
 
   // Herkunftsmarker für Badges
   source?: 'cache' | 'ai' | 'rss' | 'ra' | string;
@@ -28,6 +29,8 @@ export interface EventData {
 export interface PerplexityResult {
   query: string;
   response: string;
+  events?: EventData[]; // parsed events (filled by aggregator)
+  timestamp?: number;   // when the query was executed
 }
 
 // Cache-Eintrag (wird von app/lib/cache.ts verwendet)
@@ -37,12 +40,29 @@ export interface CacheEntry<T = any> {
   ttl: number;       // ms duration
 }
 
+// Query-Optionen für Suche und API-Calls
+export interface QueryOptions {
+  temperature?: number;
+  max_tokens?: number;
+  debug?: boolean;
+  disableCache?: boolean;
+  expandedSubcategories?: boolean;
+  forceAllCategories?: boolean;
+  minEventsPerCategory?: number;
+  categoryTimeoutMs?: number;
+  overallTimeoutMs?: number;
+  maxAttempts?: number;
+  categoryConcurrency?: number;
+  hotCity?: any;
+  additionalSources?: any[];
+}
+
 // Request-Body für Suche
 export interface RequestBody {
   city: string;
   date: string;
   categories?: string[];
-  options?: any;
+  options?: QueryOptions;
 }
 
 // Job-Status, wie in /api/jobs/[jobId]
@@ -61,6 +81,14 @@ export interface JobStatus {
   lastUpdateAt?: string;
 }
 
+// Debug-Schritt für Job-Verfolgung
+export interface DebugStep {
+  category: string;
+  query: string;
+  response: string;
+  parsedCount: number;
+}
+
 // Debug-Infos optional je Job
 export interface DebugInfo {
   createdAt: Date;
@@ -68,7 +96,7 @@ export interface DebugInfo {
   date: string;
   categories: string[];
   options: any;
-  steps: any[];
+  steps: DebugStep[];
 }
 
 // Hot Cities: Website-Konfiguration

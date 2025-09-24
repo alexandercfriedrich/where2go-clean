@@ -39,7 +39,7 @@ class RedisJobStore implements JobStore {
     const key = this.jobKeyPrefix + jobId;
     const serialized = JSON.stringify({
       ...job,
-      createdAt: job.createdAt.toISOString()
+      createdAt: job.createdAt?.toISOString()
     });
     await this.redis.setex(key, this.ttlSeconds, serialized);
   }
@@ -54,7 +54,7 @@ class RedisJobStore implements JobStore {
       if (typeof result === 'object' && result !== null) {
         return {
           ...result as any,
-          createdAt: new Date((result as any).createdAt)
+          createdAt: (result as any).createdAt ? new Date((result as any).createdAt) : undefined
         };
       }
       
@@ -70,7 +70,7 @@ class RedisJobStore implements JobStore {
       const parsed = JSON.parse(resultStr);
       return {
         ...parsed,
-        createdAt: new Date(parsed.createdAt)
+        createdAt: parsed.createdAt ? new Date(parsed.createdAt) : undefined
       };
     } catch (error) {
       console.error(`Failed to parse job data for ${jobId}:`, error, 'Raw result:', result);
@@ -192,12 +192,12 @@ class InMemoryJobStore implements JobStore {
     // Serialize and deserialize to ensure consistency with Redis store
     const serialized = JSON.stringify({
       ...job,
-      createdAt: job.createdAt.toISOString()
+      createdAt: job.createdAt?.toISOString()
     });
     const parsed = JSON.parse(serialized);
     this.jobs.set(jobId, {
       ...parsed,
-      createdAt: new Date(parsed.createdAt)
+      createdAt: parsed.createdAt ? new Date(parsed.createdAt) : undefined
     });
   }
 
@@ -209,12 +209,12 @@ class InMemoryJobStore implements JobStore {
     try {
       const serialized = JSON.stringify({
         ...job,
-        createdAt: job.createdAt.toISOString()
+        createdAt: job.createdAt?.toISOString()
       });
       const parsed = JSON.parse(serialized);
       return {
         ...parsed,
-        createdAt: new Date(parsed.createdAt)
+        createdAt: parsed.createdAt ? new Date(parsed.createdAt) : undefined
       };
     } catch (error) {
       console.error(`Failed to serialize/deserialize job ${jobId}:`, error);
@@ -262,7 +262,7 @@ class InMemoryJobStore implements JobStore {
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000); // 2 hours
     
     for (const [jobId, job] of this.jobs.entries()) {
-      if (job.createdAt < twoHoursAgo) {
+      if (job.createdAt && job.createdAt < twoHoursAgo) {
         this.jobs.delete(jobId);
         this.debugInfo.delete(jobId);
       }
