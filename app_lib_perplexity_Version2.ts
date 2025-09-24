@@ -98,11 +98,15 @@ export function createPerplexityService(apiKey: string) {
     }
     if (options.debugVerbose || process.env.LOG_PPLX_VERBOSE === '1') {
       // Vorsicht: groß – Vercel Log-Limits beachten
+      // Log only summary fields and truncate large content to avoid log overflow
       console.log('[PPLX:RESPONSE:FULL]', {
         dtMs: dt,
-        raw: data
+        choicesCount: Array.isArray(data?.choices) ? data.choices.length : 0,
+        contentFirst400: data?.choices?.[0]?.message?.content
+          ? data.choices[0].message.content.slice(0, 400)
+          : undefined,
+        contentLen: data?.choices?.[0]?.message?.content?.length ?? 0
       });
-    }
 
     const content = data?.choices?.[0]?.message?.content;
     if (!content) throw new Error('No content returned from Perplexity');
