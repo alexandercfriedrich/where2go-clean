@@ -167,15 +167,16 @@ Known For: ${options.hotCity.keywords?.join(', ') || 'n/a'}\n`
 
     return `${hotCityPart}${sourcesBlock}${categoryContext}
 
-City: ${city}
-Target Date: ${date}
-
+Find ALL REAL events in ${city} on ${date}.
+Return ONLY the JSON array (No explanatory text outside the JSON structure).
+Include multiple main categories if possible.`
+    
 Task:
-1. Find all real well-sourced events (use subcategory diversity).
+1. Find all real events (use subcategory diversity).
 2. Include booking/ticket links where obvious.
 
 Output:
-ONLY a JSON array of real event objects.
+Return ONLY the JSON array of real events (No explanatory text outside the JSON structure).
 
 Example minimal object:
 {"title":"Example","category":"${mainCategory}","date":"${date}","venue":"Example Venue","price":"","website":""}`;
