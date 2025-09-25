@@ -64,6 +64,7 @@ describe('Hot Cities Store Helpers', () => {
         country: '',
         isActive: true,
         websites: [],
+        venues: [],
         defaultSearchQuery: '',
         customPrompt: '',
       });

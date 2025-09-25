@@ -13,6 +13,7 @@ import { fetchWienAtEvents, mapMainToViennaKats } from '@/lib/sources/wienAt';
 
 // Wien.info Filter-Mapping (Discovery-Link für KI/Navigation)
 import { buildWienInfoUrl, getWienInfoF1IdsForCategories } from '@/event_mapping_wien_info';
+import { fetchWienInfoEvents } from '@/lib/sources/wienInfo';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -139,6 +140,47 @@ export async function POST(request: NextRequest) {
       console.warn('Wien.info link generation failed:', (e as Error).message);
     }
 
+    // Frühe Sammelliste für schnelle Quellen (z.B. Wien.info, RSS)
+    let earlyEvents: EventData[] = [];
+
+    // Optional: direkte Wien.info HTML Events (Opt-In)
+    try {
+      const shouldFetchWienInfo =
+        request.nextUrl.searchParams.get('fetchWienInfo') === '1' ||
+        (options && (options as any).fetchWienInfo === true);
+      const isVienna = /(^|\s)wien(\s|$)|vienna/.test(city.toLowerCase());
+      if (shouldFetchWienInfo && isVienna) {
+        const wienInfoRaw = await fetchWienInfoEvents({
+          fromISO: date,
+          toISO: date,
+          categories: effectiveCategories,
+          limit: 120,
+          debug: (options as any)?.debug === true || qDebug,
+          debugVerbose: (options as any)?.debugVerbose === true || qVerbose
+        });
+        if (wienInfoRaw.length) {
+          const normalized = wienInfoRaw.map(ev => ({
+            title: ev.title,
+            category: ev.category,
+            date: ev.date,
+            time: ev.time || '',
+            venue: ev.venue || '',
+            price: ev.price || '',
+            website: ev.website || '',
+            source: ev.source,
+            city: ev.city || 'Wien'
+          }));
+            const deduped = eventAggregator.deduplicateEvents(normalized);
+            earlyEvents.push(...deduped);
+            if (qDebug) {
+              console.log('[WIEN.INFO:EARLY]', { count: deduped.length });
+            }
+        }
+      }
+    } catch (e) {
+      console.warn('Wien.info fetch failed:', (e as Error).message);
+    }
+
     const mergedOptions = { 
       ...DEFAULT_PPLX_OPTIONS, 
       ...options,
@@ -172,6 +214,14 @@ export async function POST(request: NextRequest) {
       effectiveCategories.forEach(category => {
         cacheInfo[category] = { fromCache: false, eventCount: 0 };
       });
+    }
+
+    // Combine early events with cached events
+    if (earlyEvents.length > 0) {
+      allCachedEvents = eventAggregator.deduplicateEvents([
+        ...earlyEvents,
+        ...allCachedEvents
+      ]);
     }
 
     // Wien.gv.at (VADB) RSS – schnelle Vorab-Ergebnisse (nur Wien)

@@ -21,6 +21,7 @@ export function createEmptyCity(): Omit<HotCity, 'id' | 'createdAt' | 'updatedAt
     country: '',
     isActive: true,
     websites: [],
+    venues: [],
     defaultSearchQuery: '',
     customPrompt: '',
   };

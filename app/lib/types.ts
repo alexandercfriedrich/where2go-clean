@@ -18,6 +18,7 @@ export interface EventData {
   description?: string;
   bookingLink?: string;
   ageRestrictions?: string;
+  city?: string; // Stadt/Ort des Events
   cacheUntil?: string; // ISO string bis wann Event gecached werden darf
   parsingWarning?: string | string[]; // Warnings from parsing/validation
 
@@ -55,6 +56,7 @@ export interface QueryOptions {
   categoryConcurrency?: number;
   hotCity?: any;
   additionalSources?: any[];
+  fetchWienInfo?: boolean; // NEU: optionaler Opt-In für direkte wien.info HTML Events
 }
 
 // Request-Body für Suche
@@ -114,13 +116,39 @@ export interface HotCityWebsite {
   isVenuePrioritized?: boolean;
 }
 
+// NEU: einzelnes Venue in einer Hot City
+export interface HotCityVenue {
+  id: string;
+  name: string;
+  categories: string[];
+  description?: string;
+  priority: number;
+  isActive: boolean;
+  isVenue: true;
+  isVenuePrioritized?: boolean;
+  address: {
+    full: string;
+    street: string;
+    houseNumber: string;
+    postalCode: string;
+    city: string;
+    country: string;
+  };
+  website?: string;
+  eventsUrl?: string;
+  aiQueryTemplate?: string;
+}
+
 // Hot City Datensatz
 export interface HotCity {
   id: string;
   name: string;
-  country: string;
+  country?: string;
   isActive: boolean;
+  // bisher: websites (verwaltet in Admin)
   websites: HotCityWebsite[];
+  // NEU: strukturierte Venues
+  venues?: HotCityVenue[];
   defaultSearchQuery?: string;
   customPrompt?: string;
   createdAt: Date;
