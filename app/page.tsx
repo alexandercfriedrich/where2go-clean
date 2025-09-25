@@ -227,29 +227,33 @@ export default function Home() {
     const subs = EVENT_CATEGORY_SUBCATEGORIES[superCat] || [];
     if (subs.length === 0) return;
     setStepLoading(superCat);
-    const res = await fetch('/api/events', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        city: city.trim(),
-        date: formatDateForAPI(),
-        categories: subs,
-        options: {
-          temperature: 0.2,
-          max_tokens: 12000,
-          expandedSubcategories: true,
-          minEventsPerCategory: 14
-        }
-      })
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(()=> ({}));
-      throw new Error(data.error || `Serverfehler ${res.status}`);
+    try {
+      const res = await fetch('/api/events', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          city: city.trim(),
+          date: formatDateForAPI(),
+          categories: subs,
+          options: {
+            temperature: 0.2,
+            max_tokens: 12000,
+            expandedSubcategories: true,
+            minEventsPerCategory: 14
+          }
+        })
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(()=> ({}));
+        throw new Error(data.error || `Serverfehler ${res.status}`);
+      }
+      const data = await res.json();
+      const incoming: EventData[] = data.events || [];
+      setEvents(prev => dedupMerge(prev, incoming));
+      if (data.cacheInfo) setCacheInfo(data.cacheInfo);
+    } finally {
+      setStepLoading(null);
     }
-    const data = await res.json();
-    const incoming: EventData[] = data.events || [];
-    setEvents(prev => dedupMerge(prev, incoming));
-    if (data.cacheInfo) setCacheInfo(data.cacheInfo);
   }
 
   // ...
