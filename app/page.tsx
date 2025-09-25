@@ -331,18 +331,33 @@ async function progressiveSearchEvents() {
 }
 
   const displayedEvents = (() => {
-    const dateFiltered = events.filter(matchesSelectedDate);
-    if (!searchSubmitted) return dateFiltered;
-    if (activeFilter === 'Alle') return dateFiltered;
+    let baseEvents = events;
+    
+    // Apply date filtering only if user explicitly changed from default "heute"
+    // This way, search results show all events unless user specifically filters by date
+    if (!searchSubmitted || timePeriod !== 'heute' || customDate) {
+      baseEvents = events.filter(matchesSelectedDate);
+    }
+    
+    // Apply category filtering
+    if (!searchSubmitted) return baseEvents;
+    if (activeFilter === 'Alle') return baseEvents;
     const subs = EVENT_CATEGORY_SUBCATEGORIES[activeFilter] || [];
-    return dateFiltered.filter(e => subs.includes(e.category));
+    return baseEvents.filter(e => subs.includes(e.category));
   })();
 
   const getCategoryCounts = () => {
-    const counts: Record<string, number> = { 'Alle': events.filter(matchesSelectedDate).length };
+    let baseEvents = events;
+    
+    // Same logic as displayedEvents
+    if (!searchSubmitted || timePeriod !== 'heute' || customDate) {
+      baseEvents = events.filter(matchesSelectedDate);
+    }
+    
+    const counts: Record<string, number> = { 'Alle': baseEvents.length };
     searchedSuperCategories.forEach(cat => {
       const subs = EVENT_CATEGORY_SUBCATEGORIES[cat] || [];
-      counts[cat] = events.filter(e => subs.includes(e.category)).filter(matchesSelectedDate).length;
+      counts[cat] = baseEvents.filter(e => subs.includes(e.category)).length;
     });
     return counts;
   };
