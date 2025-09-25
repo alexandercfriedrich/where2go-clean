@@ -23,6 +23,15 @@ import {
 } from './eventCategories';
 import { PerplexityResult } from './types';
 
+// Declare process for Node.js environment variables
+declare const process: {
+  env: {
+    LOG_PPLX_QUERIES?: string;
+    LOG_PPLX_VERBOSE?: string;
+    [key: string]: string | undefined;
+  };
+};
+
 interface PerplexityOptions {
   temperature?: number;
   max_tokens?: number;
@@ -167,13 +176,10 @@ Known For: ${options.hotCity.keywords?.join(', ') || 'n/a'}\n`
 
     return `${hotCityPart}${sourcesBlock}${categoryContext}
 
-Find ALL REAL events in ${city} on ${date}.
-Return ONLY the JSON array (No explanatory text outside the JSON structure).
-Include multiple main categories if possible.`
-    
 Task:
-1. Find all real events (use subcategory diversity).
-2. Include booking/ticket links where obvious.
+1. Find all real events in ${city} on ${date} for category: ${mainCategory}
+2. Use subcategory diversity within the main category
+3. Include booking/ticket links where available
 
 Output:
 Return ONLY the JSON array of real events (No explanatory text outside the JSON structure).
@@ -260,3 +266,6 @@ Example minimal object:
     executeMultiQuery
   };
 }
+
+// Export type for testing
+export type PerplexityService = ReturnType<typeof createPerplexityService>;
