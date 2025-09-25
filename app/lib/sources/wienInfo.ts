@@ -19,6 +19,7 @@ interface FetchWienInfoOptions {
 
 interface WienInfoResult {
   events: EventData[];
+  error?: string;
   debugInfo?: {
     query: string;
     response: string;
@@ -55,7 +56,7 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
       if (debug) {
         console.log('[WIEN.INFO:FETCH] No F1 mappings found for categories:', categories);
       }
-      return { events: [] };
+      return { events: [], error: 'No results from Wien.info!' };
     }
 
     // Build the wien.info search URL
@@ -108,17 +109,42 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
       }
     } catch (scrapeError) {
       console.warn('[WIEN.INFO:SCRAPE] Failed to scrape wien.info:', scrapeError);
-      debugResponse = `Scraping failed: ${scrapeError}. Falling back to mock events.`;
+      debugResponse = `Scraping failed: ${scrapeError}. No results from Wien.info!`;
       
-      // Fall back to mock events when scraping fails
-      scrapedEvents = generateMockWienInfoEvents(categories, fromISO, Math.min(limit, 5));
+      // Return error instead of fallback to mock events
+      return { 
+        events: [], 
+        error: 'No results from Wien.info!',
+        debugInfo: debug ? {
+          query: debugQuery,
+          response: debugResponse,
+          categories,
+          f1Ids,
+          url: searchUrl,
+          scrapedHtml: '',
+          parsedEvents: 0
+        } : undefined
+      };
     }
 
-    // If scraping succeeded but no events found, also fall back to mock events
+    // If scraping succeeded but no events found
     if (scrapedEvents.length === 0) {
-      console.log('[WIEN.INFO:SCRAPE] No events found from scraping, falling back to mock events');
-      scrapedEvents = generateMockWienInfoEvents(categories, fromISO, Math.min(limit, 5));
-      debugResponse += ' No events found in HTML, used mock events as fallback.';
+      console.log('[WIEN.INFO:SCRAPE] No events found from scraping');
+      debugResponse += ' No events found in HTML.';
+      
+      return { 
+        events: [], 
+        error: 'No results from Wien.info!',
+        debugInfo: debug ? {
+          query: debugQuery,
+          response: debugResponse,
+          categories,
+          f1Ids,
+          url: searchUrl,
+          scrapedHtml: debugVerbose ? scrapedHtml : undefined,
+          parsedEvents: 0
+        } : undefined
+      };
     }
 
     // Convert scraped events to normalized format
@@ -155,16 +181,17 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
   } catch (error) {
     console.error('[WIEN.INFO:FETCH] Error:', error);
     
-    // Return mock events as fallback
-    const mockEvents = generateMockWienInfoEvents(categories, fromISO, Math.min(limit, 3));
+    // Return error instead of mock events
     return { 
-      events: mockEvents.map(event => normalizeWienInfoEvent(event, categories)),
+      events: [], 
+      error: 'No results from Wien.info!',
       debugInfo: debug ? {
         query: `Wien.info fetch failed for ${categories.join(', ')}`,
-        response: `Error: ${error}. Returned ${mockEvents.length} mock events as fallback.`,
+        response: `Error: ${error}. No results from Wien.info!`,
         categories,
         f1Ids: [],
-        url: ''
+        url: '',
+        parsedEvents: 0
       } : undefined
     };
   }
@@ -374,72 +401,4 @@ function normalizeWienInfoEvent(scrapedEvent: ScrapedEvent, requestedCategories:
     description: scrapedEvent.description || '',
     address: scrapedEvent.venue || 'Wien, Austria'
   };
-}
-
-/**
- * Generates mock events for testing/fallback purposes
- */
-function generateMockWienInfoEvents(categories: string[], date: string, limit: number): ScrapedEvent[] {
-  const eventTemplates = [
-    {
-      title: 'Vienna Classical Concert',
-      category: 'Live-Konzerte',
-      venue: 'Wiener Konzerthaus',
-      time: '19:30',
-      price: 'Ab 35€',
-      url: 'https://konzerthaus.at'
-    },
-    {
-      title: 'Electronic Music Night',
-      category: 'DJ Sets/Electronic',
-      venue: 'Flex Wien',
-      time: '22:00',
-      price: 'Ab 15€',
-      url: 'https://flex.at'
-    },
-    {
-      title: 'Art Exhibition Opening',
-      category: 'Kunst/Design',
-      venue: 'Belvedere Museum',
-      time: '18:00',
-      price: 'Eintritt frei',
-      url: 'https://www.belvedere.at'
-    },
-    {
-      title: 'Theater Performance',
-      category: 'Theater/Performance',
-      venue: 'Burgtheater',
-      time: '20:00',
-      price: 'Ab 25€',
-      url: 'https://burgtheater.at'
-    },
-    {
-      title: 'Cultural Festival',
-      category: 'Kultur/Traditionen',
-      venue: 'Stadtpark Wien',
-      time: '14:00',
-      price: 'Kostenlos',
-      url: 'https://wien.info'
-    }
-  ];
-
-  const events: ScrapedEvent[] = [];
-  
-  // Filter templates based on requested categories and create events
-  for (const template of eventTemplates) {
-    if (categories.includes(template.category) && events.length < limit) {
-      events.push({
-        title: template.title,
-        date,
-        time: template.time,
-        venue: template.venue,
-        category: template.category,
-        price: template.price,
-        url: template.url,
-        description: `Mock event for category ${template.category}`
-      });
-    }
-  }
-
-  return events;
 }

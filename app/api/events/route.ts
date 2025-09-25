@@ -193,6 +193,12 @@ export async function POST(request: NextRequest) {
           if (qDebug) {
             console.log('[WIEN.INFO:EARLY]', { count: deduped.length });
           }
+        } else if (wienInfoResult.error) {
+          // Log Wien.info error but continue processing
+          console.log('[WIEN.INFO:ERROR]', wienInfoResult.error);
+          if (qDebug) {
+            console.log('[WIEN.INFO:EARLY]', { count: 0, error: wienInfoResult.error });
+          }
         }
 
         // Store Wien.info debug information for later use
