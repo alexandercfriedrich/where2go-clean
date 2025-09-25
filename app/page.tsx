@@ -289,7 +289,9 @@ async function progressiveSearchEvents() {
         date: formatDateForAPI(),
         categories: selectedSuperCategories.length ? getSelectedSubcategories(selectedSuperCategories) : [],
         options: {
-          progressive: true
+          progressive: true,
+          timePeriod: timePeriod,
+          customDate: customDate
         }
       })
     });
@@ -331,33 +333,18 @@ async function progressiveSearchEvents() {
 }
 
   const displayedEvents = (() => {
-    let baseEvents = events;
-    
-    // Apply date filtering only if user explicitly changed from default "heute"
-    // This way, search results show all events unless user specifically filters by date
-    if (!searchSubmitted || timePeriod !== 'heute' || customDate) {
-      baseEvents = events.filter(matchesSelectedDate);
-    }
-    
-    // Apply category filtering
-    if (!searchSubmitted) return baseEvents;
-    if (activeFilter === 'Alle') return baseEvents;
+    const dateFiltered = events.filter(matchesSelectedDate);
+    if (!searchSubmitted) return dateFiltered;
+    if (activeFilter === 'Alle') return dateFiltered;
     const subs = EVENT_CATEGORY_SUBCATEGORIES[activeFilter] || [];
-    return baseEvents.filter(e => subs.includes(e.category));
+    return dateFiltered.filter(e => subs.includes(e.category));
   })();
 
   const getCategoryCounts = () => {
-    let baseEvents = events;
-    
-    // Same logic as displayedEvents
-    if (!searchSubmitted || timePeriod !== 'heute' || customDate) {
-      baseEvents = events.filter(matchesSelectedDate);
-    }
-    
-    const counts: Record<string, number> = { 'Alle': baseEvents.length };
+    const counts: Record<string, number> = { 'Alle': events.filter(matchesSelectedDate).length };
     searchedSuperCategories.forEach(cat => {
       const subs = EVENT_CATEGORY_SUBCATEGORIES[cat] || [];
-      counts[cat] = baseEvents.filter(e => subs.includes(e.category)).length;
+      counts[cat] = events.filter(e => subs.includes(e.category)).filter(matchesSelectedDate).length;
     });
     return counts;
   };

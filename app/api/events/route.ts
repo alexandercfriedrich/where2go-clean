@@ -21,6 +21,22 @@ export const maxDuration = 300;
 // Default-Kategorien ausschließlich aus der SSOT ableiten
 const DEFAULT_CATEGORIES = EVENT_CATEGORIES;
 
+// Helper function to determine valid dates for filtering
+function getValidDatesForFiltering(baseDate: string, timePeriod?: string): string[] {
+  if (timePeriod === 'kommendes-wochenende') {
+    // For weekend, calculate Friday, Saturday, Sunday from the base date (which should be Friday)
+    const friday = new Date(baseDate);
+    const saturday = new Date(friday);
+    saturday.setDate(friday.getDate() + 1);
+    const sunday = new Date(friday);
+    sunday.setDate(friday.getDate() + 2);
+    
+    const formatDate = (d: Date) => d.toISOString().slice(0, 10);
+    return [formatDate(friday), formatDate(saturday), formatDate(sunday)];
+  }
+  return [baseDate]; // Single date for heute, morgen, or custom date
+}
+
 const DEFAULT_PPLX_OPTIONS = {
   temperature: 0.2,
   max_tokens: 10000
@@ -225,8 +241,24 @@ export async function POST(request: NextRequest) {
 
     // Combine early events with cached events
     if (earlyEvents.length > 0) {
+      // Filter early events by valid dates
+      const validDates = getValidDatesForFiltering(date, (mergedOptions as any)?.timePeriod);
+      const filteredEarlyEvents = earlyEvents.filter(event => {
+        const eventDate = event.date?.slice(0, 10);
+        return !eventDate || validDates.includes(eventDate);
+      });
+      
+      if (qDebug && filteredEarlyEvents.length !== earlyEvents.length) {
+        console.log('[EARLY-EVENTS:DATE-FILTER]', {
+          validDates,
+          beforeFilter: earlyEvents.length,
+          afterFilter: filteredEarlyEvents.length,
+          filteredOut: earlyEvents.length - filteredEarlyEvents.length
+        });
+      }
+      
       allCachedEvents = eventAggregator.deduplicateEvents([
-        ...earlyEvents,
+        ...filteredEarlyEvents,
         ...allCachedEvents
       ]);
     }
@@ -274,15 +306,31 @@ export async function POST(request: NextRequest) {
             // Stamp RSS provenance
             const rssStamped = rssResults.map(e => ({ ...e, source: e.source ?? 'rss' as const }));
 
+            // Filter RSS events by valid dates
+            const validDates = getValidDatesForFiltering(date, (mergedOptions as any)?.timePeriod);
+            const filteredRssEvents = rssStamped.filter(event => {
+              const eventDate = event.date?.slice(0, 10);
+              return !eventDate || validDates.includes(eventDate);
+            });
+            
+            if (qDebug && filteredRssEvents.length !== rssStamped.length) {
+              console.log('[RSS-EVENTS:DATE-FILTER]', {
+                validDates,
+                beforeFilter: rssStamped.length,
+                afterFilter: filteredRssEvents.length,
+                filteredOut: rssStamped.length - filteredRssEvents.length
+              });
+            }
+
             allCachedEvents = eventAggregator.deduplicateEvents([
               ...allCachedEvents,
-              ...rssStamped
+              ...filteredRssEvents
             ]);
 
             if (!disableCache) {
-              const ttlRss = computeTTLSecondsForEvents(rssStamped);
+              const ttlRss = computeTTLSecondsForEvents(filteredRssEvents);
               const grouped: Record<string, EventData[]> = {};
-              for (const ev of rssStamped) {
+              for (const ev of filteredRssEvents) {
                 if (!ev.category) continue;
                 if (!grouped[ev.category]) grouped[ev.category] = [];
                 grouped[ev.category].push(ev);
@@ -296,7 +344,7 @@ export async function POST(request: NextRequest) {
               }
             }
 
-            console.log(`Wien.at RSS merged: ${rssStamped.length} events`);
+            console.log(`Wien.at RSS merged: ${filteredRssEvents.length} events (${rssStamped.length - filteredRssEvents.length} filtered by date)`);
           }
         }
       }
