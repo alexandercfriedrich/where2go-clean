@@ -171,12 +171,11 @@ City: ${city}
 Target Date: ${date}
 
 Task:
-1. Find and produce all available well-sourced events (use subcategory diversity).
-2. If insufficient confirmed events: include plausible ones with description "Plausible/Unverified".
-3. Include booking/ticket links where obvious.
+1. Find all real well-sourced events (use subcategory diversity).
+2. Include booking/ticket links where obvious.
 
 Output:
-ONLY a JSON array of event objects.
+ONLY a JSON array of real event objects.
 
 Example minimal object:
 {"title":"Example","category":"${mainCategory}","date":"${date}","venue":"Example Venue","price":"","website":""}`;
