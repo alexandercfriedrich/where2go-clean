@@ -30,7 +30,6 @@ interface PerplexityOptions {
   disableCache?: boolean;
   expandedSubcategories?: boolean;
   forceAllCategories?: boolean;
-  minEventsPerCategory?: number;
   hotCity?: any;
   additionalSources?: any[];
   debugVerbose?: boolean;
@@ -147,7 +146,6 @@ Include multiple main categories if possible.`;
     options: PerplexityOptions
   ): string {
     const expanded = options.expandedSubcategories !== false;
-    const minEvents = options.minEventsPerCategory ?? 12;
 
     const categoryContext = expanded
       ? buildExpandedCategoryContext(mainCategory)
@@ -173,7 +171,7 @@ City: ${city}
 Target Date: ${date}
 
 Task:
-1. Produce at least ${minEvents} well-sourced events (use subcategory diversity).
+1. Find and produce all available well-sourced events (use subcategory diversity).
 2. If insufficient confirmed events: include plausible ones with description "Plausible/Unverified".
 3. Include booking/ticket links where obvious.
 

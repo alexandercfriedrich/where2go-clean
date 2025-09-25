@@ -49,7 +49,6 @@ export interface QueryOptions {
   disableCache?: boolean;
   expandedSubcategories?: boolean;
   forceAllCategories?: boolean;
-  minEventsPerCategory?: number;
   categoryTimeoutMs?: number;
   overallTimeoutMs?: number;
   maxAttempts?: number;

@@ -266,7 +266,6 @@ export default function Home() {
           temperature: 0.2,
           max_tokens: 12000,
           expandedSubcategories: true,
-          minEventsPerCategory: 14,
           debug: true // Always enable debug for logging
         }
       };
