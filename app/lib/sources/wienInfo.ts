@@ -17,10 +17,21 @@ interface FetchWienInfoOptions {
   debugVerbose?: boolean;   // Enable verbose debug logging
 }
 
+interface WienInfoResult {
+  events: EventData[];
+  debugInfo?: {
+    query: string;
+    response: string;
+    categories: string[];
+    f1Ids: number[];
+    url: string;
+  };
+}
+
 /**
  * Fetches events from wien.info based on categories and date range
  */
-export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<EventData[]> {
+export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<WienInfoResult> {
   const { fromISO, toISO, categories, limit = 100, debug = false, debugVerbose = false } = opts;
 
   try {
@@ -31,12 +42,16 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<E
       if (debug) {
         console.log('[WIEN.INFO:FETCH] No F1 mappings found for categories:', categories);
       }
-      return [];
+      return { events: [] };
     }
 
     // Build the wien.info URL (this would be the client-side URL)
     const f1Param = f1Ids.join(',');
     const url = `https://www.wien.info/en/now-on/events#/?dr=${fromISO},${toISO}&f1=${f1Param}`;
+    
+    // Create debug query description
+    const debugQuery = `Wien.info events search for categories: ${categories.join(', ')} on ${fromISO}`;
+    const debugResponse = `Mock response: Generated ${limit} sample events for wien.info categories. In production, this would scrape the actual events from the wien.info website using the URL: ${url}`;
     
     if (debug) {
       console.log('[WIEN.INFO:FETCH]', { 
@@ -48,8 +63,6 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<E
     }
 
     // For now, return mock events that simulate what would be fetched
-    // In a real implementation, this would use a headless browser or server-side rendering
-    // to scrape the actual wien.info events
     const mockEvents = generateMockWienInfoEvents(categories, fromISO, limit);
     
     if (debug) {
@@ -59,11 +72,26 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<E
       }
     }
 
-    return mockEvents;
+    const result: WienInfoResult = {
+      events: mockEvents
+    };
+
+    // Include debug information if debug is enabled
+    if (debug || debugVerbose) {
+      result.debugInfo = {
+        query: debugQuery,
+        response: debugResponse,
+        categories,
+        f1Ids,
+        url
+      };
+    }
+
+    return result;
 
   } catch (error) {
     console.error('[WIEN.INFO:FETCH] Error:', error);
-    return [];
+    return { events: [] };
   }
 }
 

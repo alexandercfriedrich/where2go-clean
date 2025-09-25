@@ -46,6 +46,28 @@ export async function POST(request: NextRequest) {
         categoryConcurrency: concurrency
       });
 
+      // Collect debug information if debug mode is enabled
+      if (options?.debug) {
+        for (const result of results) {
+          // Determine category from the result (if available in the aggregated events)
+          const eventsFromResult = eventAggregator.aggregateResults([result]);
+          const category = eventsFromResult.length > 0 ? eventsFromResult[0].category || 'Unknown' : 'Unknown';
+          
+          const debugStep = {
+            category,
+            query: result.query,
+            response: result.response,
+            parsedCount: eventsFromResult.length
+          };
+
+          try {
+            await jobStore.pushDebugStep(jobId, debugStep);
+          } catch (error) {
+            console.warn('Failed to save debug step:', error);
+          }
+        }
+      }
+
       const chunk = eventAggregator.aggregateResults(results).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
 
       // Cache per Kategorie

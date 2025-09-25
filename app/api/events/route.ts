@@ -142,6 +142,7 @@ export async function POST(request: NextRequest) {
 
     // Frühe Sammelliste für schnelle Quellen (z.B. Wien.info, RSS)
     let earlyEvents: EventData[] = [];
+    let wienInfoDebugData: any = null;
 
     // Optional: direkte Wien.info HTML Events (Opt-In)
     try {
@@ -150,7 +151,7 @@ export async function POST(request: NextRequest) {
         (options && (options as any).fetchWienInfo === true);
       const isVienna = /(^|\s)wien(\s|$)|vienna/.test(city.toLowerCase());
       if (shouldFetchWienInfo && isVienna) {
-        const wienInfoRaw = await fetchWienInfoEvents({
+        const wienInfoResult = await fetchWienInfoEvents({
           fromISO: date,
           toISO: date,
           categories: effectiveCategories,
@@ -158,8 +159,9 @@ export async function POST(request: NextRequest) {
           debug: (options as any)?.debug === true || qDebug,
           debugVerbose: (options as any)?.debugVerbose === true || qVerbose
         });
-        if (wienInfoRaw.length) {
-          const normalized = wienInfoRaw.map(ev => ({
+        
+        if (wienInfoResult.events.length) {
+          const normalized = wienInfoResult.events.map(ev => ({
             title: ev.title,
             category: ev.category,
             date: ev.date,
@@ -170,11 +172,16 @@ export async function POST(request: NextRequest) {
             source: ev.source,
             city: ev.city || 'Wien'
           }));
-            const deduped = eventAggregator.deduplicateEvents(normalized);
-            earlyEvents.push(...deduped);
-            if (qDebug) {
-              console.log('[WIEN.INFO:EARLY]', { count: deduped.length });
-            }
+          const deduped = eventAggregator.deduplicateEvents(normalized);
+          earlyEvents.push(...deduped);
+          if (qDebug) {
+            console.log('[WIEN.INFO:EARLY]', { count: deduped.length });
+          }
+        }
+
+        // Store Wien.info debug information for later use
+        if (wienInfoResult.debugInfo && ((options as any)?.debug === true || qDebug)) {
+          wienInfoDebugData = wienInfoResult.debugInfo;
         }
       }
     } catch (e) {
@@ -345,6 +352,21 @@ export async function POST(request: NextRequest) {
         steps: []
       };
       await jobStore.setDebugInfo(jobId, debugInfo);
+
+      // Add Wien.info debug information if available
+      if (wienInfoDebugData) {
+        const debugStep = {
+          category: 'Wien.info',
+          query: wienInfoDebugData.query,
+          response: wienInfoDebugData.response,
+          parsedCount: earlyEvents.length
+        };
+        try {
+          await jobStore.pushDebugStep(jobId, debugStep);
+        } catch (error) {
+          console.warn('Failed to save Wien.info debug step:', error);
+        }
+      }
     }
 
     const mainCategoriesForAI = getMainCategoriesForAICalls(missingCategories);

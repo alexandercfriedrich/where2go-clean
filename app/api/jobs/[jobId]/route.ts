@@ -30,13 +30,24 @@ export async function GET(request: NextRequest, { params }: { params: { jobId: s
     // Preserve 'source'
     const normalized = job.events ? normalizeEvents(job.events) : undefined;
 
+    // Get debug information if debug mode is enabled
+    let debugInfo = null;
+    if (debugMode) {
+      try {
+        debugInfo = await jobStore.getDebugInfo(jobId);
+      } catch (error) {
+        console.warn('Error retrieving debug info:', error);
+      }
+    }
+
     const response: any = {
       jobId: job.id,
       status: job.status,
       ...(normalized ? { events: normalized } : {}),
       ...(job.status === 'error' && job.error ? { error: job.error } : {}),
       ...(job.progress ? { progress: job.progress } : {}),
-      ...(job.lastUpdateAt ? { lastUpdateAt: job.lastUpdateAt } : {})
+      ...(job.lastUpdateAt ? { lastUpdateAt: job.lastUpdateAt } : {}),
+      ...(debugInfo ? { debug: debugInfo } : {})
     };
 
     return NextResponse.json(response, {
