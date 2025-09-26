@@ -58,7 +58,7 @@ export function createPerplexityService(apiKey: string) {
   }
 
   const baseUrl = 'https://api.perplexity.ai/chat/completions';
-  const model = 'sonar';
+  const model = 'sonar-pro';
 
   async function call(prompt: string, options: PerplexityOptions): Promise<string> {
     const body: PplxApiRequest = {
@@ -67,7 +67,7 @@ export function createPerplexityService(apiKey: string) {
         { role: 'system', content: buildSystemPrompt(options) },
         { role: 'user', content: prompt }
       ],
-      max_tokens: options.max_tokens || 5000,
+      max_tokens: options.max_tokens || 30000,
       temperature: options.temperature ?? 0.2
     };
 
@@ -125,7 +125,7 @@ export function createPerplexityService(apiKey: string) {
 
   function buildSystemPrompt(options: PerplexityOptions): string {
     return `You are an event search specialist. Respond exclusively in JSON format and ensure all available information is returned in a structured manner.
-
+Return as many as possible different real events, spanning as many unique categories and price levels as possible.
 Allowed main categories:
 ${buildCategoryListForPrompt()}
 
@@ -163,26 +163,17 @@ Include multiple main categories if possible.`;
     const hotCityPart = options.hotCity
       ? `City Profile:
 Name: ${options.hotCity.name}
-Known For: ${options.hotCity.keywords?.join(', ') || 'n/a'}\n`
-      : '';
+\n`
 
-    const additionalSources = (options.additionalSources || [])
-      .map((s: any) => `- ${s.name || s.url || JSON.stringify(s).slice(0, 60)}`)
-      .join('\n');
-
-    const sourcesBlock = additionalSources
-      ? `Candidate local sources:\n${additionalSources}\n`
-      : '';
-
-    return `${hotCityPart}${sourcesBlock}${categoryContext}
+    return `${categoryContext}
 
 Task:
-1. Find all real events in ${city} on ${date} for category: ${mainCategory}
-2. Use subcategory diversity within the main category
+1. return a comprehensive list of all real events happening in ${city} on ${date} for category: ${mainCategory}
+2. Use subcategory diversity within the main category: 
 3. Include booking/ticket links where available
 
 Output:
-Return ONLY the JSON array of real events (No explanatory text outside the JSON structure).
+Return ONLY the valid JSON array of real events (No explanatory text outside the JSON structure!).
 
 Example minimal object:
 {"title":"Example","category":"${mainCategory}","date":"${date}","venue":"Example Venue","price":"","website":""}`;
