@@ -160,10 +160,7 @@ Include multiple main categories if possible.`;
       ? buildExpandedCategoryContext(mainCategory)
       : `Main Category: ${mainCategory}\n(Subcategory expansion disabled)`;
 
-    const hotCityPart = options.hotCity
-      ? `City Profile:
-Name: ${options.hotCity.name}
-\n`
+   
 
     return `${categoryContext}
 
