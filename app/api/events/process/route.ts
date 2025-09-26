@@ -17,6 +17,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing job parameters' }, { status: 400 });
     }
 
+    // Determine valid dates for filtering based on time period
+    const getValidDatesForFiltering = (baseDate: string, timePeriod?: string): string[] => {
+      if (timePeriod === 'kommendes-wochenende') {
+        // For weekend, calculate Friday, Saturday, Sunday from the base date (which should be Friday)
+        const friday = new Date(baseDate);
+        const saturday = new Date(friday);
+        saturday.setDate(friday.getDate() + 1);
+        const sunday = new Date(friday);
+        sunday.setDate(friday.getDate() + 2);
+        
+        const formatDate = (d: Date) => d.toISOString().slice(0, 10);
+        return [formatDate(friday), formatDate(saturday), formatDate(sunday)];
+      }
+      return [baseDate]; // Single date for heute, morgen, or custom date
+    };
+
+    const validDates = getValidDatesForFiltering(date, options?.timePeriod);
+
     const jobStore = getJobStore();
     const job = await jobStore.getJob(jobId);
     if (!job) return NextResponse.json({ error: 'Job not found' }, { status: 404 });
@@ -46,7 +64,29 @@ export async function POST(request: NextRequest) {
         categoryConcurrency: concurrency
       });
 
-      const chunk = eventAggregator.aggregateResults(results).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
+      // Collect debug information if debug mode is enabled
+      if (options?.debug) {
+        for (const result of results) {
+          // Determine category from the result (if available in the aggregated events)
+          const eventsFromResult = eventAggregator.aggregateResults([result], validDates);
+          const category = eventsFromResult.length > 0 ? eventsFromResult[0].category || 'Unknown' : 'Unknown';
+          
+          const debugStep = {
+            category,
+            query: result.query,
+            response: result.response,
+            parsedCount: eventsFromResult.length
+          };
+
+          try {
+            await jobStore.pushDebugStep(jobId, debugStep);
+          } catch (error) {
+            console.warn('Failed to save debug step:', error);
+          }
+        }
+      }
+
+      const chunk = eventAggregator.aggregateResults(results, validDates).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
 
       // Cache per Kategorie
       const ttlSeconds = computeTTLSecondsForEvents(chunk);

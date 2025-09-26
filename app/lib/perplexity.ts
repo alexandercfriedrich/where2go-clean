@@ -23,6 +23,15 @@ import {
 } from './eventCategories';
 import { PerplexityResult } from './types';
 
+// Declare process for Node.js environment variables
+declare const process: {
+  env: {
+    LOG_PPLX_QUERIES?: string;
+    LOG_PPLX_VERBOSE?: string;
+    [key: string]: string | undefined;
+  };
+};
+
 interface PerplexityOptions {
   temperature?: number;
   max_tokens?: number;
@@ -30,7 +39,6 @@ interface PerplexityOptions {
   disableCache?: boolean;
   expandedSubcategories?: boolean;
   forceAllCategories?: boolean;
-  minEventsPerCategory?: number;
   hotCity?: any;
   additionalSources?: any[];
   debugVerbose?: boolean;
@@ -50,7 +58,7 @@ export function createPerplexityService(apiKey: string) {
   }
 
   const baseUrl = 'https://api.perplexity.ai/chat/completions';
-  const model = 'sonar';
+  const model = 'sonar-pro';
 
   async function call(prompt: string, options: PerplexityOptions): Promise<string> {
     const body: PplxApiRequest = {
@@ -59,7 +67,7 @@ export function createPerplexityService(apiKey: string) {
         { role: 'system', content: buildSystemPrompt(options) },
         { role: 'user', content: prompt }
       ],
-      max_tokens: options.max_tokens || 5000,
+      max_tokens: options.max_tokens || 30000,
       temperature: options.temperature ?? 0.2
     };
 
@@ -117,7 +125,7 @@ export function createPerplexityService(apiKey: string) {
 
   function buildSystemPrompt(options: PerplexityOptions): string {
     return `You are an event search specialist. Respond exclusively in JSON format and ensure all available information is returned in a structured manner.
-
+Return as many as possible different real events, spanning as many unique categories and price levels as possible.
 Allowed main categories:
 ${buildCategoryListForPrompt()}
 
@@ -147,38 +155,22 @@ Include multiple main categories if possible.`;
     options: PerplexityOptions
   ): string {
     const expanded = options.expandedSubcategories !== false;
-    const minEvents = options.minEventsPerCategory ?? 12;
 
     const categoryContext = expanded
       ? buildExpandedCategoryContext(mainCategory)
       : `Main Category: ${mainCategory}\n(Subcategory expansion disabled)`;
 
-    const hotCityPart = options.hotCity
-      ? `City Profile:
-Name: ${options.hotCity.name}
-Known For: ${options.hotCity.keywords?.join(', ') || 'n/a'}\n`
-      : '';
+   
 
-    const additionalSources = (options.additionalSources || [])
-      .map((s: any) => `- ${s.name || s.url || JSON.stringify(s).slice(0, 60)}`)
-      .join('\n');
-
-    const sourcesBlock = additionalSources
-      ? `Candidate local sources:\n${additionalSources}\n`
-      : '';
-
-    return `${hotCityPart}${sourcesBlock}${categoryContext}
-
-City: ${city}
-Target Date: ${date}
+    return `${categoryContext}
 
 Task:
-1. Produce at least ${minEvents} well-sourced events (use subcategory diversity).
-2. If insufficient confirmed events: include plausible ones with description "Plausible/Unverified".
-3. Include booking/ticket links where obvious.
+1. return a comprehensive list of all real events happening in ${city} on ${date} for category: ${mainCategory}
+2. Use subcategory diversity within the main category: 
+3. Include booking/ticket links where available
 
 Output:
-ONLY a JSON array of event objects.
+Return ONLY the valid JSON array of real events (No explanatory text outside the JSON structure!).
 
 Example minimal object:
 {"title":"Example","category":"${mainCategory}","date":"${date}","venue":"Example Venue","price":"","website":""}`;
@@ -262,3 +254,6 @@ Example minimal object:
     executeMultiQuery
   };
 }
+
+// Export type for testing
+export type PerplexityService = ReturnType<typeof createPerplexityService>;

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saveHotCities } from '@/lib/hotCityStore';
 import { HotCity } from '@/lib/types';
+import { generateWebsiteId } from '@/lib/utils';
+import { VIENNA_VENUES } from '@/lib/data/hotCities/viennaVenues';
 
 const generateId = () => `city-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-const generateWebsiteId = () => `website-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
 const seedCities: HotCity[] = [
   {
@@ -78,6 +79,20 @@ const seedCities: HotCity[] = [
         isActive: true
       }
     ],
+    // NEU: venues
+    venues: VIENNA_VENUES.map(v => ({
+      id: v.id,
+      name: v.name,
+      categories: v.categories,
+      description: v.description,
+      priority: v.priority,
+      isActive: v.isActive,
+      isVenue: true,
+      address: v.address,
+      website: v.website,
+      eventsUrl: v.eventsUrl,
+      aiQueryTemplate: v.aiQueryTemplate
+    })),
     createdAt: new Date(),
     updatedAt: new Date()
   },

@@ -10,16 +10,36 @@ const DATE_ISO_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const DATE_DDMMYYYY_REGEX = /^\d{1,2}\.\d{1,2}\.\d{4}$/;
 
 export class EventAggregator {
-  aggregateResults(results: PerplexityResult[]): EventData[] {
+  aggregateResults(results: PerplexityResult[], requestedDate?: string | string[]): EventData[] {
     const parsedRaw: EventData[] = [];
     for (const result of results) {
       const queryCategory = this.extractCategoryFromQuery(result.query);
-      const events = this.parseEventsFromResponse(result.response, queryCategory);
+      const events = this.parseEventsFromResponse(result.response, queryCategory, 
+        Array.isArray(requestedDate) ? requestedDate[0] : requestedDate);
       parsedRaw.push(...events);
     }
     const structurallyNormalized = normalizeEvents(parsedRaw);
     const canonical = validateAndNormalizeEvents(structurallyNormalized);
     const deduped = this.deduplicateEvents(canonical);
+
+    // Filter by requested date(s) if provided
+    let filtered = deduped;
+    if (requestedDate) {
+      const validDates = Array.isArray(requestedDate) ? requestedDate : [requestedDate];
+      filtered = deduped.filter(event => {
+        const eventDate = event.date?.slice(0, 10); // Extract YYYY-MM-DD
+        return !eventDate || validDates.includes(eventDate);
+      });
+      
+      if (process.env.LOG_AGG_DEBUG === '1' && filtered.length !== deduped.length) {
+        console.log('[AGG:DATE-FILTER]', {
+          requestedDates: validDates,
+          beforeFilter: deduped.length,
+          afterFilter: filtered.length,
+          filteredOut: deduped.length - filtered.length
+        });
+      }
+    }
 
     if (process.env.LOG_AGG_DEBUG === '1') {
       console.log('[AGG:SUMMARY]', {
@@ -27,11 +47,12 @@ export class EventAggregator {
         parsedRaw: parsedRaw.length,
         normalized: canonical.length,
         deduped: deduped.length,
-        sample: deduped[0] || null
+        dateFiltered: filtered.length,
+        sample: filtered[0] || null
       });
     }
 
-    return deduped;
+    return filtered;
   }
 
   private extractCategoryFromQuery(query: string): string | undefined {

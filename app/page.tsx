@@ -55,6 +55,36 @@ export default function Home() {
   const pollInstanceRef = useRef(0);
   const [activePolling, setActivePolling] = useState<{ jobId: string; cleanup: () => void; pollInstanceId: number } | null>(null);
 
+  // Debug logs state
+  const [debugLogs, setDebugLogs] = useState<{
+    apiCalls: Array<{
+      timestamp: string;
+      url: string;
+      method: string;
+      body?: any;
+      response?: any;
+      status?: number;
+    }>;
+    aiRequests: Array<{
+      timestamp: string;
+      query: string;
+      response: string;
+      category?: string;
+      parsedCount?: number;
+    }>;
+    wienInfoData: Array<{
+      timestamp: string;
+      url: string;
+      scrapedContent?: string;
+      events?: any[];
+      error?: string;
+    }>;
+  }>({
+    apiCalls: [],
+    aiRequests: [],
+    wienInfoData: []
+  });
+
   const resultsAnchorRef = useRef<HTMLDivElement | null>(null);
   const timeSelectWrapperRef = useRef<HTMLDivElement | null>(null);
   const cancelRef = useRef<{cancel:boolean}>({cancel:false});
@@ -227,10 +257,8 @@ export default function Home() {
     const subs = EVENT_CATEGORY_SUBCATEGORIES[superCat] || [];
     if (subs.length === 0) return;
     setStepLoading(superCat);
-    const res = await fetch('/api/events', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
+    try {
+      const reqBody = {
         city: city.trim(),
         date: formatDateForAPI(),
         categories: subs,
@@ -238,18 +266,57 @@ export default function Home() {
           temperature: 0.2,
           max_tokens: 12000,
           expandedSubcategories: true,
-          minEventsPerCategory: 14
+          debug: true // Always enable debug for logging
         }
-      })
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(()=> ({}));
-      throw new Error(data.error || `Serverfehler ${res.status}`);
+      };
+
+      // Log API call
+      setDebugLogs(prev => ({
+        ...prev,
+        apiCalls: [...prev.apiCalls, {
+          timestamp: new Date().toISOString(),
+          url: '/api/events',
+          method: 'POST',
+          body: reqBody
+        }]
+      }));
+
+      const res = await fetch('/api/events', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify(reqBody)
+      });
+      
+      if (!res.ok) {
+        const data = await res.json().catch(()=> ({}));
+        // Log error response
+        setDebugLogs(prev => ({
+          ...prev,
+          apiCalls: prev.apiCalls.map((call, idx) => 
+            idx === prev.apiCalls.length - 1 ? 
+            { ...call, status: res.status, response: data } : call
+          )
+        }));
+        throw new Error(data.error || `Serverfehler ${res.status}`);
+      }
+      
+      const data = await res.json();
+      
+      // Log successful response
+      setDebugLogs(prev => ({
+        ...prev,
+        apiCalls: prev.apiCalls.map((call, idx) => 
+          idx === prev.apiCalls.length - 1 ? 
+          { ...call, status: res.status, response: data } : call
+        )
+      }));
+
+      const incoming: EventData[] = data.events || [];
+      setEvents(prev => dedupMerge(prev, incoming));
+      if (data.cacheInfo) setCacheInfo(data.cacheInfo);
+    } finally {
+      setStepLoading(null);
     }
-    const data = await res.json();
-    const incoming: EventData[] = data.events || [];
-    setEvents(prev => dedupMerge(prev, incoming));
-    if (data.cacheInfo) setCacheInfo(data.cacheInfo);
   }
 
   // ...
@@ -267,6 +334,13 @@ async function progressiveSearchEvents() {
     setActivePolling(null);
   }
 
+  // Clear previous debug logs
+  setDebugLogs({
+    apiCalls: [],
+    aiRequests: [],
+    wienInfoData: []
+  });
+
   setLoading(true);
   setError(null);
   setEvents([]);
@@ -276,24 +350,58 @@ async function progressiveSearchEvents() {
   setActiveFilter('Alle');
 
   try {
+    const reqBody = {
+      city: city.trim(),
+      date: formatDateForAPI(),
+      categories: selectedSuperCategories.length ? getSelectedSubcategories(selectedSuperCategories) : [],
+      options: {
+        progressive: true,
+        timePeriod: timePeriod,
+        customDate: customDate,
+        debug: true, // Always enable debug
+        fetchWienInfo: true // Enable Wien.info fetching
+      }
+    };
+
+    // Log main API call
+    setDebugLogs(prev => ({
+      ...prev,
+      apiCalls: [...prev.apiCalls, {
+        timestamp: new Date().toISOString(),
+        url: '/api/events',
+        method: 'POST',
+        body: reqBody
+      }]
+    }));
+
     // RICHTIG: Job per /api/events anlegen (keine jobId im Body mitschicken)
     const jobRes = await fetch('/api/events', {
       method: 'POST',
       headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify({
-        city: city.trim(),
-        date: formatDateForAPI(),
-        categories: selectedSuperCategories.length ? getSelectedSubcategories(selectedSuperCategories) : [],
-        options: {
-          progressive: true
-        }
-      })
+      body: JSON.stringify(reqBody)
     });
     if (!jobRes.ok) {
       const data = await jobRes.json().catch(()=> ({}));
+      // Log error response
+      setDebugLogs(prev => ({
+        ...prev,
+        apiCalls: prev.apiCalls.map((call, idx) => 
+          idx === prev.apiCalls.length - 1 ? 
+          { ...call, status: jobRes.status, response: data } : call
+        )
+      }));
       throw new Error(data.error || `Serverfehler ${jobRes.status}`);
     }
     const data = await jobRes.json();
+
+    // Log successful response
+    setDebugLogs(prev => ({
+      ...prev,
+      apiCalls: prev.apiCalls.map((call, idx) => 
+        idx === prev.apiCalls.length - 1 ? 
+        { ...call, status: jobRes.status, response: data } : call
+      )
+    }));
 
     const onEvents = (chunk: EventData[], _getCurrent: () => EventData[]) => {
       setEvents(prev => dedupMerge(prev, chunk));
@@ -305,6 +413,11 @@ async function progressiveSearchEvents() {
       setTimeout(()=> setToast({show:false, message:''}), 2000);
       if (resultsAnchorRef.current) {
         resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+
+      // Fetch debug information after job is done
+      if (data.jobId) {
+        fetchDebugInfo(data.jobId);
       }
     };
 
@@ -323,6 +436,60 @@ async function progressiveSearchEvents() {
     setError(e.message || 'Fehler bei der Suche');
     setLoading(false);
     setStepLoading(null);
+  }
+}
+
+// Fetch debug information from job
+async function fetchDebugInfo(jobId: string) {
+  try {
+    const debugRes = await fetch(`/api/jobs/${jobId}?debug=1`);
+    if (debugRes.ok) {
+      const debugData = await debugRes.json();
+      
+      // Log debug data
+      setDebugLogs(prev => ({
+        ...prev,
+        apiCalls: [...prev.apiCalls, {
+          timestamp: new Date().toISOString(),
+          url: `/api/jobs/${jobId}?debug=1`,
+          method: 'GET',
+          response: debugData,
+          status: debugRes.status
+        }]
+      }));
+
+      // Extract AI requests from debug data
+      if (debugData.debug && debugData.debug.steps) {
+        const aiRequests = debugData.debug.steps.map((step: any) => ({
+          timestamp: debugData.debug.createdAt || new Date().toISOString(),
+          query: step.query || '',
+          response: step.response || '',
+          category: step.category || '',
+          parsedCount: step.parsedCount || 0
+        }));
+
+        setDebugLogs(prev => ({
+          ...prev,
+          aiRequests: [...prev.aiRequests, ...aiRequests]
+        }));
+      }
+
+      // Check for Wien.info specific data
+      if (debugData.debug && debugData.debug.wienInfoData) {
+        setDebugLogs(prev => ({
+          ...prev,
+          wienInfoData: [...prev.wienInfoData, {
+            timestamp: new Date().toISOString(),
+            url: debugData.debug.wienInfoData.url || '',
+            scrapedContent: debugData.debug.wienInfoData.scrapedContent || '',
+            events: debugData.debug.wienInfoData.events || [],
+            error: debugData.debug.wienInfoData.error || ''
+          }]
+        }));
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to fetch debug info:', e);
   }
 }
 
@@ -687,6 +854,196 @@ async function progressiveSearchEvents() {
       {toast.show && (
         <div className="toast-container">
           <div className="toast">{toast.message}</div>
+        </div>
+      )}
+
+      {/* Debug Logs Section */}
+      {(debugLogs.apiCalls.length > 0 || debugLogs.aiRequests.length > 0 || debugLogs.wienInfoData.length > 0) && (
+        <div style={{ 
+          margin: '40px 0', 
+          padding: '20px', 
+          background: '#f8f9fa', 
+          border: '1px solid #dee2e6',
+          borderRadius: '8px',
+          fontFamily: 'monospace',
+          fontSize: '12px'
+        }}>
+          <h3 style={{ marginBottom: '20px', color: '#495057' }}>🔍 Debug Logs (Temporary)</h3>
+          
+          {/* API Calls */}
+          {debugLogs.apiCalls.length > 0 && (
+            <div style={{ marginBottom: '30px' }}>
+              <h4 style={{ color: '#007bff', marginBottom: '10px' }}>📡 API Calls ({debugLogs.apiCalls.length})</h4>
+              {debugLogs.apiCalls.map((call, idx) => (
+                <div key={idx} style={{ 
+                  marginBottom: '15px', 
+                  padding: '10px', 
+                  background: '#fff', 
+                  border: '1px solid #e9ecef',
+                  borderRadius: '4px'
+                }}>
+                  <div style={{ color: '#28a745', fontWeight: 'bold' }}>
+                    {call.method} {call.url} {call.status && `(${call.status})`}
+                  </div>
+                  <div style={{ color: '#6c757d', fontSize: '10px' }}>{call.timestamp}</div>
+                  {call.body && (
+                    <details style={{ marginTop: '8px' }}>
+                      <summary style={{ cursor: 'pointer', color: '#007bff' }}>Request Body</summary>
+                      <pre style={{ 
+                        marginTop: '5px', 
+                        padding: '8px', 
+                        background: '#f8f9fa', 
+                        border: '1px solid #dee2e6',
+                        borderRadius: '3px',
+                        overflow: 'auto',
+                        maxHeight: '200px'
+                      }}>
+                        {JSON.stringify(call.body, null, 2)}
+                      </pre>
+                    </details>
+                  )}
+                  {call.response && (
+                    <details style={{ marginTop: '8px' }}>
+                      <summary style={{ cursor: 'pointer', color: '#007bff' }}>Response</summary>
+                      <pre style={{ 
+                        marginTop: '5px', 
+                        padding: '8px', 
+                        background: '#f8f9fa', 
+                        border: '1px solid #dee2e6',
+                        borderRadius: '3px',
+                        overflow: 'auto',
+                        maxHeight: '200px'
+                      }}>
+                        {JSON.stringify(call.response, null, 2)}
+                      </pre>
+                    </details>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* AI Requests */}
+          {debugLogs.aiRequests.length > 0 && (
+            <div style={{ marginBottom: '30px' }}>
+              <h4 style={{ color: '#dc3545', marginBottom: '10px' }}>🤖 AI Requests ({debugLogs.aiRequests.length})</h4>
+              {debugLogs.aiRequests.map((req, idx) => (
+                <div key={idx} style={{ 
+                  marginBottom: '15px', 
+                  padding: '10px', 
+                  background: '#fff', 
+                  border: '1px solid #e9ecef',
+                  borderRadius: '4px'
+                }}>
+                  <div style={{ color: '#dc3545', fontWeight: 'bold' }}>
+                    AI Query {req.category && `(${req.category})`}
+                  </div>
+                  <div style={{ color: '#6c757d', fontSize: '10px' }}>
+                    {req.timestamp} - Parsed: {req.parsedCount || 0} events
+                  </div>
+                  <details style={{ marginTop: '8px' }}>
+                    <summary style={{ cursor: 'pointer', color: '#007bff' }}>Query</summary>
+                    <pre style={{ 
+                      marginTop: '5px', 
+                      padding: '8px', 
+                      background: '#fff3cd', 
+                      border: '1px solid #ffeaa7',
+                      borderRadius: '3px',
+                      overflow: 'auto',
+                      maxHeight: '150px'
+                    }}>
+                      {req.query}
+                    </pre>
+                  </details>
+                  <details style={{ marginTop: '8px' }}>
+                    <summary style={{ cursor: 'pointer', color: '#007bff' }}>AI Response</summary>
+                    <pre style={{ 
+                      marginTop: '5px', 
+                      padding: '8px', 
+                      background: '#d1ecf1', 
+                      border: '1px solid #bee5eb',
+                      borderRadius: '3px',
+                      overflow: 'auto',
+                      maxHeight: '300px'
+                    }}>
+                      {req.response}
+                    </pre>
+                  </details>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Wien.info Data */}
+          {debugLogs.wienInfoData.length > 0 && (
+            <div style={{ marginBottom: '20px' }}>
+              <h4 style={{ color: '#fd7e14', marginBottom: '10px' }}>🇦🇹 Wien.info Data ({debugLogs.wienInfoData.length})</h4>
+              {debugLogs.wienInfoData.map((data, idx) => (
+                <div key={idx} style={{ 
+                  marginBottom: '15px', 
+                  padding: '10px', 
+                  background: '#fff', 
+                  border: '1px solid #e9ecef',
+                  borderRadius: '4px'
+                }}>
+                  <div style={{ color: '#fd7e14', fontWeight: 'bold' }}>
+                    Wien.info Scraping
+                  </div>
+                  <div style={{ color: '#6c757d', fontSize: '10px' }}>
+                    {data.timestamp} - URL: {data.url}
+                  </div>
+                  {data.error && (
+                    <div style={{ 
+                      marginTop: '8px', 
+                      padding: '8px', 
+                      background: '#f8d7da', 
+                      border: '1px solid #f5c6cb',
+                      borderRadius: '3px',
+                      color: '#721c24'
+                    }}>
+                      Error: {data.error}
+                    </div>
+                  )}
+                  {data.events && data.events.length > 0 && (
+                    <details style={{ marginTop: '8px' }}>
+                      <summary style={{ cursor: 'pointer', color: '#007bff' }}>
+                        Scraped Events ({data.events.length})
+                      </summary>
+                      <pre style={{ 
+                        marginTop: '5px', 
+                        padding: '8px', 
+                        background: '#f8f9fa', 
+                        border: '1px solid #dee2e6',
+                        borderRadius: '3px',
+                        overflow: 'auto',
+                        maxHeight: '200px'
+                      }}>
+                        {JSON.stringify(data.events, null, 2)}
+                      </pre>
+                    </details>
+                  )}
+                  {data.scrapedContent && (
+                    <details style={{ marginTop: '8px' }}>
+                      <summary style={{ cursor: 'pointer', color: '#007bff' }}>
+                        Raw HTML Content (first 1000 chars)
+                      </summary>
+                      <pre style={{ 
+                        marginTop: '5px', 
+                        padding: '8px', 
+                        background: '#f8f9fa', 
+                        border: '1px solid #dee2e6',
+                        borderRadius: '3px',
+                        overflow: 'auto',
+                        maxHeight: '150px'
+                      }}>
+                        {data.scrapedContent.substring(0, 1000)}...
+                      </pre>
+                    </details>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

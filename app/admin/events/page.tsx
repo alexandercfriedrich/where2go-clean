@@ -21,6 +21,21 @@ type AdminEventsResponse = {
   missingCategories: string[];
   events: AdminEvent[];
   cacheBreakdown: Record<string, { fromCache: boolean; eventCount: number }>;
+  debug?: {
+    cacheSize: number;
+    searchCity: string;
+    searchDate: string;
+    requestedCategories: string[];
+    foundCategories: string[];
+    cacheKeys: string[];
+    cacheEntries: Array<{
+      key: string;
+      hasData: boolean;
+      dataLength: number | string;
+      timestamp: string;
+      ttl: number;
+    }>;
+  };
 };
 
 function todayISO(): string {
@@ -32,18 +47,20 @@ function todayISO(): string {
 }
 
 export default function AdminEventsPage() {
-  const [city, setCity] = useState('Berlin');
+  const [city, setCity] = useState('Wien');
   const [date, setDate] = useState(todayISO());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<AdminEventsResponse | null>(null);
+  const [showDebug, setShowDebug] = useState(false);
 
   const query = useMemo(() => {
     const params = new URLSearchParams();
     params.set('city', city);
     params.set('date', date);
+    if (showDebug) params.set('debug', '1');
     return params.toString();
-  }, [city, date]);
+  }, [city, date, showDebug]);
 
   const load = async () => {
     try {
@@ -90,6 +107,17 @@ export default function AdminEventsPage() {
             onChange={(e) => setDate(e.target.value)}
             style={{ padding: '8px 10px', border: '1px solid #ddd', borderRadius: 6 }}
           />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input
+            type="checkbox"
+            id="debug"
+            checked={showDebug}
+            onChange={(e) => setShowDebug(e.target.checked)}
+            style={{ marginRight: 4 }}
+          />
+          <label htmlFor="debug" style={{ fontWeight: 600 }}>Debug Mode</label>
         </div>
 
         <button
@@ -177,6 +205,68 @@ export default function AdminEventsPage() {
               </div>
             )}
           </div>
+
+          {showDebug && data.debug && (
+            <div style={{ padding: 16, background: '#f8f9fa', borderRadius: 8, border: '1px solid #dee2e6' }}>
+              <h3 style={{ marginTop: 0, marginBottom: 16, fontSize: '1.2rem' }}>Debug Information</h3>
+              
+              <div style={{ display: 'grid', gap: 16 }}>
+                <div>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '1rem' }}>Cache Overview</h4>
+                  <div style={{ fontFamily: 'monospace', fontSize: 14, lineHeight: 1.4 }}>
+                    <div>Cache Size: {data.debug.cacheSize} entries</div>
+                    <div>Search City: {data.debug.searchCity}</div>
+                    <div>Search Date: {data.debug.searchDate}</div>
+                    <div>Requested Categories: {data.debug.requestedCategories.length}</div>
+                    <div>Found Categories: {data.debug.foundCategories.length}</div>
+                  </div>
+                </div>
+
+                <div>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '1rem' }}>Cache Keys</h4>
+                  <div style={{ fontFamily: 'monospace', fontSize: 12, maxHeight: 200, overflow: 'auto', background: '#fff', padding: 8, border: '1px solid #ddd', borderRadius: 4 }}>
+                    {data.debug.cacheKeys.length > 0 ? (
+                      data.debug.cacheKeys.map((key, idx) => (
+                        <div key={idx} style={{ marginBottom: 4 }}>{key}</div>
+                      ))
+                    ) : (
+                      <div style={{ color: '#666' }}>No cache keys found</div>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 style={{ margin: '0 0 8px 0', fontSize: '1rem' }}>Cache Entries</h4>
+                  <div style={{ maxHeight: 300, overflow: 'auto' }}>
+                    {data.debug.cacheEntries.length > 0 ? (
+                      <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ background: '#e9ecef' }}>
+                            <th style={{ padding: 4, border: '1px solid #ddd', textAlign: 'left' }}>Key</th>
+                            <th style={{ padding: 4, border: '1px solid #ddd', textAlign: 'left' }}>Data Length</th>
+                            <th style={{ padding: 4, border: '1px solid #ddd', textAlign: 'left' }}>Timestamp</th>
+                            <th style={{ padding: 4, border: '1px solid #ddd', textAlign: 'left' }}>TTL (ms)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {data.debug.cacheEntries.map((entry, idx) => (
+                            <tr key={idx} style={{ background: idx % 2 === 0 ? '#f8f9fa' : '#fff' }}>
+                              <td style={{ padding: 4, border: '1px solid #ddd', fontFamily: 'monospace', fontSize: 11 }}>{entry.key}</td>
+                              <td style={{ padding: 4, border: '1px solid #ddd' }}>{entry.dataLength}</td>
+                              <td style={{ padding: 4, border: '1px solid #ddd', fontSize: 10 }}>{new Date(entry.timestamp).toLocaleString()}</td>
+                              <td style={{ padding: 4, border: '1px solid #ddd' }}>{entry.ttl}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div style={{ color: '#666', padding: 8 }}>No cache entries found</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

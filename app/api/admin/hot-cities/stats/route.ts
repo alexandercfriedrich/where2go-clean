@@ -6,7 +6,7 @@ import InMemoryCache from '@/lib/cache';
 interface HotCityStats {
   id: string;
   name: string;
-  country: string;
+  country?: string;
   isActive: boolean;
   totalWebsites: number;
   activeWebsites: number;

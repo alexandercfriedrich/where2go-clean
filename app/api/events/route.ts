@@ -13,12 +13,29 @@ import { fetchWienAtEvents, mapMainToViennaKats } from '@/lib/sources/wienAt';
 
 // Wien.info Filter-Mapping (Discovery-Link für KI/Navigation)
 import { buildWienInfoUrl, getWienInfoF1IdsForCategories } from '@/event_mapping_wien_info';
+import { fetchWienInfoEvents } from '@/lib/sources/wienInfo';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
 // Default-Kategorien ausschließlich aus der SSOT ableiten
 const DEFAULT_CATEGORIES = EVENT_CATEGORIES;
+
+// Helper function to determine valid dates for filtering
+function getValidDatesForFiltering(baseDate: string, timePeriod?: string): string[] {
+  if (timePeriod === 'kommendes-wochenende') {
+    // For weekend, calculate Friday, Saturday, Sunday from the base date (which should be Friday)
+    const friday = new Date(baseDate);
+    const saturday = new Date(friday);
+    saturday.setDate(friday.getDate() + 1);
+    const sunday = new Date(friday);
+    sunday.setDate(friday.getDate() + 2);
+    
+    const formatDate = (d: Date) => d.toISOString().slice(0, 10);
+    return [formatDate(friday), formatDate(saturday), formatDate(sunday)];
+  }
+  return [baseDate]; // Single date for heute, morgen, or custom date
+}
 
 const DEFAULT_PPLX_OPTIONS = {
   temperature: 0.2,
@@ -139,6 +156,60 @@ export async function POST(request: NextRequest) {
       console.warn('Wien.info link generation failed:', (e as Error).message);
     }
 
+    // Frühe Sammelliste für schnelle Quellen (z.B. Wien.info, RSS)
+    let earlyEvents: EventData[] = [];
+    let wienInfoDebugData: any = null;
+
+    // Optional: direkte Wien.info HTML Events (Opt-In)
+    try {
+      const shouldFetchWienInfo =
+        request.nextUrl.searchParams.get('fetchWienInfo') === '1' ||
+        (options && (options as any).fetchWienInfo === true);
+      const isVienna = /(^|\s)wien(\s|$)|vienna/.test(city.toLowerCase());
+      if (shouldFetchWienInfo && isVienna) {
+        const wienInfoResult = await fetchWienInfoEvents({
+          fromISO: date,
+          toISO: date,
+          categories: effectiveCategories,
+          limit: 120,
+          debug: (options as any)?.debug === true || qDebug,
+          debugVerbose: (options as any)?.debugVerbose === true || qVerbose
+        });
+        
+        if (wienInfoResult.events.length) {
+          const normalized = wienInfoResult.events.map(ev => ({
+            title: ev.title,
+            category: ev.category,
+            date: ev.date,
+            time: ev.time || '',
+            venue: ev.venue || '',
+            price: ev.price || '',
+            website: ev.website || '',
+            source: ev.source,
+            city: ev.city || 'Wien'
+          }));
+          const deduped = eventAggregator.deduplicateEvents(normalized);
+          earlyEvents.push(...deduped);
+          if (qDebug) {
+            console.log('[WIEN.INFO:EARLY]', { count: deduped.length });
+          }
+        } else if (wienInfoResult.error) {
+          // Log Wien.info error but continue processing
+          console.log('[WIEN.INFO:ERROR]', wienInfoResult.error);
+          if (qDebug) {
+            console.log('[WIEN.INFO:EARLY]', { count: 0, error: wienInfoResult.error });
+          }
+        }
+
+        // Store Wien.info debug information for later use
+        if (wienInfoResult.debugInfo && ((options as any)?.debug === true || qDebug)) {
+          wienInfoDebugData = wienInfoResult.debugInfo;
+        }
+      }
+    } catch (e) {
+      console.warn('Wien.info fetch failed:', (e as Error).message);
+    }
+
     const mergedOptions = { 
       ...DEFAULT_PPLX_OPTIONS, 
       ...options,
@@ -172,6 +243,30 @@ export async function POST(request: NextRequest) {
       effectiveCategories.forEach(category => {
         cacheInfo[category] = { fromCache: false, eventCount: 0 };
       });
+    }
+
+    // Combine early events with cached events
+    if (earlyEvents.length > 0) {
+      // Filter early events by valid dates
+      const validDates = getValidDatesForFiltering(date, (mergedOptions as any)?.timePeriod);
+      const filteredEarlyEvents = earlyEvents.filter(event => {
+        const eventDate = event.date?.slice(0, 10);
+        return !eventDate || validDates.includes(eventDate);
+      });
+      
+      if (qDebug && filteredEarlyEvents.length !== earlyEvents.length) {
+        console.log('[EARLY-EVENTS:DATE-FILTER]', {
+          validDates,
+          beforeFilter: earlyEvents.length,
+          afterFilter: filteredEarlyEvents.length,
+          filteredOut: earlyEvents.length - filteredEarlyEvents.length
+        });
+      }
+      
+      allCachedEvents = eventAggregator.deduplicateEvents([
+        ...filteredEarlyEvents,
+        ...allCachedEvents
+      ]);
     }
 
     // Wien.gv.at (VADB) RSS – schnelle Vorab-Ergebnisse (nur Wien)
@@ -217,15 +312,31 @@ export async function POST(request: NextRequest) {
             // Stamp RSS provenance
             const rssStamped = rssResults.map(e => ({ ...e, source: e.source ?? 'rss' as const }));
 
+            // Filter RSS events by valid dates
+            const validDates = getValidDatesForFiltering(date, (mergedOptions as any)?.timePeriod);
+            const filteredRssEvents = rssStamped.filter(event => {
+              const eventDate = event.date?.slice(0, 10);
+              return !eventDate || validDates.includes(eventDate);
+            });
+            
+            if (qDebug && filteredRssEvents.length !== rssStamped.length) {
+              console.log('[RSS-EVENTS:DATE-FILTER]', {
+                validDates,
+                beforeFilter: rssStamped.length,
+                afterFilter: filteredRssEvents.length,
+                filteredOut: rssStamped.length - filteredRssEvents.length
+              });
+            }
+
             allCachedEvents = eventAggregator.deduplicateEvents([
               ...allCachedEvents,
-              ...rssStamped
+              ...filteredRssEvents
             ]);
 
             if (!disableCache) {
-              const ttlRss = computeTTLSecondsForEvents(rssStamped);
+              const ttlRss = computeTTLSecondsForEvents(filteredRssEvents);
               const grouped: Record<string, EventData[]> = {};
-              for (const ev of rssStamped) {
+              for (const ev of filteredRssEvents) {
                 if (!ev.category) continue;
                 if (!grouped[ev.category]) grouped[ev.category] = [];
                 grouped[ev.category].push(ev);
@@ -239,7 +350,7 @@ export async function POST(request: NextRequest) {
               }
             }
 
-            console.log(`Wien.at RSS merged: ${rssStamped.length} events`);
+            console.log(`Wien.at RSS merged: ${filteredRssEvents.length} events (${rssStamped.length - filteredRssEvents.length} filtered by date)`);
           }
         }
       }
@@ -295,6 +406,21 @@ export async function POST(request: NextRequest) {
         steps: []
       };
       await jobStore.setDebugInfo(jobId, debugInfo);
+
+      // Add Wien.info debug information if available
+      if (wienInfoDebugData) {
+        const debugStep = {
+          category: 'Wien.info',
+          query: wienInfoDebugData.query,
+          response: wienInfoDebugData.response,
+          parsedCount: earlyEvents.length
+        };
+        try {
+          await jobStore.pushDebugStep(jobId, debugStep);
+        } catch (error) {
+          console.warn('Failed to save Wien.info debug step:', error);
+        }
+      }
     }
 
     const mainCategoriesForAI = getMainCategoriesForAICalls(missingCategories);
