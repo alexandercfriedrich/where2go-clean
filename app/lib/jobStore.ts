@@ -13,6 +13,11 @@ export interface JobStore {
   deleteJob(jobId: string): Promise<void>;
   cleanupOldJobs(): Promise<void>;
   
+  // Active job mapping methods (for job reuse)
+  setActiveJob(key: string, jobId: string, ttlSec: number): Promise<void>;
+  getActiveJob(key: string): Promise<string | null>;
+  deleteActiveJob(key: string): Promise<void>;
+  
   // Debug methods
   setDebugInfo(jobId: string, debugInfo: DebugInfo): Promise<void>;
   getDebugInfo(jobId: string): Promise<DebugInfo | null>;
@@ -178,6 +183,23 @@ class RedisJobStore implements JobStore {
       await this.setDebugInfo(jobId, debugInfo);
     }
   }
+
+  // Active job mapping methods for job reuse
+  async setActiveJob(key: string, jobId: string, ttlSec: number): Promise<void> {
+    const activeKey = 'jobidx:' + key;
+    await this.redis.setex(activeKey, ttlSec, jobId);
+  }
+
+  async getActiveJob(key: string): Promise<string | null> {
+    const activeKey = 'jobidx:' + key;
+    const result = await this.redis.get(activeKey);
+    return result as string | null;
+  }
+
+  async deleteActiveJob(key: string): Promise<void> {
+    const activeKey = 'jobidx:' + key;
+    await this.redis.del(activeKey);
+  }
 }
 
 /**
@@ -187,6 +209,7 @@ class InMemoryJobStore implements JobStore {
   private jobs = new Map<string, JobStatus>();
   private debugInfo = new Map<string, DebugInfo>();
   private updateLocks = new Map<string, Promise<void>>();
+  private activeJobs = new Map<string, { jobId: string; expiresAt: number }>();
 
   async setJob(jobId: string, job: JobStatus): Promise<void> {
     // Serialize and deserialize to ensure consistency with Redis store
@@ -267,6 +290,14 @@ class InMemoryJobStore implements JobStore {
         this.debugInfo.delete(jobId);
       }
     }
+
+    // Clean up expired active job mappings
+    const now = Date.now();
+    for (const [key, entry] of this.activeJobs.entries()) {
+      if (now > entry.expiresAt) {
+        this.activeJobs.delete(key);
+      }
+    }
   }
 
   async setDebugInfo(jobId: string, debugInfo: DebugInfo): Promise<void> {
@@ -308,6 +339,28 @@ class InMemoryJobStore implements JobStore {
     if (existing) {
       existing.steps.push(step);
     }
+  }
+
+  // Active job mapping methods for job reuse
+  async setActiveJob(key: string, jobId: string, ttlSec: number): Promise<void> {
+    const expiresAt = Date.now() + (ttlSec * 1000);
+    this.activeJobs.set(key, { jobId, expiresAt });
+  }
+
+  async getActiveJob(key: string): Promise<string | null> {
+    const entry = this.activeJobs.get(key);
+    if (!entry) return null;
+    
+    if (Date.now() > entry.expiresAt) {
+      this.activeJobs.delete(key);
+      return null;
+    }
+    
+    return entry.jobId;
+  }
+
+  async deleteActiveJob(key: string): Promise<void> {
+    this.activeJobs.delete(key);
   }
 }
 

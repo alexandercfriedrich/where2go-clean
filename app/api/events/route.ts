@@ -44,6 +44,12 @@ const DEFAULT_PPLX_OPTIONS = {
 
 const jobStore = getJobStore();
 
+// Helper function to create composite key for active job mapping
+function createActiveJobKey(city: string, date: string, categories: string[]): string {
+  const sortedCategories = [...categories].sort();
+  return `city=${city}|date=${date}|cats=${sortedCategories.join(',')}`;
+}
+
 async function scheduleBackgroundProcessing(
   request: NextRequest,
   jobId: string,
@@ -375,7 +381,40 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Check for existing active job for job reuse
+    const activeJobKey = createActiveJobKey(city, date, effectiveCategories);
+    const existingJobId = await jobStore.getActiveJob(activeJobKey);
+    
+    if (existingJobId) {
+      const existingJob = await jobStore.getJob(existingJobId);
+      if (existingJob && (existingJob.status === 'processing' || existingJob.status === 'pending')) {
+        // Reuse existing job - merge cached events with job events and return immediately
+        const jobEvents = existingJob.events || [];
+        const mergedEvents = eventAggregator.deduplicateEvents([...allCachedEvents, ...jobEvents]);
+        
+        console.log(`Reusing active jobId ${existingJobId} for key: ${activeJobKey}`);
+        
+        return NextResponse.json({
+          jobId: existingJobId,
+          status: existingJob.status,
+          events: mergedEvents,
+          cached: allCachedEvents.length > 0,
+          cacheInfo: {
+            fromCache: allCachedEvents.length > 0,
+            totalEvents: mergedEvents.length,
+            cachedEvents: allCachedEvents.length,
+            cacheBreakdown: cacheInfo
+          },
+          progress: existingJob.progress || {
+            completedCategories: effectiveCategories.length - missingCategories.length,
+            totalCategories: effectiveCategories.length
+          }
+        });
+      }
+    }
+
     const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    console.log(`Creating new jobId ${jobId} for key: ${activeJobKey}`);
 
     const job: JobStatus = {
       id: jobId,
@@ -395,6 +434,10 @@ export async function POST(request: NextRequest) {
     };
 
     await jobStore.setJob(jobId, job);
+
+    // Set active job mapping with 10-minute TTL
+    const activeJobTtlSeconds = 10 * 60; // 10 minutes
+    await jobStore.setActiveJob(activeJobKey, jobId, activeJobTtlSeconds);
 
     if ((mergedOptions as any)?.debug) {
       const debugInfo: DebugInfo = {
