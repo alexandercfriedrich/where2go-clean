@@ -208,6 +208,24 @@ The asynchronous API now uses Vercel Background Functions for reliable processin
 
 Both public endpoints accept the same request body format and use shared caching.
 
+#### Job Reuse for Efficiency
+
+To prevent event fragmentation and improve user experience, the asynchronous API implements **job reuse** for identical search parameters:
+
+- When multiple requests are made for the same city/date/categories within a short time window (10 minutes), the system reuses the existing active job instead of creating a new one
+- This ensures all PPLX responses accumulate in a single job, eliminating split results across multiple jobIds
+- The frontend automatically receives the most complete results without missing events from parallel processing
+- Active job mappings expire after 10 minutes to allow for fresh searches while maintaining efficiency
+- Job reuse is transparent to the API consumer - the response format remains identical
+
+**Key Benefits:**
+- ✅ **Eliminates event fragmentation** - All results appear in a single job
+- ✅ **Reduces server load** - Avoids duplicate processing for identical searches  
+- ✅ **Improves user experience** - No missing events due to timing issues
+- ✅ **Transparent operation** - No API changes required
+
+**Example:** If a user searches for "Wien, 2025-01-20, Music,Theater" and then repeats the same search within 10 minutes, the second request will return the existing job with all accumulated events rather than starting a new search.
+
 #### Request Format (both endpoints)
 
 ```json
