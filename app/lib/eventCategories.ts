@@ -185,7 +185,7 @@ export const NORMALIZATION_TOKEN_MAP: Record<string,string> = {
   "learning":"Bildung/Lernen","bildung":"Bildung/Lernen","education":"Bildung/Lernen","lehren":"Bildung/Lernen",
   "talk":"Bildung/Lernen","talks":"Bildung/Lernen","vortrag":"Bildung/Lernen","vorträge":"Bildung/Lernen",
   "lecture":"Bildung/Lernen","lectures":"Bildung/Lernen","class":"Bildung/Lernen","classes":"Bildung/Lernen",
-  "hackathon":"Bildung/Lernen","training":"Bildung/Lernen","skill":"Bildung/Lernen","skills":"Bildung/Lernen",
+  "hackathon":"Bildung/Lernen","skill":"Bildung/Lernen","skills":"Bildung/Lernen",
   
   // Business/Networking
   "startup":"Networking/Business","business":"Networking/Business","networking":"Networking/Business",
