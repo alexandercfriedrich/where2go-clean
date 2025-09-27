@@ -3,7 +3,8 @@ import {
   loadHotCities, 
   saveHotCity, 
   deleteHotCity, 
-  getActiveHotCities 
+  getActiveHotCities,
+  filterBlacklistedUrls
 } from '@/lib/hotCityStore';
 import { HotCity } from '@/lib/types';
 
@@ -11,7 +12,8 @@ import { HotCity } from '@/lib/types';
 export async function GET() {
   try {
     const cities = await loadHotCities();
-    return NextResponse.json({ cities });
+    const filteredCities = filterBlacklistedUrls(cities);
+    return NextResponse.json({ cities: filteredCities });
   } catch (error) {
     console.error('Error loading hot cities:', error);
     return NextResponse.json(

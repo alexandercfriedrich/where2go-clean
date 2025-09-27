@@ -330,4 +330,26 @@ The application uses intelligent caching with dynamic TTL (Time To Live) based o
 - **Shared Cache**: Both Hot Cities and regular searches use the same cache keys for consistency
 - **Dynamic TTL**: Longer cache times for events that haven't started, shorter for ongoing events
 
-This ensures cache stays fresh while events are current, significantly reducing Perplexity API costs for popular destinations.  
+This ensures cache stays fresh while events are current, significantly reducing Perplexity API costs for popular destinations.
+
+### Vienna Events Integration
+
+Vienna events are sourced exclusively through the **Wien.info JSON API**, which provides:
+
+- **Structured Data**: Clean JSON format eliminates parsing errors common with RSS feeds
+- **Official Source**: Direct access to Vienna's comprehensive event database
+- **Category Filtering**: Built-in support for filtering by event types (F1 parameters)
+- **Reliability**: Stable API with consistent uptime and data quality
+- **Maintenance**: No custom parsing logic required, reducing maintenance overhead
+
+The Wien.info integration automatically maps event categories to appropriate F1 filter IDs for targeted searches, ensuring relevant results for different event types.
+
+### Changelog
+
+#### Removed Features
+
+**VADB RSS Integration (Removed)**
+- Removed Wien.gv.at VADB RSS feed integration due to parsing complexity and reliability issues
+- Simplified codebase by eliminating custom RSS parsing logic
+- Wien.info JSON API remains as the sole Vienna events source, providing better data quality and reliability
+- All Wien.gv.at URLs are automatically filtered from Hot Cities configurations to prevent accidental re-addition

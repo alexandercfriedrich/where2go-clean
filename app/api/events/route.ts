@@ -8,8 +8,7 @@ import { getHotCity, getCityWebsitesForCategories } from '@/lib/hotCityStore';
 import { getMainCategoriesForAICalls } from '@/categories';
 import { EVENT_CATEGORIES } from '@/lib/eventCategories';
 
-// Wien.gv.at (VADB) RSS Vorab-Quelle
-import { fetchWienAtEvents, mapMainToViennaKats } from '@/lib/sources/wienAt';
+
 
 // Wien.info Filter-Mapping (Discovery-Link für KI/Navigation)
 import { buildWienInfoUrl, getWienInfoF1IdsForCategories } from '@/event_mapping_wien_info';
@@ -275,94 +274,7 @@ export async function POST(request: NextRequest) {
       ]);
     }
 
-    // Wien.gv.at (VADB) RSS – schnelle Vorab-Ergebnisse (nur Wien)
-    try {
-      const isVienna = /(^|\s)wien(\s|$)|vienna/.test(city.toLowerCase());
-      if (isVienna && Array.isArray(additionalSources)) {
-        const rssSites = additionalSources.filter((s: any) =>
-          typeof s.url === 'string' &&
-          /wien\.gv\.at\/vadb\/internet\/AdvPrSrv\.asp/i.test(s.url) &&
-          s.isActive !== false
-        );
 
-        if (rssSites.length) {
-          const mainCats = effectiveCategories; // bereits gemappt
-          const viennaKats = mapMainToViennaKats(mainCats);
-          const rssResults: EventData[] = [];
-
-          for (const site of rssSites) {
-            const initial = await fetchWienAtEvents({
-              baseUrl: site.url,
-              fromISO: date,
-              toISO: date,
-              extraQuery: site.searchQuery || '', // KATx aus extraQuery wird überschrieben, wenn viennaKats gesetzt
-              viennaKats,
-              limit: 500
-            });
-            rssResults.push(...initial);
-
-            // Fallback: Breite Abfrage ohne KAT1, wenn initial 0
-            if (initial.length === 0) {
-              const broad = await fetchWienAtEvents({
-                baseUrl: site.url,
-                fromISO: date,
-                toISO: date,
-                extraQuery: site.searchQuery || '',
-                limit: 500
-              });
-              rssResults.push(...broad);
-            }
-          }
-
-          if (rssResults.length) {
-            // Stamp RSS provenance
-            const rssStamped = rssResults.map(e => ({ ...e, source: e.source ?? 'rss' as const }));
-
-            // Filter RSS events by valid dates
-            const validDates = getValidDatesForFiltering(date, (mergedOptions as any)?.timePeriod);
-            const filteredRssEvents = rssStamped.filter(event => {
-              const eventDate = event.date?.slice(0, 10);
-              return !eventDate || validDates.includes(eventDate);
-            });
-            
-            if (qDebug && filteredRssEvents.length !== rssStamped.length) {
-              console.log('[RSS-EVENTS:DATE-FILTER]', {
-                validDates,
-                beforeFilter: rssStamped.length,
-                afterFilter: filteredRssEvents.length,
-                filteredOut: rssStamped.length - filteredRssEvents.length
-              });
-            }
-
-            allCachedEvents = eventAggregator.deduplicateEvents([
-              ...allCachedEvents,
-              ...filteredRssEvents
-            ]);
-
-            if (!disableCache) {
-              const ttlRss = computeTTLSecondsForEvents(filteredRssEvents);
-              const grouped: Record<string, EventData[]> = {};
-              for (const ev of filteredRssEvents) {
-                if (!ev.category) continue;
-                if (!grouped[ev.category]) grouped[ev.category] = [];
-                grouped[ev.category].push(ev);
-              }
-              for (const cat of Object.keys(grouped)) {
-                eventsCache.setEventsByCategory(city, date, cat, grouped[cat], ttlRss);
-                cacheInfo[cat] = {
-                  fromCache: false,
-                  eventCount: (cacheInfo[cat]?.eventCount || 0) + grouped[cat].length
-                };
-              }
-            }
-
-            console.log(`Wien.at RSS merged: ${filteredRssEvents.length} events (${rssStamped.length - filteredRssEvents.length} filtered by date)`);
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('Wien.at RSS integration failed:', (e as Error).message);
-    }
 
     if (missingCategories.length === 0) {
       return NextResponse.json({

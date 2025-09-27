@@ -4,6 +4,30 @@ import path from 'path';
 import { Redis } from '@upstash/redis';
 import { HotCity, HotCityWebsite } from './types';
 
+// Blacklisted URLs that should never appear in Hot Cities (Wien.gv.at VADB/Events sources)
+const BLACKLISTED_URLS = [
+  'https://www.wien.gv.at/kultur/abteilung/veranstaltungen/',
+  'https://www.wien.gv.at/vadb/internet/AdvPrSrv.asp'
+];
+
+/**
+ * Checks if a URL is blacklisted (case-insensitive, ignores protocol and trailing slash)
+ */
+function isUrlBlacklisted(url: string): boolean {
+  if (!url) return false;
+  
+  // Normalize URL for comparison
+  const normalizeUrl = (u: string) => u
+    .toLowerCase()
+    .replace(/^https?:\/\//, '') // Remove protocol
+    .replace(/\/$/, ''); // Remove trailing slash
+  
+  const normalizedUrl = normalizeUrl(url);
+  return BLACKLISTED_URLS.some(blacklistedUrl => 
+    normalizeUrl(blacklistedUrl) === normalizedUrl
+  );
+}
+
 // Helper function to create URL-friendly slugs
 export function slugify(text: string): string {
   return text
@@ -152,6 +176,23 @@ export async function deleteHotCity(cityId: string): Promise<boolean> {
   return false;
 }
 
+/**
+ * Filters out blacklisted URLs from a city's websites
+ */
+function filterBlacklistedWebsites(city: HotCity): HotCity {
+  return {
+    ...city,
+    websites: city.websites.filter(website => !isUrlBlacklisted(website.url))
+  };
+}
+
+/**
+ * Filters out blacklisted URLs from all cities' websites
+ */
+export function filterBlacklistedUrls(cities: HotCity[]): HotCity[] {
+  return cities.map(filterBlacklistedWebsites);
+}
+
 // Get websites for a specific city and categories
 export async function getCityWebsitesForCategories(
   cityName: string, 
@@ -163,6 +204,7 @@ export async function getCityWebsitesForCategories(
   return city.websites
     .filter(website => 
       website.isActive && 
+      !isUrlBlacklisted(website.url) && // Filter out blacklisted URLs
       (website.categories.length === 0 || // Empty categories means it covers all
        website.categories.some(cat => categories.includes(cat)))
     )

@@ -32,15 +32,6 @@ const initialHotCities = [
     websites: [
       {
         id: generateWebsiteId(),
-        name: 'Wien.gv.at Events',
-        url: 'https://www.wien.gv.at/kultur/abteilung/veranstaltungen/',
-        categories: [],
-        description: 'Official Vienna city events',
-        priority: 10,
-        isActive: true
-      },
-      {
-        id: generateWebsiteId(),
         name: 'Wiener Staatsoper',
         url: 'https://www.wiener-staatsoper.at',
         categories: ['Live-Konzerte', 'Theater/Performance', 'Kultur/Traditionen'],
