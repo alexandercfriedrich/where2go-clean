@@ -1,12 +1,12 @@
 /**
  * Wien.info Events Fetcher
- * - Fetches events directly from wien.info via web scraping
- * - Filters by categories using F1 mappings
+ * - Fetches events directly from wien.info JSON API
+ * - Filters by categories using API data filtering
  * - Returns normalized events for aggregation
  */
 
 import { EventData } from '@/lib/types';
-import { getWienInfoF1IdsForCategories, buildWienInfoUrl } from '@/event_mapping_wien_info';
+import { getWienInfoF1IdsForCategories } from '@/event_mapping_wien_info';
 
 interface FetchWienInfoOptions {
   fromISO: string;          // YYYY-MM-DD
@@ -26,20 +26,30 @@ interface WienInfoResult {
     categories: string[];
     f1Ids: number[];
     url: string;
-    scrapedHtml?: string;
+    apiResponse?: any;
+    filteredEvents?: number;
     parsedEvents?: number;
   };
 }
 
-interface ScrapedEvent {
+interface WienInfoApiResponse {
+  type: string;
+  teaserTextMarkup: string;
+  items: WienInfoEvent[];
+}
+
+interface WienInfoEvent {
+  id: string;
   title: string;
-  date: string;
-  time?: string;
-  venue?: string;
-  category?: string;
-  description?: string;
-  price?: string;
-  url?: string;
+  subtitle?: string;
+  category: string;
+  location: string;
+  dates?: string[];
+  startDate?: string;
+  endDate?: string;
+  url: string;
+  imageUrl?: string;
+  tags: number[];
 }
 
 /**
@@ -59,70 +69,53 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
       return { events: [], error: 'No results from Wien.info!' };
     }
 
-    // Build the wien.info search URL
-    const searchUrl = buildWienInfoUrl(fromISO, toISO, f1Ids);
+    // Use the JSON API endpoint
+    const apiUrl = 'https://www.wien.info/ajax/de/events';
     
     // Create debug information
     const debugQuery = `Wien.info events search for categories: ${categories.join(', ')} from ${fromISO} to ${toISO}`;
     
     if (debug) {
       console.log('[WIEN.INFO:FETCH]', { 
-        searchUrl,
+        apiUrl,
         categories,
         f1Ids,
         dateRange: `${fromISO} to ${toISO}`
       });
     }
 
-    // Fetch the wien.info page
-    let scrapedEvents: ScrapedEvent[] = [];
+    // Fetch from the JSON API
+    let apiEvents: WienInfoEvent[] = [];
     let debugResponse = '';
-    let scrapedHtml = '';
+    let apiResponse: any = null;
     
     try {
-      // Try to fetch the actual wien.info page
-      const response = await fetch(searchUrl, {
+      const response = await fetch(apiUrl, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept': 'application/json, */*',
           'Accept-Language': 'de-DE,de;q=0.9,en;q=0.8',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Connection': 'keep-alive',
-          'Upgrade-Insecure-Requests': '1'
         },
         // Add timeout
         signal: AbortSignal.timeout(10000) // 10 second timeout
       });
 
       if (response.ok) {
-        const html = await response.text();
-        scrapedHtml = html.substring(0, 1000); // Store first 1000 chars for debug
-        scrapedEvents = parseWienInfoHTML(html, fromISO, toISO);
-        debugResponse = `Successfully scraped ${scrapedEvents.length} events from wien.info`;
+        const jsonData: WienInfoApiResponse = await response.json();
+        apiResponse = jsonData;
+        apiEvents = jsonData.items || [];
+        
+        debugResponse = `Successfully fetched ${apiEvents.length} events from wien.info JSON API`;
         
         if (debug) {
-          console.log('[WIEN.INFO:SCRAPE] Successfully fetched HTML, length:', html.length);
-          console.log('[WIEN.INFO:SCRAPE] Parsed events:', scrapedEvents.length);
+          console.log('[WIEN.INFO:API] Successfully fetched JSON, events count:', apiEvents.length);
         }
       } else {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
-    } catch (scrapeError) {
-      console.warn('[WIEN.INFO:SCRAPE] Failed to scrape wien.info:', scrapeError);
-      debugResponse = `Scraping failed: ${scrapeError}. Generating test events for debugging.`;
-      
-      // Generate test events for debugging purposes
-      scrapedEvents = generateWienInfoEvents(fromISO, toISO, categories, f1Ids);
-      
-      if (debug) {
-        console.log('[WIEN.INFO:FALLBACK] Generated test events:', scrapedEvents.length);
-      }
-    }
-
-    // If scraping succeeded but no events found
-    if (scrapedEvents.length === 0) {
-      console.log('[WIEN.INFO:SCRAPE] No events found from scraping');
-      debugResponse += ' No events found in HTML.';
+    } catch (apiError) {
+      console.warn('[WIEN.INFO:API] Failed to fetch from wien.info JSON API:', apiError);
+      debugResponse = `JSON API failed: ${apiError}. No results from Wien.info!`;
       
       return { 
         events: [], 
@@ -132,15 +125,42 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
           response: debugResponse,
           categories,
           f1Ids,
-          url: searchUrl,
-          scrapedHtml: debugVerbose ? scrapedHtml : undefined,
+          url: apiUrl,
           parsedEvents: 0
         } : undefined
       };
     }
 
-    // Convert scraped events to normalized format
-    const normalizedEvents = scrapedEvents
+    // Filter events by date range and categories
+    const filteredEvents = filterWienInfoEvents(apiEvents, fromISO, toISO, f1Ids);
+    
+    if (debug) {
+      console.log('[WIEN.INFO:FILTER] Filtered events:', filteredEvents.length, 'from', apiEvents.length);
+    }
+
+    // If no events found after filtering
+    if (filteredEvents.length === 0) {
+      console.log('[WIEN.INFO:FILTER] No events found after filtering');
+      debugResponse += ' No events found after date/category filtering.';
+      
+      return { 
+        events: [], 
+        error: 'No results from Wien.info!',
+        debugInfo: debug ? {
+          query: debugQuery,
+          response: debugResponse,
+          categories,
+          f1Ids,
+          url: apiUrl,
+          apiResponse: debugVerbose ? apiResponse : undefined,
+          filteredEvents: 0,
+          parsedEvents: apiEvents.length
+        } : undefined
+      };
+    }
+
+    // Convert filtered events to normalized format
+    const normalizedEvents = filteredEvents
       .slice(0, limit)
       .map(event => normalizeWienInfoEvent(event, categories));
 
@@ -162,9 +182,10 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
         response: debugResponse,
         categories,
         f1Ids,
-        url: searchUrl,
-        scrapedHtml: debugVerbose ? scrapedHtml : undefined,
-        parsedEvents: scrapedEvents.length
+        url: apiUrl,
+        apiResponse: debugVerbose ? apiResponse : undefined,
+        filteredEvents: filteredEvents.length,
+        parsedEvents: apiEvents.length
       };
     }
 
@@ -182,7 +203,7 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
         response: `Error: ${error}. No results from Wien.info!`,
         categories,
         f1Ids: [],
-        url: '',
+        url: 'https://www.wien.info/ajax/de/events',
         parsedEvents: 0
       } : undefined
     };
@@ -190,199 +211,40 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
 }
 
 /**
- * Generate realistic Wien.info events for testing purposes
- * This simulates what would be scraped from wien.info based on categories and date
+ * Filters Wien.info events by date range and category tags
  */
-function generateWienInfoEvents(fromISO: string, toISO: string, categories: string[], f1Ids: number[]): ScrapedEvent[] {
-  const events: ScrapedEvent[] = [];
-  const venues = [
-    'Wiener Staatsoper', 'Burgtheater', 'Volkstheater', 'Theater an der Wien',
-    'Konzerthaus Wien', 'Musikverein', 'Porgy & Bess', 'Flex Wien',
-    'Albertina', 'Belvedere', 'Leopold Museum', 'MUMOK',
-    'Prater', 'Schönbrunn', 'Naschmarkt'
-  ];
-  
-  const eventTypes = {
-    'DJ Sets/Electronic': ['Electronic Night', 'Techno Party', 'House Music Event'],
-    'Live-Konzerte': ['Konzert', 'Live Music', 'Classical Concert'],
-    'Theater/Performance': ['Theateraufführung', 'Musical', 'Performance'],
-    'Museen': ['Ausstellung', 'Museum Exhibition', 'Art Show'],
-    'Comedy/Kabarett': ['Kabarett Show', 'Comedy Night', 'Stand-up'],
-    'Film': ['Filmvorführung', 'Cinema', 'Movie Screening'],
-    'Kultur/Traditionen': ['Kulturveranstaltung', 'Traditional Event', 'Festival']
-  };
+function filterWienInfoEvents(events: WienInfoEvent[], fromISO: string, toISO: string, f1Ids: number[]): WienInfoEvent[] {
+  return events.filter(event => {
+    // Check if event matches any of our target categories by F1 IDs
+    const categoryMatches = event.tags.some(tag => f1Ids.includes(tag));
+    if (!categoryMatches) {
+      return false;
+    }
 
-  // Generate events for each category
-  categories.forEach(category => {
-    const types = eventTypes[category as keyof typeof eventTypes] || ['Event'];
-    const venue = venues[Math.floor(Math.random() * venues.length)];
-    const eventType = types[Math.floor(Math.random() * types.length)];
+    // Check if event falls within our date range
+    const eventDates = event.dates || [];
     
-    events.push({
-      title: `${eventType} - ${venue}`,
-      date: fromISO,
-      time: `${18 + Math.floor(Math.random() * 4)}:${Math.floor(Math.random() * 6) * 10}`,
-      venue,
-      category,
-      description: `Wien.info event for ${category} at ${venue}`,
-      price: Math.random() > 0.5 ? `€${10 + Math.floor(Math.random() * 40)}` : '',
-      url: `https://www.wien.info/de/aktuell/veranstaltungen/detail/${Math.random().toString(36).substr(2, 9)}`
+    // Also check startDate and endDate if available
+    if (event.startDate) {
+      eventDates.push(event.startDate);
+    }
+    if (event.endDate) {
+      eventDates.push(event.endDate);
+    }
+
+    // If no dates available, skip this event
+    if (eventDates.length === 0) {
+      return false;
+    }
+
+    // Check if any of the event dates fall within our range
+    const dateMatches = eventDates.some(date => {
+      const eventDate = date.split('T')[0]; // Extract YYYY-MM-DD part
+      return eventDate >= fromISO && eventDate <= toISO;
     });
+
+    return dateMatches;
   });
-
-  return events;
-}
-
-/**
- * Parses HTML from wien.info to extract event information
- */
-function parseWienInfoHTML(html: string, fromDate: string, toDate: string): ScrapedEvent[] {
-  const events: ScrapedEvent[] = [];
-  
-  try {
-    // Wien.info uses a client-side app, so we need to look for JSON data or structured content
-    // Try to find JSON-LD structured data first
-    const jsonLdRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>(.*?)<\/script>/gi;
-    let jsonLdMatch;
-    const jsonLdMatches = [];
-    
-    while ((jsonLdMatch = jsonLdRegex.exec(html)) !== null) {
-      jsonLdMatches.push(jsonLdMatch[0]);
-    }
-    
-    if (jsonLdMatches.length > 0) {
-      for (const match of jsonLdMatches) {
-        try {
-          const jsonContent = match.replace(/<script[^>]*>/, '').replace(/<\/script>/, '');
-          const data = JSON.parse(jsonContent);
-          
-          if (data['@type'] === 'Event' || (Array.isArray(data) && data.some(item => item['@type'] === 'Event'))) {
-            const eventData = Array.isArray(data) ? data.filter(item => item['@type'] === 'Event') : [data];
-            
-            for (const event of eventData) {
-              if (event.startDate) {
-                const eventDate = event.startDate.split('T')[0]; // Extract YYYY-MM-DD
-                if (eventDate >= fromDate && eventDate <= toDate) {
-                  events.push({
-                    title: event.name || 'Wien.info Event',
-                    date: eventDate,
-                    time: event.startDate.includes('T') ? event.startDate.split('T')[1]?.split('+')[0] : undefined,
-                    venue: event.location?.name || event.location?.address?.name || 'Wien',
-                    description: event.description || '',
-                    url: event.url || '',
-                    category: mapWienInfoCategory(event.category || event['@type'])
-                  });
-                }
-              }
-            }
-          }
-        } catch (parseError) {
-          // Skip invalid JSON
-          continue;
-        }
-      }
-    }
-    
-    // If no JSON-LD found or no events extracted, try parsing HTML structure
-    if (events.length === 0) {
-      // Look for event containers in the HTML
-      const eventPatterns = [
-        // Common patterns for event listings
-        /<div[^>]*class="[^"]*event[^"]*"[^>]*>(.*?)<\/div>/gi,
-        /<article[^>]*class="[^"]*event[^"]*"[^>]*>(.*?)<\/article>/gi,
-        /<li[^>]*class="[^"]*event[^"]*"[^>]*>(.*?)<\/li>/gi
-      ];
-      
-      for (const pattern of eventPatterns) {
-        let match;
-        const matches = [];
-        while ((match = pattern.exec(html)) !== null && matches.length < 20) {
-          matches.push(match[0]);
-        }
-        
-        if (matches.length > 0) {
-          for (const matchStr of matches) {
-            const event = parseEventFromHTML(matchStr, fromDate, toDate);
-            if (event) {
-              events.push(event);
-            }
-          }
-          if (events.length > 0) break; // Stop if we found events
-        }
-      }
-    }
-    
-  } catch (error) {
-    console.warn('[WIEN.INFO:PARSE] HTML parsing error:', error);
-  }
-  
-  return events;
-}
-
-/**
- * Extracts event information from an HTML fragment
- */
-function parseEventFromHTML(htmlFragment: string, fromDate: string, toDate: string): ScrapedEvent | null {
-  try {
-    // Extract title
-    const titleMatch = htmlFragment.match(/<h[1-6][^>]*>(.*?)<\/h[1-6]>/i) || 
-                      htmlFragment.match(/title["']\s*:\s*["'](.*?)["']/i) ||
-                      htmlFragment.match(/["']title["']\s*:\s*["'](.*?)["']/i);
-    
-    const title = titleMatch ? titleMatch[1].replace(/<[^>]*>/g, '').trim() : 'Wien Event';
-    
-    // Extract date (look for various date formats)
-    const datePatterns = [
-      /(\d{4}-\d{2}-\d{2})/,
-      /(\d{1,2}\.\d{1,2}\.\d{4})/,
-      /(\d{1,2}\/\d{1,2}\/\d{4})/
-    ];
-    
-    let eventDate = fromDate; // Default to search start date
-    for (const pattern of datePatterns) {
-      const dateMatch = htmlFragment.match(pattern);
-      if (dateMatch) {
-        let parsedDate = dateMatch[1];
-        // Convert DD.MM.YYYY to YYYY-MM-DD
-        if (parsedDate.includes('.')) {
-          const [day, month, year] = parsedDate.split('.');
-          parsedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-        }
-        // Convert MM/DD/YYYY to YYYY-MM-DD
-        if (parsedDate.includes('/')) {
-          const [month, day, year] = parsedDate.split('/');
-          parsedDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-        }
-        if (parsedDate >= fromDate && parsedDate <= toDate) {
-          eventDate = parsedDate;
-          break;
-        }
-      }
-    }
-    
-    // Extract time
-    const timeMatch = htmlFragment.match(/(\d{1,2}:\d{2})/);
-    const time = timeMatch ? timeMatch[1] : undefined;
-    
-    // Extract venue
-    const venueMatch = htmlFragment.match(/venue["']\s*:\s*["'](.*?)["']/i) ||
-                      htmlFragment.match(/location["']\s*:\s*["'](.*?)["']/i) ||
-                      htmlFragment.match(/<span[^>]*class="[^"]*venue[^"]*"[^>]*>(.*?)<\/span>/i);
-    
-    const venue = venueMatch ? venueMatch[1].replace(/<[^>]*>/g, '').trim() : 'Wien';
-    
-    return {
-      title,
-      date: eventDate,
-      time,
-      venue,
-      description: '',
-      url: ''
-    };
-    
-  } catch (error) {
-    return null;
-  }
 }
 
 /**
@@ -390,14 +252,36 @@ function parseEventFromHTML(htmlFragment: string, fromDate: string, toDate: stri
  */
 function mapWienInfoCategory(wienInfoCategory: string): string {
   const categoryMap: Record<string, string> = {
+    // Classical and concerts
+    'konzerte klassisch': 'Live-Konzerte',
+    'rock, pop, jazz und mehr': 'Live-Konzerte',
+    'konzerte': 'Live-Konzerte',
     'music': 'Live-Konzerte',
     'concert': 'Live-Konzerte',
+    
+    // Theater and performance
+    'theater und kabarett': 'Theater/Performance',
+    'musical, tanz und performance': 'Theater/Performance',
+    'oper und operette': 'Theater/Performance',
     'theater': 'Theater/Performance',
+    
+    // Museums and exhibitions
+    'ausstellungen': 'Museen',
     'museum': 'Museen',
     'exhibition': 'Kunst/Design',
+    
+    // Markets and festivals
+    'märkte und messen': 'Open Air',
     'festival': 'Open Air',
+    
+    // Entertainment
+    'film und sommerkino': 'Film',
     'club': 'Clubs/Discos',
     'electronic': 'DJ Sets/Electronic',
+    
+    // Culture and traditions
+    'typisch wien': 'Kultur/Traditionen',
+    'führungen, spaziergänge & touren': 'Kultur/Traditionen',
     'culture': 'Kultur/Traditionen',
     'art': 'Kunst/Design'
   };
@@ -413,28 +297,53 @@ function mapWienInfoCategory(wienInfoCategory: string): string {
 }
 
 /**
- * Normalizes a scraped event to our EventData format
+ * Normalizes a Wien.info API event to our EventData format
  */
-function normalizeWienInfoEvent(scrapedEvent: ScrapedEvent, requestedCategories: string[]): EventData {
+function normalizeWienInfoEvent(wienInfoEvent: WienInfoEvent, requestedCategories: string[]): EventData {
   // Determine the best category match
-  let category = scrapedEvent.category || 'Kultur/Traditionen';
+  let category = mapWienInfoCategory(wienInfoEvent.category);
   
-  // If the scraped category isn't in requested categories, use the first requested category
+  // If the mapped category isn't in requested categories, use the first requested category
   if (!requestedCategories.includes(category) && requestedCategories.length > 0) {
     category = requestedCategories[0];
   }
+
+  // Extract the primary date
+  const eventDates = wienInfoEvent.dates || [];
+  if (wienInfoEvent.startDate) {
+    eventDates.push(wienInfoEvent.startDate);
+  }
+  
+  const primaryDate = eventDates.length > 0 ? eventDates[0].split('T')[0] : '';
+  
+  // Extract time if available
+  let time = '';
+  if (wienInfoEvent.startDate && wienInfoEvent.startDate.includes('T')) {
+    const timePart = wienInfoEvent.startDate.split('T')[1];
+    if (timePart) {
+      time = timePart.split('+')[0]; // Remove timezone info
+      if (time.length > 5) {
+        time = time.substring(0, 5); // Only keep HH:mm
+      }
+    }
+  }
+
+  // Build full URL
+  const fullUrl = wienInfoEvent.url.startsWith('http') ? 
+    wienInfoEvent.url : 
+    `https://www.wien.info${wienInfoEvent.url}`;
   
   return {
-    title: scrapedEvent.title,
+    title: wienInfoEvent.title,
     category,
-    date: scrapedEvent.date,
-    time: scrapedEvent.time || '',
-    venue: scrapedEvent.venue || 'Wien',
-    price: scrapedEvent.price || '',
-    website: scrapedEvent.url || 'https://www.wien.info',
+    date: primaryDate,
+    time: time,
+    venue: wienInfoEvent.location || 'Wien',
+    price: '', // Wien.info API doesn't provide price info directly
+    website: fullUrl,
     source: 'wien.info',
     city: 'Wien',
-    description: scrapedEvent.description || '',
-    address: scrapedEvent.venue || 'Wien, Austria'
+    description: wienInfoEvent.subtitle || '',
+    address: wienInfoEvent.location || 'Wien, Austria'
   };
 }
