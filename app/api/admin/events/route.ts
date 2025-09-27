@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const debug = searchParams.get('debug') === '1';
 
     const mainCategories = EVENT_CATEGORIES;
-    const cacheResult = eventsCache.getEventsByCategories(city, date, mainCategories);
+    const cacheResult = await eventsCache.getEventsByCategories(city, date, mainCategories);
 
     const allCachedEvents: any[] = [];
     for (const cat in cacheResult.cachedEvents) {
@@ -22,23 +22,21 @@ export async function GET(request: NextRequest) {
     // Debug information to help diagnose cache issues
     let debugInfo = {};
     if (debug) {
+      const baseKeys = await eventsCache.listBaseKeys();
+      const cacheSize = await eventsCache.size();
+      
+      // Get detailed debug info for current city/date
+      const currentBaseKey = `${city.toLowerCase()}_${date}`;
+      const debugEntries = await eventsCache.getEntryDebug(currentBaseKey);
+      
       debugInfo = {
-        cacheSize: eventsCache.size(),
+        cacheSize,
         searchCity: city,
         searchDate: date,
         requestedCategories: mainCategories,
         foundCategories: Object.keys(cacheResult.cachedEvents),
-        cacheKeys: (eventsCache as any).cache ? Array.from((eventsCache as any).cache.keys()) : [],
-        cacheEntries: (eventsCache as any).cache ? Array.from((eventsCache as any).cache.entries()).map((entry: any) => {
-          const [key, cacheEntry] = entry;
-          return {
-            key,
-            hasData: !!cacheEntry.data,
-            dataLength: Array.isArray(cacheEntry.data) ? cacheEntry.data.length : 'not-array',
-            timestamp: new Date(cacheEntry.timestamp).toISOString(),
-            ttl: cacheEntry.ttl
-          };
-        }) : []
+        baseKeys,
+        debugEntries
       };
     }
 

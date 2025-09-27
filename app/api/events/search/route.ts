@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
 
     const effectiveCategories: string[] = (categories && categories.length > 0) ? categories : DEFAULT_CATEGORIES;
 
-    const cacheResult = eventsCache.getEventsByCategories(city, date, effectiveCategories);
+    const cacheResult = await eventsCache.getEventsByCategories(city, date, effectiveCategories);
     const cachedEventsFlat: EventData[] = [];
     for (const cat of Object.keys(cacheResult.cachedEvents)) {
       cachedEventsFlat.push(...cacheResult.cachedEvents[cat]);
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     for (const ev of newEvents) {
       if (ev.category && !seen.has(ev.category)) {
         const catEvents = newEvents.filter(e => e.category === ev.category);
-        eventsCache.setEventsByCategory(city, date, ev.category, catEvents, ttlSeconds);
+        await eventsCache.setEventsByCategory(city, date, ev.category, catEvents, ttlSeconds);
         seen.add(ev.category);
       }
     }

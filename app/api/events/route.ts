@@ -226,14 +226,15 @@ export async function POST(request: NextRequest) {
       categoryConcurrency: (options as any)?.categoryConcurrency ?? 3
     };
 
-    const disableCache = (mergedOptions as any)?.disableCache === true || (mergedOptions as any)?.debug === true;
+    // Fix debug behavior: debug should NOT disable cache
+    const disableCache = (mergedOptions as any)?.disableCache === true;
 
     let allCachedEvents: EventData[] = [];
     let missingCategories: string[] = [];
     let cacheInfo: { [category: string]: { fromCache: boolean; eventCount: number } } = {};
 
     if (!disableCache) {
-      const cacheResult = eventsCache.getEventsByCategories(city, date, effectiveCategories);
+      const cacheResult = await eventsCache.getEventsByCategories(city, date, effectiveCategories);
       const cachedEventsList: EventData[] = [];
       for (const category in cacheResult.cachedEvents) {
         cachedEventsList.push(...cacheResult.cachedEvents[category]);
@@ -272,6 +273,27 @@ export async function POST(request: NextRequest) {
         ...filteredEarlyEvents,
         ...allCachedEvents
       ]);
+
+      // Write Wien.info earlyEvents to cache per category
+      if (!disableCache && filteredEarlyEvents.length > 0) {
+        const ttlSeconds = 300; // 5 minutes TTL for Wien.info events
+        const seenCategories = new Set<string>();
+        
+        for (const event of filteredEarlyEvents) {
+          if (event.category && !seenCategories.has(event.category)) {
+            const categoryEvents = filteredEarlyEvents.filter(e => e.category === event.category);
+            try {
+              await eventsCache.setEventsByCategory(city, date, event.category, categoryEvents, ttlSeconds);
+              seenCategories.add(event.category);
+              if (qDebug) {
+                console.log(`[WIEN.INFO:CACHE] Cached ${categoryEvents.length} events for category: ${event.category}`);
+              }
+            } catch (error) {
+              console.warn(`Failed to cache Wien.info events for category ${event.category}:`, error);
+            }
+          }
+        }
+      }
     }
 
 

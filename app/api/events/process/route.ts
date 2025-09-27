@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
         (grouped[ev.category] ||= []).push(ev);
       }
       for (const cat of Object.keys(grouped)) {
-        eventsCache.setEventsByCategory(city, date, cat, grouped[cat], ttlSeconds);
+        await eventsCache.setEventsByCategory(city, date, cat, grouped[cat], ttlSeconds);
       }
 
       // Merge und Fortschritt updaten

@@ -1,55 +1,72 @@
-// Simple in-memory cache with TTL
+// Redis-backed events cache using Upstash Redis
 // Phase 2A: Kategorie-Normalisierung via eventCategories (Single Source of Truth)
 
-import { CacheEntry } from './types';
+import { Redis } from '@upstash/redis';
 import { normalizeCategory as canonicalCategory } from './eventCategories';
 
-class InMemoryCache {
-  private cache = new Map<string, CacheEntry<any>>();
+/**
+ * Redis-backed events cache implementation
+ * Requires UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables
+ */
+class EventsCache {
+  private redis: Redis;
 
-  set<T>(key: string, value: T, ttlSeconds: number = 300): void {
-    const entry: CacheEntry<T> = {
-      data: value,
-      timestamp: Date.now(),
-      ttl: ttlSeconds * 1000,
-    };
-    this.cache.set(key, entry);
+  constructor() {
+    const restUrl = process.env.UPSTASH_REDIS_REST_URL;
+    const restToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+    
+    if (!restUrl || !restToken) {
+      throw new Error('UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables are required for events cache. In-memory cache is not allowed.');
+    }
+    
+    this.redis = new Redis({
+      url: restUrl,
+      token: restToken,
+    });
   }
 
-  get<T>(key: string): T | null {
-    const entry = this.cache.get(key);
-    if (!entry) return null;
-    const now = Date.now();
-    if (now - entry.timestamp > entry.ttl) {
-      this.cache.delete(key);
+  async set<T>(key: string, value: T, ttlSeconds: number = 300): Promise<void> {
+    const serialized = JSON.stringify(value);
+    await this.redis.setex(key, ttlSeconds, serialized);
+  }
+
+  async get<T>(key: string): Promise<T | null> {
+    const data = await this.redis.get<string>(key);
+    if (!data) return null;
+    try {
+      return JSON.parse(data) as T;
+    } catch (error) {
+      console.warn('Failed to parse cached data for key:', key, error);
       return null;
     }
-    return entry.data as T;
   }
 
-  has(key: string): boolean {
-    return this.get(key) !== null;
+  async has(key: string): Promise<boolean> {
+    const result = await this.redis.exists(key);
+    return result === 1;
   }
 
-  delete(key: string): boolean {
-    return this.cache.delete(key);
+  async delete(key: string): Promise<boolean> {
+    const result = await this.redis.del(key);
+    return result === 1;
   }
 
+  // No-op for Redis as TTL is handled automatically
   cleanup(): void {
-    const now = Date.now();
-    for (const [key, entry] of this.cache.entries()) {
-      if (now - entry.timestamp > entry.ttl) {
-        this.cache.delete(key);
-      }
+    // Redis automatically handles TTL expiration
+  }
+
+  async size(): Promise<number> {
+    // Count keys with our pattern - this could be expensive in production
+    const keys = await this.redis.keys('*');
+    return keys.length;
+  }
+
+  async clear(): Promise<void> {
+    const keys = await this.redis.keys('*');
+    if (keys.length > 0) {
+      await this.redis.del(...keys);
     }
-  }
-
-  size(): number {
-    return this.cache.size;
-  }
-
-  clear(): void {
-    this.cache.clear();
   }
 
   static createKey(city: string, date: string, categories?: string[]): string {
@@ -70,19 +87,25 @@ class InMemoryCache {
     return (norm || category).trim();
   }
 
-  getEventsByCategories(city: string, date: string, categories: string[]): {
+  async getEventsByCategories(city: string, date: string, categories: string[]): Promise<{
     cachedEvents: { [category: string]: any[] };
     missingCategories: string[];
     cacheInfo: { [category: string]: { fromCache: boolean; eventCount: number } };
-  } {
+  }> {
     const cachedEvents: { [category: string]: any[] } = {};
     const missingCategories: string[] = [];
     const cacheInfo: { [category: string]: { fromCache: boolean; eventCount: number } } = {};
 
-    for (const category of categories) {
-      const cacheKey = InMemoryCache.createKeyForCategory(city, date, category);
-      const events = this.get<any[]>(cacheKey);
+    // Process categories in parallel for better performance
+    const results = await Promise.all(
+      categories.map(async (category) => {
+        const cacheKey = EventsCache.createKeyForCategory(city, date, category);
+        const events = await this.get<any[]>(cacheKey);
+        return { category, cacheKey, events };
+      })
+    );
 
+    for (const { category, events } of results) {
       if (events) {
         cachedEvents[category] = events;
         cacheInfo[category] = { fromCache: true, eventCount: events.length };
@@ -95,16 +118,48 @@ class InMemoryCache {
     return { cachedEvents, missingCategories, cacheInfo };
   }
 
-  setEventsByCategory(city: string, date: string, category: string, events: any[], ttlSeconds: number = 300): void {
-    const cacheKey = InMemoryCache.createKeyForCategory(city, date, category);
-    this.set(cacheKey, events, ttlSeconds);
+  async setEventsByCategory(city: string, date: string, category: string, events: any[], ttlSeconds: number = 300): Promise<void> {
+    const cacheKey = EventsCache.createKeyForCategory(city, date, category);
+    await this.set(cacheKey, events, ttlSeconds);
+  }
+
+  // Admin/Debug methods for Redis cache inspection
+  async listBaseKeys(): Promise<string[]> {
+    const keys = await this.redis.keys('*');
+    // Extract base keys (city_date pattern) from cache keys
+    const baseKeySet = new Set<string>();
+    for (const key of keys) {
+      const parts = key.split('_');
+      if (parts.length >= 3) {
+        const baseKey = `${parts[0]}_${parts[1]}`;
+        baseKeySet.add(baseKey);
+      }
+    }
+    return Array.from(baseKeySet);
+  }
+
+  async getEntryDebug(baseKey: string): Promise<{ key: string; ttl: number; length: number }[]> {
+    const pattern = `${baseKey}_*`;
+    const keys = await this.redis.keys(pattern);
+    
+    const debugEntries = await Promise.all(
+      keys.map(async (key) => {
+        const ttl = await this.redis.ttl(key);
+        const data = await this.get<any[]>(key);
+        return {
+          key,
+          ttl: ttl === -1 ? -1 : ttl, // -1 means no expiration, -2 means key doesn't exist
+          length: Array.isArray(data) ? data.length : 0
+        };
+      })
+    );
+
+    return debugEntries.filter(entry => entry.ttl !== -2); // Filter out non-existent keys
   }
 }
 
-export const eventsCache = new InMemoryCache();
+export const eventsCache = new EventsCache();
 
-setInterval(() => {
-  eventsCache.cleanup();
-}, 10 * 60 * 1000);
+// Note: Redis automatically handles TTL expiration, no cleanup needed
 
-export default InMemoryCache;
+export default EventsCache;
