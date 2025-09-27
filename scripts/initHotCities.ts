@@ -25,15 +25,6 @@ const initialHotCities: HotCity[] = [
       },
       {
         id: generateWebsiteId(),
-        name: 'Wien.gv.at VADB RSS',
-        url: 'https://www.wien.gv.at/vadb/internet/AdvPrSrv.asp',
-        categories: [],
-        description: 'Wien VADB RSS feed for structured event data',
-        priority: 10,
-        isActive: true
-      },
-      {
-        id: generateWebsiteId(),
         name: 'Wiener Staatsoper',
         url: 'https://www.wiener-staatsoper.at',
         categories: ['Live-Konzerte', 'Theater/Performance', 'Kultur/Traditionen'],
