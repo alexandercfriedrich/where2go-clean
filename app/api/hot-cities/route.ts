@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getActiveHotCities } from '@/lib/hotCityStore';
+import { getActiveHotCities, filterBlacklistedUrls } from '@/lib/hotCityStore';
 
 // GET /api/hot-cities - Get sanitized list of hot cities (public, no auth required)
 export async function GET() {
   try {
     const cities = await getActiveHotCities();
+    const filteredCities = filterBlacklistedUrls(cities);
     
     // Return sanitized data - enabled sites only, no notes/description
-    const sanitizedCities = cities.map(city => ({
+    const sanitizedCities = filteredCities.map(city => ({
       name: city.name,
       country: city.country,
       defaultSearchQuery: city.defaultSearchQuery,
