@@ -14,21 +14,28 @@ const BLACKLISTED_URLS = [
  * Checks if a URL is blacklisted (case-insensitive, ignores protocol and trailing slash)
  */
 function isUrlBlacklisted(url: string): boolean {
-  const normalizedUrl = url.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
-  return BLACKLISTED_URLS.some(blacklisted => {
-    const normalizedBlacklisted = blacklisted.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
-    return normalizedUrl === normalizedBlacklisted;
-  });
+  if (!url) return false;
+  
+  // Normalize URL for comparison
+  const normalizeUrl = (u: string) => u
+    .toLowerCase()
+    .replace(/^https?:\/\//, '') // Remove protocol
+    .replace(/\/$/, ''); // Remove trailing slash
+  
+  const normalizedUrl = normalizeUrl(url);
+  return BLACKLISTED_URLS.some(blacklistedUrl => 
+    normalizeUrl(blacklistedUrl) === normalizedUrl
+  );
 }
 
 // Helper function to create URL-friendly slugs
 export function slugify(text: string): string {
   return text
     .toLowerCase()
-    .replace(/[äöüß]/g, char => ({ 'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss' }[char] || char))
-    .replace(/[^\w\s-]/g, '')
-    .replace(/[\s_-]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+    .trim()
+    .replace(/[^\w\s-]/g, '') // Remove special chars
+    .replace(/[\s_-]+/g, '-') // Replace spaces and underscores with hyphens
+    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
 }
 
 // Helper function to create empty city
@@ -84,20 +91,30 @@ async function ensureDataDir(): Promise<void> {
 export async function loadHotCities(): Promise<HotCity[]> {
   try {
     if (redis) {
-      const data = await redis.get(REDIS_KEY);
-      return Array.isArray(data) ? data : [];
-    } else {
-      try {
-        const data = await fs.readFile(HOT_CITIES_FILE, 'utf-8');
-        return JSON.parse(data) || [];
-      } catch (error) {
-        return [];
+      const data = await redis.get<HotCity[]>(REDIS_KEY);
+      if (data) {
+        // Convert date strings back to Date objects
+        return data.map(city => ({
+          ...city,
+          createdAt: new Date(city.createdAt),
+          updatedAt: new Date(city.updatedAt)
+        }));
       }
+    } else {
+      await ensureDataDir();
+      const data = await fs.readFile(HOT_CITIES_FILE, 'utf-8');
+      const cities = JSON.parse(data) as HotCity[];
+      // Convert date strings back to Date objects
+      return cities.map(city => ({
+        ...city,
+        createdAt: new Date(city.createdAt),
+        updatedAt: new Date(city.updatedAt)
+      }));
     }
   } catch (error) {
-    console.error('Error loading hot cities:', error);
-    return [];
+    console.log('No hot cities data found, returning empty array');
   }
+  return [];
 }
 
 // Save hot cities to Redis or file
@@ -182,36 +199,20 @@ export async function getCityWebsitesForCategories(
   categories: string[]
 ): Promise<HotCityWebsite[]> {
   const city = await getHotCity(cityName);
-  if (!city) {
-    return getEnhancedCityWebsitesForCategories(cityName, categories);
-  }
+  if (!city) return [];
   
-  const filteredWebsites = city.websites.filter(website => 
-    website.isActive && categories.some(cat => website.categories.includes(cat))
-  );
-  
-  // Merge with enhanced websites if city is Wien/Vienna
-  const enhancedWebsites = getEnhancedCityWebsitesForCategories(cityName, categories);
-  
-  // Combine and deduplicate by URL
-  const urlSet = new Set();
-  const combined: HotCityWebsite[] = [];
-  
-  [...filteredWebsites, ...enhancedWebsites].forEach(website => {
-    if (!urlSet.has(website.url)) {
-      urlSet.add(website.url);
-      combined.push(website);
-    }
-  });
-  
-  return combined.sort((a, b) => (b.priority ?? 5) - (a.priority ?? 5));
+  return city.websites
+    .filter(website => 
+      website.isActive && 
+      !isUrlBlacklisted(website.url) && // Filter out blacklisted URLs
+      (website.categories.length === 0 || // Empty categories means it covers all
+       website.categories.some(cat => categories.includes(cat)))
+    )
+    .sort((a, b) => b.priority - a.priority); // Higher priority first
 }
 
-// =============================================================================
-// ENHANCED HOT CITIES CONFIGURATION - NEW OPTIMIZATIONS
-// =============================================================================
-
-export interface EnhancedHotCityWebsite {
+// Erweiterte Hot Cities Konfiguration für Wien
+export interface HotCityWebsiteOptimized {
   id?: string;
   name: string;
   url: string;
@@ -228,7 +229,7 @@ export interface EnhancedHotCityWebsite {
 export interface OptimizedHotCity {
   id: string;
   name: string;
-  websites: EnhancedHotCityWebsite[];
+  websites: HotCityWebsiteOptimized[];
   searchStrategies: string[];
   localTerms: string[];
   majorVenues: string[];
@@ -236,7 +237,7 @@ export interface OptimizedHotCity {
   lastUpdated: string;
 }
 
-// Erweiterte Wien-Konfiguration als Beispiel
+// Erweiterte Wien-Konfiguration
 export const WIEN_OPTIMIZED_CONFIG: OptimizedHotCity = {
   id: 'wien',
   name: 'Wien',
@@ -395,80 +396,6 @@ export const WIEN_OPTIMIZED_CONFIG: OptimizedHotCity = {
       priority: 6,
       isActive: true,
       sourceType: 'news'
-    },
-    {
-      name: 'Kurier Events Wien',
-      url: 'https://kurier.at/freizeit/wien-events',
-      categories: ['Open Air', 'Sport', 'Familien/Kids'],
-      priority: 6,
-      isActive: true,
-      sourceType: 'news'
-    },
-    
-    // Universitäten
-    {
-      name: 'Universität Wien Events',
-      url: 'https://www.univie.ac.at/veranstaltungen/',
-      categories: ['Bildung/Lernen', 'Networking/Business', 'Kultur/Traditionen'],
-      priority: 6,
-      isActive: true,
-      sourceType: 'official'
-    },
-    {
-      name: 'TU Wien Events',
-      url: 'https://www.tuwien.at/aktuelles/events',
-      categories: ['Bildung/Lernen', 'Networking/Business'],
-      priority: 6,
-      isActive: true,
-      sourceType: 'official'
-    },
-    {
-      name: 'WU Wien Events',
-      url: 'https://www.wu.ac.at/veranstaltungen',
-      categories: ['Networking/Business', 'Bildung/Lernen'],
-      priority: 6,
-      isActive: true,
-      sourceType: 'official'
-    },
-    
-    // Food & Nightlife
-    {
-      name: 'Eventbrite Wien',
-      url: 'https://www.eventbrite.de/d/austria--vienna/events/',
-      categories: ['Networking/Business', 'Food/Culinary', 'Bildung/Lernen', 'Wellness/Spirituell'],
-      priority: 7,
-      isActive: true,
-      sourceType: 'ticketing',
-      searchQuery: 'Wien events'
-    },
-    {
-      name: 'Meetup Wien',
-      url: 'https://www.meetup.com/cities/at/vienna/',
-      categories: ['Networking/Business', 'Bildung/Lernen', 'Soziales/Community', 'Wellness/Spirituell'],
-      priority: 7,
-      isActive: true,
-      sourceType: 'community'
-    },
-    
-    // Shopping & Märkte
-    {
-      name: 'Naschmarkt Wien',
-      url: 'https://www.wienernaschmarkt.eu/events',
-      categories: ['Märkte/Shopping', 'Food/Culinary'],
-      priority: 6,
-      isActive: true,
-      sourceType: 'venue'
-    },
-    
-    // Social Media Groups (Beispiele)
-    {
-      name: 'Facebook Events Wien',
-      url: 'https://www.facebook.com/events/search/?q=wien%20events',
-      categories: ['Soziales/Community', 'Open Air', 'Clubs/Discos'],
-      priority: 5,
-      isActive: true,
-      sourceType: 'social',
-      searchQuery: 'Wien events heute'
     }
   ],
   
@@ -513,41 +440,28 @@ export const WIEN_OPTIMIZED_CONFIG: OptimizedHotCity = {
 export function getEnhancedCityWebsitesForCategories(
   city: string, 
   categories: string[]
-): HotCityWebsite[] {
+): HotCityWebsiteOptimized[] {
   // Für Wien verwenden wir die optimierte Konfiguration
   if (city.toLowerCase().includes('wien') || city.toLowerCase().includes('vienna')) {
-    return WIEN_OPTIMIZED_CONFIG.websites
-      .filter(website => 
-        website.isActive && 
-        categories.some(cat => website.categories.includes(cat))
-      )
-      .map(website => ({
-        id: website.id,
-        name: website.name,
-        url: website.url,
-        categories: website.categories,
-        description: website.description || '',
-        searchQuery: website.searchQuery || '',
-        priority: website.priority,
-        isActive: website.isActive
-      }))
-      .sort((a, b) => b.priority - a.priority);
+    return WIEN_OPTIMIZED_CONFIG.websites.filter(website => 
+      website.isActive && 
+      categories.some(cat => website.categories.includes(cat))
+    ).sort((a, b) => b.priority - a.priority);
   }
   
   // Für andere Städte: Generische erweiterte Quellen
   return getGenericCityWebsites(city, categories);
 }
 
-function getGenericCityWebsites(city: string, categories: string[]): HotCityWebsite[] {
-  const genericSources: HotCityWebsite[] = [
+function getGenericCityWebsites(city: string, categories: string[]): HotCityWebsiteOptimized[] {
+  const genericSources: HotCityWebsiteOptimized[] = [
     {
       name: `Eventbrite ${city}`,
       url: `https://www.eventbrite.com/d/germany--${city.toLowerCase()}/events/`,
       categories: ['Networking/Business', 'Bildung/Lernen', 'Food/Culinary'],
       priority: 8,
       isActive: true,
-      description: `Eventbrite events in ${city}`,
-      searchQuery: `${city} events`
+      sourceType: 'ticketing'
     },
     {
       name: `Facebook Events ${city}`,
@@ -555,8 +469,7 @@ function getGenericCityWebsites(city: string, categories: string[]): HotCityWebs
       categories: ['Soziales/Community', 'Open Air', 'Clubs/Discos'],
       priority: 7,
       isActive: true,
-      description: `Facebook events in ${city}`,
-      searchQuery: `${city} events heute`
+      sourceType: 'social'
     },
     {
       name: `Meetup ${city}`,
@@ -564,8 +477,7 @@ function getGenericCityWebsites(city: string, categories: string[]): HotCityWebs
       categories: ['Networking/Business', 'Bildung/Lernen', 'Wellness/Spirituell'],
       priority: 7,
       isActive: true,
-      description: `Meetup events in ${city}`,
-      searchQuery: `${city} meetup`
+      sourceType: 'community'
     },
     {
       name: `${city} Tourism Events`,
@@ -573,8 +485,7 @@ function getGenericCityWebsites(city: string, categories: string[]): HotCityWebs
       categories: ['Open Air', 'Kultur/Traditionen', 'Museen'],
       priority: 6,
       isActive: true,
-      description: `Official tourism events for ${city}`,
-      searchQuery: `${city} tourism events`
+      sourceType: 'official'
     }
   ];
   
