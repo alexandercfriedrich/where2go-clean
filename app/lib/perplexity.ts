@@ -341,7 +341,16 @@ GENERAL CATEGORY FOCUS:
       });
 
       // Prüfe auf wenige Ergebnisse und führe Fallback durch
-      const eventCount = (primaryResponse.match(/\{[^}]*"title"/g) || []).length;
+      let eventCount = 0;
+      try {
+        const parsed = JSON.parse(primaryResponse);
+        if (Array.isArray(parsed)) {
+          eventCount = parsed.length;
+        }
+      } catch (e) {
+        // If parsing fails, assume 0 events
+        eventCount = 0;
+      }
       if (eventCount < 3) {
         // Fallback mit breiterer Suche
         const fallbackPrompt = `Find ANY events in ${city} on ${date} that could be related to ${category}. 
