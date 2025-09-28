@@ -1,36 +1,21 @@
-// Perplexity AI service abstraction (enhanced version with debug + optional concurrency)
-//
-// Features:
-// - Per-category prompting (general fallback if no categories)
-// - Expanded subcategory context
-// - Optional parallel querying via categoryConcurrency
-// - Structured debug + verbose logging controlled by:
-//     options.debug / ?debug=1  or env LOG_PPLX_QUERIES=1  (short logs)
-//     options.debugVerbose      or env LOG_PPLX_VERBOSE=1  (full payload logs)
-// - Minimal patch applied: removed duplicate post-loop call in worker
-//
-// Notes:
-// - Parallel execution order in results array is NOT guaranteed when categoryConcurrency > 1
-//   (kept intentionally simple per "minimal patch" request).
-// - If deterministic ordering is later needed, capture index and sort before return.
+import { EVENT_CATEGORIES, normalizeCategory, mapToMainCategories, buildExpandedCategoryContext, buildCategoryListForPrompt, allowedCategoriesForSchema } from '@/lib/eventCategories';
 
-import {
-  EVENT_CATEGORIES,
-  buildExpandedCategoryContext,
-  buildCategoryListForPrompt,
-  allowedCategoriesForSchema,
-  mapToMainCategories
-} from './eventCategories';
-import { PerplexityResult } from './types';
+export interface PerplexityResult {
+  query: string;
+  response: string;
+  events: any[];
+  timestamp: number;
+}
 
-// Declare process for Node.js environment variables
-declare const process: {
-  env: {
-    LOG_PPLX_QUERIES?: string;
-    LOG_PPLX_VERBOSE?: string;
-    [key: string]: string | undefined;
-  };
-};
+declare global {
+  namespace NodeJS {
+    interface ProcessEnv {
+      LOG_PPLX_QUERIES?: string;
+      LOG_PPLX_VERBOSE?: string;
+      [key: string]: string | undefined;
+    }
+  }
+}
 
 interface PerplexityOptions {
   temperature?: number;
@@ -39,10 +24,13 @@ interface PerplexityOptions {
   disableCache?: boolean;
   expandedSubcategories?: boolean;
   forceAllCategories?: boolean;
-  hotCity?: any;
+  hotCity?:  any;
   additionalSources?: any[];
   debugVerbose?: boolean;
   categoryConcurrency?: number;
+  enhancedSearch?: boolean;
+  fallbackEnabled?: boolean;
+  diversityBoost?: boolean;
 }
 
 interface PplxApiRequest {
@@ -67,8 +55,8 @@ export function createPerplexityService(apiKey: string) {
         { role: 'system', content: buildSystemPrompt(options) },
         { role: 'user', content: prompt }
       ],
-      max_tokens: options.max_tokens || 30000,
-      temperature: options.temperature ?? 0.2
+      max_tokens: options.max_tokens || 40000, // Erhöht von 30000
+      temperature: options.temperature ?? 0.1  // Reduziert von 0.2
     };
 
     const t0 = Date.now();
@@ -124,28 +112,78 @@ export function createPerplexityService(apiKey: string) {
   }
 
   function buildSystemPrompt(options: PerplexityOptions): string {
-    return `You are an event search specialist. Respond exclusively in JSON format and ensure all available information is returned in a structured manner.
-Return as many as possible different real events, spanning as many unique categories and price levels as possible.
+    const enhancedInstructions = options.enhancedSearch ? `
+ENHANCED SEARCH INSTRUCTIONS:
+- Search multiple sources: official websites, ticketing platforms, social media, venue calendars
+- Include both mainstream and alternative/underground events
+- Look for community events, pop-ups, and temporary venues
+- Check university calendars, cultural centers, and local communities
+- Consider events in surrounding areas/districts of the city
+- Include events from different price ranges (free, budget, premium)
+- Diversify venue types: clubs, theaters, galleries, outdoor spaces, private venues
+- Search in multiple languages if applicable
+` : '';
+
+    return `You are an advanced event search specialist with access to real-time web data. 
+${enhancedInstructions}
+
+Your task is to find ALL available events, prioritizing completeness and diversity.
+
+SEARCH STRATEGY:
+1. Official city/tourism websites and event calendars
+2. Major ticketing platforms (Eventbrite, local ticket vendors)
+3. Venue websites and social media pages
+4. Community groups and local Facebook pages
+5. Cultural institutions and universities
+6. Alternative and underground event sources
+
+CONTENT REQUIREMENTS:
+Return as many different real events as possible, spanning multiple:
+- Venues (mix of well-known and lesser-known locations)
+- Price levels (free events to premium experiences)  
+- Event types within each category
+- Neighborhoods/districts within the city
+
 Allowed main categories:
 ${buildCategoryListForPrompt()}
 
-Fields:
-title, category, date, time, venue, price, website,
-endTime, address, ticketPrice, eventType, description,
-bookingLink, ageRestrictions
+REQUIRED FIELDS:
+title, category, date, time, venue, price, website, endTime, address, ticketPrice, eventType, description, bookingLink, ageRestrictions
 
-Rules:
+STRICT RULES:
 - "category" must be EXACTLY one of: ${allowedCategoriesForSchema()}
-- If price unknown: use empty string
-- Provide diversity (venues, price levels, sub-genres)
-- Avoid duplicates
-- Return ONLY the JSON array (No explanatory text outside the JSON structure).`;
+- Provide real, verifiable events only
+- Include specific venue names and addresses when possible
+- Add booking/ticket links when available
+- If price unknown: use empty string, not "varies" or "TBD"
+- Ensure geographical accuracy - events must be in or near the specified city
+- Diversify subcategories within main categories
+- Return ONLY the JSON array (No explanatory text outside the JSON structure)
+
+QUALITY STANDARDS:
+- Minimum 5-15 events per category when available
+- Balance between popular and niche events
+- Include both recurring and one-time events
+- Verify event dates match the requested date`;
   }
 
   function buildGeneralPrompt(city: string, date: string): string {
-    return `Search for ALL available events in ${city} on ${date}.
+    return `Search for ALL available events happening in and around ${city} on ${date}.
+
+COMPREHENSIVE SEARCH TARGETS:
+- Official city event calendars and tourism sites
+- Major venues: theaters, concert halls, clubs, galleries, sports venues
+- Ticketing platforms and event aggregators
+- Cultural institutions: museums, universities, community centers
+- Social media events and community groups
+- Pop-up events and alternative venues
+- Surrounding districts and nearby areas
+
+Include events from ALL categories and price ranges.
+Prioritize event diversity and completeness.
+
 Return ONLY the JSON array (No explanatory text outside the JSON structure).
-Include multiple main categories if possible.`;
+Include as many different real events as possible.`;
   }
 
   function buildCategoryPrompt(
@@ -155,25 +193,73 @@ Include multiple main categories if possible.`;
     options: PerplexityOptions
   ): string {
     const expanded = options.expandedSubcategories !== false;
+    const enhancedSearch = options.enhancedSearch === true;
+    const diversityBoost = options.diversityBoost === true;
 
     const categoryContext = expanded
       ? buildExpandedCategoryContext(mainCategory)
       : `Main Category: ${mainCategory}\n(Subcategory expansion disabled)`;
 
-   
+    const enhancedInstructions = enhancedSearch ? `
+ENHANCED SEARCH STRATEGY for ${mainCategory}:
+- Search venue-specific websites and social media
+- Check local Facebook groups and community pages  
+- Look for both established and pop-up venues
+- Include events in surrounding neighborhoods
+- Search in local language + English
+- Check university and cultural center calendars
+- Look for both ticketed and free events
+- Include recurring weekly/monthly events on this date
+` : '';
+
+    const diversityInstructions = diversityBoost ? `
+DIVERSITY REQUIREMENTS:
+- Find events across different price ranges (€0 to €100+)
+- Include various venue sizes (intimate to large-scale)
+- Mix of well-known and hidden gem locations
+- Different subcategories within ${mainCategory}
+- Events for different age groups and audiences
+- Both early and late events if applicable
+` : '';
+
+    const fallbackStrategy = options.fallbackEnabled ? `
+FALLBACK STRATEGY:
+If few events found for exact date, also search:
+- Events starting/ending on adjacent dates in ${city}
+- Regular weekly events that occur on this day
+- Multi-day events that include ${date}
+- Similar events in nearby cities/districts
+` : '';
 
     return `${categoryContext}
+${enhancedInstructions}
+${diversityInstructions}
+${fallbackStrategy}
 
-Task:
-1. return a comprehensive list of all real events happening in ${city} on ${date} for category: ${mainCategory}
-2. Use subcategory diversity within the main category: 
-3. Include booking/ticket links where available
+SPECIFIC SEARCH TASK:
+Find a comprehensive list of ALL real events in and around ${city} on ${date} for category: ${mainCategory}
 
-Output:
-Return ONLY the valid JSON array of real events (No explanatory text outside the JSON structure!).
+SEARCH TARGETS:
+1. Official venue websites and calendars for ${mainCategory}
+2. Local ticketing platforms and event listings
+3. Social media event pages and community groups
+4. Cultural institutions and specialized venues
+5. Alternative and underground event sources
+6. Local newspapers and event magazines
 
-Example minimal object:
-{"title":"Example","category":"${mainCategory}","date":"${date}","venue":"Example Venue","price":"","website":""}`;
+QUALITY TARGETS:
+- Minimum 8-20 events if available in this category
+- Include both popular and niche events
+- Provide complete venue addresses when possible
+- Add direct booking/ticket links
+- Ensure price accuracy (use empty string if unknown)
+
+OUTPUT FORMAT:
+Return ONLY a valid JSON array of events (No explanatory text outside the JSON structure).
+Each event must have category exactly as: "${mainCategory}"
+
+Example structure:
+{"title":"Event Name","category":"${mainCategory}","date":"${date}","time":"20:00","venue":"Venue Name","address":"Full Address","price":"15 EUR","website":"https://...","bookingLink":"https://...","description":"Event details"}`;
   }
 
   async function executeMultiQuery(
@@ -205,7 +291,9 @@ Example minimal object:
     }
 
     const results: PerplexityResult[] = [];
-    const cc = Math.max(1, options.categoryConcurrency ?? 1);
+    const cc = Math.max(1, options.categoryConcurrency ?? 5); // Erhöht von 3 auf 5
+
+    console.log(`[ENHANCED-PPLX] Starting search with concurrency ${cc} for ${effectiveCategories.length} categories`);
 
     // Sequential path
     if (cc === 1) {
@@ -214,10 +302,26 @@ Example minimal object:
         if (options.debug || process.env.LOG_PPLX_QUERIES === '1') {
           console.log(`[PPLX:QUERY][${cat}] len=${prompt.length}`);
         }
-        const response = await call(prompt, options);
+        
+        let response: string;
+        let attempts = 0;
+        const maxAttempts = options.fallbackEnabled ? 2 : 1;
+        
+        while (attempts < maxAttempts) {
+          try {
+            response = await call(prompt, { ...options, temperature: options.temperature ?? (0.1 + attempts * 0.1) });
+            break;
+          } catch (error) {
+            attempts++;
+            if (attempts >= maxAttempts) throw error;
+            console.log(`[PPLX:RETRY][${cat}] Attempt ${attempts + 1}/${maxAttempts}`);
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempts)); // Exponential backoff
+          }
+        }
+        
         results.push({
           query: prompt,
-          response,
+          response: response!,
           events: [],
           timestamp: Date.now()
         });
@@ -225,28 +329,71 @@ Example minimal object:
       return results;
     }
 
-    // Parallel worker pool (order not guaranteed)
+    // Parallel worker pool with enhanced error handling
     let idx = 0;
+    const errors: any[] = [];
+    
     async function worker() {
       while (idx < effectiveCategories.length) {
         const my = idx++;
         const cat = effectiveCategories[my];
         if (!cat) break;
-        const prompt = buildCategoryPrompt(city, date, cat, options);
-        if (options.debug || process.env.LOG_PPLX_QUERIES === '1') {
-          console.log(`[PPLX:QUERY][${cat}] len=${prompt.length}`);
+        
+        try {
+          const prompt = buildCategoryPrompt(city, date, cat, options);
+          if (options.debug || process.env.LOG_PPLX_QUERIES === '1') {
+            console.log(`[PPLX:QUERY][${cat}] len=${prompt.length}`);
+          }
+          
+          let response: string;
+          let attempts = 0;
+          const maxAttempts = options.fallbackEnabled ? 2 : 1;
+          
+          while (attempts < maxAttempts) {
+            try {
+              response = await call(prompt, { ...options, temperature: options.temperature ?? (0.1 + attempts * 0.1) });
+              break;
+            } catch (error) {
+              attempts++;
+              if (attempts >= maxAttempts) throw error;
+              console.log(`[PPLX:RETRY][${cat}] Attempt ${attempts + 1}/${maxAttempts}`);
+              await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+            }
+          }
+          
+          results.push({
+            query: prompt,
+            response: response!,
+            events: [],
+            timestamp: Date.now()
+          });
+          
+          console.log(`[PPLX:SUCCESS][${cat}] Completed successfully`);
+          
+        } catch (error) {
+          console.error(`[PPLX:ERROR][${cat}]`, error);
+          errors.push({ category: cat, error });
+          
+          // Continue with other categories even if one fails
+          if (options.fallbackEnabled) {
+            results.push({
+              query: `Fallback search for ${cat} in ${city} on ${date}`,
+              response: '[]', // Empty result for failed category
+              events: [],
+              timestamp: Date.now()
+            });
+          }
         }
-        const response = await call(prompt, options);
-        results.push({
-          query: prompt,
-          response,
-          events: [],
-          timestamp: Date.now()
-        });
       }
     }
 
     await Promise.all(Array.from({ length: cc }).map(() => worker()));
+    
+    if (errors.length > 0 && options.debug) {
+      console.log(`[PPLX:ERRORS] ${errors.length} categories failed:`, errors);
+    }
+    
+    console.log(`[ENHANCED-PPLX] Completed ${results.length} queries with ${errors.length} errors`);
     return results;
   }
 
@@ -255,5 +402,5 @@ Example minimal object:
   };
 }
 
-// Export type for testing
+// Export type for testing  
 export type PerplexityService = ReturnType<typeof createPerplexityService>;
