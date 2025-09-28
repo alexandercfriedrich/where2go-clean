@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { eventsCache } from '@/lib/cache';
 import { EVENT_CATEGORIES } from '@/lib/eventCategories';
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
@@ -19,24 +20,20 @@ export async function GET(request: NextRequest) {
       allCachedEvents.push(...cacheResult.cachedEvents[cat]);
     }
 
-    // Debug information to help diagnose cache issues
-    let debugInfo = {};
+    let debugInfo: any = {};
     if (debug) {
       const baseKeys = await eventsCache.listBaseKeys();
       const cacheSize = await eventsCache.size();
-      
-      // Get detailed debug info for current city/date
-      const currentBaseKey = `${city.toLowerCase()}_${date}`;
-      const debugEntries = await eventsCache.getEntryDebug(currentBaseKey);
-      
+      const debugEntries = await Promise.all(baseKeys.map(k => eventsCache.getEntryDebug(k)));
       debugInfo = {
         cacheSize,
         searchCity: city,
         searchDate: date,
         requestedCategories: mainCategories,
         foundCategories: Object.keys(cacheResult.cachedEvents),
-        baseKeys,
-        debugEntries
+        missingCategories: cacheResult.missingCategories,
+        cacheKeys: baseKeys,
+        cacheEntries: debugEntries
       };
     }
 
@@ -52,7 +49,10 @@ export async function GET(request: NextRequest) {
       ...(debug && { debug: debugInfo })
     });
   } catch (error) {
-    console.error('Admin events API error:', error);
-    return NextResponse.json({ error: 'Failed to fetch events data' }, { status: 500 });
+    console.error('Error in GET /api/admin/events:', error);
+    return NextResponse.json(
+      { error: 'Failed to load admin events' },
+      { status: 500 }
+    );
   }
 }
