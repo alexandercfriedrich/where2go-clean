@@ -141,9 +141,9 @@ export async function POST(request: NextRequest) {
           console.log(`[ADAPTIVE] Decreasing concurrency to ${concurrency} (high event count)`);
         }
 
-        // Job Update mit erweiterten Metriken in separatem Objekt
-        const updateData: any = {
-          status: 'processing',
+        // Job Update mit erweiterten Metriken falls unterstützt
+        const updateData = {
+          status: 'processing' as const,
           events: runningEvents,
           progress: { 
             completedCategories: Math.min(i + batch.length, effective.length), 
@@ -152,9 +152,9 @@ export async function POST(request: NextRequest) {
           lastUpdateAt: new Date().toISOString()
         };
 
-        // Erweiterte Metriken falls unterstützt
-        if (options?.enhancedTracking) {
-          updateData.enhancedMetrics = {
+        // Erweiterte Metriken hinzufügen falls Interface erweitert wurde
+        if ('enhancedMetrics' in job) {
+          (updateData as any).enhancedMetrics = {
             totalEventsFound: totalEventCount,
             averageEventsPerCategory: Math.round(totalEventCount / (Math.min(i + batch.length, effective.length) || 1)),
             processingSpeed: Math.round((Date.now() - (job.createdAt?.getTime() || Date.now())) / 1000),
@@ -208,6 +208,23 @@ export async function POST(request: NextRequest) {
       },
       lastUpdateAt: new Date().toISOString()
     };
+
+    // Finale Statistiken falls unterstützt
+    if ('finalStats' in job) {
+      (finalUpdate as any).finalStats = {
+        totalEventsFound: totalEventCount,
+        totalUniqueEvents: runningEvents.length,
+        averageEventsPerCategory: Math.round(totalEventCount / effective.length),
+        processingTimeSeconds: Math.round((Date.now() - (job.createdAt?.getTime() || Date.now())) / 1000),
+        categoriesProcessed: effective.length,
+        optimizationsApplied: [
+          'enhanced-prompts',
+          'adaptive-concurrency', 
+          'fallback-retry',
+          'extended-tokens'
+        ]
+      };
+    }
 
     await jobStore.updateJob(jobId, finalUpdate);
 
