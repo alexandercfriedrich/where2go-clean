@@ -60,13 +60,21 @@ export async function POST(request: NextRequest) {
       ...(options || {}),
       debug: (options?.debug === true) || qDebug,
       debugVerbose: (options?.debugVerbose === true) || qVerbose,
-      categoryConcurrency: options?.categoryConcurrency ?? 3
+      categoryConcurrency: options?.categoryConcurrency ?? 5, // Erhöht von 3
+      // Erweiterte Optionen aktivieren
+      enhancedSearch: true,
+      fallbackEnabled: true,
+      diversityBoost: true
     };
+
+    console.log(`[ENHANCED-SEARCH] Starting search for ${city} on ${date} with ${missingCategories.length} categories`);
 
     const results = await service.executeMultiQuery(city, date, missingCategories, mergedOptions);
 
     const newEvents = eventAggregator.aggregateResults(results).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
     const combined = eventAggregator.deduplicateEvents([...dedupCached, ...newEvents]);
+
+    console.log(`[ENHANCED-SEARCH] Found ${newEvents.length} new events, ${combined.length} total after deduplication`);
 
     const disableCache = (options?.disableCache === true);
     if (!disableCache && newEvents.length > 0) {
@@ -98,11 +106,12 @@ export async function POST(request: NextRequest) {
         cachedEvents: dedupCached.length,
         cacheBreakdown
       },
-      ttlApplied: computeTTLSecondsForEvents(newEvents)
+      ttlApplied: computeTTLSecondsForEvents(newEvents),
+      enhancedSearch: true // Indikator für erweiterte Suche
     });
 
   } catch (error) {
-    console.error('Search route error:', error);
-    return NextResponse.json({ error: 'Unerwarteter Fehler' }, { status: 500 });
+    console.error('Enhanced search route error:', error);
+    return NextResponse.json({ error: 'Unerwarteter Fehler bei der erweiterten Suche' }, { status: 500 });
   }
 }
