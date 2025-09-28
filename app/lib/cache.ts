@@ -111,13 +111,78 @@ class InMemoryCache {
     await this.set(key, events, ttlSeconds);
   }
 
+  /**
+   * Internal helper: scan all keys matching a pattern with safe fallbacks.
+   * Prefers scanIterator if available; falls back to SCAN loop; final fallback to KEYS.
+   */
+  private async scanAllKeys(match: string, count = 1000): Promise<string[]> {
+    const r: any = this.redis as any;
+
+    // Preferred: scanIterator if available (runtime check to avoid TS type errors)
+    if (typeof r.scanIterator === 'function') {
+      const out: string[] = [];
+      for await (const full of r.scanIterator({ match, count })) {
+        out.push(String(full));
+      }
+      return out;
+    }
+
+    // Fallback: manual SCAN loop (supports both tuple and object return shapes)
+    if (typeof r.scan === 'function') {
+      const out: string[] = [];
+      let cursor: number | string = 0;
+
+      // Normalize cursor to string for safety
+      const toNum = (c: any) => {
+        const n = typeof c === 'string' ? parseInt(c, 10) : Number(c);
+        return Number.isFinite(n) ? n : 0;
+      };
+
+      // Iterate until cursor becomes 0
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        const res = await r.scan(cursor, { match, count });
+
+        let nextCursor: number = 0;
+        let keys: string[] = [];
+
+        if (Array.isArray(res) && res.length === 2) {
+          // Tuple form: [cursor, keys[]]
+          nextCursor = toNum(res[0]);
+          keys = Array.isArray(res[1]) ? res[1] : [];
+        } else if (res && typeof res === 'object') {
+          // Object form: { cursor, keys }
+          nextCursor = toNum(res.cursor);
+          keys = Array.isArray(res.keys) ? res.keys : [];
+        } else {
+          break;
+        }
+
+        if (keys.length) out.push(...keys);
+        cursor = nextCursor;
+        if (nextCursor === 0) break;
+      }
+
+      return out;
+    }
+
+    // Last resort: KEYS (acceptable for admin/debug; avoid in hot paths)
+    if (typeof r.keys === 'function') {
+      try {
+        const keys: string[] = await r.keys(match);
+        return Array.isArray(keys) ? keys : [];
+      } catch (e) {
+        console.warn('[eventsCache] KEYS fallback failed:', e);
+      }
+    }
+
+    return [];
+  }
+
   // Admin/Debug helpers
   async listBaseKeys(): Promise<string[]> {
-    const out: string[] = [];
-    for await (const full of this.redis.scanIterator({ match: `${this.prefix}*`, count: 1000 })) {
-      out.push(String(full).replace(this.prefix, ''));
-    }
-    return out;
+    const fullKeys = await this.scanAllKeys(`${this.prefix}*`, 1000);
+    return fullKeys.map(k => String(k).replace(this.prefix, ''));
   }
 
   async getEntryDebug(baseKey: string): Promise<CacheEntryDebug> {
@@ -146,17 +211,16 @@ class InMemoryCache {
   }
 
   async size(): Promise<number> {
-    let n = 0;
-    for await (const _ of this.redis.scanIterator({ match: `${this.prefix}*`, count: 1000 })) n++;
-    return n;
+    const baseKeys = await this.listBaseKeys();
+    return baseKeys.length;
   }
 
   async clear(): Promise<void> {
-    const keys: string[] = [];
-    for await (const full of this.redis.scanIterator({ match: `${this.prefix}*`, count: 1000 })) {
-      keys.push(String(full));
+    const fullKeys = await this.scanAllKeys(`${this.prefix}*`, 1000);
+    if (fullKeys.length) {
+      // Upstash DEL supports variadic
+      await (this.redis as any).del(...fullKeys);
     }
-    if (keys.length) await this.redis.del(...keys);
   }
 
   async cleanup(): Promise<void> {
