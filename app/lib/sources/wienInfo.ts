@@ -66,7 +66,7 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
 
     // Use the JSON API endpoint
     const apiUrl = 'https://www.wien.info/ajax/de/events';
-    // Build human-facing discovery URL (for dev logs only)
+    // Optional: Human-facing discovery URL (debug only)
     const discoveryUrl = buildWienInfoUrl(fromISO, toISO, f1Ids);
     
     // Create debug information
@@ -103,7 +103,7 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
         apiResponse = jsonData;
         apiEvents = jsonData.items || [];
         
-        // Wichtig: In der UI die tatsächliche API-URL ausgeben (ajax/de/events)
+        // UI soll die echte API-URL sehen
         debugResponse = `Successfully fetched ${apiEvents.length} events from wien.info JSON API\nAPI URL: ${apiUrl}`;
         
         if (debug) {
@@ -113,7 +113,6 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
     } catch (apiError) {
-      // In der UI die API-URL zeigen (nicht die Discovery-URL)
       const failMsg = `JSON API failed: ${apiError}. No results from Wien.info!\nAPI URL: ${apiUrl}`;
       console.warn('[WIEN.INFO:API] Failed to fetch from wien.info JSON API:', apiError);
       
@@ -131,7 +130,7 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
       };
     }
 
-    // Filter events by date range and categories
+    // Filter events by date range and categories (F1 tags)
     const filteredEvents = filterWienInfoEvents(apiEvents, fromISO, toISO, f1Ids);
     
     if (debug) {
@@ -274,7 +273,7 @@ function mapWienInfoCategory(wienInfoCategory: string): string {
     'art': 'Kunst/Design'
   };
   
-  const lower = wienInfoCategory.toLowerCase();
+  const lower = (wienInfoCategory || '').toLowerCase();
   for (const [key, value] of Object.entries(categoryMap)) {
     if (lower.includes(key)) {
       return value;
@@ -286,15 +285,15 @@ function mapWienInfoCategory(wienInfoCategory: string): string {
 
 /**
  * Normalizes a Wien.info API event to our EventData format
+ * IMPORTANT: Do NOT override the mapped category with requestedCategories.
  */
 function normalizeWienInfoEvent(wienInfoEvent: WienInfoEvent, requestedCategories: string[]): EventData {
   // Determine the best category match
-  let category = mapWienInfoCategory(wienInfoEvent.category);
-  
-  // If the mapped category isn't in requested categories, use the first requested category
-  if (!requestedCategories.includes(category) && requestedCategories.length > 0) {
-    category = requestedCategories[0];
-  }
+  const category = mapWienInfoCategory(wienInfoEvent.category);
+  // Removed problematic fallback:
+  // if (!requestedCategories.includes(category) && requestedCategories.length > 0) {
+  //   category = requestedCategories[0];
+  // }
 
   // Extract the primary date
   const eventDates = wienInfoEvent.dates || [];
