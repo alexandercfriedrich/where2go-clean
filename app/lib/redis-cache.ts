@@ -122,9 +122,9 @@ export class RedisCache implements CacheInterface {
    * Clear all cache entries with the prefix
    */
   async clear(): Promise<void> {
-    // This is a destructive operation and should be used carefully
-    console.warn('RedisCache.clear() is not implemented to prevent accidental data loss');
-    throw new Error('Clear operation not supported for Redis cache');
+    // For Redis cache, we don't implement destructive clear operations
+    // This method is kept for interface compatibility but does nothing
+    console.warn('RedisCache.clear() is not implemented for safety. Use cleanup scripts if needed.');
   }
   
   /**
