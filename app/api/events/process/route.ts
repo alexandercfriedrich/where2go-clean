@@ -1,6 +1,3 @@
-// Optimierte Background-Processing Route
-// Diese Datei zeigt die Verbesserungen am Background Worker
-
 import { NextRequest, NextResponse } from 'next/server';
 import { eventsCache } from '@/lib/cache';
 import { createPerplexityService } from '@/lib/perplexity';
@@ -144,22 +141,28 @@ export async function POST(request: NextRequest) {
           console.log(`[ADAPTIVE] Decreasing concurrency to ${concurrency} (high event count)`);
         }
 
-        await jobStore.updateJob(jobId, {
+        // Job Update mit erweiterten Metriken in separatem Objekt
+        const updateData: any = {
           status: 'processing',
           events: runningEvents,
           progress: { 
             completedCategories: Math.min(i + batch.length, effective.length), 
             totalCategories: effective.length 
           },
-          lastUpdateAt: new Date().toISOString(),
-          // Erweiterte Metriken
-          enhancedMetrics: {
+          lastUpdateAt: new Date().toISOString()
+        };
+
+        // Erweiterte Metriken falls unterstützt
+        if (options?.enhancedTracking) {
+          updateData.enhancedMetrics = {
             totalEventsFound: totalEventCount,
             averageEventsPerCategory: Math.round(totalEventCount / (Math.min(i + batch.length, effective.length) || 1)),
             processingSpeed: Math.round((Date.now() - (job.createdAt?.getTime() || Date.now())) / 1000),
             currentConcurrency: concurrency
-          }
-        });
+          };
+        }
+
+        await jobStore.updateJob(jobId, updateData);
 
       } catch (batchError) {
         console.error(`[BATCH-ERROR] Failed processing batch ${batch.join(', ')}:`, batchError);
@@ -195,7 +198,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Final update mit Gesamtstatistiken
+    // Final update
     const finalUpdate = {
       status: 'done' as const,
       events: runningEvents,
@@ -203,33 +206,34 @@ export async function POST(request: NextRequest) {
         completedCategories: effective.length, 
         totalCategories: effective.length 
       },
-      lastUpdateAt: new Date().toISOString(),
-      // Finale Statistiken
-      finalStats: {
-        totalEventsFound: totalEventCount,
-        totalUniqueEvents: runningEvents.length,
-        averageEventsPerCategory: Math.round(totalEventCount / effective.length),
-        processingTimeSeconds: Math.round((Date.now() - (job.createdAt?.getTime() || Date.now())) / 1000),
-        categoriesProcessed: effective.length,
-        optimizationsApplied: [
-          'enhanced-prompts',
-          'adaptive-concurrency', 
-          'fallback-retry',
-          'extended-tokens'
-        ]
-      }
+      lastUpdateAt: new Date().toISOString()
     };
 
     await jobStore.updateJob(jobId, finalUpdate);
 
     console.log(`[ENHANCED-WORKER-COMPLETE] Job ${jobId}: ${runningEvents.length} unique events from ${totalEventCount} total`);
 
+    // Erweiterte Statistiken in Response
+    const enhancedStats = {
+      totalEventsFound: totalEventCount,
+      totalUniqueEvents: runningEvents.length,
+      averageEventsPerCategory: Math.round(totalEventCount / effective.length),
+      processingTimeSeconds: Math.round((Date.now() - (job.createdAt?.getTime() || Date.now())) / 1000),
+      categoriesProcessed: effective.length,
+      optimizationsApplied: [
+        'enhanced-prompts',
+        'adaptive-concurrency', 
+        'fallback-retry',
+        'extended-tokens'
+      ]
+    };
+
     return NextResponse.json({ 
       jobId, 
       status: 'done', 
       events: runningEvents, 
       categoriesProcessed: effective,
-      enhancedStats: finalUpdate.finalStats
+      enhancedStats
     });
 
   } catch (error) {
