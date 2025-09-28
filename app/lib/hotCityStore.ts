@@ -199,19 +199,38 @@ export async function getCityWebsitesForCategories(
   categories: string[]
 ): Promise<HotCityWebsite[]> {
   const city = await getHotCity(cityName);
-  if (!city) return [];
+  if (!city) {
+    return getEnhancedCityWebsitesForCategories(cityName, categories);
+  }
   
-  return city.websites
-    .filter(website => 
-      website.isActive && 
-      !isUrlBlacklisted(website.url) && // Filter out blacklisted URLs
-      (website.categories.length === 0 || // Empty categories means it covers all
-       website.categories.some(cat => categories.includes(cat)))
-    )
-    .sort((a, b) => b.priority - a.priority); // Higher priority first
+  const filteredWebsites = city.websites.filter(website => 
+    website.isActive && 
+    !isUrlBlacklisted(website.url) && // Filter out blacklisted URLs
+    (website.categories.length === 0 || // Empty categories means it covers all
+     website.categories.some(cat => categories.includes(cat)))
+  );
+  
+  // Merge with enhanced websites if city is Wien/Vienna
+  const enhancedWebsites = getEnhancedCityWebsitesForCategories(cityName, categories);
+  
+  // Combine and deduplicate by URL
+  const urlSet = new Set();
+  const combined: HotCityWebsite[] = [];
+  
+  [...filteredWebsites, ...enhancedWebsites].forEach(website => {
+    if (!urlSet.has(website.url)) {
+      urlSet.add(website.url);
+      combined.push(website);
+    }
+  });
+  
+  return combined.sort((a, b) => (b.priority ?? 5) - (a.priority ?? 5));
 }
 
-// Erweiterte Hot Cities Konfiguration für Wien
+// =============================================================================
+// ENHANCED HOT CITIES CONFIGURATION - NEW OPTIMIZATIONS
+// =============================================================================
+
 export interface HotCityWebsiteOptimized {
   id?: string;
   name: string;
@@ -396,6 +415,80 @@ export const WIEN_OPTIMIZED_CONFIG: OptimizedHotCity = {
       priority: 6,
       isActive: true,
       sourceType: 'news'
+    },
+    {
+      name: 'Kurier Events Wien',
+      url: 'https://kurier.at/freizeit/wien-events',
+      categories: ['Open Air', 'Sport', 'Familien/Kids'],
+      priority: 6,
+      isActive: true,
+      sourceType: 'news'
+    },
+    
+    // Universitäten
+    {
+      name: 'Universität Wien Events',
+      url: 'https://www.univie.ac.at/veranstaltungen/',
+      categories: ['Bildung/Lernen', 'Networking/Business', 'Kultur/Traditionen'],
+      priority: 6,
+      isActive: true,
+      sourceType: 'official'
+    },
+    {
+      name: 'TU Wien Events',
+      url: 'https://www.tuwien.at/aktuelles/events',
+      categories: ['Bildung/Lernen', 'Networking/Business'],
+      priority: 6,
+      isActive: true,
+      sourceType: 'official'
+    },
+    {
+      name: 'WU Wien Events',
+      url: 'https://www.wu.ac.at/veranstaltungen',
+      categories: ['Networking/Business', 'Bildung/Lernen'],
+      priority: 6,
+      isActive: true,
+      sourceType: 'official'
+    },
+    
+    // Food & Nightlife
+    {
+      name: 'Eventbrite Wien',
+      url: 'https://www.eventbrite.de/d/austria--vienna/events/',
+      categories: ['Networking/Business', 'Food/Culinary', 'Bildung/Lernen', 'Wellness/Spirituell'],
+      priority: 7,
+      isActive: true,
+      sourceType: 'ticketing',
+      searchQuery: 'Wien events'
+    },
+    {
+      name: 'Meetup Wien',
+      url: 'https://www.meetup.com/cities/at/vienna/',
+      categories: ['Networking/Business', 'Bildung/Lernen', 'Soziales/Community', 'Wellness/Spirituell'],
+      priority: 7,
+      isActive: true,
+      sourceType: 'community'
+    },
+    
+    // Shopping & Märkte
+    {
+      name: 'Naschmarkt Wien',
+      url: 'https://www.wienernaschmarkt.eu/events',
+      categories: ['Märkte/Shopping', 'Food/Culinary'],
+      priority: 6,
+      isActive: true,
+      sourceType: 'venue'
+    },
+    
+    // Social Media Groups (Beispiele)
+    {
+      name: 'Facebook Events Wien',
+      url: 'https://www.facebook.com/events/search/?q=wien%20events',
+      categories: ['Soziales/Community', 'Open Air', 'Clubs/Discos'],
+      priority: 5,
+      isActive: true,
+      sourceType: 'social',
+      searchQuery: 'Wien events heute'
     }
   ],
   
@@ -440,52 +533,72 @@ export const WIEN_OPTIMIZED_CONFIG: OptimizedHotCity = {
 export function getEnhancedCityWebsitesForCategories(
   city: string, 
   categories: string[]
-): HotCityWebsiteOptimized[] {
+): HotCityWebsite[] {
   // Für Wien verwenden wir die optimierte Konfiguration
   if (city.toLowerCase().includes('wien') || city.toLowerCase().includes('vienna')) {
-    return WIEN_OPTIMIZED_CONFIG.websites.filter(website => 
-      website.isActive && 
-      categories.some(cat => website.categories.includes(cat))
-    ).sort((a, b) => b.priority - a.priority);
+    return WIEN_OPTIMIZED_CONFIG.websites
+      .filter(website => 
+        website.isActive && 
+        categories.some(cat => website.categories.includes(cat))
+      )
+      .map(website => ({
+        id: website.id || `enhanced-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        name: website.name,
+        url: website.url,
+        categories: website.categories,
+        description: website.description || '',
+        searchQuery: website.searchQuery || '',
+        priority: website.priority,
+        isActive: website.isActive
+      }))
+      .sort((a, b) => b.priority - a.priority);
   }
   
   // Für andere Städte: Generische erweiterte Quellen
   return getGenericCityWebsites(city, categories);
 }
 
-function getGenericCityWebsites(city: string, categories: string[]): HotCityWebsiteOptimized[] {
-  const genericSources: HotCityWebsiteOptimized[] = [
+function getGenericCityWebsites(city: string, categories: string[]): HotCityWebsite[] {
+  const genericSources: HotCityWebsite[] = [
     {
+      id: `generic-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: `Eventbrite ${city}`,
       url: `https://www.eventbrite.com/d/germany--${city.toLowerCase()}/events/`,
       categories: ['Networking/Business', 'Bildung/Lernen', 'Food/Culinary'],
       priority: 8,
       isActive: true,
-      sourceType: 'ticketing'
+      description: `Eventbrite events in ${city}`,
+      searchQuery: `${city} events`
     },
     {
+      id: `generic-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: `Facebook Events ${city}`,
       url: `https://www.facebook.com/events/search/?q=${city.toLowerCase()}%20events`,
       categories: ['Soziales/Community', 'Open Air', 'Clubs/Discos'],
       priority: 7,
       isActive: true,
-      sourceType: 'social'
+      description: `Facebook events in ${city}`,
+      searchQuery: `${city} events heute`
     },
     {
+      id: `generic-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: `Meetup ${city}`,
       url: `https://www.meetup.com/cities/de/${city.toLowerCase()}/`,
       categories: ['Networking/Business', 'Bildung/Lernen', 'Wellness/Spirituell'],
       priority: 7,
       isActive: true,
-      sourceType: 'community'
+      description: `Meetup events in ${city}`,
+      searchQuery: `${city} meetup`
     },
     {
+      id: `generic-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       name: `${city} Tourism Events`,
       url: `https://www.${city.toLowerCase()}-tourism.de/events`,
       categories: ['Open Air', 'Kultur/Traditionen', 'Museen'],
       priority: 6,
       isActive: true,
-      sourceType: 'official'
+      description: `Official tourism events for ${city}`,
+      searchQuery: `${city} tourism events`
     }
   ];
   
