@@ -17,20 +17,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing job parameters' }, { status: 400 });
     }
 
-    // Determine valid dates for filtering based on time period
     const getValidDatesForFiltering = (baseDate: string, timePeriod?: string): string[] => {
       if (timePeriod === 'kommendes-wochenende') {
-        // For weekend, calculate Friday, Saturday, Sunday from the base date (which should be Friday)
         const friday = new Date(baseDate);
-        const saturday = new Date(friday);
-        saturday.setDate(friday.getDate() + 1);
-        const sunday = new Date(friday);
-        sunday.setDate(friday.getDate() + 2);
-        
-        const formatDate = (d: Date) => d.toISOString().slice(0, 10);
-        return [formatDate(friday), formatDate(saturday), formatDate(sunday)];
+        const saturday = new Date(friday); saturday.setDate(friday.getDate() + 1);
+        const sunday = new Date(friday); sunday.setDate(friday.getDate() + 2);
+        const fmt = (d: Date) => d.toISOString().slice(0, 10);
+        return [fmt(friday), fmt(saturday), fmt(sunday)];
       }
-      return [baseDate]; // Single date for heute, morgen, or custom date
+      return [baseDate];
     };
 
     const validDates = getValidDatesForFiltering(date, options?.timePeriod);
@@ -50,12 +45,9 @@ export async function POST(request: NextRequest) {
 
     const service = createPerplexityService(PERPLEXITY_API_KEY);
 
-    // Start with existing job events
     let runningEvents = eventAggregator.deduplicateEvents([...(job.events || [])]);
 
-    // NEU: Batch-Verarbeitung mehrerer Kategorien parallel
     const concurrency = Math.max(1, options?.categoryConcurrency ?? 3);
-
     for (let i = 0; i < effective.length; i += concurrency) {
       const batch = effective.slice(i, i + concurrency);
 
@@ -64,20 +56,16 @@ export async function POST(request: NextRequest) {
         categoryConcurrency: concurrency
       });
 
-      // Collect debug information if debug mode is enabled
       if (options?.debug) {
         for (const result of results) {
-          // Determine category from the result (if available in the aggregated events)
           const eventsFromResult = eventAggregator.aggregateResults([result], validDates);
           const category = eventsFromResult.length > 0 ? eventsFromResult[0].category || 'Unknown' : 'Unknown';
-          
           const debugStep = {
             category,
             query: result.query,
             response: result.response,
             parsedCount: eventsFromResult.length
           };
-
           try {
             await jobStore.pushDebugStep(jobId, debugStep);
           } catch (error) {
@@ -88,7 +76,7 @@ export async function POST(request: NextRequest) {
 
       const chunk = eventAggregator.aggregateResults(results, validDates).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
 
-      // Cache per Kategorie
+      // Cache per category (await)
       const ttlSeconds = computeTTLSecondsForEvents(chunk);
       const grouped: Record<string, any[]> = {};
       for (const ev of chunk) {
@@ -96,10 +84,9 @@ export async function POST(request: NextRequest) {
         (grouped[ev.category] ||= []).push(ev);
       }
       for (const cat of Object.keys(grouped)) {
-        eventsCache.setEventsByCategory(city, date, cat, grouped[cat], ttlSeconds);
+        await eventsCache.setEventsByCategory(city, date, cat, grouped[cat], ttlSeconds);
       }
 
-      // Merge und Fortschritt updaten
       runningEvents = eventAggregator.deduplicateEvents([...runningEvents, ...chunk]);
 
       await jobStore.updateJob(jobId, {

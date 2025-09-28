@@ -24,13 +24,12 @@ export async function POST(request: NextRequest) {
 
     const effectiveCategories: string[] = (categories && categories.length > 0) ? categories : DEFAULT_CATEGORIES;
 
-    const cacheResult = eventsCache.getEventsByCategories(city, date, effectiveCategories);
+    const cacheResult = await eventsCache.getEventsByCategories(city, date, effectiveCategories);
     const cachedEventsFlat: EventData[] = [];
     for (const cat of Object.keys(cacheResult.cachedEvents)) {
       cachedEventsFlat.push(...cacheResult.cachedEvents[cat]);
     }
 
-    // STAMP: cache provenance
     const dedupCached = eventAggregator.deduplicateEvents(
       cachedEventsFlat.map(e => ({ ...e, source: e.source ?? 'cache' as const }))
     );
@@ -63,25 +62,27 @@ export async function POST(request: NextRequest) {
       debugVerbose: (options?.debugVerbose === true) || qVerbose,
       categoryConcurrency: options?.categoryConcurrency ?? 3
     };
+
     const results = await service.executeMultiQuery(city, date, missingCategories, mergedOptions);
 
-    // STAMP: ai provenance
     const newEvents = eventAggregator.aggregateResults(results).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
-
     const combined = eventAggregator.deduplicateEvents([...dedupCached, ...newEvents]);
 
-    const ttlSeconds = computeTTLSecondsForEvents(newEvents);
-    const seen = new Set<string>();
-    for (const ev of newEvents) {
-      if (ev.category && !seen.has(ev.category)) {
-        const catEvents = newEvents.filter(e => e.category === ev.category);
-        eventsCache.setEventsByCategory(city, date, ev.category, catEvents, ttlSeconds);
-        seen.add(ev.category);
+    const disableCache = (options?.disableCache === true);
+    if (!disableCache && newEvents.length > 0) {
+      const ttlSeconds = computeTTLSecondsForEvents(newEvents);
+      const seen = new Set<string>();
+      for (const ev of newEvents) {
+        if (ev.category && !seen.has(ev.category)) {
+          const catEvents = newEvents.filter(e => e.category === ev.category);
+          await eventsCache.setEventsByCategory(city, date, ev.category, catEvents, ttlSeconds);
+          seen.add(ev.category);
+        }
       }
     }
 
     const cacheBreakdown = { ...cacheResult.cacheInfo };
-    for (const cat of seen) {
+    for (const cat of new Set(newEvents.map(e => e.category))) {
       const catEvents = newEvents.filter(e => e.category === cat);
       cacheBreakdown[cat] = { fromCache: false, eventCount: catEvents.length };
     }
@@ -97,7 +98,7 @@ export async function POST(request: NextRequest) {
         cachedEvents: dedupCached.length,
         cacheBreakdown
       },
-      ttlApplied: ttlSeconds
+      ttlApplied: computeTTLSecondsForEvents(newEvents)
     });
 
   } catch (error) {

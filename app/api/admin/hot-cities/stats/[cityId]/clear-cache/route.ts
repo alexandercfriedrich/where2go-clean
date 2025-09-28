@@ -25,13 +25,14 @@ export async function POST(request: NextRequest, { params }: { params: { cityId:
     }
     
     // Clear cache entries for this city
-    const cache = (eventsCache as any).cache;
     let clearedCount = 0;
     
-    if (cache && cache instanceof Map) {
+    try {
+      // Get all keys from Redis
+      const allKeys = await (eventsCache as any).redis.keys('*');
       const keysToDelete: string[] = [];
       
-      for (const [key] of cache.entries()) {
+      for (const key of allKeys) {
         // Cache keys format: "city_date_categories"
         const keyParts = key.split('_');
         if (keyParts.length >= 2 && keyParts[0].toLowerCase() === city.name.toLowerCase()) {
@@ -39,10 +40,13 @@ export async function POST(request: NextRequest, { params }: { params: { cityId:
         }
       }
       
-      keysToDelete.forEach(key => {
-        cache.delete(key);
-        clearedCount++;
-      });
+      if (keysToDelete.length > 0) {
+        await (eventsCache as any).redis.del(...keysToDelete);
+        clearedCount = keysToDelete.length;
+      }
+    } catch (redisError) {
+      console.error('Redis clear cache error:', redisError);
+      // Continue with the response even if Redis fails
     }
     
     return NextResponse.json({ 

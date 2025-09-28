@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { eventsCache } from '@/lib/cache';
 import { EVENT_CATEGORIES } from '@/lib/eventCategories';
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
@@ -12,33 +13,27 @@ export async function GET(request: NextRequest) {
     const debug = searchParams.get('debug') === '1';
 
     const mainCategories = EVENT_CATEGORIES;
-    const cacheResult = eventsCache.getEventsByCategories(city, date, mainCategories);
+    const cacheResult = await eventsCache.getEventsByCategories(city, date, mainCategories);
 
     const allCachedEvents: any[] = [];
     for (const cat in cacheResult.cachedEvents) {
       allCachedEvents.push(...cacheResult.cachedEvents[cat]);
     }
 
-    // Debug information to help diagnose cache issues
-    let debugInfo = {};
+    let debugInfo: any = {};
     if (debug) {
+      const baseKeys = await eventsCache.listBaseKeys();
+      const cacheSize = await eventsCache.size();
+      const debugEntries = await Promise.all(baseKeys.map(k => eventsCache.getEntryDebug(k)));
       debugInfo = {
-        cacheSize: eventsCache.size(),
+        cacheSize,
         searchCity: city,
         searchDate: date,
         requestedCategories: mainCategories,
         foundCategories: Object.keys(cacheResult.cachedEvents),
-        cacheKeys: (eventsCache as any).cache ? Array.from((eventsCache as any).cache.keys()) : [],
-        cacheEntries: (eventsCache as any).cache ? Array.from((eventsCache as any).cache.entries()).map((entry: any) => {
-          const [key, cacheEntry] = entry;
-          return {
-            key,
-            hasData: !!cacheEntry.data,
-            dataLength: Array.isArray(cacheEntry.data) ? cacheEntry.data.length : 'not-array',
-            timestamp: new Date(cacheEntry.timestamp).toISOString(),
-            ttl: cacheEntry.ttl
-          };
-        }) : []
+        missingCategories: cacheResult.missingCategories,
+        cacheKeys: baseKeys,
+        cacheEntries: debugEntries
       };
     }
 
@@ -54,7 +49,10 @@ export async function GET(request: NextRequest) {
       ...(debug && { debug: debugInfo })
     });
   } catch (error) {
-    console.error('Admin events API error:', error);
-    return NextResponse.json({ error: 'Failed to fetch events data' }, { status: 500 });
+    console.error('Error in GET /api/admin/events:', error);
+    return NextResponse.json(
+      { error: 'Failed to load admin events' },
+      { status: 500 }
+    );
   }
 }

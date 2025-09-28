@@ -11,8 +11,8 @@ Create a `.env.local` file in the root directory and add your configuration:
 # Required: Perplexity API Key
 PERPLEXITY_API_KEY=your_perplexity_api_key_here
 
-# Optional: Upstash Redis for durable job state (production recommended)
-# When not set, uses in-memory storage (dev/local only)
+# Required: Upstash Redis for events cache and job state (production)
+# Events cache now uses Redis exclusively - no in-memory fallback
 UPSTASH_REDIS_REST_URL=https://your-redis-url.upstash.io
 UPSTASH_REDIS_REST_TOKEN=your_redis_token_here
 
@@ -43,10 +43,12 @@ ADMIN_PASS=Where2go?Lufthansa736.
 - Without these credentials, admin pages will return "Admin credentials not configured" error
 - Legacy `ADMIN_SECRET` header authentication is still supported for API calls as an alternative
 
-**Redis Configuration (Production):**
-- In production environments (e.g., Vercel), configure Upstash Redis environment variables for durable job state persistence
-- This ensures progressive results work reliably across serverless route contexts
-- Without Redis, job state uses in-memory storage which doesn't persist across serverless function invocations
+**Redis Configuration (Required):**
+- **Events Cache**: Now uses Redis exclusively for caching events per category. No in-memory fallback.
+- **Job State**: Redis provides durable job state persistence for progressive results across serverless route contexts
+- **Production**: Always configure Upstash Redis environment variables - without them, the application will throw errors on startup
+- **Debug Mode**: Debug mode (`debug=1`) no longer disables caching. Only explicit `disableCache=true` option will disable cache.
+- **Wien.info Events**: Early events from Wien.info are now automatically cached per category for faster subsequent requests
 
 **Preview Protection Configuration:**
 - Vercel Preview Deployments with Protection enabled block internal API calls by default
