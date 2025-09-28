@@ -1,16 +1,12 @@
-// Zentrale Typen für die App
-
-// Event-Daten, wie sie in der UI und Aggregation verwendet werden
+// Event-Datenstruktur
 export interface EventData {
   title: string;
   category: string;
-  date: string; // YYYY-MM-DD
-  time: string; // HH:mm
+  date: string;
+  time: string;
   venue: string;
   price: string;
   website: string;
-
-  // optionale Felder
   endTime?: string;
   address?: string;
   ticketPrice?: string;
@@ -18,44 +14,29 @@ export interface EventData {
   description?: string;
   bookingLink?: string;
   ageRestrictions?: string;
-  city?: string; // Stadt/Ort des Events
-  cacheUntil?: string; // ISO string bis wann Event gecached werden darf
-  parsingWarning?: string | string[]; // Warnings from parsing/validation
-
-  // Herkunftsmarker für Badges
-  source?: 'cache' | 'ai' | 'rss' | 'ra' | string;
+  source?: 'ai' | 'ai-fallback' | 'cache' | 'wien-info' | 'fallback';
 }
 
-// Antwort eines Perplexity-Requests, wie vom Aggregator erwartet
-export interface PerplexityResult {
-  query: string;
-  response: string;
-  events?: EventData[]; // parsed events (filled by aggregator)
-  timestamp?: number;   // when the query was executed
-}
-
-// Cache-Eintrag (wird von app/lib/cache.ts verwendet)
-export interface CacheEntry<T = any> {
-  data: T;
-  timestamp: number; // ms since epoch
-  ttl: number;       // ms duration
-}
-
-// Query-Optionen für Suche und API-Calls
+// Query-Optionen für Anfragen
 export interface QueryOptions {
   temperature?: number;
   max_tokens?: number;
   debug?: boolean;
+  debugVerbose?: boolean;
   disableCache?: boolean;
   expandedSubcategories?: boolean;
   forceAllCategories?: boolean;
-  categoryTimeoutMs?: number;
-  overallTimeoutMs?: number;
-  maxAttempts?: number;
+  progressive?: boolean;
   categoryConcurrency?: number;
+  timePeriod?: string;
+  customDate?: string;
+  fetchWienInfo?: boolean;
   hotCity?: any;
   additionalSources?: any[];
-  fetchWienInfo?: boolean; // NEU: optionaler Opt-In für direkte wien.info HTML Events
+  // Erweiterte Optionen für Optimierungen
+  enhancedSearch?: boolean;
+  fallbackEnabled?: boolean;
+  diversityBoost?: boolean;
 }
 
 // Request-Body für Suche
@@ -64,6 +45,24 @@ export interface RequestBody {
   date: string;
   categories?: string[];
   options?: QueryOptions;
+}
+
+// Erweiterte Metriken für optimierte Verarbeitung
+export interface EnhancedMetrics {
+  totalEventsFound?: number;
+  averageEventsPerCategory?: number;
+  processingSpeed?: number;
+  currentConcurrency?: number;
+}
+
+// Finale Statistiken
+export interface FinalStats {
+  totalEventsFound: number;
+  totalUniqueEvents: number;
+  averageEventsPerCategory: number;
+  processingTimeSeconds: number;
+  categoriesProcessed: number;
+  optimizationsApplied: string[];
 }
 
 // Job-Status, wie in /api/jobs/[jobId]
@@ -80,6 +79,9 @@ export interface JobStatus {
   cacheInfo?: any;
   createdAt?: Date;
   lastUpdateAt?: string;
+  // Erweiterte Felder für Optimierungen (optional)
+  enhancedMetrics?: EnhancedMetrics;
+  finalStats?: FinalStats;
 }
 
 // Debug-Schritt für Job-Verfolgung
@@ -88,6 +90,12 @@ export interface DebugStep {
   query: string;
   response: string;
   parsedCount: number;
+  // Erweiterte Debug-Informationen (optional)
+  enhancedMetrics?: {
+    queryLength: number;
+    responseLength: number;
+    processingTime: number;
+  };
 }
 
 // Debug-Infos optional je Job
@@ -98,24 +106,27 @@ export interface DebugInfo {
   categories: string[];
   options: any;
   steps: DebugStep[];
+  // Erweiterte Debug-Informationen (optional)
+  wienInfoData?: {
+    url: string;
+    scrapedContent: string;
+    events: any[];
+    error?: string;
+  };
 }
 
-// Hot Cities: Website-Konfiguration
+// Hot City Website Datensatz
 export interface HotCityWebsite {
   id: string;
   name: string;
   url: string;
-  categories: string[]; // leeres Array => gilt für alle
+  categories: string[];
   description?: string;
   searchQuery?: string;
-  priority: number; // 1-10, höher = wichtiger
+  priority: number;
   isActive: boolean;
-  // optional: Venue-bezogene Flags (werden im Admin UI verwendet)
-  isVenue?: boolean;
-  isVenuePrioritized?: boolean;
 }
 
-// NEU: einzelnes Venue in einer Hot City
 export interface HotCityVenue {
   id: string;
   name: string;
@@ -152,4 +163,96 @@ export interface HotCity {
   customPrompt?: string;
   createdAt: Date;
   updatedAt: Date;
+}
+
+// Event-Suche - Hauptschnittstelle für Event-Kategorien
+export type EventCategory = 
+  | 'Live-Konzerte'
+  | 'DJ Sets/Electronic'
+  | 'Clubs/Discos'
+  | 'Open Air'
+  | 'Museen'
+  | 'LGBTQ+'
+  | 'Comedy/Kabarett'
+  | 'Theater/Performance'
+  | 'Film'
+  | 'Food/Culinary'
+  | 'Sport'
+  | 'Familien/Kids'
+  | 'Märkte/Shopping'
+  | 'Kunst/Design'
+  | 'Wellness/Spirituell'
+  | 'Networking/Business'
+  | 'Bildung/Lernen'
+  | 'Kultur/Traditionen'
+  | 'Soziales/Community'
+  | 'Natur/Outdoor';
+
+// Erweiterte Event-Quelle Typen
+export type EventSource = 'ai' | 'ai-fallback' | 'cache' | 'wien-info' | 'fallback' | 'enhanced' | 'hot-cities';
+
+// Wien.info spezifische Typen
+export interface WienInfoEvent {
+  title: string;
+  date: string;
+  time?: string;
+  venue?: string;
+  address?: string;
+  description?: string;
+  url?: string;
+  category?: string;
+  price?: string;
+  source: 'wien-info';
+}
+
+export interface WienInfoResponse {
+  events: WienInfoEvent[];
+  error?: string;
+  totalFound: number;
+  searchParams: {
+    fromISO: string;
+    toISO: string;
+    categories: string[];
+    limit?: number;
+  };
+}
+
+// Cache-Informationen
+export interface CacheInfo {
+  fromCache: boolean;
+  totalEvents: number;
+  cachedEvents: number;
+  cacheBreakdown: Record<string, { fromCache: boolean; eventCount: number }>;
+}
+
+// API Response Typen
+export interface EventSearchResponse {
+  events: EventData[];
+  cached?: boolean;
+  status: 'completed' | 'processing' | 'error';
+  newlyFetched?: string[];
+  cacheInfo?: CacheInfo;
+  ttlApplied?: number;
+  enhancedSearch?: boolean;
+  jobId?: string;
+  enhancedStats?: FinalStats;
+}
+
+// Job Response Typen
+export interface JobResponse {
+  jobId: string;
+  status: 'pending' | 'processing' | 'done' | 'error';
+  events?: EventData[];
+  categoriesProcessed?: string[];
+  enhancedStats?: FinalStats;
+  progress?: {
+    completedCategories: number;
+    totalCategories: number;
+  };
+}
+
+// Fallback Provider Interface
+export interface FallbackProvider {
+  name: string;
+  searchEvents(city: string, date: string, options?: QueryOptions): Promise<EventData[]>;
 }
