@@ -129,7 +129,7 @@ export async function POST(request: NextRequest) {
         }
         
         for (const cat of Object.keys(grouped)) {
-          eventsCache.setEventsByCategory(city, date, cat, grouped[cat], ttlSeconds);
+          await eventsCache.setEventsByCategory(city, date, cat, grouped[cat], ttlSeconds);
         }
 
         // Events mergen und Job updaten
