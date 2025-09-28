@@ -1,548 +1,406 @@
-// Hot Cities data store with Upstash Redis when configured, otherwise file-based storage
-import { promises as fs } from 'fs';
-import path from 'path';
-import { Redis } from '@upstash/redis';
-import { HotCity, HotCityWebsite } from './types';
+import { EVENT_CATEGORIES, normalizeCategory, mapToMainCategories, buildExpandedCategoryContext, buildCategoryListForPrompt, allowedCategoriesForSchema } from '@/lib/eventCategories';
 
-// Blacklisted URLs that should never appear in Hot Cities (Wien.gv.at VADB/Events sources)
-const BLACKLISTED_URLS = [
-  'https://www.wien.gv.at/kultur/abteilung/veranstaltungen/',
-  'https://www.wien.gv.at/vadb/internet/AdvPrSrv.asp'
-];
-
-/**
- * Checks if a URL is blacklisted (case-insensitive, ignores protocol and trailing slash)
- */
-function isUrlBlacklisted(url: string): boolean {
-  if (!url) return false;
-  
-  // Normalize URL for comparison
-  const normalizeUrl = (u: string) => u
-    .toLowerCase()
-    .replace(/^https?:\/\//, '') // Remove protocol
-    .replace(/\/$/, ''); // Remove trailing slash
-  
-  const normalizedUrl = normalizeUrl(url);
-  return BLACKLISTED_URLS.some(blacklistedUrl => 
-    normalizeUrl(blacklistedUrl) === normalizedUrl
-  );
+export interface PerplexityResult {
+  query: string;
+  response: string;
+  events: any[];
+  timestamp: number;
 }
 
-// Helper function to create URL-friendly slugs
-export function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, '') // Remove special chars
-    .replace(/[\s_-]+/g, '-') // Replace spaces and underscores with hyphens
-    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
-}
-
-// Helper function to create empty city
-export function createEmptyCity(): Omit<HotCity, 'id' | 'createdAt' | 'updatedAt'> {
-  return {
-    name: '',
-    country: '',
-    isActive: true,
-    websites: [],
-    venues: [],
-    defaultSearchQuery: '',
-    customPrompt: '',
-  };
-}
-
-// Helper function to create empty website
-export function createSite(): Omit<HotCityWebsite, 'id'> {
-  return {
-    name: '',
-    url: '',
-    categories: [],
-    description: '',
-    searchQuery: '',
-    priority: 5,
-    isActive: true,
-  };
-}
-
-const DATA_DIR = path.join(process.cwd(), 'data');
-const HOT_CITIES_FILE = path.join(DATA_DIR, 'hot-cities.json');
-const REDIS_KEY = 'hot-cities';
-
-// Initialize Redis client if environment variables are present
-const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
-  ? new Redis({
-      url: process.env.UPSTASH_REDIS_REST_URL,
-      token: process.env.UPSTASH_REDIS_REST_TOKEN,
-    })
-  : null;
-
-console.log(redis ? 'Using Redis for Hot Cities storage' : 'Using file-based storage for Hot Cities');
-
-// Ensure data directory exists
-async function ensureDataDir(): Promise<void> {
-  try {
-    await fs.mkdir(DATA_DIR, { recursive: true });
-  } catch (error) {
-    // Directory might already exist, ignore error
+declare global {
+  namespace NodeJS {
+    interface ProcessEnv {
+      LOG_PPLX_QUERIES?: string;
+      LOG_PPLX_VERBOSE?: string;
+      [key: string]: string | undefined;
+    }
   }
 }
 
-// Load hot cities from Redis or file
-export async function loadHotCities(): Promise<HotCity[]> {
-  try {
-    if (redis) {
-      const data = await redis.get<HotCity[]>(REDIS_KEY);
-      if (data) {
-        // Convert date strings back to Date objects
-        return data.map(city => ({
-          ...city,
-          createdAt: new Date(city.createdAt),
-          updatedAt: new Date(city.updatedAt)
-        }));
-      }
+interface PerplexityOptions {
+  temperature?: number;
+  max_tokens?: number;
+  debug?: boolean;
+  disableCache?: boolean;
+  expandedSubcategories?: boolean;
+  forceAllCategories?: boolean;
+  hotCity?:  any;
+  additionalSources?: any[];
+  debugVerbose?: boolean;
+  categoryConcurrency?: number;
+  enhancedSearch?: boolean;
+  fallbackEnabled?: boolean;
+  diversityBoost?: boolean;
+}
+
+interface PplxApiRequest {
+  model: string;
+  messages: { role: 'system' | 'user'; content: string }[];
+  max_tokens?: number;
+  temperature?: number;
+}
+
+export function createPerplexityService(apiKey: string) {
+  if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === '') {
+    throw new Error('Perplexity API key is required and must be a non-empty string.');
+  }
+
+  const baseUrl = 'https://api.perplexity.ai/chat/completions';
+  const model = 'sonar-pro';
+
+  async function call(prompt: string, options: PerplexityOptions): Promise<string> {
+    const body: PplxApiRequest = {
+      model,
+      messages: [
+        { role: 'system', content: buildSystemPrompt(options) },
+        { role: 'user', content: prompt }
+      ],
+      max_tokens: options.max_tokens || 40000, // Erhöht von 30000
+      temperature: options.temperature ?? 0.1  // Reduziert von 0.2
+    };
+
+    const t0 = Date.now();
+
+    if (options.debug || process.env.LOG_PPLX_QUERIES === '1') {
+      console.log('[PPLX:REQUEST:SHORT]', {
+        model,
+        promptLen: prompt.length,
+        max_tokens: body.max_tokens,
+        temperature: body.temperature
+      });
+    }
+    if (options.debugVerbose || process.env.LOG_PPLX_VERBOSE === '1') {
+      console.log('[PPLX:REQUEST:FULL]', { model, body });
+    }
+
+    const res = await fetch(baseUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(body)
+    });
+    const dt = Date.now() - t0;
+
+    if (!res.ok) {
+      const txt = await res.text();
+      console.error('[PPLX:ERROR]', {
+        status: res.status,
+        dtMs: dt,
+        textFirst400: txt.slice(0, 400)
+      });
+      throw new Error(`Perplexity API error ${res.status}: ${txt}`);
+    }
+
+    const data = await res.json();
+
+    if (options.debug || process.env.LOG_PPLX_QUERIES === '1') {
+      console.log('[PPLX:RESPONSE:SHORT]', {
+        dtMs: dt,
+        hasChoices: !!data?.choices?.length,
+        contentLen: data?.choices?.[0]?.message?.content?.length ?? 0
+      });
+    }
+    if (options.debugVerbose || process.env.LOG_PPLX_VERBOSE === '1') {
+      console.log('[PPLX:RESPONSE:FULL]', { dtMs: dt, raw: data });
+    }
+
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content) throw new Error('No content returned from Perplexity');
+    return content;
+  }
+
+  function buildSystemPrompt(options: PerplexityOptions): string {
+    const enhancedInstructions = options.enhancedSearch ? `
+ENHANCED SEARCH INSTRUCTIONS:
+- Search multiple sources: official websites, ticketing platforms, social media, venue calendars
+- Include both mainstream and alternative/underground events
+- Look for community events, pop-ups, and temporary venues
+- Check university calendars, cultural centers, and local communities
+- Consider events in surrounding areas/districts of the city
+- Include events from different price ranges (free, budget, premium)
+- Diversify venue types: clubs, theaters, galleries, outdoor spaces, private venues
+- Search in multiple languages if applicable
+` : '';
+
+    return `You are an advanced event search specialist with access to real-time web data. 
+${enhancedInstructions}
+
+Your task is to find ALL available events, prioritizing completeness and diversity.
+
+SEARCH STRATEGY:
+1. Official city/tourism websites and event calendars
+2. Major ticketing platforms (Eventbrite, local ticket vendors)
+3. Venue websites and social media pages
+4. Community groups and local Facebook pages
+5. Cultural institutions and universities
+6. Alternative and underground event sources
+
+CONTENT REQUIREMENTS:
+Return as many different real events as possible, spanning multiple:
+- Venues (mix of well-known and lesser-known locations)
+- Price levels (free events to premium experiences)  
+- Event types within each category
+- Neighborhoods/districts within the city
+
+Allowed main categories:
+${buildCategoryListForPrompt()}
+
+REQUIRED FIELDS:
+title, category, date, time, venue, price, website, endTime, address, ticketPrice, eventType, description, bookingLink, ageRestrictions
+
+STRICT RULES:
+- "category" must be EXACTLY one of: ${allowedCategoriesForSchema()}
+- Provide real, verifiable events only
+- Include specific venue names and addresses when possible
+- Add booking/ticket links when available
+- If price unknown: use empty string, not "varies" or "TBD"
+- Ensure geographical accuracy - events must be in or near the specified city
+- Diversify subcategories within main categories
+- Return ONLY the JSON array (No explanatory text outside the JSON structure)
+
+QUALITY STANDARDS:
+- Minimum 5-15 events per category when available
+- Balance between popular and niche events
+- Include both recurring and one-time events
+- Verify event dates match the requested date`;
+  }
+
+  function buildGeneralPrompt(city: string, date: string): string {
+    return `Search for ALL available events happening in and around ${city} on ${date}.
+
+COMPREHENSIVE SEARCH TARGETS:
+- Official city event calendars and tourism sites
+- Major venues: theaters, concert halls, clubs, galleries, sports venues
+- Ticketing platforms and event aggregators
+- Cultural institutions: museums, universities, community centers
+- Social media events and community groups
+- Pop-up events and alternative venues
+- Surrounding districts and nearby areas
+
+Include events from ALL categories and price ranges.
+Prioritize event diversity and completeness.
+
+Return ONLY the JSON array (No explanatory text outside the JSON structure).
+Include as many different real events as possible.`;
+  }
+
+  function buildCategoryPrompt(
+    city: string,
+    date: string,
+    mainCategory: string,
+    options: PerplexityOptions
+  ): string {
+    const expanded = options.expandedSubcategories !== false;
+    const enhancedSearch = options.enhancedSearch === true;
+    const diversityBoost = options.diversityBoost === true;
+
+    const categoryContext = expanded
+      ? buildExpandedCategoryContext(mainCategory)
+      : `Main Category: ${mainCategory}\n(Subcategory expansion disabled)`;
+
+    const enhancedInstructions = enhancedSearch ? `
+ENHANCED SEARCH STRATEGY for ${mainCategory}:
+- Search venue-specific websites and social media
+- Check local Facebook groups and community pages  
+- Look for both established and pop-up venues
+- Include events in surrounding neighborhoods
+- Search in local language + English
+- Check university and cultural center calendars
+- Look for both ticketed and free events
+- Include recurring weekly/monthly events on this date
+` : '';
+
+    const diversityInstructions = diversityBoost ? `
+DIVERSITY REQUIREMENTS:
+- Find events across different price ranges (€0 to €100+)
+- Include various venue sizes (intimate to large-scale)
+- Mix of well-known and hidden gem locations
+- Different subcategories within ${mainCategory}
+- Events for different age groups and audiences
+- Both early and late events if applicable
+` : '';
+
+    const fallbackStrategy = options.fallbackEnabled ? `
+FALLBACK STRATEGY:
+If few events found for exact date, also search:
+- Events starting/ending on adjacent dates in ${city}
+- Regular weekly events that occur on this day
+- Multi-day events that include ${date}
+- Similar events in nearby cities/districts
+` : '';
+
+    return `${categoryContext}
+${enhancedInstructions}
+${diversityInstructions}
+${fallbackStrategy}
+
+SPECIFIC SEARCH TASK:
+Find a comprehensive list of ALL real events in and around ${city} on ${date} for category: ${mainCategory}
+
+SEARCH TARGETS:
+1. Official venue websites and calendars for ${mainCategory}
+2. Local ticketing platforms and event listings
+3. Social media event pages and community groups
+4. Cultural institutions and specialized venues
+5. Alternative and underground event sources
+6. Local newspapers and event magazines
+
+QUALITY TARGETS:
+- Minimum 8-20 events if available in this category
+- Include both popular and niche events
+- Provide complete venue addresses when possible
+- Add direct booking/ticket links
+- Ensure price accuracy (use empty string if unknown)
+
+OUTPUT FORMAT:
+Return ONLY a valid JSON array of events (No explanatory text outside the JSON structure).
+Each event must have category exactly as: "${mainCategory}"
+
+Example structure:
+{"title":"Event Name","category":"${mainCategory}","date":"${date}","time":"20:00","venue":"Venue Name","address":"Full Address","price":"15 EUR","website":"https://...","bookingLink":"https://...","description":"Event details"}`;
+  }
+
+  async function executeMultiQuery(
+    city: string,
+    date: string,
+    categories: string[],
+    options: PerplexityOptions = {}
+  ): Promise<PerplexityResult[]> {
+    let effectiveCategories: string[];
+
+    if (options.forceAllCategories) {
+      effectiveCategories = EVENT_CATEGORIES;
     } else {
-      await ensureDataDir();
-      const data = await fs.readFile(HOT_CITIES_FILE, 'utf-8');
-      const cities = JSON.parse(data) as HotCity[];
-      // Convert date strings back to Date objects
-      return cities.map(city => ({
-        ...city,
-        createdAt: new Date(city.createdAt),
-        updatedAt: new Date(city.updatedAt)
-      }));
+      effectiveCategories = mapToMainCategories(categories);
     }
-  } catch (error) {
-    console.log('No hot cities data found, returning empty array');
+
+    if (effectiveCategories.length === 0) {
+      const prompt = buildGeneralPrompt(city, date);
+      if (options.debug || process.env.LOG_PPLX_QUERIES === '1') {
+        console.log('[PPLX:GENERAL]', { city, date, promptLen: prompt.length });
+      }
+      const response = await call(prompt, options);
+      return [{
+        query: prompt,
+        response,
+        events: [],
+        timestamp: Date.now()
+      }];
+    }
+
+    const results: PerplexityResult[] = [];
+    const cc = Math.max(1, options.categoryConcurrency ?? 5); // Erhöht von 3 auf 5
+
+    console.log(`[ENHANCED-PPLX] Starting search with concurrency ${cc} for ${effectiveCategories.length} categories`);
+
+    // Sequential path
+    if (cc === 1) {
+      for (const cat of effectiveCategories) {
+        const prompt = buildCategoryPrompt(city, date, cat, options);
+        if (options.debug || process.env.LOG_PPLX_QUERIES === '1') {
+          console.log(`[PPLX:QUERY][${cat}] len=${prompt.length}`);
+        }
+        
+        let response: string;
+        let attempts = 0;
+        const maxAttempts = options.fallbackEnabled ? 2 : 1;
+        
+        while (attempts < maxAttempts) {
+          try {
+            response = await call(prompt, { ...options, temperature: options.temperature ?? (0.1 + attempts * 0.1) });
+            break;
+          } catch (error) {
+            attempts++;
+            if (attempts >= maxAttempts) throw error;
+            console.log(`[PPLX:RETRY][${cat}] Attempt ${attempts + 1}/${maxAttempts}`);
+            await new Promise(resolve => setTimeout(resolve, 1000 * attempts)); // Exponential backoff
+          }
+        }
+        
+        results.push({
+          query: prompt,
+          response: response!,
+          events: [],
+          timestamp: Date.now()
+        });
+      }
+      return results;
+    }
+
+    // Parallel worker pool with enhanced error handling
+    let idx = 0;
+    const errors: any[] = [];
+    
+    async function worker() {
+      while (idx < effectiveCategories.length) {
+        const my = idx++;
+        const cat = effectiveCategories[my];
+        if (!cat) break;
+        
+        try {
+          const prompt = buildCategoryPrompt(city, date, cat, options);
+          if (options.debug || process.env.LOG_PPLX_QUERIES === '1') {
+            console.log(`[PPLX:QUERY][${cat}] len=${prompt.length}`);
+          }
+          
+          let response: string;
+          let attempts = 0;
+          const maxAttempts = options.fallbackEnabled ? 2 : 1;
+          
+          while (attempts < maxAttempts) {
+            try {
+              response = await call(prompt, { ...options, temperature: options.temperature ?? (0.1 + attempts * 0.1) });
+              break;
+            } catch (error) {
+              attempts++;
+              if (attempts >= maxAttempts) throw error;
+              console.log(`[PPLX:RETRY][${cat}] Attempt ${attempts + 1}/${maxAttempts}`);
+              await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+            }
+          }
+          
+          results.push({
+            query: prompt,
+            response: response!,
+            events: [],
+            timestamp: Date.now()
+          });
+          
+          console.log(`[PPLX:SUCCESS][${cat}] Completed successfully`);
+          
+        } catch (error) {
+          console.error(`[PPLX:ERROR][${cat}]`, error);
+          errors.push({ category: cat, error });
+          
+          // Continue with other categories even if one fails
+          if (options.fallbackEnabled) {
+            results.push({
+              query: `Fallback search for ${cat} in ${city} on ${date}`,
+              response: '[]', // Empty result for failed category
+              events: [],
+              timestamp: Date.now()
+            });
+          }
+        }
+      }
+    }
+
+    await Promise.all(Array.from({ length: cc }).map(() => worker()));
+    
+    if (errors.length > 0 && options.debug) {
+      console.log(`[PPLX:ERRORS] ${errors.length} categories failed:`, errors);
+    }
+    
+    console.log(`[ENHANCED-PPLX] Completed ${results.length} queries with ${errors.length} errors`);
+    return results;
   }
-  return [];
-}
 
-// Save hot cities to Redis or file
-export async function saveHotCities(cities: HotCity[]): Promise<void> {
-  if (redis) {
-    await redis.set(REDIS_KEY, cities);
-  } else {
-    await ensureDataDir();
-    await fs.writeFile(HOT_CITIES_FILE, JSON.stringify(cities, null, 2));
-  }
-}
-
-// Get a specific hot city by name (case-insensitive)
-export async function getHotCity(cityName: string): Promise<HotCity | null> {
-  const cities = await loadHotCities();
-  return cities.find(city => 
-    city.name.toLowerCase() === cityName.toLowerCase() && city.isActive
-  ) || null;
-}
-
-// Get a specific hot city by slug
-export async function getHotCityBySlug(slug: string): Promise<HotCity | null> {
-  const cities = await loadHotCities();
-  return cities.find(city => 
-    slugify(city.name) === slug
-  ) || null;
-}
-
-// Get all active hot cities
-export async function getActiveHotCities(): Promise<HotCity[]> {
-  const cities = await loadHotCities();
-  return cities.filter(city => city.isActive);
-}
-
-// Add or update a hot city
-export async function saveHotCity(city: HotCity): Promise<void> {
-  const cities = await loadHotCities();
-  const existingIndex = cities.findIndex(c => c.id === city.id);
-  
-  if (existingIndex >= 0) {
-    cities[existingIndex] = { ...city, updatedAt: new Date() };
-  } else {
-    cities.push({ ...city, createdAt: new Date(), updatedAt: new Date() });
-  }
-  
-  await saveHotCities(cities);
-}
-
-// Delete a hot city
-export async function deleteHotCity(cityId: string): Promise<boolean> {
-  const cities = await loadHotCities();
-  const filteredCities = cities.filter(c => c.id !== cityId);
-  
-  if (filteredCities.length < cities.length) {
-    await saveHotCities(filteredCities);
-    return true;
-  }
-  
-  return false;
-}
-
-/**
- * Filters out blacklisted URLs from a city's websites
- */
-function filterBlacklistedWebsites(city: HotCity): HotCity {
   return {
-    ...city,
-    websites: city.websites.filter(website => !isUrlBlacklisted(website.url))
+    executeMultiQuery
   };
 }
 
-/**
- * Filters out blacklisted URLs from all cities' websites
- */
-export function filterBlacklistedUrls(cities: HotCity[]): HotCity[] {
-  return cities.map(filterBlacklistedWebsites);
-}
-
-// Get websites for a specific city and categories
-export async function getCityWebsitesForCategories(
-  cityName: string, 
-  categories: string[]
-): Promise<HotCityWebsite[]> {
-  const city = await getHotCity(cityName);
-  if (!city) return [];
-  
-  return city.websites
-    .filter(website => 
-      website.isActive && 
-      !isUrlBlacklisted(website.url) && // Filter out blacklisted URLs
-      (website.categories.length === 0 || // Empty categories means it covers all
-       website.categories.some(cat => categories.includes(cat)))
-    )
-    .sort((a, b) => b.priority - a.priority); // Higher priority first
-}
-
-// Erweiterte Hot Cities Konfiguration für Wien
-export interface HotCityWebsiteOptimized {
-  id?: string;
-  name: string;
-  url: string;
-  categories: string[];
-  priority: number;
-  isActive: boolean;
-  searchQuery?: string;
-  description?: string;
-  sourceType: 'official' | 'ticketing' | 'social' | 'community' | 'news' | 'venue' | 'aggregator';
-  updateFrequency?: 'daily' | 'weekly' | 'realtime';
-  language?: 'de' | 'en' | 'both';
-}
-
-export interface OptimizedHotCity {
-  id: string;
-  name: string;
-  websites: HotCityWebsiteOptimized[];
-  searchStrategies: string[];
-  localTerms: string[];
-  majorVenues: string[];
-  communityGroups: string[];
-  lastUpdated: string;
-}
-
-// Erweiterte Wien-Konfiguration
-export const WIEN_OPTIMIZED_CONFIG: OptimizedHotCity = {
-  id: 'wien',
-  name: 'Wien',
-  websites: [
-    // Offizielle Stadt-Quellen
-    {
-      name: 'Stadt Wien Events',
-      url: 'https://www.wien.gv.at/vadb/internet/AdvPrSrv.asp',
-      categories: ['Kultur/Traditionen', 'Open Air', 'Museen', 'Theater/Performance'],
-      priority: 10,
-      isActive: true,
-      sourceType: 'official',
-      description: 'Offizielle Veranstaltungsdatenbank der Stadt Wien',
-      updateFrequency: 'daily'
-    },
-    {
-      name: 'Wien.info Events',
-      url: 'https://www.wien.info/de/sightseeing/events-wien',
-      categories: ['Live-Konzerte', 'Theater/Performance', 'Museen', 'Open Air'],
-      priority: 9,
-      isActive: true,
-      sourceType: 'official',
-      description: 'Wiener Tourismus-Events'
-    },
-    
-    // Ticketing-Plattformen
-    {
-      name: 'oeticket Events Wien',
-      url: 'https://www.oeticket.com',
-      categories: ['Live-Konzerte', 'Theater/Performance', 'Comedy/Kabarett', 'Sport'],
-      priority: 8,
-      isActive: true,
-      sourceType: 'ticketing',
-      searchQuery: 'Wien events tickets',
-      description: 'Österreichs größte Ticketing-Plattform'
-    },
-    
-    // Kultur-Institutionen
-    {
-      name: 'Wiener Staatsoper',
-      url: 'https://www.wiener-staatsoper.at/spielplan/',
-      categories: ['Theater/Performance', 'Live-Konzerte'],
-      priority: 9,
-      isActive: true,
-      sourceType: 'venue',
-      description: 'Spielplan der Wiener Staatsoper'
-    },
-    {
-      name: 'Burgtheater Wien',
-      url: 'https://www.burgtheater.at/spielplan',
-      categories: ['Theater/Performance'],
-      priority: 9,
-      isActive: true,
-      sourceType: 'venue',
-      description: 'Burgtheater Spielplan'
-    },
-    {
-      name: 'Volkstheater Wien',
-      url: 'https://www.volkstheater.at/spielplan',
-      categories: ['Theater/Performance'],
-      priority: 8,
-      isActive: true,
-      sourceType: 'venue'
-    },
-    
-    // Museen
-    {
-      name: 'Belvedere Museum',
-      url: 'https://www.belvedere.at/veranstaltungen',
-      categories: ['Museen', 'Kunst/Design'],
-      priority: 8,
-      isActive: true,
-      sourceType: 'venue'
-    },
-    {
-      name: 'Albertina Museum',
-      url: 'https://www.albertina.at/veranstaltungen',
-      categories: ['Museen', 'Kunst/Design'],
-      priority: 8,
-      isActive: true,
-      sourceType: 'venue'
-    },
-    {
-      name: 'Leopold Museum',
-      url: 'https://www.leopoldmuseum.org/de/veranstaltungen',
-      categories: ['Museen', 'Kunst/Design'],
-      priority: 7,
-      isActive: true,
-      sourceType: 'venue'
-    },
-    
-    // Musik-Venues
-    {
-      name: 'Wiener Konzerthaus',
-      url: 'https://konzerthaus.at/kalender',
-      categories: ['Live-Konzerte', 'Theater/Performance'],
-      priority: 9,
-      isActive: true,
-      sourceType: 'venue'
-    },
-    {
-      name: 'Musikverein Wien',
-      url: 'https://www.musikverein.at/konzerte',
-      categories: ['Live-Konzerte'],
-      priority: 9,
-      isActive: true,
-      sourceType: 'venue'
-    },
-    {
-      name: 'Arena Wien',
-      url: 'https://arena.wien/programm',
-      categories: ['Live-Konzerte', 'DJ Sets/Electronic', 'Clubs/Discos'],
-      priority: 8,
-      isActive: true,
-      sourceType: 'venue'
-    },
-    {
-      name: 'Flex Wien',
-      url: 'https://flex.at/events',
-      categories: ['DJ Sets/Electronic', 'Live-Konzerte', 'Clubs/Discos'],
-      priority: 8,
-      isActive: true,
-      sourceType: 'venue'
-    },
-    {
-      name: 'Chelsea Wien',
-      url: 'https://chelsea.co.at/events',
-      categories: ['DJ Sets/Electronic', 'Live-Konzerte', 'Clubs/Discos'],
-      priority: 7,
-      isActive: true,
-      sourceType: 'venue'
-    },
-    {
-      name: 'Grelle Forelle',
-      url: 'https://www.grelle-forelle.com/events',
-      categories: ['DJ Sets/Electronic', 'Clubs/Discos'],
-      priority: 7,
-      isActive: true,
-      sourceType: 'venue'
-    },
-    
-    // Event-Magazine und -Portale
-    {
-      name: 'Falter Event Guide',
-      url: 'https://www.falter.at/events',
-      categories: ['Live-Konzerte', 'Theater/Performance', 'Clubs/Discos', 'Kunst/Design', 'Film'],
-      priority: 8,
-      isActive: true,
-      sourceType: 'news',
-      description: 'Wiens wichtigstes Kulturmagazin'
-    },
-    {
-      name: 'Vienna Online Events',
-      url: 'https://www.vienna.at/events',
-      categories: ['Open Air', 'Live-Konzerte', 'Kultur/Traditionen'],
-      priority: 6,
-      isActive: true,
-      sourceType: 'news'
-    }
-  ],
-  
-  searchStrategies: [
-    'events wien heute',
-    'veranstaltungen wien',
-    'was läuft wien',
-    'vienna events today',
-    'wien programm',
-    'kulturprogramm wien',
-    'konzerte wien',
-    'theater wien',
-    'ausstellungen wien',
-    'party wien',
-    'clubs wien'
-  ],
-  
-  localTerms: [
-    'Veranstaltung', 'Programm', 'Aufführung', 'Konzert', 'Ausstellung',
-    'Vernissage', 'Premiere', 'Festival', 'Matinee', 'Soirée'
-  ],
-  
-  majorVenues: [
-    'Staatsoper', 'Burgtheater', 'Volkstheater', 'Konzerthaus', 'Musikverein',
-    'Arena', 'Flex', 'Chelsea', 'Grelle Forelle', 'Porgy & Bess',
-    'Belvedere', 'Albertina', 'Leopold Museum', 'Kunst Haus Wien',
-    'Stadthalle', 'Gasometer', 'Marx Halle', 'Prater'
-  ],
-  
-  communityGroups: [
-    'Wien Events Community',
-    'Vienna Expats Events',
-    'Wien Kultur Tipps',
-    'Vienna Nightlife',
-    'Students Vienna Events'
-  ],
-  
-  lastUpdated: '2025-09-28'
-};
-
-// Funktion zur Erweiterung der Hot Cities mit lokalen Quellen
-export function getEnhancedCityWebsitesForCategories(
-  city: string, 
-  categories: string[]
-): HotCityWebsiteOptimized[] {
-  // Für Wien verwenden wir die optimierte Konfiguration
-  if (city.toLowerCase().includes('wien') || city.toLowerCase().includes('vienna')) {
-    return WIEN_OPTIMIZED_CONFIG.websites.filter(website => 
-      website.isActive && 
-      categories.some(cat => website.categories.includes(cat))
-    ).sort((a, b) => b.priority - a.priority);
-  }
-  
-  // Für andere Städte: Generische erweiterte Quellen
-  return getGenericCityWebsites(city, categories);
-}
-
-function getGenericCityWebsites(city: string, categories: string[]): HotCityWebsiteOptimized[] {
-  const genericSources: HotCityWebsiteOptimized[] = [
-    {
-      name: `Eventbrite ${city}`,
-      url: `https://www.eventbrite.com/d/germany--${city.toLowerCase()}/events/`,
-      categories: ['Networking/Business', 'Bildung/Lernen', 'Food/Culinary'],
-      priority: 8,
-      isActive: true,
-      sourceType: 'ticketing'
-    },
-    {
-      name: `Facebook Events ${city}`,
-      url: `https://www.facebook.com/events/search/?q=${city.toLowerCase()}%20events`,
-      categories: ['Soziales/Community', 'Open Air', 'Clubs/Discos'],
-      priority: 7,
-      isActive: true,
-      sourceType: 'social'
-    },
-    {
-      name: `Meetup ${city}`,
-      url: `https://www.meetup.com/cities/de/${city.toLowerCase()}/`,
-      categories: ['Networking/Business', 'Bildung/Lernen', 'Wellness/Spirituell'],
-      priority: 7,
-      isActive: true,
-      sourceType: 'community'
-    },
-    {
-      name: `${city} Tourism Events`,
-      url: `https://www.${city.toLowerCase()}-tourism.de/events`,
-      categories: ['Open Air', 'Kultur/Traditionen', 'Museen'],
-      priority: 6,
-      isActive: true,
-      sourceType: 'official'
-    }
-  ];
-  
-  return genericSources.filter(website => 
-    categories.some(cat => website.categories.includes(cat))
-  ).sort((a, b) => b.priority - a.priority);
-}
-
-// Erweiterte Suchstrategien für verschiedene Städte
-export function getCitySpecificSearchStrategies(city: string): string[] {
-  const cityStrategies: { [key: string]: string[] } = {
-    'wien': [
-      'events wien heute',
-      'veranstaltungen wien',
-      'was läuft wien',
-      'vienna events today',
-      'wien programm',
-      'kulturprogramm wien',
-      'konzerte wien heute',
-      'theater wien programm',
-      'ausstellungen wien',
-      'party wien heute',
-      'clubs wien events'
-    ],
-    'berlin': [
-      'events berlin heute',
-      'veranstaltungen berlin',
-      'was läuft berlin',
-      'berlin events today',
-      'berlin programm',
-      'kulturprogramm berlin',
-      'konzerte berlin heute',
-      'theater berlin',
-      'ausstellungen berlin',
-      'party berlin heute',
-      'clubs berlin events'
-    ],
-    'münchen': [
-      'events münchen heute',
-      'veranstaltungen münchen',
-      'was läuft münchen',
-      'munich events today',
-      'münchen programm',
-      'kulturprogramm münchen',
-      'konzerte münchen',
-      'theater münchen',
-      'ausstellungen münchen'
-    ]
-  };
-  
-  const cityKey = city.toLowerCase();
-  return cityStrategies[cityKey] || [
-    `events ${city} heute`,
-    `veranstaltungen ${city}`,
-    `was läuft ${city}`,
-    `${city} events today`,
-    `${city} programm`,
-    `kulturprogramm ${city}`
-  ];
-}
+// Export type for testing  
+export type PerplexityService = ReturnType<typeof createPerplexityService>;
