@@ -1,12 +1,10 @@
-/**
- * Wien.info Events Fetcher
- * - Fetches events directly from wien.info JSON API
- * - Filters by categories using API data filtering
- * - Returns normalized events for aggregation
- */
+// Lightweight Wien.info JSON API integration with debug info
+// - Uses official JSON endpoint (fast)
+// - Maps to our EventData
+// - Provides rich debug info for UI
 
-import { EventData } from '@/lib/types';
-import { getWienInfoF1IdsForCategories } from '@/event_mapping_wien_info';
+import type { EventData } from '@/lib/types';
+import { buildWienInfoUrl, getWienInfoF1IdsForCategories } from '@/event_mapping_wien_info';
 
 interface FetchWienInfoOptions {
   fromISO: string;          // YYYY-MM-DD
@@ -25,7 +23,7 @@ interface WienInfoResult {
     response: string;
     categories: string[];
     f1Ids: number[];
-    url: string;
+    url: string;                // JSON API endpoint (kept for tests)
     apiResponse?: any;
     filteredEvents?: number;
     parsedEvents?: number;
@@ -52,9 +50,6 @@ interface WienInfoEvent {
   tags: number[];
 }
 
-/**
- * Fetches events from wien.info based on categories and date range
- */
 export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<WienInfoResult> {
   const { fromISO, toISO, categories, limit = 100, debug = false, debugVerbose = false } = opts;
 
@@ -71,6 +66,8 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
 
     // Use the JSON API endpoint
     const apiUrl = 'https://www.wien.info/ajax/de/events';
+    // Build human-facing discovery URL (for UI visibility)
+    const discoveryUrl = buildWienInfoUrl(fromISO, toISO, f1Ids);
     
     // Create debug information
     const debugQuery = `Wien.info events search for categories: ${categories.join(', ')} from ${fromISO} to ${toISO}`;
@@ -80,7 +77,8 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
         apiUrl,
         categories,
         f1Ids,
-        dateRange: `${fromISO} to ${toISO}`
+        dateRange: `${fromISO} to ${toISO}`,
+        discoveryUrl
       });
     }
 
@@ -105,7 +103,8 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
         apiResponse = jsonData;
         apiEvents = jsonData.items || [];
         
-        debugResponse = `Successfully fetched ${apiEvents.length} events from wien.info JSON API`;
+        // Include the final assembled discovery URL in the response for UI
+        debugResponse = `Successfully fetched ${apiEvents.length} events from wien.info JSON API\nFull URL: ${discoveryUrl}`;
         
         if (debug) {
           console.log('[WIEN.INFO:API] Successfully fetched JSON, events count:', apiEvents.length);
@@ -114,15 +113,15 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
     } catch (apiError) {
+      const failMsg = `JSON API failed: ${apiError}. No results from Wien.info!\nFull URL: ${discoveryUrl}`;
       console.warn('[WIEN.INFO:API] Failed to fetch from wien.info JSON API:', apiError);
-      debugResponse = `JSON API failed: ${apiError}. No results from Wien.info!`;
       
       return { 
         events: [], 
         error: 'No results from Wien.info!',
         debugInfo: debug ? {
           query: debugQuery,
-          response: debugResponse,
+          response: failMsg,
           categories,
           f1Ids,
           url: apiUrl,
@@ -142,7 +141,7 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
     if (filteredEvents.length === 0) {
       console.log('[WIEN.INFO:FILTER] No events found after filtering');
       debugResponse += ' No events found after date/category filtering.';
-      
+
       return { 
         events: [], 
         error: 'No results from Wien.info!',
@@ -198,52 +197,40 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
     return { 
       events: [], 
       error: 'No results from Wien.info!',
-      debugInfo: debug ? {
-        query: `Wien.info fetch failed for ${categories.join(', ')}`,
-        response: `Error: ${error}. No results from Wien.info!`,
-        categories,
-        f1Ids: [],
-        url: 'https://www.wien.info/ajax/de/events',
-        parsedEvents: 0
-      } : undefined
+      debugInfo: undefined
     };
   }
 }
 
 /**
- * Filters Wien.info events by date range and category tags
+ * Filter API events by date range + category tags (F1)
  */
 function filterWienInfoEvents(events: WienInfoEvent[], fromISO: string, toISO: string, f1Ids: number[]): WienInfoEvent[] {
-  return events.filter(event => {
-    // Check if event matches any of our target categories by F1 IDs
-    const categoryMatches = event.tags.some(tag => f1Ids.includes(tag));
-    if (!categoryMatches) {
-      return false;
+  if (!Array.isArray(events) || events.length === 0) return [];
+
+  const from = new Date(fromISO);
+  const to = new Date(toISO);
+  to.setHours(23, 59, 59, 999);
+
+  return events.filter(ev => {
+    // Category tags intersection
+    const hasTag = Array.isArray(ev.tags) && ev.tags.some(t => f1Ids.includes(t));
+
+    // Date range check: prefer dates[], fallback to startDate/endDate
+    let occursInRange = false;
+
+    if (Array.isArray(ev.dates) && ev.dates.length > 0) {
+      occursInRange = ev.dates.some(d => {
+        const dt = new Date(d);
+        return dt >= from && dt <= to;
+      });
+    } else if (ev.startDate) {
+      const start = new Date(ev.startDate);
+      const end = ev.endDate ? new Date(ev.endDate) : new Date(ev.startDate);
+      occursInRange = (start <= to && end >= from);
     }
 
-    // Check if event falls within our date range
-    const eventDates = event.dates || [];
-    
-    // Also check startDate and endDate if available
-    if (event.startDate) {
-      eventDates.push(event.startDate);
-    }
-    if (event.endDate) {
-      eventDates.push(event.endDate);
-    }
-
-    // If no dates available, skip this event
-    if (eventDates.length === 0) {
-      return false;
-    }
-
-    // Check if any of the event dates fall within our range
-    const dateMatches = eventDates.some(date => {
-      const eventDate = date.split('T')[0]; // Extract YYYY-MM-DD part
-      return eventDate >= fromISO && eventDate <= toISO;
-    });
-
-    return dateMatches;
+    return hasTag && occursInRange;
   });
 }
 
@@ -284,6 +271,14 @@ function mapWienInfoCategory(wienInfoCategory: string): string {
     'führungen, spaziergänge & touren': 'Kultur/Traditionen',
     'culture': 'Kultur/Traditionen',
     'art': 'Kunst/Design'
+
+    // Ergänzungen für fehlende Kategorien:
+    'sport-events': 'Sport',
+    'sport': 'Sport',
+    'für kinder & familien': 'Kinder/Familie',
+    'kinder': 'Kinder/Familie',
+    'lgbtiq+': 'Diversität/LGBTQ',
+    'strauss-events': 'Klassik/Strauss'
   };
   
   const lower = wienInfoCategory.toLowerCase();
@@ -345,5 +340,5 @@ function normalizeWienInfoEvent(wienInfoEvent: WienInfoEvent, requestedCategorie
     city: 'Wien',
     description: wienInfoEvent.subtitle || '',
     address: wienInfoEvent.location || 'Wien, Austria'
-  };
+  } as unknown as EventData;
 }
