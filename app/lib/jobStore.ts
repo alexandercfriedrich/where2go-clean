@@ -1,5 +1,6 @@
 import { Redis } from '@upstash/redis';
 import { JobStatus, DebugInfo, DebugStep } from './types';
+import { RedisJSON, safeJSONStringify, safeJSONParse } from './redis-json';
 
 /**
  * JobStore abstraction for managing job state and debug information
@@ -29,6 +30,7 @@ export interface JobStore {
  */
 class RedisJobStore implements JobStore {
   private redis: Redis;
+  private redisJSON: RedisJSON;
   private jobKeyPrefix = 'job:';
   private debugKeyPrefix = 'debug:';
   private ttlSeconds = 2 * 60 * 60; // 2 hours
@@ -38,49 +40,26 @@ class RedisJobStore implements JobStore {
       url: restUrl,
       token: restToken,
     });
+    this.redisJSON = new RedisJSON(this.redis);
   }
 
   async setJob(jobId: string, job: JobStatus): Promise<void> {
     const key = this.jobKeyPrefix + jobId;
-    const serialized = JSON.stringify({
+    await this.redisJSON.setJSON(key, {
       ...job,
       createdAt: job.createdAt?.toISOString()
-    });
-    await this.redis.setex(key, this.ttlSeconds, serialized);
+    }, this.ttlSeconds);
   }
 
   async getJob(jobId: string): Promise<JobStatus | null> {
     const key = this.jobKeyPrefix + jobId;
-    const result = await this.redis.get(key);
+    const result = await this.redisJSON.getJSON<any>(key);
     if (!result) return null;
     
-    try {
-      // Handle the case where result is already an object (not a JSON string)
-      if (typeof result === 'object' && result !== null) {
-        return {
-          ...result as any,
-          createdAt: (result as any).createdAt ? new Date((result as any).createdAt) : undefined
-        };
-      }
-      
-      // Handle the case where result is a string
-      const resultStr = result as string;
-      
-      // Check for corrupted "[object Object]" strings
-      if (resultStr === '[object Object]' || resultStr.startsWith('[object Object]')) {
-        console.warn(`Corrupted job data for ${jobId}: ${resultStr}`);
-        return null;
-      }
-      
-      const parsed = JSON.parse(resultStr);
-      return {
-        ...parsed,
-        createdAt: parsed.createdAt ? new Date(parsed.createdAt) : undefined
-      };
-    } catch (error) {
-      console.error(`Failed to parse job data for ${jobId}:`, error, 'Raw result:', result);
-      return null;
-    }
+    return {
+      ...result,
+      createdAt: result.createdAt ? new Date(result.createdAt) : undefined
+    };
   }
 
   async updateJob(jobId: string, updates: Partial<JobStatus>): Promise<void> {
@@ -135,45 +114,21 @@ class RedisJobStore implements JobStore {
 
   async setDebugInfo(jobId: string, debugInfo: DebugInfo): Promise<void> {
     const key = this.debugKeyPrefix + jobId;
-    const serialized = JSON.stringify({
+    await this.redisJSON.setJSON(key, {
       ...debugInfo,
       createdAt: debugInfo.createdAt.toISOString()
-    });
-    await this.redis.setex(key, this.ttlSeconds, serialized);
+    }, this.ttlSeconds);
   }
 
   async getDebugInfo(jobId: string): Promise<DebugInfo | null> {
     const key = this.debugKeyPrefix + jobId;
-    const result = await this.redis.get(key);
+    const result = await this.redisJSON.getJSON<any>(key);
     if (!result) return null;
     
-    try {
-      // Handle the case where result is already an object (not a JSON string)
-      if (typeof result === 'object' && result !== null) {
-        return {
-          ...result as any,
-          createdAt: new Date((result as any).createdAt)
-        };
-      }
-      
-      // Handle the case where result is a string
-      const resultStr = result as string;
-      
-      // Check for corrupted "[object Object]" strings
-      if (resultStr === '[object Object]' || resultStr.startsWith('[object Object]')) {
-        console.warn(`Corrupted debug data for ${jobId}: ${resultStr}`);
-        return null;
-      }
-      
-      const parsed = JSON.parse(resultStr);
-      return {
-        ...parsed,
-        createdAt: new Date(parsed.createdAt)
-      };
-    } catch (error) {
-      console.error(`Failed to parse debug data for ${jobId}:`, error, 'Raw result:', result);
-      return null;
-    }
+    return {
+      ...result,
+      createdAt: new Date(result.createdAt)
+    };
   }
 
   async pushDebugStep(jobId: string, step: DebugStep): Promise<void> {

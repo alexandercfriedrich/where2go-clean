@@ -1,9 +1,11 @@
-// Simple in-memory cache with TTL
-// Phase 2A: Kategorie-Normalisierung via eventCategories (Single Source of Truth)
+// Cache implementation with Redis support and proper JSON serialization
+// Replaces in-memory cache with Redis-backed implementation to fix parsing issues
 
 import { CacheEntry } from './types';
 import { normalizeCategory as canonicalCategory } from './eventCategories';
+import { getEventsCache, RedisCache } from './redis-cache';
 
+// Legacy InMemoryCache class for backward compatibility and testing
 class InMemoryCache {
   private cache = new Map<string, CacheEntry<any>>();
 
@@ -101,10 +103,101 @@ class InMemoryCache {
   }
 }
 
-export const eventsCache = new InMemoryCache();
+// Use the new Redis-backed cache implementation
+export const eventsCache = getEventsCache();
 
-setInterval(() => {
-  eventsCache.cleanup();
-}, 10 * 60 * 1000);
+// Legacy synchronous wrapper for backward compatibility
+class LegacyCacheWrapper {
+  private asyncCache = eventsCache;
 
-export default InMemoryCache;
+  // Note: These methods are kept for backward compatibility but will log warnings
+  // as they convert async operations to sync, which is not ideal
+  
+  set<T>(key: string, value: T, ttlSeconds: number = 300): void {
+    console.warn('Using deprecated synchronous cache.set(). Please migrate to async eventsCache.');
+    this.asyncCache.set(key, value, ttlSeconds).catch(error => {
+      console.error('Cache set error:', error);
+    });
+  }
+
+  get<T>(key: string): T | null {
+    console.warn('Using deprecated synchronous cache.get(). Please migrate to async eventsCache.');
+    // This is problematic as we can't await in sync context
+    // Return null and log error
+    console.error('Synchronous cache.get() is not supported with Redis. Use async eventsCache.get()');
+    return null;
+  }
+
+  has(key: string): boolean {
+    console.warn('Using deprecated synchronous cache.has(). Please migrate to async eventsCache.');
+    return false;
+  }
+
+  delete(key: string): boolean {
+    console.warn('Using deprecated synchronous cache.delete(). Please migrate to async eventsCache.');
+    this.asyncCache.delete(key).catch(error => {
+      console.error('Cache delete error:', error);
+    });
+    return true;
+  }
+
+  cleanup(): void {
+    this.asyncCache.cleanup().catch(error => {
+      console.error('Cache cleanup error:', error);
+    });
+  }
+
+  size(): number {
+    console.warn('Using deprecated synchronous cache.size(). Please migrate to async eventsCache.');
+    return 0;
+  }
+
+  clear(): void {
+    console.warn('Using deprecated synchronous cache.clear(). Please migrate to async eventsCache.');
+    this.asyncCache.clear().catch(error => {
+      console.error('Cache clear error:', error);
+    });
+  }
+
+  static createKey(city: string, date: string, categories?: string[]): string {
+    return RedisCache.createKey(city, date, categories);
+  }
+
+  static createKeyForCategory(city: string, date: string, category: string): string {
+    return RedisCache.createKeyForCategory(city, date, category);
+  }
+
+  static normalizeCategory(category: string): string {
+    return RedisCache.normalizeCategory(category);
+  }
+
+  getEventsByCategories(city: string, date: string, categories: string[]): {
+    cachedEvents: { [category: string]: any[] };
+    missingCategories: string[];
+    cacheInfo: { [category: string]: { fromCache: boolean; eventCount: number } };
+  } {
+    console.warn('Using deprecated synchronous getEventsByCategories(). Please migrate to async eventsCache.');
+    // Return empty result for sync compatibility
+    const cacheInfo: { [category: string]: { fromCache: boolean; eventCount: number } } = {};
+    categories.forEach(category => {
+      cacheInfo[category] = { fromCache: false, eventCount: 0 };
+    });
+    
+    return {
+      cachedEvents: {},
+      missingCategories: categories,
+      cacheInfo
+    };
+  }
+
+  setEventsByCategory(city: string, date: string, category: string, events: any[], ttlSeconds: number = 300): void {
+    console.warn('Using deprecated synchronous setEventsByCategory(). Please migrate to async eventsCache.');
+    this.asyncCache.setEventsByCategory(city, date, category, events, ttlSeconds).catch(error => {
+      console.error('Cache setEventsByCategory error:', error);
+    });
+  }
+}
+
+// For backward compatibility, export the legacy wrapper as default
+// but log warnings when used
+export default LegacyCacheWrapper;

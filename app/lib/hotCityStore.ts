@@ -3,6 +3,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { Redis } from '@upstash/redis';
 import { HotCity, HotCityWebsite } from './types';
+import { RedisJSON } from './redis-json';
 
 // Blacklisted URLs that should never appear in Hot Cities (Wien.gv.at VADB/Events sources)
 const BLACKLISTED_URLS = [
@@ -76,6 +77,8 @@ const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_RE
     })
   : null;
 
+const redisJSON = redis ? new RedisJSON(redis) : null;
+
 console.log(redis ? 'Using Redis for Hot Cities storage' : 'Using file-based storage for Hot Cities');
 
 // Ensure data directory exists
@@ -90,8 +93,8 @@ async function ensureDataDir(): Promise<void> {
 // Load hot cities from Redis or file
 export async function loadHotCities(): Promise<HotCity[]> {
   try {
-    if (redis) {
-      const data = await redis.get<HotCity[]>(REDIS_KEY);
+    if (redisJSON) {
+      const data = await redisJSON.getJSON<HotCity[]>(REDIS_KEY);
       if (data) {
         // Convert date strings back to Date objects
         return data.map(city => ({
@@ -119,8 +122,8 @@ export async function loadHotCities(): Promise<HotCity[]> {
 
 // Save hot cities to Redis or file
 export async function saveHotCities(cities: HotCity[]): Promise<void> {
-  if (redis) {
-    await redis.set(REDIS_KEY, cities);
+  if (redisJSON) {
+    await redisJSON.setJSON(REDIS_KEY, cities);
   } else {
     await ensureDataDir();
     await fs.writeFile(HOT_CITIES_FILE, JSON.stringify(cities, null, 2));

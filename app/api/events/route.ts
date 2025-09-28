@@ -233,7 +233,7 @@ export async function POST(request: NextRequest) {
     let cacheInfo: { [category: string]: { fromCache: boolean; eventCount: number } } = {};
 
     if (!disableCache) {
-      const cacheResult = eventsCache.getEventsByCategories(city, date, effectiveCategories);
+      const cacheResult = await eventsCache.getEventsByCategories(city, date, effectiveCategories);
       const cachedEventsList: EventData[] = [];
       for (const category in cacheResult.cachedEvents) {
         cachedEventsList.push(...cacheResult.cachedEvents[category]);
