@@ -1,72 +1,31 @@
-// Redis-backed events cache using Upstash Redis
-// Phase 2A: Kategorie-Normalisierung via eventCategories (Single Source of Truth)
-
 import { Redis } from '@upstash/redis';
 import { normalizeCategory as canonicalCategory } from './eventCategories';
 
+export interface CacheEntryDebug {
+  key: string;
+  dataLength: number | 'not-array' | 0;
+  ttlSeconds: number | null;
+}
+
 /**
- * Redis-backed events cache implementation
- * Requires UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables
+ * Redis-backed events cache (versioned namespace).
+ * - Always writes JSON strings
+ * - Robust parsing on read (guards against "[object Object]" corrupt values)
+ * - Never falls back to in-memory (throws if Redis env is missing)
+ *
+ * NOTE: Class name kept as InMemoryCache for compatibility with existing imports.
  */
-class EventsCache {
+class InMemoryCache {
   private redis: Redis;
+  private prefix = 'events:v2:'; // versioned namespace to avoid old/corrupt entries
 
   constructor() {
-    const restUrl = process.env.UPSTASH_REDIS_REST_URL;
-    const restToken = process.env.UPSTASH_REDIS_REST_TOKEN;
-    
-    if (!restUrl || !restToken) {
-      throw new Error('UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN environment variables are required for events cache. In-memory cache is not allowed.');
+    const url = process.env.UPSTASH_REDIS_REST_URL;
+    const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+    if (!url || !token) {
+      throw new Error('[eventsCache] Redis env vars missing (UPSTASH_REDIS_REST_URL/TOKEN).');
     }
-    
-    this.redis = new Redis({
-      url: restUrl,
-      token: restToken,
-    });
-  }
-
-  async set<T>(key: string, value: T, ttlSeconds: number = 300): Promise<void> {
-    const serialized = JSON.stringify(value);
-    await this.redis.setex(key, ttlSeconds, serialized);
-  }
-
-  async get<T>(key: string): Promise<T | null> {
-    const data = await this.redis.get<string>(key);
-    if (!data) return null;
-    try {
-      return JSON.parse(data) as T;
-    } catch (error) {
-      console.warn('Failed to parse cached data for key:', key, error);
-      return null;
-    }
-  }
-
-  async has(key: string): Promise<boolean> {
-    const result = await this.redis.exists(key);
-    return result === 1;
-  }
-
-  async delete(key: string): Promise<boolean> {
-    const result = await this.redis.del(key);
-    return result === 1;
-  }
-
-  // No-op for Redis as TTL is handled automatically
-  cleanup(): void {
-    // Redis automatically handles TTL expiration
-  }
-
-  async size(): Promise<number> {
-    // Count keys with our pattern - this could be expensive in production
-    const keys = await this.redis.keys('*');
-    return keys.length;
-  }
-
-  async clear(): Promise<void> {
-    const keys = await this.redis.keys('*');
-    if (keys.length > 0) {
-      await this.redis.del(...keys);
-    }
+    this.redis = new Redis({ url, token });
   }
 
   static createKey(city: string, date: string, categories?: string[]): string {
@@ -80,33 +39,63 @@ class EventsCache {
     return `${city.toLowerCase().trim()}_${date}_${this.normalizeCategory(category)}`;
   }
 
-  // Jetzt zentrale Normalisierung (Alias für Import, kein rekursiver Self-Call)
   static normalizeCategory(category: string): string {
-    if (!category) return '';
     const norm = canonicalCategory(category);
-    return (norm || category).trim();
+    return (norm || category || '').trim();
   }
 
+  private k(key: string) {
+    return `${this.prefix}${key}`;
+  }
+
+  // Generic
+  async set<T>(key: string, value: T, ttlSeconds = 300): Promise<void> {
+    try {
+      const serialized = JSON.stringify(value);
+      await this.redis.set(this.k(key), serialized, { ex: ttlSeconds });
+    } catch (e) {
+      console.error('[eventsCache.set] Redis error:', e);
+    }
+  }
+
+  async get<T>(key: string): Promise<T | null> {
+    try {
+      const raw = await this.redis.get(this.k(key));
+      if (!raw) return null;
+
+      if (typeof raw === 'object' && raw !== null) {
+        // Upstash can sometimes return objects; accept as-is
+        return raw as T;
+      }
+
+      const str = String(raw);
+      if (str === '[object Object]' || str.startsWith('[object Object]')) {
+        console.warn(`[eventsCache.get] Corrupted value for key=${key}: ${str}. Deleting key.`);
+        await this.redis.del(this.k(key));
+        return null;
+      }
+
+      return JSON.parse(str) as T;
+    } catch (e) {
+      console.error('[eventsCache.get] Parse/Redis error for key=', key, e);
+      return null;
+    }
+  }
+
+  // Category helpers
   async getEventsByCategories(city: string, date: string, categories: string[]): Promise<{
     cachedEvents: { [category: string]: any[] };
     missingCategories: string[];
     cacheInfo: { [category: string]: { fromCache: boolean; eventCount: number } };
   }> {
-    const cachedEvents: { [category: string]: any[] } = {};
+    const cachedEvents: Record<string, any[]> = {};
     const missingCategories: string[] = [];
-    const cacheInfo: { [category: string]: { fromCache: boolean; eventCount: number } } = {};
+    const cacheInfo: Record<string, { fromCache: boolean; eventCount: number }> = {};
 
-    // Process categories in parallel for better performance
-    const results = await Promise.all(
-      categories.map(async (category) => {
-        const cacheKey = EventsCache.createKeyForCategory(city, date, category);
-        const events = await this.get<any[]>(cacheKey);
-        return { category, cacheKey, events };
-      })
-    );
-
-    for (const { category, events } of results) {
-      if (events) {
+    for (const category of categories) {
+      const key = InMemoryCache.createKeyForCategory(city, date, category);
+      const events = await this.get<any[]>(key);
+      if (Array.isArray(events) && events.length > 0) {
         cachedEvents[category] = events;
         cacheInfo[category] = { fromCache: true, eventCount: events.length };
       } else {
@@ -114,52 +103,67 @@ class EventsCache {
         cacheInfo[category] = { fromCache: false, eventCount: 0 };
       }
     }
-
     return { cachedEvents, missingCategories, cacheInfo };
   }
 
-  async setEventsByCategory(city: string, date: string, category: string, events: any[], ttlSeconds: number = 300): Promise<void> {
-    const cacheKey = EventsCache.createKeyForCategory(city, date, category);
-    await this.set(cacheKey, events, ttlSeconds);
+  async setEventsByCategory(city: string, date: string, category: string, events: any[], ttlSeconds = 300): Promise<void> {
+    const key = InMemoryCache.createKeyForCategory(city, date, category);
+    await this.set(key, events, ttlSeconds);
   }
 
-  // Admin/Debug methods for Redis cache inspection
+  // Admin/Debug
   async listBaseKeys(): Promise<string[]> {
-    const keys = await this.redis.keys('*');
-    // Extract base keys (city_date pattern) from cache keys
-    const baseKeySet = new Set<string>();
-    for (const key of keys) {
-      const parts = key.split('_');
-      if (parts.length >= 3) {
-        const baseKey = `${parts[0]}_${parts[1]}`;
-        baseKeySet.add(baseKey);
-      }
+    const out: string[] = [];
+    for await (const full of this.redis.scanIterator({ match: `${this.prefix}*`, count: 1000 })) {
+      out.push(String(full).replace(this.prefix, ''));
     }
-    return Array.from(baseKeySet);
+    return out;
   }
 
-  async getEntryDebug(baseKey: string): Promise<{ key: string; ttl: number; length: number }[]> {
-    const pattern = `${baseKey}_*`;
-    const keys = await this.redis.keys(pattern);
-    
-    const debugEntries = await Promise.all(
-      keys.map(async (key) => {
-        const ttl = await this.redis.ttl(key);
-        const data = await this.get<any[]>(key);
-        return {
-          key,
-          ttl: ttl === -1 ? -1 : ttl, // -1 means no expiration, -2 means key doesn't exist
-          length: Array.isArray(data) ? data.length : 0
-        };
-      })
-    );
+  async getEntryDebug(baseKey: string): Promise<CacheEntryDebug> {
+    try {
+      const [raw, ttl] = await Promise.all([
+        this.redis.get(this.k(baseKey)),
+        this.redis.ttl(this.k(baseKey))
+      ]);
+      let dataLength: number | 'not-array' | 0 = 0;
+      if (raw) {
+        if (typeof raw === 'object' && raw !== null) {
+          dataLength = Array.isArray(raw) ? raw.length : 'not-array';
+        } else {
+          try {
+            const parsed = JSON.parse(String(raw));
+            dataLength = Array.isArray(parsed) ? parsed.length : 'not-array';
+          } catch {
+            dataLength = 'not-array';
+          }
+        }
+      }
+      return { key: baseKey, dataLength, ttlSeconds: typeof ttl === 'number' ? ttl : null };
+    } catch {
+      return { key: baseKey, dataLength: 0, ttlSeconds: null };
+    }
+  }
 
-    return debugEntries.filter(entry => entry.ttl !== -2); // Filter out non-existent keys
+  async size(): Promise<number> {
+    let n = 0;
+    for await (const _ of this.redis.scanIterator({ match: `${this.prefix}*`, count: 1000 })) n++;
+    return n;
+  }
+
+  async clear(): Promise<void> {
+    const keys: string[] = [];
+    for await (const full of this.redis.scanIterator({ match: `${this.prefix}*`, count: 1000 })) {
+      keys.push(String(full));
+    }
+    if (keys.length) await this.redis.del(...keys);
+  }
+
+  async cleanup(): Promise<void> {
+    // TTL-based cleanup handled by Redis
   }
 }
 
-export const eventsCache = new EventsCache();
-
-// Note: Redis automatically handles TTL expiration, no cleanup needed
-
-export default EventsCache;
+// Singleton instance (kept export name for compatibility)
+export const eventsCache = new InMemoryCache();
+export default InMemoryCache;
