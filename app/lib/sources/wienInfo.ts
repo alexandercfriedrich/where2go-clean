@@ -272,34 +272,6 @@ function mapWienInfoCategory(wienInfoCategory: string): string {
     'culture': 'Kultur/Traditionen',
     'art': 'Kunst/Design'
 
-    // Ergänzungen für fehlende Kategorien / where2go:
-    'sport-events': 'Sport',
-    'sport': 'Sport',
-    'für kinder & familien': 'Familien/Kids',
-    'kinder': 'Familien/Kids',
-    'kids': 'Familien/Kids',
-    'lgbtiq+': 'LGBTQ+',
-    'lgbtq': 'LGBTQ+',
-    'strauss-events': 'Live-Konzerte',
-    'comedy': 'Comedy/Kabarett',
-    'kabarett': 'Comedy/Kabarett',
-    'bildung': 'Bildung/Lernen',
-    'lernen': 'Bildung/Lernen',
-    'networking': 'Networking/Business',
-    'business': 'Networking/Business',
-    'wellness': 'Wellness/Spirituell',
-    'spirituell': 'Wellness/Spirituell',
-    'sozial': 'Soziales/Community',
-    'community': 'Soziales/Community',
-    'markt': 'Märkte/Shopping',
-    'messen': 'Märkte/Shopping',
-    'shopping': 'Märkte/Shopping',
-    'food': 'Food/Culinary',
-    'kulinarik': 'Food/Culinary',
-    'natur': 'Natur/Outdoor',
-    'outdoor': 'Natur/Outdoor',
-    'sonstiges': 'Sonstiges/Other',
-    'other': 'Sonstiges/Other'
   };
   
   const lower = wienInfoCategory.toLowerCase();
