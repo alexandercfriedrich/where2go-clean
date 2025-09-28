@@ -66,7 +66,7 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
 
     // Use the JSON API endpoint
     const apiUrl = 'https://www.wien.info/ajax/de/events';
-    // Build human-facing discovery URL (for UI visibility)
+    // Build human-facing discovery URL (for dev logs only)
     const discoveryUrl = buildWienInfoUrl(fromISO, toISO, f1Ids);
     
     // Create debug information
@@ -103,8 +103,8 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
         apiResponse = jsonData;
         apiEvents = jsonData.items || [];
         
-        // Include the final assembled discovery URL in the response for UI
-        debugResponse = `Successfully fetched ${apiEvents.length} events from wien.info JSON API\nFull URL: ${discoveryUrl}`;
+        // Wichtig: In der UI die tatsächliche API-URL ausgeben (ajax/de/events)
+        debugResponse = `Successfully fetched ${apiEvents.length} events from wien.info JSON API\nAPI URL: ${apiUrl}`;
         
         if (debug) {
           console.log('[WIEN.INFO:API] Successfully fetched JSON, events count:', apiEvents.length);
@@ -113,7 +113,8 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
     } catch (apiError) {
-      const failMsg = `JSON API failed: ${apiError}. No results from Wien.info!\nFull URL: ${discoveryUrl}`;
+      // In der UI die API-URL zeigen (nicht die Discovery-URL)
+      const failMsg = `JSON API failed: ${apiError}. No results from Wien.info!\nAPI URL: ${apiUrl}`;
       console.warn('[WIEN.INFO:API] Failed to fetch from wien.info JSON API:', apiError);
       
       return { 
@@ -271,7 +272,6 @@ function mapWienInfoCategory(wienInfoCategory: string): string {
     'führungen, spaziergänge & touren': 'Kultur/Traditionen',
     'culture': 'Kultur/Traditionen',
     'art': 'Kunst/Design'
-
   };
   
   const lower = wienInfoCategory.toLowerCase();
