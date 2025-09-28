@@ -48,7 +48,7 @@ class InMemoryCache {
     return `${this.prefix}${key}`;
   }
 
-  // Generic
+  // Generic Redis ops with robust JSON handling
   async set<T>(key: string, value: T, ttlSeconds = 300): Promise<void> {
     try {
       const serialized = JSON.stringify(value);
@@ -64,7 +64,7 @@ class InMemoryCache {
       if (!raw) return null;
 
       if (typeof raw === 'object' && raw !== null) {
-        // Upstash can sometimes return objects; accept as-is
+        // Upstash can sometimes return objects
         return raw as T;
       }
 
@@ -111,7 +111,7 @@ class InMemoryCache {
     await this.set(key, events, ttlSeconds);
   }
 
-  // Admin/Debug
+  // Admin/Debug helpers
   async listBaseKeys(): Promise<string[]> {
     const out: string[] = [];
     for await (const full of this.redis.scanIterator({ match: `${this.prefix}*`, count: 1000 })) {
@@ -164,6 +164,6 @@ class InMemoryCache {
   }
 }
 
-// Singleton instance (kept export name for compatibility)
+// Singleton instance
 export const eventsCache = new InMemoryCache();
 export default InMemoryCache;
