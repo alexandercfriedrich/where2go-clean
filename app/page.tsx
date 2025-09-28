@@ -393,6 +393,11 @@ async function progressiveSearchEvents() {
       throw new Error(data.error || `Serverfehler ${jobRes.status}`);
     }
     const data = await jobRes.json();
+    const initialEvents = Array.isArray(data.events) ? data.events : [];
+if (initialEvents.length) {
+  setEvents(prev => dedupMerge(prev, initialEvents));
+  if (data.cacheInfo) setCacheInfo(data.cacheInfo);
+}
 
     // Log successful response
     setDebugLogs(prev => ({
