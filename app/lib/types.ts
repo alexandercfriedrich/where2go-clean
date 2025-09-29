@@ -98,6 +98,19 @@ export interface DebugInfo {
   categories: string[];
   options: any;
   steps: DebugStep[];
+  wienInfoData?: {
+    query: string;
+    response: string;
+    categories: string[];
+    f1Ids: number[];
+    url: string;
+    apiResponse?: any;
+    filteredEvents?: number;
+    parsedEvents?: number;
+    rawCategoryCounts?: Record<string, number>;
+    mappedCategoryCounts?: Record<string, number>;
+    unknownRawCategories?: string[];
+  };
 }
 
 // Hot Cities: Website-Konfiguration

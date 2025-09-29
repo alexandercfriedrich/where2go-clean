@@ -75,6 +75,13 @@ export default function Home() {
     wienInfoData: Array<{
       timestamp: string;
       url: string;
+      query?: string;
+      response?: string;
+      parsedEvents?: number;
+      filteredEvents?: number;
+      rawCategoryCounts?: Record<string, number>;
+      mappedCategoryCounts?: Record<string, number>;
+      unknownRawCategories?: string[];
       scrapedContent?: string;
       events?: any[];
       error?: string;
@@ -481,14 +488,22 @@ async function fetchDebugInfo(jobId: string) {
 
       // Check for Wien.info specific data
       if (debugData.debug && debugData.debug.wienInfoData) {
+        const wienData = debugData.debug.wienInfoData;
         setDebugLogs(prev => ({
           ...prev,
           wienInfoData: [...prev.wienInfoData, {
             timestamp: new Date().toISOString(),
-            url: debugData.debug.wienInfoData.url || '',
-            scrapedContent: debugData.debug.wienInfoData.scrapedContent || '',
-            events: debugData.debug.wienInfoData.events || [],
-            error: debugData.debug.wienInfoData.error || ''
+            url: wienData.url || '',
+            query: wienData.query || '',
+            response: wienData.response || '',
+            parsedEvents: wienData.parsedEvents || 0,
+            filteredEvents: wienData.filteredEvents || 0,
+            rawCategoryCounts: wienData.rawCategoryCounts || {},
+            mappedCategoryCounts: wienData.mappedCategoryCounts || {},
+            unknownRawCategories: wienData.unknownRawCategories || [],
+            scrapedContent: wienData.scrapedContent || '',
+            events: wienData.events || [],
+            error: wienData.error || ''
           }]
         }));
       }
@@ -992,11 +1007,71 @@ async function fetchDebugInfo(jobId: string) {
                   borderRadius: '4px'
                 }}>
                   <div style={{ color: '#fd7e14', fontWeight: 'bold' }}>
-                    Wien.info Scraping
+                    Wien.info JSON API
                   </div>
                   <div style={{ color: '#6c757d', fontSize: '10px' }}>
                     {data.timestamp} - URL: {data.url}
                   </div>
+                  {data.query && (
+                    <div style={{ marginTop: '8px', fontSize: '11px' }}>
+                      <strong>Query:</strong> {data.query}
+                    </div>
+                  )}
+                  {(data.parsedEvents !== undefined || data.filteredEvents !== undefined) && (
+                    <div style={{ marginTop: '8px', padding: '8px', background: '#e8f5e8', borderRadius: '3px' }}>
+                      {data.parsedEvents !== undefined && <div><strong>Parsed Events:</strong> {data.parsedEvents}</div>}
+                      {data.filteredEvents !== undefined && <div><strong>Filtered Events:</strong> {data.filteredEvents}</div>}
+                    </div>
+                  )}
+                  {data.rawCategoryCounts && Object.keys(data.rawCategoryCounts).length > 0 && (
+                    <details style={{ marginTop: '8px' }}>
+                      <summary style={{ cursor: 'pointer', color: '#007bff' }}>
+                        Raw Category Counts ({Object.keys(data.rawCategoryCounts).length} types)
+                      </summary>
+                      <pre style={{ 
+                        marginTop: '5px', 
+                        padding: '8px', 
+                        background: '#f8f9fa', 
+                        border: '1px solid #dee2e6',
+                        borderRadius: '3px',
+                        overflow: 'auto',
+                        maxHeight: '200px'
+                      }}>
+                        {JSON.stringify(data.rawCategoryCounts, null, 2)}
+                      </pre>
+                    </details>
+                  )}
+                  {data.mappedCategoryCounts && Object.keys(data.mappedCategoryCounts).length > 0 && (
+                    <details style={{ marginTop: '8px' }}>
+                      <summary style={{ cursor: 'pointer', color: '#007bff' }}>
+                        Mapped Category Counts ({Object.keys(data.mappedCategoryCounts).length} types)
+                      </summary>
+                      <pre style={{ 
+                        marginTop: '5px', 
+                        padding: '8px', 
+                        background: '#f8f9fa', 
+                        border: '1px solid #dee2e6',
+                        borderRadius: '3px',
+                        overflow: 'auto',
+                        maxHeight: '200px'
+                      }}>
+                        {JSON.stringify(data.mappedCategoryCounts, null, 2)}
+                      </pre>
+                    </details>
+                  )}
+                  {data.unknownRawCategories && data.unknownRawCategories.length > 0 && (
+                    <div style={{ 
+                      marginTop: '8px', 
+                      padding: '8px', 
+                      background: '#fff3cd', 
+                      border: '1px solid #ffeaa7',
+                      borderRadius: '3px',
+                      color: '#856404'
+                    }}>
+                      <strong>Unknown Raw Categories ({data.unknownRawCategories.length}):</strong><br/>
+                      {data.unknownRawCategories.join(', ')}
+                    </div>
+                  )}
                   {data.error && (
                     <div style={{ 
                       marginTop: '8px', 
@@ -1012,7 +1087,7 @@ async function fetchDebugInfo(jobId: string) {
                   {data.events && data.events.length > 0 && (
                     <details style={{ marginTop: '8px' }}>
                       <summary style={{ cursor: 'pointer', color: '#007bff' }}>
-                        Scraped Events ({data.events.length})
+                        API Events ({data.events.length})
                       </summary>
                       <pre style={{ 
                         marginTop: '5px', 
