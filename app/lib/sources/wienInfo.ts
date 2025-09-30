@@ -292,24 +292,33 @@ function mapWienInfoCategory(wienInfoCategory: string): string {
  * Pick the best date and time for an event within the search window.
  * - Prefers a dates[] instance that falls inside [fromISO..toISO]
  * - Else, if [startDate..endDate] intersects the window, use fromISO and time from startDate (if present)
- * - Else, fall back to the first available dates[] or startDate (with time parsing)
+ * - Else, fall back to the first available dates[] or startDate
+ * 
+ * Additionally:
+ * - If no concrete time is available, label as "ganztags"
+ * - Treat "00:00" as all-day -> "ganztags"
  */
 function pickDateTimeWithinWindow(event: WienInfoEvent, fromISO: string, toISO: string): { date: string; time: string } {
   const from = new Date(fromISO + 'T00:00:00');
   const to = new Date(toISO + 'T23:59:59');
+
+  // Helper to extract HH:mm or return "ganztags" if absent/00:00
+  const extractTimeOrAllDay = (isoDateTime?: string): string => {
+    if (!isoDateTime || !isoDateTime.includes('T')) return 'ganztags';
+    const hhmm = isoDateTime.split('T')[1]?.split(/[+Z]/)[0]?.slice(0, 5) || '';
+    if (!/^\d{2}:\d{2}$/.test(hhmm)) return 'ganztags';
+    if (hhmm === '00:00') return 'ganztags';
+    return hhmm;
+  };
 
   // 1) dates[]: first instance within window
   if (Array.isArray(event.dates) && event.dates.length > 0) {
     for (const dateTime of event.dates) {
       const dt = new Date(dateTime);
       if (dt >= from && dt <= to) {
-        const [d, tWithZone] = dateTime.split('T');
-        let time = '';
-        if (tWithZone) {
-          const hhmm = tWithZone.split(/[+Z]/)[0]?.slice(0, 5);
-          time = hhmm && /^\d{2}:\d{2}$/.test(hhmm) ? hhmm : '';
-        }
-        return { date: d, time };
+        const date = dateTime.split('T')[0];
+        const time = extractTimeOrAllDay(dateTime);
+        return { date, time };
       }
     }
   }
@@ -319,33 +328,21 @@ function pickDateTimeWithinWindow(event: WienInfoEvent, fromISO: string, toISO: 
     const start = new Date(event.startDate);
     const end = event.endDate ? new Date(event.endDate) : new Date(event.startDate);
     if (start <= to && end >= from) {
-      let time = '';
-      if (event.startDate.includes('T')) {
-        const t = event.startDate.split('T')[1]?.split(/[+Z]/)[0]?.slice(0, 5) || '';
-        time = t && /^\d{2}:\d{2}$/.test(t) ? t : '';
-      }
+      const time = extractTimeOrAllDay(event.startDate);
       return { date: fromISO, time };
     }
   }
 
   // 3) fallbacks
   if (Array.isArray(event.dates) && event.dates.length > 0) {
-    const [d, tWithZone] = event.dates[0].split('T');
-    let time = '';
-    if (tWithZone) {
-      const hhmm = tWithZone.split(/[+Z]/)[0]?.slice(0, 5);
-      time = hhmm && /^\d{2}:\d{2}$/.test(hhmm) ? hhmm : '';
-    }
+    const [d] = event.dates[0].split('T');
+    const time = extractTimeOrAllDay(event.dates[0]);
     return { date: d, time };
   }
 
   if (event.startDate) {
-    const [d, tWithZone] = event.startDate.split('T');
-    let time = '';
-    if (tWithZone) {
-      const hhmm = tWithZone.split(/[+Z]/)[0]?.slice(0, 5);
-      time = hhmm && /^\d{2}:\d{2}$/.test(hhmm) ? hhmm : '';
-    }
+    const [d] = event.startDate.split('T');
+    const time = extractTimeOrAllDay(event.startDate);
     return { date: d, time };
   }
 
@@ -373,7 +370,7 @@ function normalizeWienInfoEvent(
   let endTime: string | undefined = undefined;
   if (wienInfoEvent.endDate && wienInfoEvent.endDate.includes('T')) {
     const t = wienInfoEvent.endDate.split('T')[1]?.split(/[+Z]/)[0]?.slice(0, 5);
-    if (t && /^\d{2}:\d{2}$/.test(t)) endTime = t;
+    if (t && /^\d{2}:\d{2}$/.test(t) && t !== '00:00') endTime = t;
   }
 
   // Build full URL
@@ -385,13 +382,13 @@ function normalizeWienInfoEvent(
     title: wienInfoEvent.title,
     category,
     date: primaryDate,
-    time,
+    time,                                  // "HH:mm" or "ganztags"
     venue: wienInfoEvent.location || 'Wien',
     price: '',
     website: fullUrl,
     source: 'wien.info',
     city: 'Wien',
-    description: wienInfoEvent.subtitle || '',    // reliably fill description from subtitle
+    description: wienInfoEvent.subtitle || '',  // reliably fill description from subtitle
     address: wienInfoEvent.location || 'Wien, Austria',
     ...(endTime ? { endTime } : {})
   } as unknown as EventData;
