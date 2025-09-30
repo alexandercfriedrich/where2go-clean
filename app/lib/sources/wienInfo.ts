@@ -4,7 +4,7 @@
 // - Provides rich debug info for UI
 
 import type { EventData } from '@/lib/types';
-import { buildWienInfoUrl, getWienInfoF1IdsForCategories } from '@/event_mapping_wien_info';
+import { buildWienInfoUrl, getWienInfoF1IdsForCategories, mapWienInfoCategoryLabelToWhereToGo } from '@/event_mapping_wien_info';
 
 interface FetchWienInfoOptions {
   fromISO: string;          // YYYY-MM-DD
@@ -144,9 +144,11 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
       const raw = (it.category || '').trim();
       rawCategoryCounts[raw] = (rawCategoryCounts[raw] || 0) + 1;
 
-      const { mapped, matched } = mapWienInfoCategoryWithMatch(raw);
+      const mapped = mapWienInfoCategoryLabelToWhereToGo(raw) ?? 'Kultur/Traditionen';
       mappedCategoryCounts[mapped] = (mappedCategoryCounts[mapped] || 0) + 1;
-      if (!matched) unknownRaw.add(raw);
+      if (!mapWienInfoCategoryLabelToWhereToGo(raw)) {
+        unknownRaw.add(raw);
+      }
     }
 
     if (debug && unknownRaw.size > 0) {
@@ -262,78 +264,12 @@ function filterWienInfoEvents(events: WienInfoEvent[], fromISO: string, toISO: s
 }
 
 /**
- * mapWienInfoCategory + Variante mit Match-Flag
- */
-function mapWienInfoCategoryWithMatch(wienInfoCategory: string): { mapped: string; matched: boolean } {
-  const categoryMap: Record<string, string> = {
-    // Classical and concerts
-    'konzerte klassisch': 'Live-Konzerte',
-    'rock, pop, jazz und mehr': 'Live-Konzerte',
-    'konzerte': 'Live-Konzerte',
-    'music': 'Live-Konzerte',
-    'concert': 'Live-Konzerte',
-
-    // Theater and performance
-    'theater und kabarett': 'Theater/Performance',
-    'musical, tanz und performance': 'Theater/Performance',
-    'oper und operette': 'Theater/Performance',
-    'theater': 'Theater/Performance',
-
-    // Museums and exhibitions
-    'ausstellungen': 'Museen',
-    'museum': 'Museen',
-    'exhibition': 'Kunst/Design',
-
-    // Markets and festivals
-    'märkte und messen': 'Open Air',
-    'festival': 'Open Air',
-
-    // Entertainment
-    'film und sommerkino': 'Film',
-    'club': 'Clubs/Discos',
-    'electronic': 'DJ Sets/Electronic',
-
-    // Culture and traditions
-    'typisch wien': 'Kultur/Traditionen',
-    'führungen, spaziergänge & touren': 'Kultur/Traditionen',
-    'culture': 'Kultur/Traditionen',
-    'art': 'Kunst/Design',
-
-    // (Optional: erste Erweiterungen – konservativ)
-    'kinder': 'Familien/Kids',
-    'familie': 'Familien/Kids',
-    'family': 'Familien/Kids',
-    'kids': 'Familien/Kids',
-    'sport': 'Sport',
-    'sports': 'Sport',
-    'kulinarik': 'Food/Culinary',
-    'kulinarisch': 'Food/Culinary',
-    'food': 'Food/Culinary',
-    'essen': 'Food/Culinary',
-    'trinken': 'Food/Culinary',
-  };
-
-  const lower = (wienInfoCategory || '').toLowerCase();
-  for (const [key, value] of Object.entries(categoryMap)) {
-    if (lower.includes(key)) {
-      return { mapped: value, matched: true };
-    }
-  }
-
-  return { mapped: 'Kultur/Traditionen', matched: false }; // Default category
-}
-
-function mapWienInfoCategory(wienInfoCategory: string): string {
-  return mapWienInfoCategoryWithMatch(wienInfoCategory).mapped;
-}
-
-/**
  * Normalizes a Wien.info API event to our EventData format
  * IMPORTANT: Do NOT override the mapped category with requestedCategories.
  */
 function normalizeWienInfoEvent(wienInfoEvent: WienInfoEvent, _requestedCategories: string[]): EventData {
-  // Determine the best category match
-  const category = mapWienInfoCategory(wienInfoEvent.category);
+  // Determine the best category match using SSOT
+  const category = mapWienInfoCategoryLabelToWhereToGo(wienInfoEvent.category) ?? 'Kultur/Traditionen';
 
   // Extract the primary date
   const eventDates = wienInfoEvent.dates || [];
