@@ -10,21 +10,45 @@ describe('Wien.info Label Canonicalization', () => {
     // Test classical concert variants
     expect(canonicalizeWienInfoLabel('Konzerte klassisch')).toBe('Klassisch');
     expect(canonicalizeWienInfoLabel('konzerte klassisch')).toBe('Klassisch');
+    expect(canonicalizeWienInfoLabel('Konzerte, Klassisch')).toBe('Klassisch');
+    expect(canonicalizeWienInfoLabel('konzerte, klassisch')).toBe('Klassisch');
     expect(canonicalizeWienInfoLabel('Klassisch')).toBe('Klassisch');
+    
+    // Test Rock, Pop, Jazz variants
+    expect(canonicalizeWienInfoLabel('Rock, Pop, Jazz')).toBe('Rock, Pop, Jazz und mehr');
+    expect(canonicalizeWienInfoLabel('rock, pop, jazz')).toBe('Rock, Pop, Jazz und mehr');
     
     // Test tours variants
     expect(canonicalizeWienInfoLabel('Führungen und Touren')).toBe('Führungen, Spaziergänge & Touren');
     expect(canonicalizeWienInfoLabel('führungen und touren')).toBe('Führungen, Spaziergänge & Touren');
+    expect(canonicalizeWienInfoLabel('Führungen & Touren')).toBe('Führungen, Spaziergänge & Touren');
+    expect(canonicalizeWienInfoLabel('führungen & touren')).toBe('Führungen, Spaziergänge & Touren');
+    expect(canonicalizeWienInfoLabel('Führungen, Spaziergänge und Touren')).toBe('Führungen, Spaziergänge & Touren');
+    expect(canonicalizeWienInfoLabel('führungen, spaziergänge und touren')).toBe('Führungen, Spaziergänge & Touren');
     expect(canonicalizeWienInfoLabel('Führungen, Spaziergänge & Touren')).toBe('Führungen, Spaziergänge & Touren');
     
     // Test film variants
     expect(canonicalizeWienInfoLabel('Film und Sommerkinos')).toBe('Film und Sommerkino');
+    expect(canonicalizeWienInfoLabel('Film und Sommer Kino')).toBe('Film und Sommerkino');
+    expect(canonicalizeWienInfoLabel('film und sommer kino')).toBe('Film und Sommerkino');
     expect(canonicalizeWienInfoLabel('Film und Sommerkino')).toBe('Film und Sommerkino');
     
     // Test LGBTQ variants
+    expect(canonicalizeWienInfoLabel('LGBTQ+')).toBe('Wien für Jugendliche, LGBTQIA+');
+    expect(canonicalizeWienInfoLabel('lgbtq+')).toBe('Wien für Jugendliche, LGBTQIA+');
     expect(canonicalizeWienInfoLabel('LGBTIQ+')).toBe('Wien für Jugendliche, LGBTQIA+');
     expect(canonicalizeWienInfoLabel('lgbtiq+')).toBe('Wien für Jugendliche, LGBTQIA+');
+    expect(canonicalizeWienInfoLabel('Wien für Jugendliche, LGBTQ+')).toBe('Wien für Jugendliche, LGBTQIA+');
+    expect(canonicalizeWienInfoLabel('wien für jugendliche, lgbtq+')).toBe('Wien für Jugendliche, LGBTQIA+');
     expect(canonicalizeWienInfoLabel('Wien für Jugendliche, LGBTQIA+')).toBe('Wien für Jugendliche, LGBTQIA+');
+    
+    // Test sport variants
+    expect(canonicalizeWienInfoLabel('Sport')).toBe('Sport, Bewegung und Freizeit');
+    expect(canonicalizeWienInfoLabel('sport')).toBe('Sport, Bewegung und Freizeit');
+    
+    // Test festivals variants (punctuation normalization)
+    expect(canonicalizeWienInfoLabel('Festivals, Feste und Shows')).toBe('Festivals, Feste, und Shows');
+    expect(canonicalizeWienInfoLabel('festivals, feste und shows')).toBe('Festivals, Feste, und Shows');
   });
 
   it('should trim and collapse whitespace', () => {
@@ -49,10 +73,13 @@ describe('Wien.info Category Reverse Mapping', () => {
     expect(mapWienInfoCategoryLabelToWhereToGo('Klassisch')).toBe('Live-Konzerte');
     expect(mapWienInfoCategoryLabelToWhereToGo('Rock, Pop, Jazz und mehr')).toBe('Live-Konzerte');
     expect(mapWienInfoCategoryLabelToWhereToGo('Theater und Kabarett')).toBe('Theater/Performance');
+    expect(mapWienInfoCategoryLabelToWhereToGo('Oper und Operette')).toBe('Theater/Performance');
     expect(mapWienInfoCategoryLabelToWhereToGo('Ausstellungen')).toBe('Museen');
     expect(mapWienInfoCategoryLabelToWhereToGo('Film und Sommerkino')).toBe('Film');
     expect(mapWienInfoCategoryLabelToWhereToGo('Typisch Wien')).toBe('Kultur/Traditionen');
     expect(mapWienInfoCategoryLabelToWhereToGo('Führungen, Spaziergänge & Touren')).toBe('Kultur/Traditionen');
+    expect(mapWienInfoCategoryLabelToWhereToGo('Märkte und Messen')).toBe('Open Air');
+    expect(mapWienInfoCategoryLabelToWhereToGo('Festivals, Feste, und Shows')).toBe('Open Air');
   });
 
   it('should return null for unknown labels', () => {
@@ -65,11 +92,38 @@ describe('Wien.info Category Reverse Mapping', () => {
     const klassischVariant = canonicalizeWienInfoLabel('konzerte klassisch');
     expect(mapWienInfoCategoryLabelToWhereToGo(klassischVariant)).toBe('Live-Konzerte');
     
+    const klassischVariant2 = canonicalizeWienInfoLabel('Konzerte, Klassisch');
+    expect(mapWienInfoCategoryLabelToWhereToGo(klassischVariant2)).toBe('Live-Konzerte');
+    
+    const rockVariant = canonicalizeWienInfoLabel('Rock, Pop, Jazz');
+    expect(mapWienInfoCategoryLabelToWhereToGo(rockVariant)).toBe('Live-Konzerte');
+    
     const toursVariant = canonicalizeWienInfoLabel('Führungen und Touren');
     expect(mapWienInfoCategoryLabelToWhereToGo(toursVariant)).toBe('Kultur/Traditionen');
     
+    const toursVariant2 = canonicalizeWienInfoLabel('Führungen & Touren');
+    expect(mapWienInfoCategoryLabelToWhereToGo(toursVariant2)).toBe('Kultur/Traditionen');
+    
+    const toursVariant3 = canonicalizeWienInfoLabel('Führungen, Spaziergänge und Touren');
+    expect(mapWienInfoCategoryLabelToWhereToGo(toursVariant3)).toBe('Kultur/Traditionen');
+    
     const filmVariant = canonicalizeWienInfoLabel('Film und Sommerkinos');
     expect(mapWienInfoCategoryLabelToWhereToGo(filmVariant)).toBe('Film');
+    
+    const filmVariant2 = canonicalizeWienInfoLabel('Film und Sommer Kino');
+    expect(mapWienInfoCategoryLabelToWhereToGo(filmVariant2)).toBe('Film');
+    
+    const lgbtqVariant = canonicalizeWienInfoLabel('LGBTQ+');
+    expect(mapWienInfoCategoryLabelToWhereToGo(lgbtqVariant)).toBe('LGBTQ+');
+    
+    const lgbtqVariant2 = canonicalizeWienInfoLabel('Wien für Jugendliche, LGBTQ+');
+    expect(mapWienInfoCategoryLabelToWhereToGo(lgbtqVariant2)).toBe('LGBTQ+');
+    
+    const sportVariant = canonicalizeWienInfoLabel('Sport');
+    expect(mapWienInfoCategoryLabelToWhereToGo(sportVariant)).toBe('Sport');
+    
+    const festivalVariant = canonicalizeWienInfoLabel('Festivals, Feste und Shows');
+    expect(mapWienInfoCategoryLabelToWhereToGo(festivalVariant)).toBe('Open Air');
   });
 });
 
