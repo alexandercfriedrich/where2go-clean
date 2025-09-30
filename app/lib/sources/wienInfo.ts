@@ -271,40 +271,85 @@ function filterWienInfoEvents(events: WienInfoEvent[], fromISO: string, toISO: s
 }
 
 /**
- * Pick the best date for an event within the search window.
- * For multi-day exhibitions, this ensures they appear on the searched day.
+ * mapWienInfoCategory + Variante mit Match-Flag
  */
-function pickDateWithinWindow(event: WienInfoEvent, fromISO: string, toISO: string): string {
+function mapWienInfoCategoryWithMatch(wienInfoCategory: string): { mapped: string; matched: boolean } {
+  const canonical = canonicalizeWienInfoLabel(wienInfoCategory);
+  const mapped = mapWienInfoCategoryLabelToWhereToGo(canonical);
+  
+  if (mapped) {
+    return { mapped, matched: true };
+  }
+  
+  return { mapped: 'Kultur/Traditionen', matched: false }; // Default category
+}
+
+function mapWienInfoCategory(wienInfoCategory: string): string {
+  return mapWienInfoCategoryWithMatch(wienInfoCategory).mapped;
+}
+
+/**
+ * Pick the best date and time for an event within the search window.
+ * - Prefers a dates[] instance that falls inside [fromISO..toISO]
+ * - Else, if [startDate..endDate] intersects the window, use fromISO and time from startDate (if present)
+ * - Else, fall back to the first available dates[] or startDate (with time parsing)
+ */
+function pickDateTimeWithinWindow(event: WienInfoEvent, fromISO: string, toISO: string): { date: string; time: string } {
   const from = new Date(fromISO + 'T00:00:00');
   const to = new Date(toISO + 'T23:59:59');
 
-  // 1) Look for an instance inside the window
+  // 1) dates[]: first instance within window
   if (Array.isArray(event.dates) && event.dates.length > 0) {
-    for (const dateStr of event.dates) {
-      const dt = new Date(dateStr);
+    for (const dateTime of event.dates) {
+      const dt = new Date(dateTime);
       if (dt >= from && dt <= to) {
-        return dateStr.split('T')[0];
+        const [d, tWithZone] = dateTime.split('T');
+        let time = '';
+        if (tWithZone) {
+          const hhmm = tWithZone.split(/[+Z]/)[0]?.slice(0, 5);
+          time = hhmm && /^\d{2}:\d{2}$/.test(hhmm) ? hhmm : '';
+        }
+        return { date: d, time };
       }
     }
   }
 
-  // 2) If the range intersects the window, use the searched day
+  // 2) range intersects window -> use requested day, time from startDate if present
   if (event.startDate) {
     const start = new Date(event.startDate);
     const end = event.endDate ? new Date(event.endDate) : new Date(event.startDate);
     if (start <= to && end >= from) {
-      return fromISO;
+      let time = '';
+      if (event.startDate.includes('T')) {
+        const t = event.startDate.split('T')[1]?.split(/[+Z]/)[0]?.slice(0, 5) || '';
+        time = t && /^\d{2}:\d{2}$/.test(t) ? t : '';
+      }
+      return { date: fromISO, time };
     }
   }
 
-  // 3) Fallbacks
+  // 3) fallbacks
   if (Array.isArray(event.dates) && event.dates.length > 0) {
-    return event.dates[0].split('T')[0];
+    const [d, tWithZone] = event.dates[0].split('T');
+    let time = '';
+    if (tWithZone) {
+      const hhmm = tWithZone.split(/[+Z]/)[0]?.slice(0, 5);
+      time = hhmm && /^\d{2}:\d{2}$/.test(hhmm) ? hhmm : '';
+    }
+    return { date: d, time };
   }
+
   if (event.startDate) {
-    return event.startDate.split('T')[0];
+    const [d, tWithZone] = event.startDate.split('T');
+    let time = '';
+    if (tWithZone) {
+      const hhmm = tWithZone.split(/[+Z]/)[0]?.slice(0, 5);
+      time = hhmm && /^\d{2}:\d{2}$/.test(hhmm) ? hhmm : '';
+    }
+    return { date: d, time };
   }
-  return '';
+
+  return { date: '', time: '' };
 }
 
 /**
@@ -321,19 +366,14 @@ function normalizeWienInfoEvent(
   const canonical = canonicalizeWienInfoLabel(wienInfoEvent.category || '');
   const category = mapWienInfoCategoryLabelToWhereToGo(canonical) ?? 'Kultur/Traditionen';
 
-  // Use pickDateWithinWindow for correct date normalization (multi-/single-day)
-  const primaryDate = pickDateWithinWindow(wienInfoEvent, fromISO, toISO);
+  // Date + time chosen within the window (reliable fill if API provides it)
+  const { date: primaryDate, time } = pickDateTimeWithinWindow(wienInfoEvent, fromISO, toISO);
 
-  // Extract time if available (from startDate)
-  let time = '';
-  if (wienInfoEvent.startDate && wienInfoEvent.startDate.includes('T')) {
-    const timePart = wienInfoEvent.startDate.split('T')[1];
-    if (timePart) {
-      time = timePart.split('+')[0]; // Remove timezone info
-      if (time.length > 5) {
-        time = time.substring(0, 5); // Only keep HH:mm
-      }
-    }
+  // Optional endTime (only if API provides endDate with time)
+  let endTime: string | undefined = undefined;
+  if (wienInfoEvent.endDate && wienInfoEvent.endDate.includes('T')) {
+    const t = wienInfoEvent.endDate.split('T')[1]?.split(/[+Z]/)[0]?.slice(0, 5);
+    if (t && /^\d{2}:\d{2}$/.test(t)) endTime = t;
   }
 
   // Build full URL
@@ -351,7 +391,8 @@ function normalizeWienInfoEvent(
     website: fullUrl,
     source: 'wien.info',
     city: 'Wien',
-    description: wienInfoEvent.subtitle || '',
-    address: wienInfoEvent.location || 'Wien, Austria'
+    description: wienInfoEvent.subtitle || '',    // reliably fill description from subtitle
+    address: wienInfoEvent.location || 'Wien, Austria',
+    ...(endTime ? { endTime } : {})
   } as unknown as EventData;
 }
