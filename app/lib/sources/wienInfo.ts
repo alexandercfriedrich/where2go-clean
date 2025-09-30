@@ -1,10 +1,15 @@
 // Lightweight Wien.info JSON API integration with debug info
 // - Uses official JSON endpoint (fast)
-// - Maps to our EventData
+// - Maps to our EventData using SSOT mapping
 // - Provides rich debug info for UI
 
 import type { EventData } from '@/lib/types';
-import { buildWienInfoUrl, getWienInfoF1IdsForCategories, mapWienInfoCategoryLabelToWhereToGo } from '@/event_mapping_wien_info';
+import {
+  buildWienInfoUrl,
+  getWienInfoF1IdsForCategories,
+  canonicalizeWienInfoLabel,
+  mapWienInfoCategoryLabelToWhereToGo
+} from '@/event_mapping_wien_info';
 
 interface FetchWienInfoOptions {
   fromISO: string;          // YYYY-MM-DD
@@ -28,7 +33,7 @@ interface WienInfoResult {
     filteredEvents?: number;
     parsedEvents?: number;
 
-    // NEU: Instrumentierung zur Mapping-Qualität
+    // Mapping instrumentation
     rawCategoryCounts?: Record<string, number>;
     mappedCategoryCounts?: Record<string, number>;
     unknownRawCategories?: string[];
@@ -135,19 +140,21 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
       };
     }
 
-    // NEU: Rohkategorie- und Mapping-Histogramme für Analyse
+    // 6) Mapping histograms (canonicalize labels, reverse-map via SSOT)
     const rawCategoryCounts: Record<string, number> = {};
     const mappedCategoryCounts: Record<string, number> = {};
     const unknownRaw = new Set<string>();
 
     for (const it of apiEvents) {
       const raw = (it.category || '').trim();
-      rawCategoryCounts[raw] = (rawCategoryCounts[raw] || 0) + 1;
+      const canonical = canonicalizeWienInfoLabel(raw);
+      rawCategoryCounts[canonical] = (rawCategoryCounts[canonical] || 0) + 1;
 
-      const mapped = mapWienInfoCategoryLabelToWhereToGo(raw) ?? 'Kultur/Traditionen';
-      mappedCategoryCounts[mapped] = (mappedCategoryCounts[mapped] || 0) + 1;
-      if (!mapped) {
-        unknownRaw.add(raw);
+      const mapped = mapWienInfoCategoryLabelToWhereToGo(canonical);
+      if (mapped) {
+        mappedCategoryCounts[mapped] = (mappedCategoryCounts[mapped] || 0) + 1;
+      } else {
+        if (canonical) unknownRaw.add(canonical);
       }
     }
 
@@ -155,7 +162,7 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
       console.warn('[WIEN.INFO:MAPPING] Unmapped raw categories detected:', Array.from(unknownRaw));
     }
 
-    // 6) Filter events by date range and category tags
+    // 7) Filter events by date range and category tags
     const filteredEvents = filterWienInfoEvents(apiEvents, fromISO, toISO, f1Ids);
 
     if (debug) {
@@ -185,10 +192,10 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
       };
     }
 
-    // 7) Normalize to our EventData format (limited by "limit")
+    // 8) Normalize to our EventData format (limited by "limit")
     const normalizedEvents = filteredEvents
       .slice(0, limit)
-      .map(event => normalizeWienInfoEvent(event, categories));
+      .map(event => normalizeWienInfoEvent(event, categories, fromISO, toISO));
 
     if (debug) {
       console.log('[WIEN.INFO:FETCH] Final normalized events:', normalizedEvents.length);
@@ -197,7 +204,7 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
       }
     }
 
-    // 8) Success + attach debug info (include histograms)
+    // 9) Success + attach debug info (include histograms)
     const result: WienInfoResult = {
       events: normalizedEvents
     };
@@ -264,22 +271,60 @@ function filterWienInfoEvents(events: WienInfoEvent[], fromISO: string, toISO: s
 }
 
 /**
+ * Pick the best date for an event within the search window.
+ * For multi-day exhibitions, this ensures they appear on the searched day.
+ */
+function pickDateWithinWindow(event: WienInfoEvent, fromISO: string, toISO: string): string {
+  const from = new Date(fromISO + 'T00:00:00');
+  const to = new Date(toISO + 'T23:59:59');
+
+  // 1) Look for an instance inside the window
+  if (Array.isArray(event.dates) && event.dates.length > 0) {
+    for (const dateStr of event.dates) {
+      const dt = new Date(dateStr);
+      if (dt >= from && dt <= to) {
+        return dateStr.split('T')[0];
+      }
+    }
+  }
+
+  // 2) If the range intersects the window, use the searched day
+  if (event.startDate) {
+    const start = new Date(event.startDate);
+    const end = event.endDate ? new Date(event.endDate) : new Date(event.startDate);
+    if (start <= to && end >= from) {
+      return fromISO;
+    }
+  }
+
+  // 3) Fallbacks
+  if (Array.isArray(event.dates) && event.dates.length > 0) {
+    return event.dates[0].split('T')[0];
+  }
+  if (event.startDate) {
+    return event.startDate.split('T')[0];
+  }
+  return '';
+}
+
+/**
  * Normalizes a Wien.info API event to our EventData format
  * IMPORTANT: Do NOT override the mapped category with requestedCategories.
  */
-function normalizeWienInfoEvent(wienInfoEvent: WienInfoEvent, _requestedCategories: string[]): EventData {
-  // Determine the best category match using SSOT
-  const category = mapWienInfoCategoryLabelToWhereToGo(wienInfoEvent.category) ?? 'Kultur/Traditionen';
+function normalizeWienInfoEvent(
+  wienInfoEvent: WienInfoEvent,
+  _requestedCategories: string[],
+  fromISO: string,
+  toISO: string
+): EventData {
+  // Determine the best category match via SSOT + canonicalization
+  const canonical = canonicalizeWienInfoLabel(wienInfoEvent.category || '');
+  const category = mapWienInfoCategoryLabelToWhereToGo(canonical) ?? 'Kultur/Traditionen';
 
-  // Extract the primary date
-  const eventDates = wienInfoEvent.dates || [];
-  if (wienInfoEvent.startDate) {
-    eventDates.push(wienInfoEvent.startDate);
-  }
+  // Use pickDateWithinWindow for correct date normalization (multi-/single-day)
+  const primaryDate = pickDateWithinWindow(wienInfoEvent, fromISO, toISO);
 
-  const primaryDate = eventDates.length > 0 ? eventDates[0].split('T')[0] : '';
-
-  // Extract time if available
+  // Extract time if available (from startDate)
   let time = '';
   if (wienInfoEvent.startDate && wienInfoEvent.startDate.includes('T')) {
     const timePart = wienInfoEvent.startDate.split('T')[1];
