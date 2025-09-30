@@ -146,7 +146,7 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
 
       const mapped = mapWienInfoCategoryLabelToWhereToGo(raw) ?? 'Kultur/Traditionen';
       mappedCategoryCounts[mapped] = (mappedCategoryCounts[mapped] || 0) + 1;
-      if (!mapWienInfoCategoryLabelToWhereToGo(raw)) {
+      if (!mapped) {
         unknownRaw.add(raw);
       }
     }
