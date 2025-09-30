@@ -86,7 +86,6 @@ export const WIENINFO_TO_WHERE2GO_PREFERRED: Record<string, string> = {
  */
 export function mapWienInfoCategoryLabelToWhereToGo(label: string): string | null {
   if (!label) return null;
-  
   // Try exact match first
   const exactMatch = WIENINFO_TO_WHERE2GO_PREFERRED[label];
   if (exactMatch) return exactMatch;
