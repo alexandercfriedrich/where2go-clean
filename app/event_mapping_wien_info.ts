@@ -57,20 +57,35 @@ export function buildWienInfoUrl(fromISO: string, toISO: string, f1Ids?: number[
 export const WIENINFO_LABEL_ALIASES: Record<string, string> = {
   // Classical concerts variants
   'konzerte klassisch': 'Klassisch',
+  'konzerte, klassisch': 'Klassisch',
   'klassisch': 'Klassisch',
+  
+  // Rock, Pop, Jazz variants
+  'rock, pop, jazz': 'Rock, Pop, Jazz und mehr',
   
   // Tours and walks variants
   'führungen und touren': 'Führungen, Spaziergänge & Touren',
+  'führungen & touren': 'Führungen, Spaziergänge & Touren',
+  'führungen, spaziergänge und touren': 'Führungen, Spaziergänge & Touren',
   'führungen': 'Führungen, Spaziergänge & Touren',
   
   // Film variants
   'film und sommerkinos': 'Film und Sommerkino',
+  'film und sommer kino': 'Film und Sommerkino',
   'film und sommerkino': 'Film und Sommerkino',
   
   // LGBTQ variants
+  'lgbtq+': 'Wien für Jugendliche, LGBTQIA+',
   'lgbtiq+': 'Wien für Jugendliche, LGBTQIA+',
   'lgbtqia+': 'Wien für Jugendliche, LGBTQIA+',
+  'wien für jugendliche, lgbtq+': 'Wien für Jugendliche, LGBTQIA+',
   'wien für jugendliche, lgbtqia+': 'Wien für Jugendliche, LGBTQIA+',
+  
+  // Sport variants
+  'sport': 'Sport, Bewegung und Freizeit',
+  
+  // Festivals variants (normalize punctuation)
+  'festivals, feste und shows': 'Festivals, Feste, und Shows',
 };
 
 // Canonicalize a Wien.info label by trimming, normalizing whitespace, and applying aliases
@@ -109,6 +124,7 @@ const WIENINFO_LABEL_TO_MAIN_CATEGORY: Record<string, string> = {
   
   // Markets and festivals
   'Märkte und Messen': 'Open Air',
+  'Festivals, Feste, und Shows': 'Open Air',
   
   // Entertainment
   'Film und Sommerkino': 'Film',
