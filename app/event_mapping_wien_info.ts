@@ -28,7 +28,7 @@ export const WIEN_INFO_F1_BY_LABEL: Record<string, number> = {
   'Märkte und Messen': 896990,
   'Kulinarik': 896998,
   'Familien, Kids': 896986,
-  'Festivals, Feste, und Shows': 896974, // Map to tours for now
+  'Festivals, Feste, und Shows': 896974, // Maps to Open Air (via tours F1 ID)
 };
 
 // where2go main category -> list of wien.info official labels
