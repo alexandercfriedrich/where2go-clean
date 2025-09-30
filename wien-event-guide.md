@@ -32,6 +32,7 @@ This document defines the official mapping between where2go.at main categories a
 | Märkte/Shopping | Märkte und Messen | 896990 |
 | Food/Culinary | Kulinarik | 896998 |
 | Familien/Kids | Familien, Kids | 896986 |
+| Sonstiges/Other | (no specific mapping) | - |
 
 ## Usage
 

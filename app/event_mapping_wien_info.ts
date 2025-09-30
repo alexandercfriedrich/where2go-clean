@@ -53,6 +53,7 @@ export const WHERE2GO_TO_WIENINFO: Record<string, string[]> = {
   'Märkte/Shopping': ['Märkte und Messen'],
   'Food/Culinary': ['Kulinarik'],
   'Familien/Kids': ['Familien, Kids'],
+  'Sonstiges/Other': [], // No specific mapping - will use all categories
 };
 
 // wien.info official label -> preferred where2go category (for reverse mapping)
