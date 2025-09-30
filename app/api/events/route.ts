@@ -385,7 +385,8 @@ export async function POST(request: NextRequest) {
         date,
         categories: effectiveCategories,
         options: mergedOptions,
-        steps: []
+        steps: [],
+        ...(wienInfoDebugData && { wienInfoData: wienInfoDebugData })
       };
       await jobStore.setDebugInfo(jobId, debugInfo);
 
