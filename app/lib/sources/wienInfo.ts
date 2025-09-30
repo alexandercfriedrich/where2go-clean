@@ -4,7 +4,7 @@
 // - Provides rich debug info for UI
 
 import type { EventData } from '@/lib/types';
-import { buildWienInfoUrl, getWienInfoF1IdsForCategories } from '@/event_mapping_wien_info';
+import { buildWienInfoUrl, getWienInfoF1IdsForCategories, canonicalizeWienInfoLabel, mapWienInfoCategoryLabelToWhereToGo } from '@/event_mapping_wien_info';
 
 interface FetchWienInfoOptions {
   fromISO: string;          // YYYY-MM-DD
@@ -142,11 +142,16 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
 
     for (const it of apiEvents) {
       const raw = (it.category || '').trim();
-      rawCategoryCounts[raw] = (rawCategoryCounts[raw] || 0) + 1;
+      const canonical = canonicalizeWienInfoLabel(raw);
+      rawCategoryCounts[canonical] = (rawCategoryCounts[canonical] || 0) + 1;
 
-      const { mapped, matched } = mapWienInfoCategoryWithMatch(raw);
-      mappedCategoryCounts[mapped] = (mappedCategoryCounts[mapped] || 0) + 1;
-      if (!matched) unknownRaw.add(raw);
+      const mapped = mapWienInfoCategoryLabelToWhereToGo(canonical);
+      if (mapped) {
+        mappedCategoryCounts[mapped] = (mappedCategoryCounts[mapped] || 0) + 1;
+      } else {
+        // Only add to unknown if reverse mapping returns null
+        if (canonical) unknownRaw.add(canonical);
+      }
     }
 
     if (debug && unknownRaw.size > 0) {
@@ -186,7 +191,7 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
     // 7) Normalize to our EventData format (limited by "limit")
     const normalizedEvents = filteredEvents
       .slice(0, limit)
-      .map(event => normalizeWienInfoEvent(event, categories));
+      .map(event => normalizeWienInfoEvent(event, categories, fromISO, toISO));
 
     if (debug) {
       console.log('[WIEN.INFO:FETCH] Final normalized events:', normalizedEvents.length);
@@ -265,61 +270,13 @@ function filterWienInfoEvents(events: WienInfoEvent[], fromISO: string, toISO: s
  * mapWienInfoCategory + Variante mit Match-Flag
  */
 function mapWienInfoCategoryWithMatch(wienInfoCategory: string): { mapped: string; matched: boolean } {
-  const categoryMap: Record<string, string> = {
-    // Classical and concerts
-    'konzerte klassisch': 'Live-Konzerte',
-    'rock, pop, jazz und mehr': 'Live-Konzerte',
-    'konzerte': 'Live-Konzerte',
-    'music': 'Live-Konzerte',
-    'concert': 'Live-Konzerte',
-
-    // Theater and performance
-    'theater und kabarett': 'Theater/Performance',
-    'musical, tanz und performance': 'Theater/Performance',
-    'oper und operette': 'Theater/Performance',
-    'theater': 'Theater/Performance',
-
-    // Museums and exhibitions
-    'ausstellungen': 'Museen',
-    'museum': 'Museen',
-    'exhibition': 'Kunst/Design',
-
-    // Markets and festivals
-    'märkte und messen': 'Open Air',
-    'festival': 'Open Air',
-
-    // Entertainment
-    'film und sommerkino': 'Film',
-    'club': 'Clubs/Discos',
-    'electronic': 'DJ Sets/Electronic',
-
-    // Culture and traditions
-    'typisch wien': 'Kultur/Traditionen',
-    'führungen, spaziergänge & touren': 'Kultur/Traditionen',
-    'culture': 'Kultur/Traditionen',
-    'art': 'Kunst/Design',
-
-    // (Optional: erste Erweiterungen – konservativ)
-    'kinder': 'Familien/Kids',
-    'familie': 'Familien/Kids',
-    'family': 'Familien/Kids',
-    'kids': 'Familien/Kids',
-    'sport': 'Sport',
-    'sports': 'Sport',
-    'kulinarik': 'Food/Culinary',
-    'kulinarisch': 'Food/Culinary',
-    'food': 'Food/Culinary',
-    'essen': 'Food/Culinary',
-    'trinken': 'Food/Culinary',
-  };
-
-  const lower = (wienInfoCategory || '').toLowerCase();
-  for (const [key, value] of Object.entries(categoryMap)) {
-    if (lower.includes(key)) {
-      return { mapped: value, matched: true };
-    }
+  const canonical = canonicalizeWienInfoLabel(wienInfoCategory);
+  const mapped = mapWienInfoCategoryLabelToWhereToGo(canonical);
+  
+  if (mapped) {
+    return { mapped, matched: true };
   }
-
+  
   return { mapped: 'Kultur/Traditionen', matched: false }; // Default category
 }
 
@@ -328,20 +285,62 @@ function mapWienInfoCategory(wienInfoCategory: string): string {
 }
 
 /**
+ * Pick the best date for an event within the search window.
+ * For multi-day exhibitions, this ensures they appear on the searched day.
+ * 
+ * @param event - The Wien.info event
+ * @param fromISO - Start of search window (YYYY-MM-DD)
+ * @param toISO - End of search window (YYYY-MM-DD)
+ * @returns The date to use for this event (YYYY-MM-DD)
+ */
+function pickDateWithinWindow(event: WienInfoEvent, fromISO: string, toISO: string): string {
+  const from = new Date(fromISO + 'T00:00:00');
+  const to = new Date(toISO + 'T23:59:59');
+  
+  // Check if event.dates contains an instance within the window
+  if (Array.isArray(event.dates) && event.dates.length > 0) {
+    for (const dateStr of event.dates) {
+      const dt = new Date(dateStr);
+      if (dt >= from && dt <= to) {
+        // Found a date within window - use it
+        return dateStr.split('T')[0];
+      }
+    }
+  }
+  
+  // Check if the date range (startDate..endDate) intersects the window
+  if (event.startDate && event.endDate) {
+    const start = new Date(event.startDate);
+    const end = new Date(event.endDate);
+    
+    // If range intersects window, use fromISO (the searched day)
+    if (start <= to && end >= from) {
+      return fromISO;
+    }
+  }
+  
+  // Fallback: use first available date or startDate
+  if (Array.isArray(event.dates) && event.dates.length > 0) {
+    return event.dates[0].split('T')[0];
+  }
+  
+  if (event.startDate) {
+    return event.startDate.split('T')[0];
+  }
+  
+  return '';
+}
+
+/**
  * Normalizes a Wien.info API event to our EventData format
  * IMPORTANT: Do NOT override the mapped category with requestedCategories.
  */
-function normalizeWienInfoEvent(wienInfoEvent: WienInfoEvent, _requestedCategories: string[]): EventData {
+function normalizeWienInfoEvent(wienInfoEvent: WienInfoEvent, _requestedCategories: string[], fromISO: string, toISO: string): EventData {
   // Determine the best category match
   const category = mapWienInfoCategory(wienInfoEvent.category);
 
-  // Extract the primary date
-  const eventDates = wienInfoEvent.dates || [];
-  if (wienInfoEvent.startDate) {
-    eventDates.push(wienInfoEvent.startDate);
-  }
-
-  const primaryDate = eventDates.length > 0 ? eventDates[0].split('T')[0] : '';
+  // Use pickDateWithinWindow for correct date normalization
+  const primaryDate = pickDateWithinWindow(wienInfoEvent, fromISO, toISO);
 
   // Extract time if available
   let time = '';
