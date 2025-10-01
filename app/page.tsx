@@ -97,24 +97,12 @@ export default function Home() {
   const cancelRef = useRef<{cancel:boolean}>({cancel:false});
 
   // design1.css laden und andere Designs entfernen
-  useEffect(() => {
-    const id = 'w2g-design-css';
-    const href = '/designs/design1.css';
-    let link = document.getElementById(id) as HTMLLinkElement | null;
-    if (link) {
-      if (link.getAttribute('href') !== href) link.setAttribute('href', href);
-    } else {
-      link = document.createElement('link');
-      link.id = id;
-      link.rel = 'stylesheet';
-      link.href = href;
-      document.head.appendChild(link);
-    }
-    document.querySelectorAll('link[href*="/designs/design"]').forEach(l => {
-      const el = l as HTMLLinkElement;
-      if (!el.href.endsWith('design1.css')) el.parentElement?.removeChild(el);
-    });
-  }, []);
+  // ✅ ERSETZEN MIT:
+useEffect(() => {
+  // Lass DesignCssLoader.tsx das Design-Switching handhaben
+  // Kein manueller Override mehr nötig
+}, []);
+
 
   // Dropdown außerhalb/Escape schließen
   useEffect(() => {
