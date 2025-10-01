@@ -216,6 +216,7 @@ a:hover { color: var(--color-accent-alt-hover); }
 }
 
 .event-time {
+  content: "\00a0\00a0";
   background: rgba(50, 180, 198, 0.15);
   color: var(--color-accent-alt);
   padding: 3px 8px;
@@ -453,6 +454,16 @@ a:hover { color: var(--color-accent-alt-hover); }
     min-height: 56px;
   }
 }
+
+.event-card .event-title,
+.event-item h3 {
+  color: var(--color-text-dim) !important;
+}
+
+.event-meta-line {
+  line-height: 1.5;
+}
+
 
 /* ---- Accessibility ---- */
 @media (prefers-reduced-motion: reduce) {
