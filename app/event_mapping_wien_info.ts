@@ -42,106 +42,150 @@ export const WHERE2GO_TO_WIENINFO: Record<string, string[]> = {
   'Soziales/Community': ['Familien, Kids', 'Typisch Wien'],
   'Märkte/Shopping': ['Märkte und Messen'],
   'Food/Culinary': ['Kulinarik'],
-  'Familien/Kids': ['Familien, Kids']
+  'Familien/Kids': ['Familien, Kids'],
+  'Sonstiges/Other': [] // No specific mapping - uses all categories
 };
 
-// Preferred reverse mapping: official label -> where2go main category
-// Ambiguities are resolved to the broadest sensible default (consistent with UI filters).
-const WIENINFO_LABEL_TO_MAIN_CATEGORY: Record<string, string> = {
-  'Rock, Pop, Jazz und mehr': 'Live-Konzerte',
-  'Klassisch': 'Live-Konzerte',
-
-  'Musical, Tanz und Performance': 'Theater/Performance',
-  'Theater und Kabarett': 'Theater/Performance',
-
-  'Ausstellungen': 'Museen',
-
-  'Film und Sommerkino': 'Film',
-
-  'Typisch Wien': 'Kultur/Traditionen',
-  'Führungen, Spaziergänge & Touren': 'Kultur/Traditionen',
-
-  'Wien für Jugendliche, LGBTQIA+': 'LGBTQ+',
-
-  'Märkte und Messen': 'Märkte/Shopping',
-  'Kulinarik': 'Food/Culinary',
-
-  'Familien, Kids': 'Familien/Kids',
-
-  'Sport, Bewegung und Freizeit': 'Sport'
-};
-
-// Label aliases (lowercase) to canonical official labels
+// Wien.info label aliases to normalize common variants to official labels
+// This ensures consistent mapping when raw API labels vary slightly
 export const WIENINFO_LABEL_ALIASES: Record<string, string> = {
-  // Classical
+  // Classical concerts variants
   'konzerte klassisch': 'Klassisch',
   'konzerte, klassisch': 'Klassisch',
   'klassisch': 'Klassisch',
-
-  // Rock/Pop/Jazz
+  
+  // Rock, Pop, Jazz variants
   'rock, pop, jazz': 'Rock, Pop, Jazz und mehr',
   'rock , pop , jazz': 'Rock, Pop, Jazz und mehr',
-
-  // Theater
+  
+  // Theater variants
   'oper und operette': 'Theater und Kabarett',
   'theater und kabarett': 'Theater und Kabarett',
   'musical, tanz und performance': 'Musical, Tanz und Performance',
-
-  // Tours
+  
+  // Tours and walks variants
   'führungen und touren': 'Führungen, Spaziergänge & Touren',
   'führungen & touren': 'Führungen, Spaziergänge & Touren',
+  'führungen, spaziergänge und touren': 'Führungen, Spaziergänge & Touren',
   'führungen': 'Führungen, Spaziergänge & Touren',
-
-  // Exhibitions
+  
+  // Exhibitions variants
   'ausstellung': 'Ausstellungen',
   'exhibition': 'Ausstellungen',
-
-  // Film
+  
+  // Film variants
   'film': 'Film und Sommerkino',
   'sommerkino': 'Film und Sommerkino',
-
-  // Culture
+  'film und sommerkinos': 'Film und Sommerkino',
+  'film und sommer kino': 'Film und Sommerkino',
+  
+  // Culture variants
   'typisch wien': 'Typisch Wien',
-
-  // Family
+  
+  // Family variants
   'familien, kids': 'Familien, Kids',
   'kinder und familie': 'Familien, Kids',
-
+  
   // LGBTQ variants
   'wien für jugendliche, lgbtq+': 'Wien für Jugendliche, LGBTQIA+',
   'lgbtq+': 'Wien für Jugendliche, LGBTQIA+',
   'lgbtiq+': 'Wien für Jugendliche, LGBTQIA+',
-
-  // Markets
+  'lgbtqia+': 'Wien für Jugendliche, LGBTQIA+',
+  
+  // Markets variants
   'märkte und messen': 'Märkte und Messen',
-
-  // Food
+  
+  // Food variants
   'kulinarik': 'Kulinarik',
-
-  // Sport
+  
+  // Sport variants
   'sport': 'Sport, Bewegung und Freizeit',
-
-  // Normalize punctuation for potential festival-like buckets
-  'festivals, feste und shows': 'Märkte und Messen' // conservative default
+  
+  // Festivals variants - maps to Open Air
+  'festivals, feste und shows': 'Festivals, Feste, und Shows',
 };
+
+// Reverse mapping: Wien.info raw category label -> where2go main category
+// This is the SSOT for category mapping from Wien.info to our categories
+// Ambiguities are resolved to the broadest sensible default (consistent with UI filters)
+const WIENINFO_LABEL_TO_MAIN_CATEGORY: Record<string, string> = {
+  // Classical and concerts
+  'Klassisch': 'Live-Konzerte',
+  'Rock, Pop, Jazz und mehr': 'Live-Konzerte',
+  'Konzerte': 'Live-Konzerte',
+  
+  // Theater and performance
+  'Theater und Kabarett': 'Theater/Performance',
+  'Musical, Tanz und Performance': 'Theater/Performance',
+  'Oper und Operette': 'Theater/Performance',
+  
+  // Museums and exhibitions
+  'Ausstellungen': 'Museen',
+  
+  // Markets and festivals - both map to Open Air
+  'Märkte und Messen': 'Open Air',
+  'Festivals, Feste, und Shows': 'Open Air',
+  
+  // Entertainment
+  'Film und Sommerkino': 'Film',
+  
+  // Culture and traditions
+  'Typisch Wien': 'Kultur/Traditionen',
+  'Führungen, Spaziergänge & Touren': 'Kultur/Traditionen',
+  
+  // Family and kids
+  'Kinder und Familie': 'Familien/Kids',
+  'Familien, Kids': 'Familien/Kids',
+  
+  // LGBTQ
+  'Wien für Jugendliche, LGBTQIA+': 'LGBTQ+',
+  
+  // Sport
+  'Sport, Bewegung und Freizeit': 'Sport',
+  
+  // Food
+  'Kulinarik': 'Food/Culinary',
+};
+
+// Export alias for backward compatibility with tests
+export const WIENINFO_TO_WHERE2GO_PREFERRED = WIENINFO_LABEL_TO_MAIN_CATEGORY;
 
 // Canonicalize a Wien.info label by trimming, normalizing whitespace, and applying aliases
 export function canonicalizeWienInfoLabel(label: string): string {
   if (!label) return '';
+  
+  // Trim and collapse whitespace
   const normalized = label.trim().replace(/\s+/g, ' ');
+  
+  // Check aliases (case-insensitive)
   const lower = normalized.toLowerCase();
   for (const [alias, canonical] of Object.entries(WIENINFO_LABEL_ALIASES)) {
     if (lower === alias.toLowerCase()) {
       return canonical;
     }
   }
+  
   return normalized;
 }
 
-// Reverse: official label -> where2go (null if unknown)
+// Map a Wien.info category label to a where2go main category
+// Returns null if no mapping exists
 export function mapWienInfoCategoryLabelToWhereToGo(label: string): string | null {
   const canonical = canonicalizeWienInfoLabel(label);
-  return WIENINFO_LABEL_TO_MAIN_CATEGORY[canonical] || null;
+  
+  // Try exact match first
+  const exactMatch = WIENINFO_LABEL_TO_MAIN_CATEGORY[canonical];
+  if (exactMatch) return exactMatch;
+  
+  // Try case-insensitive match on the official labels
+  const lowerCanonical = canonical.toLowerCase();
+  for (const [key, value] of Object.entries(WIENINFO_LABEL_TO_MAIN_CATEGORY)) {
+    if (key.toLowerCase() === lowerCanonical) {
+      return value;
+    }
+  }
+  
+  return null;
 }
 
 // Forward resolver: where2go -> F1 IDs (deduplicated)
@@ -166,102 +210,4 @@ export function buildWienInfoUrl(fromISO: string, toISO: string, f1Ids?: number[
   params.set('dr', `${fromISO},${toISO}`);
   if (f1Ids && f1Ids.length > 0) params.set('f1', f1Ids.join(','));
   return `${base}?${params.toString()}`;
-}
-
-// Wien.info label aliases to normalize common variants to official labels
-// This ensures consistent mapping when raw API labels vary slightly
-export const WIENINFO_LABEL_ALIASES: Record<string, string> = {
-  // Classical concerts variants
-  'konzerte klassisch': 'Klassisch',
-  'konzerte, klassisch': 'Klassisch',
-  'klassisch': 'Klassisch',
-  
-  // Rock, Pop, Jazz variants
-  'rock, pop, jazz': 'Rock, Pop, Jazz und mehr',
-  
-  // Tours and walks variants
-  'führungen und touren': 'Führungen, Spaziergänge & Touren',
-  'führungen & touren': 'Führungen, Spaziergänge & Touren',
-  'führungen, spaziergänge und touren': 'Führungen, Spaziergänge & Touren',
-  'führungen': 'Führungen, Spaziergänge & Touren',
-  
-  // Film variants
-  'film und sommerkinos': 'Film und Sommerkino',
-  'film und sommer kino': 'Film und Sommerkino',
-  'film und sommerkino': 'Film und Sommerkino',
-  
-  // LGBTQ variants
-  'lgbtq+': 'Wien für Jugendliche, LGBTQIA+',
-  'lgbtiq+': 'Wien für Jugendliche, LGBTQIA+',
-  'lgbtqia+': 'Wien für Jugendliche, LGBTQIA+',
-  'wien für jugendliche, lgbtq+': 'Wien für Jugendliche, LGBTQIA+',
-  'wien für jugendliche, lgbtqia+': 'Wien für Jugendliche, LGBTQIA+',
-  
-  // Sport variants
-  'sport': 'Sport, Bewegung und Freizeit',
-  
-  // Festivals variants (normalize punctuation)
-  'festivals, feste und shows': 'Festivals, Feste, und Shows',
-};
-
-// Canonicalize a Wien.info label by trimming, normalizing whitespace, and applying aliases
-export function canonicalizeWienInfoLabel(label: string): string {
-  if (!label) return '';
-  
-  // Trim and collapse whitespace
-  const normalized = label.trim().replace(/\s+/g, ' ');
-  
-  // Check aliases (case-insensitive)
-  const lower = normalized.toLowerCase();
-  for (const [alias, canonical] of Object.entries(WIENINFO_LABEL_ALIASES)) {
-    if (lower === alias.toLowerCase()) {
-      return canonical;
-    }
-  }
-  
-  return normalized;
-}
-
-// Reverse mapping: Wien.info raw category label -> where2go main category
-// This is the SSOT for category mapping from Wien.info to our categories
-const WIENINFO_LABEL_TO_MAIN_CATEGORY: Record<string, string> = {
-  // Classical and concerts
-  'Klassisch': 'Live-Konzerte',
-  'Rock, Pop, Jazz und mehr': 'Live-Konzerte',
-  'Konzerte': 'Live-Konzerte',
-  
-  // Theater and performance
-  'Theater und Kabarett': 'Theater/Performance',
-  'Musical, Tanz und Performance': 'Theater/Performance',
-  'Oper und Operette': 'Theater/Performance',
-  
-  // Museums and exhibitions
-  'Ausstellungen': 'Museen',
-  
-  // Markets and festivals
-  'Märkte und Messen': 'Open Air',
-  'Festivals, Feste, und Shows': 'Open Air',
-  
-  // Entertainment
-  'Film und Sommerkino': 'Film',
-  
-  // Culture and traditions
-  'Typisch Wien': 'Kultur/Traditionen',
-  'Führungen, Spaziergänge & Touren': 'Kultur/Traditionen',
-  
-  // Family and kids
-  'Kinder und Familie': 'Familien/Kids',
-  
-  // LGBTQ
-  'Wien für Jugendliche, LGBTQIA+': 'LGBTQ+',
-  
-  // Sport
-  'Sport, Bewegung und Freizeit': 'Sport',
-};
-
-// Map a Wien.info category label to a where2go main category
-// Returns null if no mapping exists
-export function mapWienInfoCategoryLabelToWhereToGo(label: string): string | null {
-  const canonical = canonicalizeWienInfoLabel(label);
-  return WIENINFO_LABEL_TO_MAIN_CATEGORY[canonical] || null;
 }
