@@ -215,8 +215,10 @@ a:hover { color: var(--color-accent-alt-hover); }
   color: var(--color-text);
 }
 
-.event-time {
+.event-time::before {
   content: "\00a0\00a0";
+}
+.event-time {
   background: rgba(50, 180, 198, 0.15);
   color: var(--color-accent-alt);
   padding: 3px 8px;
