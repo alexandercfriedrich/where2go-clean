@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, CSSProperties } from 'react';
 import { EVENT_CATEGORY_SUBCATEGORIES } from './lib/eventCategories';
 import { useTranslation } from './lib/useTranslation';
 import { startJobPolling, deduplicateEvents as dedupFront } from './lib/polling';
@@ -26,8 +26,8 @@ const ALL_SUPER_CATEGORIES = Object.keys(EVENT_CATEGORY_SUBCATEGORIES);
 const MAX_CATEGORY_SELECTION = 3;
 
 // Polling config
-const POLL_INTERVAL_MS = 2000;
-const MAX_POLLS = 48;
+const POLL_INTERVAL_MS = 2000; // vorher 4000
+const MAX_POLLS = 48; // UI and tests may refer to 48; adjust here if you raise global window
 
 export default function Home() {
   const { t } = useTranslation();
@@ -51,9 +51,11 @@ export default function Home() {
   const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean; totalEvents: number; cachedEvents: number} | null>(null);
   const [toast, setToast] = useState<{show:boolean; message:string}>({show:false,message:''});
 
+  // Active polling state (Fix: ensure pollInstanceId is provided)
   const pollInstanceRef = useRef(0);
   const [activePolling, setActivePolling] = useState<{ jobId: string; cleanup: () => void; pollInstanceId: number } | null>(null);
 
+  // Debug logs state
   const [debugLogs, setDebugLogs] = useState<{
     apiCalls: Array<{
       timestamp: string;
@@ -94,8 +96,10 @@ export default function Home() {
   const timeSelectWrapperRef = useRef<HTMLDivElement | null>(null);
   const cancelRef = useRef<{cancel:boolean}>({cancel:false});
 
+  // Design CSS handled by DesignCssLoader – no manual override here
   useEffect(() => {}, []);
 
+  // Close date dropdown on outside click / Escape
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!showDateDropdown) return;
@@ -177,9 +181,9 @@ export default function Home() {
     const dateObj = new Date(dateStr);
     if (isNaN(dateObj.getTime())) return { date: dateStr, time: startTime || '' };
 
-    const weekday = dateObj.toLocaleDateString('en-GB', { weekday: 'short' });
+    const weekday = dateObj.toLocaleDateString('en-GB', { weekday: 'short' }); // Fri
     const day = dateObj.getDate();
-    const monthLabel = dateObj.toLocaleDateString('en-GB', { month: 'short' });
+    const monthLabel = dateObj.toLocaleDateString('en-GB', { month: 'short' }); // Sept
     const year = dateObj.getFullYear();
     const ordinal = (d: number) => {
       if (d === 1 || d === 21 || d === 31) return `${d}st`;
@@ -210,6 +214,7 @@ export default function Home() {
     return { date: dateFormatted, time: timeLabel };
   }
 
+  // Preisformat
   function guessCurrencyByCity(c: string) {
     const cityLC = c.toLowerCase();
     if (/miami|new york|los angeles|san francisco|usa|united states|orlando/.test(cityLC)) return { symbol: '$', code: 'USD' };
@@ -234,6 +239,7 @@ export default function Home() {
   }
 
   function dedupMerge(current: EventData[], incoming: EventData[]) {
+    // Reuse front-end light dedup
     return dedupFront(current, incoming);
   }
 
@@ -250,10 +256,11 @@ export default function Home() {
           temperature: 0.2,
           max_tokens: 12000,
           expandedSubcategories: true,
-          debug: true
+          debug: true // Always enable debug for logging
         }
       };
 
+      // Log API call
       setDebugLogs(prev => ({
         ...prev,
         apiCalls: [...prev.apiCalls, {
@@ -272,6 +279,7 @@ export default function Home() {
       
       if (!res.ok) {
         const data = await res.json().catch(()=> ({}));
+        // Log error response
         setDebugLogs(prev => ({
           ...prev,
           apiCalls: prev.apiCalls.map((call, idx) => 
@@ -283,6 +291,8 @@ export default function Home() {
       }
       
       const data = await res.json();
+      
+      // Log successful response
       setDebugLogs(prev => ({
         ...prev,
         apiCalls: prev.apiCalls.map((call, idx) => 
@@ -313,6 +323,7 @@ export default function Home() {
       setActivePolling(null);
     }
 
+    // Clear previous debug logs
     setDebugLogs({
       apiCalls: [],
       aiRequests: [],
@@ -336,11 +347,12 @@ export default function Home() {
           progressive: true,
           timePeriod: timePeriod,
           customDate: customDate,
-          debug: true,
-          fetchWienInfo: true
+          debug: true, // Always enable debug
+          fetchWienInfo: true // Enable Wien.info fetching
         }
       };
 
+      // Log main API call
       setDebugLogs(prev => ({
         ...prev,
         apiCalls: [...prev.apiCalls, {
@@ -351,6 +363,7 @@ export default function Home() {
         }]
       }));
 
+      // Create job via /api/events
       const jobRes = await fetch('/api/events', {
         method: 'POST',
         headers: { 'Content-Type':'application/json' },
@@ -358,6 +371,7 @@ export default function Home() {
       });
       if (!jobRes.ok) {
         const data = await jobRes.json().catch(()=> ({}));
+        // Log error response
         setDebugLogs(prev => ({
           ...prev,
           apiCalls: prev.apiCalls.map((call, idx) => 
@@ -374,6 +388,7 @@ export default function Home() {
         if (data.cacheInfo) setCacheInfo(data.cacheInfo);
       }
 
+      // Log successful response
       setDebugLogs(prev => ({
         ...prev,
         apiCalls: prev.apiCalls.map((call, idx) => 
@@ -393,6 +408,8 @@ export default function Home() {
         if (resultsAnchorRef.current) {
           resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
+
+        // Fetch debug info after job is done
         if (data.jobId) {
           fetchDebugInfo(data.jobId);
         }
@@ -402,6 +419,7 @@ export default function Home() {
       const nextInstance = ++pollInstanceRef.current;
       setActivePolling({ jobId: data.jobId, cleanup, pollInstanceId: nextInstance });
 
+      // Optional: parallel UI fetches per super category
       const superCats =
         selectedSuperCategories.length > 0 ? [...selectedSuperCategories] : [...ALL_SUPER_CATEGORIES];
       for (const sc of superCats) {
@@ -415,11 +433,14 @@ export default function Home() {
     }
   }
 
+  // Fetch debug information from job
   async function fetchDebugInfo(jobId: string) {
     try {
       const debugRes = await fetch(`/api/jobs/${jobId}?debug=1`);
       if (debugRes.ok) {
         const debugData = await debugRes.json();
+        
+        // Log debug data
         setDebugLogs(prev => ({
           ...prev,
           apiCalls: [...prev.apiCalls, {
@@ -431,6 +452,7 @@ export default function Home() {
           }]
         }));
 
+        // Extract AI requests from debug data
         if (debugData.debug && debugData.debug.steps) {
           const aiRequests = debugData.debug.steps.map((step: any) => ({
             timestamp: debugData.debug.createdAt || new Date().toISOString(),
@@ -446,6 +468,7 @@ export default function Home() {
           }));
         }
 
+        // Wien.info debug data, if present
         if (debugData.debug && debugData.debug.wienInfoData) {
           const wienData = debugData.debug.wienInfoData;
           setDebugLogs(prev => ({
@@ -833,6 +856,7 @@ export default function Home() {
         </div>
       )}
 
+      {/* Debug Logs Section */}
       {(debugLogs.apiCalls.length > 0 || debugLogs.aiRequests.length > 0 || debugLogs.wienInfoData.length > 0) && (
         <div style={{ 
           margin: '40px 0', 
@@ -845,6 +869,7 @@ export default function Home() {
         }}>
           <h3 style={{ marginBottom: '20px', color: '#495057' }}>🔍 Debug Logs (Temporary)</h3>
           
+          {/* API Calls */}
           {debugLogs.apiCalls.length > 0 && (
             <div style={{ marginBottom: '30px' }}>
               <h4 style={{ color: '#007bff', marginBottom: '10px' }}>📡 API Calls ({debugLogs.apiCalls.length})</h4>
@@ -897,6 +922,7 @@ export default function Home() {
             </div>
           )}
 
+          {/* AI Requests */}
           {debugLogs.aiRequests.length > 0 && (
             <div style={{ marginBottom: '30px' }}>
               <h4 style={{ color: '#dc3545', marginBottom: '10px' }}>🤖 AI Requests ({debugLogs.aiRequests.length})</h4>
@@ -947,6 +973,7 @@ export default function Home() {
             </div>
           )}
 
+          {/* Wien.info Data */}
           {debugLogs.wienInfoData.length > 0 && (
             <div style={{ marginBottom: '20px' }}>
               <h4 style={{ color: '#fd7e14', marginBottom: '10px' }}>🇦🇹 Wien.info Data ({debugLogs.wienInfoData.length})</h4>
@@ -1076,12 +1103,6 @@ export default function Home() {
               ))}
             </div>
           )}
-        </main>
-      </div>
-
-      {toast.show && (
-        <div className="toast-container">
-          <div className="toast">{toast.message}</div>
         </div>
       )}
 
@@ -1091,6 +1112,7 @@ export default function Home() {
         </div>
       </footer>
 
+      {/* Globale Style-Overrides */}
       <style jsx global>{`
         .header-inner.header-centered {
           position: relative;
@@ -1175,6 +1197,7 @@ export default function Home() {
   );
 }
 
+/* Zwei-Monats-Kalender mit Min-Datum, Auswahl & Disabled-Days */
 function TwoMonthCalendar({
   value,
   minISO,
@@ -1271,4 +1294,39 @@ function TwoMonthCalendar({
   );
 }
 
-// Loader components (W2GLoader5 etc.) assumed defined elsewhere or imported
+/* Loader: 5 ruhige s/w Kreise */
+function W2GLoader5() {
+  const [orbs] = useState(
+    Array.from({length:5}).map((_,i)=>({
+      id:i,
+      angle: (360/5)*i,
+      radius: 12 + i*4,
+      speed: 0.7 + i*0.12
+    }))
+  );
+  return (
+    <div className="w2g-loader-wrapper">
+      <div className="w2g-loader w2g-loader--v3" aria-label="Laden">
+        <svg viewBox="-50 -50 100 100" aria-hidden="true">
+          <g className="ring ring--1"><circle cx="0" cy="0" r="40" /></g>
+          <g className="ring ring--2"><circle cx="0" cy="0" r="28" /></g>
+          <g className="ring ring--3"><circle cx="0" cy="0" r="16" /></g>
+        </svg>
+        {orbs.map(o=>(
+          <span
+            key={o.id}
+            className="orb5"
+            style={
+              {
+                // @ts-ignore custom props for CSS
+                '--angle': `${o.angle}deg`,
+                '--radius': `${o.radius}px`,
+                '--speed': `${o.speed}s`
+              } as CSSProperties
+            }
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
