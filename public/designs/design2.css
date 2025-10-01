@@ -197,7 +197,7 @@ a:hover { color: var(--color-accent-alt-hover); }
   font-size: 20px;
   font-weight: 550;
   color: var(--color-text-dim); /* Light gray like description */
-  line-height: 1.2;
+  line-height: 1.0;
   margin: 12px 0 16px 0;
 }
 
