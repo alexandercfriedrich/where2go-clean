@@ -1,9 +1,4 @@
-/* Design 2 – Clean Black Event Cards (Based on design1.css) */
-/* Focused on working solution without layout breaks */
-
-/* ---- Original design1.css Tokens (Enhanced for Dark) ---- */
 :root {
-  /* Dark theme as default */
   --color-bg: #0c0c0d;
   --color-bg-alt: #121214;
   --color-surface: #151517;
@@ -11,136 +6,37 @@
   --color-border: #2a2c31;
   --color-border-strong: #3a3d43;
   --color-text: #f5f6f7;
-  --color-text-dim: #9ca3af; /* For event titles */
+  --color-text-dim: #9ca3af;
   --color-text-faint: #8a9098;
   --color-accent: #f5f6f7;
   --color-accent-contrast: #0c0c0d;
-  --color-accent-alt: #32b4c6; /* Teal primary */
+  --color-accent-alt: #32b4c6;
   --color-accent-alt-hover: #45c2d4;
-  --color-danger: #ff6b4a;
-  --color-focus-ring: rgba(50, 180, 198, 0.5);
-
-  /* Layout */
-  --radius-xs: 4px;
-  --radius-sm: 6px;
   --radius: 10px;
   --radius-lg: 14px;
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.15);
-  --shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.25);
-  --transition: 0.18s cubic-bezier(.4, 0, .2, 1);
-  --gradient-accent: linear-gradient(90deg, #111, #222);
-  --font-stack: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-
-  /* Dark chips */
-  --chip-bg: #1a1a1c;
-  --chip-border: #2b2e34;
-  --chip-hover: #232326;
-  --chip-active-bg: #32b4c6;
-  --chip-active-text: #0c0c0d;
-  --chip-active-ring: 0 0 0 2px rgba(50, 180, 198, .3);
-
+  --shadow-sm: 0 2px 10px rgba(0,0,0,0.40);
+  --shadow: 0 12px 32px rgba(0,0,0,0.45);
+  --transition: .2s ease;
+  --chip-bg: rgba(255,255,255,0.06);
+  --chip-hover: rgba(255,255,255,0.10);
+  --chip-border: rgba(255,255,255,0.12);
+  --chip-active-bg: var(--color-text);
   --card-gap: 16px;
-  --layout-max-width: 1180px;
 }
 
-/* Light mode override */
-[data-theme="light"] {
-  --color-bg: #ffffff;
-  --color-bg-alt: #f5f5f6;
-  --color-surface: #ffffff;
-  --color-surface-alt: #f8f9fa;
-  --color-border: #e3e4e7;
-  --color-border-strong: #c9ccd1;
-  --color-text: #111111;
-  --color-text-dim: #5a5f67;
-  --color-text-faint: #8b9199;
-  --color-accent: #111111;
-  --color-accent-contrast: #ffffff;
-  --color-accent-alt: #0056ff;
-  --color-accent-alt-hover: #0044cc;
-  --color-danger: #ff3d00;
-  --color-focus-ring: rgba(0, 86, 255, 0.45);
-  --chip-bg: #f2f2f3;
-  --chip-border: #e4e4e6;
-  --chip-hover: #ececed;
-  --chip-active-bg: #111111;
-  --chip-active-text: #ffffff;
-  --chip-active-ring: 0 0 0 2px rgba(0, 0, 0, .25);
-}
+html, body { background: var(--color-bg); color: var(--color-text); }
+.container { max-width: 1180px; margin: 0 auto; padding: 0 20px; }
+.header { background: var(--color-bg-alt); border-bottom: 1px solid var(--color-border); }
+.header-inner { min-height: 64px; display:flex; align-items:center; justify-content: space-between; }
 
-/* ---- Base Reset / Layout ---- */
-* { box-sizing: border-box; }
-
-html, body {
-  margin: 0;
-  padding: 0;
-  font-family: var(--font-stack);
-  background: var(--color-bg);
-  color: var(--color-text);
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-  transition: background var(--transition), color var(--transition);
-}
-
-img, svg { max-width: 100%; height: auto; }
-
-a {
-  color: var(--color-accent-alt);
-  text-decoration: none;
-  transition: color var(--transition), background var(--transition);
-}
-a:hover { color: var(--color-accent-alt-hover); }
-
-:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-
-.container {
-  width: 100%;
-  max-width: var(--layout-max-width);
-  margin: 0 auto;
-  padding: 0 20px;
-}
-
-/* ---- SIMPLE Header with Small Logo ---- */
-.header {
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.header-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: 64px;
-}
-
-/* Small where2go logo - links oben */
-.header-inner::before {
-  content: "where2go";
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--color-text);
-}
-
-/* ---- HIDE Large Logo Completely ---- */
 .main-logo,
 .logo-large,
 .brand-logo,
-.site-logo {
-  display: none !important;
-}
-
-/* Any large logo that might be above categories */
+.site-logo { display: none !important; }
 .container > h1,
 .container > .logo,
-.container > [class*="logo"] {
-  display: none !important;
-}
+.container > [class*="logo"] { display: none !important; }
 
-/* ---- Premium Box (Original from design1) ---- */
 .premium-box .premium-link {
   display: inline-flex;
   gap: 6px;
@@ -150,17 +46,17 @@ a:hover { color: var(--color-accent-alt-hover); }
   border: 1px solid var(--color-border);
   background: var(--color-surface-alt);
   color: var(--color-text);
+  text-decoration: none;
 }
 
-/* ---- Original Events Grid ---- */
 .events-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: var(--card-gap);
 }
 
-/* ---- BLACK EVENT CARDS (Clean Implementation) ---- */
-.event-item {
+.event-item,
+.event-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
@@ -171,53 +67,45 @@ a:hover { color: var(--color-accent-alt-hover); }
   position: relative;
   overflow: hidden;
 }
-
-/* Subtle parallel lines */
-.event-item::before {
+.event-item::before,
+.event-card::before {
   content: "";
   position: absolute;
-  top: 16px;
-  left: 20px;
-  right: 20px;
+  top: 16px; left: 20px; right: 20px;
   height: 1px;
-  background: linear-gradient(90deg, 
-    transparent 0%, 
-    rgba(255, 255, 255, 0.1) 50%, 
-    transparent 100%);
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.08) 50%, transparent 100%);
 }
-
-.event-item:hover {
+.event-item:hover,
+.event-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--shadow);
   background: var(--color-surface-alt);
 }
 
-/* Event titles in light gray (like description) */
-.event-item h3 {
+.event-item h3,
+.event-card .event-title,
+.event-title {
   font-size: 20px;
-  font-weight: 550;
-  color: var(--color-text-dim); /* Light gray like description */
-  line-height: 1.0;
+  font-weight: 600;
+  color: var(--color-text-dim) !important;
   margin: 12px 0 16px 0;
+  line-height: 1.2;
 }
 
-/* Better datetime spacing */
-.event-datetime {
+.event-datetime,
+.event-meta-line {
   display: flex;
   align-items: center;
   gap: 12px;
   margin-bottom: 14px;
   font-size: 14px;
+  line-height: 1.5;
 }
-
 .event-date {
   font-weight: 500;
   color: var(--color-text);
 }
-
-.event-time::before {
-  content: "\00a0\00a0";
-}
+.event-time::before { content: "\00a0\00a0"; }
 .event-time {
   background: rgba(50, 180, 198, 0.15);
   color: var(--color-accent-alt);
@@ -227,93 +115,18 @@ a:hover { color: var(--color-accent-alt-hover); }
   font-weight: 500;
 }
 
-/* Venue styling */
-.venue-info {
-  margin-bottom: 16px;
-}
-
+.venue-info { margin-bottom: 16px; line-height: 1.5; }
 .venue-link {
   color: var(--color-accent-alt);
   font-weight: 500;
   transition: color var(--transition);
+  text-decoration: none;
 }
-
 .venue-link:hover {
   color: var(--color-accent-alt-hover);
   text-decoration: underline;
 }
 
-/* Event actions */
-.event-actions {
-  display: flex;
-  gap: 10px;
-  align-items: center;
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px solid var(--color-border);
-}
-
-/* ---- Buttons ---- */
-.btn-outline {
-  border: 1px solid var(--color-border);
-  color: var(--color-text);
-  background: transparent;
-  border-radius: var(--radius);
-  padding: 8px 12px;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all var(--transition);
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.btn-outline:hover {
-  background: var(--color-surface-alt);
-  border-color: var(--color-border-strong);
-}
-
-.btn-outline.tickets {
-  border-color: var(--color-accent-alt);
-  color: var(--color-accent-alt);
-}
-
-.btn-outline.tickets:hover {
-  background: var(--color-accent-alt);
-  color: var(--color-accent-contrast);
-}
-
-.btn-outline.with-icon svg {
-  margin-right: 6px;
-}
-
-/* ---- Dark Chips / Filters ---- */
-.filter-chip {
-  border: 1px solid var(--chip-border);
-  background: var(--chip-bg);
-  color: var(--color-text);
-  border-radius: 999px;
-  padding: 6px 12px;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all var(--transition);
-  white-space: nowrap;
-}
-
-.filter-chip:hover {
-  background: var(--chip-hover);
-}
-
-.filter-chip-active {
-  background: var(--chip-active-bg);
-  color: var(--chip-active-text);
-  border-color: var(--chip-active-bg);
-  box-shadow: var(--chip-active-ring);
-}
-
-/* ---- Price Chip ---- */
 .price-chip {
   display: inline-block;
   padding: 4px 8px;
@@ -321,31 +134,39 @@ a:hover { color: var(--color-accent-alt-hover); }
   background: var(--chip-bg);
   border: 1px solid var(--chip-border);
   color: var(--color-text);
-  font-size: 12px;
+}
+.price-chip:hover { background: var(--chip-hover); }
+
+.event-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.btn-outline {
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  background: transparent;
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   transition: all var(--transition);
+  text-decoration: none;
 }
-
-.price-chip:hover {
-  background: var(--chip-hover);
+.btn-outline.tickets {
+  border-color: var(--color-accent-alt);
+  color: var(--color-accent-alt);
 }
+.btn-outline.with-icon svg { margin-right: 6px; }
 
-/* ---- Loading Animation (Simple) ---- */
 @keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
+.event-item-loaded { animation: fadeInUp 0.5s ease-out forwards; }
 
-.event-item-loaded {
-  animation: fadeInUp 0.5s ease-out forwards;
-}
-
-/* Skeleton placeholder */
 .skeleton-event-item {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -353,121 +174,33 @@ a:hover { color: var(--color-accent-alt-hover); }
   padding: 20px;
   margin-bottom: 16px;
   opacity: 0.6;
+  position: relative;
 }
-
 .skeleton-event-item::before {
   content: "";
   position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
   background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
   animation: shimmer 2s infinite;
 }
-
 @keyframes shimmer {
-  to { left: 100%; }
+  0% { left: -100%; }
+  100% { left: 100%; }
 }
 
-/* ---- Where2Go Loader (Original) ---- */
-.w2g-loader-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px 0;
-}
-
-.w2g-loader {
-  position: relative;
-  width: 130px;
-  height: 130px;
-}
-
-.w2g-loader svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-.w2g-loader .ring circle {
-  fill: none;
-  stroke: var(--color-border);
-  stroke-width: 2;
-  opacity: 0.55;
-}
-
-.w2g-loader .ring--2 circle { opacity: 0.35; }
-.w2g-loader .ring--3 circle { opacity: 0.25; }
-
-.orb5 {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 8px;
-  height: 8px;
-  margin: -4px 0 0 -4px;
-  border-radius: 50%;
-  background: var(--chip-active-bg, var(--color-text));
-  box-shadow: 0 0 0 3px rgba(0,0,0,0.04);
-  transform: rotate(var(--angle, 0deg)) translateX(var(--radius, 20px)) translate(-50%, -50%);
-  transform-origin: center center;
-  animation: orb5-orbit var(--speed, 1.2s) linear infinite;
-  will-change: transform;
-}
-
-@keyframes orb5-orbit {
-  to {
-    transform: rotate(calc(var(--angle, 0deg) + 360deg)) translateX(var(--radius, 20px)) translate(-50%, -50%);
-  }
-}
-
-/* ---- Responsive ---- */
 @media (max-width: 768px) {
-  .container {
-    padding: 0 16px;
-  }
-
-  .event-item {
-    padding: 16px;
-  }
-
-  .event-actions {
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .btn-outline {
-    width: 100%;
-    justify-content: center;
-  }
-
-  .events-grid {
-    grid-template-columns: 1fr;
-  }
+  .container { padding: 0 16px; }
+  .event-item, .event-card { padding: 16px; }
+  .event-actions { flex-direction: column; gap: 8px; }
+  .btn-outline { width: 100%; justify-content: center; }
+  .events-grid { grid-template-columns: 1fr; }
 }
-
 @media (max-width: 480px) {
-  .event-item h3 {
-    font-size: 18px;
-  }
-
-  .header-inner {
-    min-height: 56px;
-  }
+  .event-item h3, .event-card .event-title { font-size: 18px; }
+  .header-inner { min-height: 56px; }
 }
 
-.event-card .event-title,
-.event-item h3 {
-  color: var(--color-text-dim) !important;
-}
-
-.event-meta-line {
-  line-height: 1.5;
-}
-
-
-/* ---- Accessibility ---- */
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
