@@ -20,7 +20,7 @@ export class EventAggregator {
     for (const r of results) {
       const queryCategory = this.extractCategoryFromQuery(r.query);
       const events = this.parseEventsFromResponse(
-        r.response, // FIX: use `response`, not `responseText`
+        r.response,
         queryCategory,
         Array.isArray(requestedDate) ? requestedDate[0] : requestedDate
       );
