@@ -289,9 +289,7 @@ export class EventAggregator {
 
   private isKeyValueJsonLine(line: string): boolean {
     // "key": "value" | key: "value" | 'key': 'value'
-    if (/^"[^"]+"\s*:\s*".*"$/.test(line)) return true;
-    if (/^[a-zA-Z_][\w\s-]*\s*:\s*".*"$/.test(line)) return true;
-    if (/^'[^']+'\s*:\s*'.*'$/.test(line)) return true;
+    if (/^(\"[^\"]+\"|'[^']+'|[a-zA-Z_][\w\s-]*)\s*:\s*(\".*\"|'.*')$/.test(line)) return true;
     if (line.includes('{') || line.includes('}')) return false;
     return false;
   }
