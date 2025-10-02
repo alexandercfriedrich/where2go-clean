@@ -306,7 +306,7 @@ export default function Home() {
     }
   }
 
-  // ...
+  
   async function progressiveSearchEvents() {
     if (!city.trim()) {
       setError('Bitte gib eine Stadt ein.');
