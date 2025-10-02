@@ -96,10 +96,14 @@ export default function Home() {
   const timeSelectWrapperRef = useRef<HTMLDivElement | null>(null);
   const cancelRef = useRef<{cancel:boolean}>({cancel:false});
 
-  // Design CSS handled by DesignCssLoader – no manual override here
-  useEffect(() => {}, []);
+  // design1.css laden und andere Designs entfernen
+  // ✅ ERSETZEN MIT:
+  useEffect(() => {
+    // Lass DesignCssLoader.tsx das Design-Switching handhaben
+    // Kein manueller Override mehr nötig
+  }, []);
 
-  // Close date dropdown on outside click / Escape
+  // Dropdown außerhalb/Escape schließen
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!showDateDropdown) return;
@@ -144,7 +148,7 @@ export default function Home() {
   function tomorrowISO() { const d = new Date(); d.setDate(d.getDate()+1); return toISODate(d); }
   function nextWeekendDatesISO(): string[] {
     const t = new Date();
-    const day = t.getDay(); // 0 So ... 6 Sa
+       const day = t.getDay(); // 0 So ... 6 Sa
     const offset = (5 - day + 7) % 7; // nächster Freitag
     const fri = new Date(t); fri.setDate(t.getDate() + offset);
     const sat = new Date(fri); sat.setDate(fri.getDate() + 1);
@@ -309,6 +313,7 @@ export default function Home() {
     }
   }
 
+  // ...
   async function progressiveSearchEvents() {
     if (!city.trim()) {
       setError('Bitte gib eine Stadt ein.');
@@ -363,7 +368,7 @@ export default function Home() {
         }]
       }));
 
-      // Create job via /api/events
+      // RICHTIG: Job per /api/events anlegen (keine jobId im Body mitschicken)
       const jobRes = await fetch('/api/events', {
         method: 'POST',
         headers: { 'Content-Type':'application/json' },
@@ -409,7 +414,7 @@ export default function Home() {
           resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
-        // Fetch debug info after job is done
+        // Fetch debug information after job is done
         if (data.jobId) {
           fetchDebugInfo(data.jobId);
         }
@@ -419,7 +424,7 @@ export default function Home() {
       const nextInstance = ++pollInstanceRef.current;
       setActivePolling({ jobId: data.jobId, cleanup, pollInstanceId: nextInstance });
 
-      // Optional: parallel UI fetches per super category
+      // Optional: parallele UI-Fetches pro Superkategorie
       const superCats =
         selectedSuperCategories.length > 0 ? [...selectedSuperCategories] : [...ALL_SUPER_CATEGORIES];
       for (const sc of superCats) {
@@ -468,7 +473,7 @@ export default function Home() {
           }));
         }
 
-        // Wien.info debug data, if present
+        // Check for Wien.info specific data
         if (debugData.debug && debugData.debug.wienInfoData) {
           const wienData = debugData.debug.wienInfoData;
           setDebugLogs(prev => ({
@@ -868,7 +873,241 @@ export default function Home() {
           fontSize: '12px'
         }}>
           <h3 style={{ marginBottom: '20px', color: '#495057' }}>🔍 Debug Logs (Temporary)</h3>
-          {/* ...debug sections unchanged... */}
+          
+          {/* API Calls */}
+          {debugLogs.apiCalls.length > 0 && (
+            <div style={{ marginBottom: '30px' }}>
+              <h4 style={{ color: '#007bff', marginBottom: '10px' }}>📡 API Calls ({debugLogs.apiCalls.length})</h4>
+              {debugLogs.apiCalls.map((call, idx) => (
+                <div key={idx} style={{ 
+                  marginBottom: '15px', 
+                  padding: '10px', 
+                  background: '#fff', 
+                  border: '1px solid #e9ecef',
+                  borderRadius: '4px'
+                }}>
+                  <div style={{ color: '#28a745', fontWeight: 'bold' }}>
+                    {call.method} {call.url} {call.status && `(${call.status})`}
+                  </div>
+                  <div style={{ color: '#6c757d', fontSize: '10px' }}>{call.timestamp}</div>
+                  {call.body && (
+                    <details style={{ marginTop: '8px' }}>
+                      <summary style={{ cursor: 'pointer', color: '#007bff' }}>Request Body</summary>
+                      <pre style={{ 
+                        marginTop: '5px', 
+                        padding: '8px', 
+                        background: '#f8f9fa', 
+                        border: '1px solid #dee2e6',
+                        borderRadius: '3px',
+                        overflow: 'auto',
+                        maxHeight: '200px'
+                      }}>
+                        {JSON.stringify(call.body, null, 2)}
+                      </pre>
+                    </details>
+                  )}
+                  {call.response && (
+                    <details style={{ marginTop: '8px' }}>
+                      <summary style={{ cursor: 'pointer', color: '#007bff' }}>Response</summary>
+                      <pre style={{ 
+                        marginTop: '5px', 
+                        padding: '8px', 
+                        background: '#f8f9fa', 
+                        border: '1px solid #dee2e6',
+                        borderRadius: '3px',
+                        overflow: 'auto',
+                        maxHeight: '200px'
+                      }}>
+                        {JSON.stringify(call.response, null, 2)}
+                      </pre>
+                    </details>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* AI Requests */}
+          {debugLogs.aiRequests.length > 0 && (
+            <div style={{ marginBottom: '30px' }}>
+              <h4 style={{ color: '#dc3545', marginBottom: '10px' }}>🤖 AI Requests ({debugLogs.aiRequests.length})</h4>
+              {debugLogs.aiRequests.map((req, idx) => (
+                <div key={idx} style={{ 
+                  marginBottom: '15px', 
+                  padding: '10px', 
+                  background: '#fff', 
+                  border: '1px solid #e9ecef',
+                  borderRadius: '4px'
+                }}>
+                  <div style={{ color: '#dc3545', fontWeight: 'bold' }}>
+                    AI Query {req.category && `(${req.category})`}
+                  </div>
+                  <div style={{ color: '#6c757d', fontSize: '10px' }}>
+                    {req.timestamp} - Parsed: {req.parsedCount || 0} events
+                  </div>
+                  <details style={{ marginTop: '8px' }}>
+                    <summary style={{ cursor: 'pointer', color: '#007bff' }}>Query</summary>
+                    <pre style={{ 
+                      marginTop: '5px', 
+                      padding: '8px', 
+                      background: '#fff3cd', 
+                      border: '1px solid #ffeaa7',
+                      borderRadius: '3px',
+                      overflow: 'auto',
+                      maxHeight: '150px'
+                    }}>
+                      {req.query}
+                    </pre>
+                  </details>
+                  <details style={{ marginTop: '8px' }}>
+                    <summary style={{ cursor: 'pointer', color: '#007bff' }}>AI Response</summary>
+                    <pre style={{ 
+                      marginTop: '5px', 
+                      padding: '8px', 
+                      background: '#d1ecf1', 
+                      border: '1px solid #bee5eb',
+                      borderRadius: '3px',
+                      overflow: 'auto',
+                      maxHeight: '300px'
+                    }}>
+                      {req.response}
+                    </pre>
+                  </details>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Wien.info Data */}
+          {debugLogs.wienInfoData.length > 0 && (
+            <div style={{ marginBottom: '20px' }}>
+              <h4 style={{ color: '#fd7e14', marginBottom: '10px' }}>🇦🇹 Wien.info Data ({debugLogs.wienInfoData.length})</h4>
+              {debugLogs.wienInfoData.map((data, idx) => (
+                <div key={idx} style={{ 
+                  marginBottom: '15px', 
+                  padding: '10px', 
+                  background: '#fff', 
+                  border: '1px solid #e9ecef',
+                  borderRadius: '4px'
+                }}>
+                  <div style={{ color: '#fd7e14', fontWeight: 'bold' }}>
+                    Wien.info JSON API
+                  </div>
+                  <div style={{ color: '#6c757d', fontSize: '10px' }}>
+                    {data.timestamp} - URL: {data.url}
+                  </div>
+                  {data.query && (
+                    <div style={{ marginTop: '8px', fontSize: '11px' }}>
+                      <strong>Query:</strong> {data.query}
+                    </div>
+                  )}
+                  {(data.parsedEvents !== undefined || data.filteredEvents !== undefined) && (
+                    <div style={{ marginTop: '8px', padding: '8px', background: '#e8f5e8', borderRadius: '3px' }}>
+                      {data.parsedEvents !== undefined && <div><strong>Parsed Events:</strong> {data.parsedEvents}</div>}
+                      {data.filteredEvents !== undefined && <div><strong>Filtered Events:</strong> {data.filteredEvents}</div>}
+                    </div>
+                  )}
+                  {data.rawCategoryCounts && Object.keys(data.rawCategoryCounts).length > 0 && (
+                    <details style={{ marginTop: '8px' }}>
+                      <summary style={{ cursor: 'pointer', color: '#007bff' }}>
+                        Raw Category Counts ({Object.keys(data.rawCategoryCounts).length} types)
+                      </summary>
+                      <pre style={{ 
+                        marginTop: '5px', 
+                        padding: '8px', 
+                        background: '#f8f9fa', 
+                        border: '1px solid #dee2e6',
+                        borderRadius: '3px',
+                        overflow: 'auto',
+                        maxHeight: '200px'
+                      }}>
+                        {JSON.stringify(data.rawCategoryCounts, null, 2)}
+                      </pre>
+                    </details>
+                  )}
+                  {data.mappedCategoryCounts && Object.keys(data.mappedCategoryCounts).length > 0 && (
+                    <details style={{ marginTop: '8px' }}>
+                      <summary style={{ cursor: 'pointer', color: '#007bff' }}>
+                        Mapped Category Counts ({Object.keys(data.mappedCategoryCounts).length} types)
+                      </summary>
+                      <pre style={{ 
+                        marginTop: '5px', 
+                        padding: '8px', 
+                        background: '#f8f9fa', 
+                        border: '1px solid #dee2e6',
+                        borderRadius: '3px',
+                        overflow: 'auto',
+                        maxHeight: '200px'
+                      }}>
+                        {JSON.stringify(data.mappedCategoryCounts, null, 2)}
+                      </pre>
+                    </details>
+                  )}
+                  {data.unknownRawCategories && data.unknownRawCategories.length > 0 && (
+                    <div style={{ 
+                      marginTop: '8px', 
+                      padding: '8px', 
+                      background: '#fff3cd', 
+                      border: '1px solid #ffeaa7',
+                      borderRadius: '3px',
+                      color: '#856404'
+                    }}>
+                      <strong>Unknown Raw Categories ({data.unknownRawCategories.length}):</strong><br/>
+                      {data.unknownRawCategories.join(', ')}
+                    </div>
+                  )}
+                  {data.error && (
+                    <div style={{ 
+                      marginTop: '8px', 
+                      padding: '8px', 
+                      background: '#f8d7da', 
+                      border: '1px solid #f5c6cb',
+                      borderRadius: '3px',
+                      color: '#721c24'
+                    }}>
+                      Error: {data.error}
+                    </div>
+                  )}
+                  {data.events && data.events.length > 0 && (
+                    <details style={{ marginTop: '8px' }}>
+                      <summary style={{ cursor: 'pointer', color: '#007bff' }}>
+                        API Events ({data.events.length})
+                      </summary>
+                      <pre style={{ 
+                        marginTop: '5px', 
+                        padding: '8px', 
+                        background: '#f8f9fa', 
+                        border: '1px solid #dee2e6',
+                        borderRadius: '3px',
+                        overflow: 'auto',
+                        maxHeight: '200px'
+                      }}>
+                        {JSON.stringify(data.events, null, 2)}
+                      </pre>
+                    </details>
+                  )}
+                  {data.scrapedContent && (
+                    <details style={{ marginTop: '8px' }}>
+                      <summary style={{ cursor: 'pointer', color: '#007bff' }}>
+                        Raw HTML Content (first 1000 chars)
+                      </summary>
+                      <pre style={{ 
+                        marginTop: '5px', 
+                        padding: '8px', 
+                        background: '#f8f9fa', 
+                        border: '1px solid #dee2e6',
+                        borderRadius: '3px',
+                        overflow: 'auto',
+                        maxHeight: '150px'
+                      }}>
+                        {data.scrapedContent.substring(0, 1000)}...
+                      </pre>
+                    </details>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -887,17 +1126,28 @@ export default function Home() {
           justify-content:center;
           min-height:64px;
         }
-        .header-inner.header-centered .premium-box { position:absolute; right:0; }
-
-        .results-filter-bar {
-          display:flex; justify-content:space-between; align-items:center;
-          gap:12px; padding:10px 0 18px;
+        .header-inner.header-centered .premium-box {
+          position:absolute;
+          right:0;
         }
-        .filter-chips-inline { display:flex; flex-wrap:wrap; gap:10px; }
+        .results-filter-bar {
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          gap:12px;
+          padding:10px 0 18px;
+        }
+        .filter-chips-inline {
+          display:flex;
+          flex-wrap:wrap;
+          gap:10px;
+        }
         .filter-sidebar { display:none !important; }
         .filter-chip {
-          display:flex; justify-content:space-between; align-items:center; gap:8px;
-          font-size:13px; padding:10px 14px; border:1px solid #dcdfe3;
+          display:flex; justify-content:space-between; align-items:center;
+          gap:8px;
+          font-size:13px; padding:10px 14px;
+          border:1px solid #dcdfe3;
           background:transparent; border-radius:10px; cursor:pointer;
           transition:background .2s, border-color .2s, color .2s;
           color:#444; font-weight:500; text-align:left;
@@ -907,7 +1157,6 @@ export default function Home() {
         .filter-chip-active:hover { background:#e5e7eb; color:#9aa0a6; }
         .filter-count { font-size:11px; background:rgba(0,0,0,0.06); padding:3px 8px; border-radius:999px; color:inherit; font-weight:500; }
         .filter-chip-active .filter-count { background:rgba(255,255,255,0.18); }
-
         .category-checkbox {
           display:flex; align-items:center; gap:8px; padding:8px 10px;
           border:1px solid #dfe1e4; background:transparent; border-radius:8px;
@@ -919,31 +1168,38 @@ export default function Home() {
         .category-checkbox:has(input:checked) { background:#404040; color:#fff; border-color:#404040; }
         .category-checkbox:has(input:checked):hover { background:#e5e7eb; color:#9aa0a6; }
         .category-checkbox:has(input:checked) input { accent-color:#ffffff; }
-
         .btn-search {
           border:none; background:#404040; color:#fff; font-size:15px; padding:14px 20px; border-radius:10px;
           font-weight:500; letter-spacing:.4px; cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,0.08);
           transition:background .2s, box-shadow .2s, transform .2s, color .2s;
         }
         .btn-search:hover { background:#222; }
-
         @media (max-width: 600px) {
           .search-form .form-row { gap:12px; }
           .categories-section { gap:10px; }
           .results-filter-bar { flex-direction:column; align-items:flex-start; gap:8px; }
         }
-
         .src-badge {
-          display:inline-block; margin-left:8px; font-size:11px; line-height:1; padding:3px 6px;
-          border-radius:999px; border:1px solid rgba(0,0,0,0.18);
-          background:#f7f7f7; color:#444; vertical-align:middle;
+          display:inline-block;
+          margin-left:8px;
+          font-size:11px;
+          line-height:1;
+          padding:3px 6px;
+          border-radius:999px;
+          border:1px solid rgba(0,0,0,0.18);
+          background:#f7f7f7;
+          color:#444;
+          vertical-align:middle;
         }
         .src-badge.src-ai    { background:#1f2937; color:#fff; border-color:#1f2937; }
         .src-badge.src-rss   { background:#f59e0b; color:#111; border-color:#d97706; }
         .src-badge.src-ra    { background:#0ea5e9; color:#fff; border-color:#0284c7; }
         .src-badge.src-cache { background:#e5e7eb; color:#111; border-color:#d1d5db; }
 
-        /* ---------------- Date selector dropdown + calendar styles ---------------- */
+        /* Spacing improvement requested between meta rows */
+        .event-meta-line { line-height: 1.5; }
+
+        /* ---------------- Date selector dropdown + calendar styles (fixes broken layout) ---------------- */
         .select-with-dropdown { position: relative; }
         .date-dropdown {
           position: absolute;
@@ -1012,7 +1268,7 @@ export default function Home() {
         .cal-day--disabled {
           opacity: .4; cursor: not-allowed; background: rgba(0,0,0,0.03);
         }
-        /* ------------------------------------------------------------------------- */
+        /* ----------------------------------------------------------------------------------------------- */
       `}</style>
     </div>
   );
@@ -1139,7 +1395,7 @@ function W2GLoader5() {
             className="orb5"
             style={
               {
-                // @ts-ignore custom props for CSS
+                // @ts-ignore custom props
                 '--angle': `${o.angle}deg`,
                 '--radius': `${o.radius}px`,
                 '--speed': `${o.speed}s`
