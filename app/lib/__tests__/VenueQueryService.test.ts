@@ -201,4 +201,89 @@ describe('VenueQueryService', () => {
     expect(result).toHaveLength(1);
     expect(result[0].venueId).toBe('venue-valid');
   });
+
+  describe('Venue Grouping and Strategy', () => {
+    it('should group venues by category', () => {
+      const venues: VenueQuery[] = [
+        { venueId: '1', venueName: 'Concert Hall 1', query: 'q1', priority: 8, categories: ['Live-Konzerte'], website: 'https://test1.com' },
+        { venueId: '2', venueName: 'Concert Hall 2', query: 'q2', priority: 7, categories: ['Live-Konzerte'], website: 'https://test2.com' },
+        { venueId: '3', venueName: 'Museum 1', query: 'q3', priority: 8, categories: ['Museen'], website: 'https://test3.com' },
+        { venueId: '4', venueName: 'Club 1', query: 'q4', priority: 7, categories: ['DJ Sets/Electronic'], website: 'https://test4.com' }
+      ];
+      
+      const grouped = service.groupVenuesByCategory(venues);
+      
+      expect(grouped.size).toBe(3);
+      expect(grouped.get('Live-Konzerte')).toHaveLength(2);
+      expect(grouped.get('Museen')).toHaveLength(1);
+      expect(grouped.get('DJ Sets/Electronic')).toHaveLength(1);
+    });
+
+    it('should create optimized venue strategy', () => {
+      const venues: VenueQuery[] = [
+        // High priority (≥9) - individual queries
+        { venueId: '1', venueName: 'Staatsoper', query: 'q1', priority: 10, categories: ['Live-Konzerte'] },
+        { venueId: '2', venueName: 'Konzerthaus', query: 'q2', priority: 9, categories: ['Live-Konzerte'] },
+        // Medium priority (7-8) - grouped queries
+        { venueId: '3', venueName: 'Flex', query: 'q3', priority: 8, categories: ['DJ Sets/Electronic'] },
+        { venueId: '4', venueName: 'Grelle Forelle', query: 'q4', priority: 7, categories: ['DJ Sets/Electronic'] },
+        { venueId: '5', venueName: 'Arena', query: 'q5', priority: 7, categories: ['Live-Konzerte'] },
+        // Low priority (≤6) - skipped
+        { venueId: '6', venueName: 'Chelsea', query: 'q6', priority: 6, categories: ['Clubs/Discos'] }
+      ];
+      
+      const strategy = service.createVenueStrategy(venues);
+      
+      expect(strategy.individualQueries).toHaveLength(2);
+      expect(strategy.individualQueries[0].priority).toBeGreaterThanOrEqual(9);
+      
+      expect(strategy.groupedQueries.length).toBeGreaterThan(0);
+      expect(strategy.groupedQueries.every(g => g.venueCount > 0)).toBe(true);
+      
+      expect(strategy.skippedVenues).toHaveLength(1);
+      expect(strategy.skippedVenues[0].priority).toBeLessThan(7);
+      
+      expect(strategy.totalQueries).toBe(5); // 2 individual + 3 medium priority
+      expect(strategy.estimatedApiCalls).toBeLessThan(strategy.totalQueries); // Should be fewer due to grouping
+    });
+
+    it('should build group prompt correctly', () => {
+      const group = {
+        category: 'DJ Sets/Electronic',
+        venues: [
+          { venueId: '1', venueName: 'Flex Wien', query: 'q1', priority: 8, categories: ['DJ Sets/Electronic'], website: 'https://flex.at' },
+          { venueId: '2', venueName: 'Grelle Forelle', query: 'q2', priority: 7, categories: ['DJ Sets/Electronic'], website: 'https://grelleforelle.at' }
+        ],
+        groupPrompt: '',
+        totalPriority: 15,
+        venueCount: 2
+      };
+      
+      const prompt = service.buildGroupPrompt(group, 'Wien', '2025-10-03');
+      
+      expect(prompt).toContain('DJ Sets/Electronic');
+      expect(prompt).toContain('Flex Wien');
+      expect(prompt).toContain('Grelle Forelle');
+      expect(prompt).toContain('Wien');
+      expect(prompt).toContain('2025-10-03');
+      expect(prompt).toContain('https://flex.at');
+      expect(prompt).toContain('https://grelleforelle.at');
+    });
+
+    it('should sort grouped queries by total priority', () => {
+      const venues: VenueQuery[] = [
+        { venueId: '1', venueName: 'V1', query: 'q1', priority: 8, categories: ['Cat A'] },
+        { venueId: '2', venueName: 'V2', query: 'q2', priority: 7, categories: ['Cat A'] }, // Total: 15
+        { venueId: '3', venueName: 'V3', query: 'q3', priority: 8, categories: ['Cat B'] },
+        { venueId: '4', venueName: 'V4', query: 'q4', priority: 8, categories: ['Cat B'] },
+        { venueId: '5', venueName: 'V5', query: 'q5', priority: 8, categories: ['Cat B'] } // Total: 24
+      ];
+      
+      const strategy = service.createVenueStrategy(venues);
+      
+      expect(strategy.groupedQueries[0].totalPriority).toBeGreaterThanOrEqual(
+        strategy.groupedQueries[strategy.groupedQueries.length - 1].totalPriority
+      );
+    });
+  });
 });
