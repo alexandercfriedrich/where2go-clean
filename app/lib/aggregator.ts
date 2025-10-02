@@ -252,7 +252,7 @@ export class EventAggregator {
     const dict = Object.keys(obj).reduce((acc, k) => { acc[k.toLowerCase()] = k; return acc; }, {} as Record<string, string>);
     for (const n of names) {
       const real = dict[n.toLowerCase()];
-      if (real && typeof obj[real] === 'string') return (obj[real] as string).trim();
+      if (real && typeof obj[real] === 'string') return obj[real].trim();
     }
     return undefined;
   }
