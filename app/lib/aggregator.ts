@@ -351,7 +351,14 @@ export class EventAggregator {
 
   // Deduplication with normalization + fuzzy title matching (same date)
   deduplicateEvents(events: EventData[]): EventData[] {
-    const norm = (s: string) => (s || '').toLowerCase().normalize('NFKD').replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const normCache = new Map<string, string>();
+    const norm = (s: string) => {
+      const key = s || '';
+      if (normCache.has(key)) return normCache.get(key)!;
+      const normalized = key.toLowerCase().normalize('NFKD').replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+      normCache.set(key, normalized);
+      return normalized;
+    };
     const keyOf = (e: EventData) => `${norm(e.title)}|${(e.date||'').slice(0,10)}|${norm(e.venue)}`;
 
     const map = new Map<string, EventData>();
