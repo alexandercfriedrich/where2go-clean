@@ -1,44 +1,34 @@
-/* Design 1 – Global Styles (validated CSS)
-   Note: Keep this file strictly valid; Vercel/PostCSS fails on unclosed blocks.
-*/
-
-/* ---- Tokens (Light) ---- */
 :root {
-  --color-bg: #ffffff;
-  --color-bg-alt: #f5f5f6;
+  --color-bg: #f7f8fa;
+  --color-bg-alt: #ffffff;
   --color-surface: #ffffff;
-  --color-surface-alt: #f8f9fa;
-  --color-border: #e3e4e7;
-  --color-border-strong: #c9ccd1;
-  --color-text: #111111;
-  --color-text-dim: #5a5f67;
-  --color-text-faint: #8b9199;
-  --color-accent: #111111;
+  --color-surface-alt: #fafbfc;
+  --color-border: #e5e7eb;
+  --color-border-strong: #cbd5e1;
+  --color-text: #1f2937;
+  --color-text-dim: #6b7280;
+  --color-text-faint: #9ca3af;
+  --color-accent: #111827;
   --color-accent-contrast: #ffffff;
-  --color-accent-alt: #0056ff;
-  --color-accent-alt-hover: #0044cc;
-  --color-danger: #ff3d00;
-  --color-focus-ring: rgba(0, 86, 255, 0.45);
-  --radius-xs: 4px;
-  --radius-sm: 6px;
+  --color-accent-alt: #5b8cff;
+  --color-accent-alt-hover: #769dff;
   --radius: 10px;
   --radius-lg: 14px;
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.04);
-  --shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.08);
-  --transition: 0.18s cubic-bezier(.4, 0, .2, 1);
-  --gradient-accent: linear-gradient(90deg, #111, #222);
-  --font-stack: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
-  --chip-bg: #f2f2f3;
-  --chip-border: #e4e4e6;
-  --chip-hover: #ececed;
-  --chip-active-bg: #111111;
-  --chip-active-text: #ffffff;
-  --chip-active-ring: 0 0 0 2px rgba(0, 0, 0, .25);
+  --shadow-sm: 0 2px 12px rgba(0,0,0,0.06);
+  --shadow: 0 8px 25px rgba(0,0,0,0.12);
+  --transition: .2s ease;
+  --chip-bg: #f3f4f6;
+  --chip-hover: #e5e7eb;
+  --chip-border: #e5e7eb;
+  --chip-active-bg: #111827;
+  --space-4: 8px;
+  --space-6: 12px;
+  --space-8: 16px;
+  --space-12: 24px;
   --card-gap: 16px;
   --layout-max-width: 1180px;
 }
 
-/* ---- Tokens (Dark) ---- */
 [data-theme="dark"] {
   --color-bg: #0c0c0d;
   --color-bg-alt: #121214;
@@ -52,63 +42,67 @@
   --color-accent: #f5f6f7;
   --color-accent-contrast: #0c0c0d;
   --color-accent-alt: #5b8cff;
-  --color-accent-alt-hover: #7aa4ff;
-  --color-danger: #ff6b4a;
-  --color-focus-ring: rgba(91, 140, 255, 0.5);
-  --chip-bg: #202226;
-  --chip-border: #2b2e34;
-  --chip-hover: #262a30;
-  --chip-active-bg: #f5f6f7;
-  --chip-active-text: #0c0c0d;
-  --chip-active-ring: 0 0 0 2px rgba(255, 255, 255, .22);
+  --color-accent-alt-hover: #769dff;
+  --chip-bg: rgba(255,255,255,0.06);
+  --chip-hover: rgba(255,255,255,0.10);
+  --chip-border: rgba(255,255,255,0.12);
+  --shadow-sm: 0 2px 10px rgba(0,0,0,0.40);
+  --shadow: 0 12px 32px rgba(0,0,0,0.45);
 }
 
-/* ---- Base Reset / Layout ---- */
-* { box-sizing: border-box; }
 html, body {
-  margin: 0;
-  padding: 0;
-  font-family: var(--font-stack);
   background: var(--color-bg);
   color: var(--color-text);
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-  transition: background var(--transition), color var(--transition);
 }
-
-img, svg { max-width: 100%; height: auto; }
-
-a {
-  color: var(--color-accent-alt);
-  text-decoration: none;
-  transition: color var(--transition), background var(--transition);
-}
-a:hover { color: var(--color-accent-alt-hover); }
-
-:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-
 .container {
-  width: 100%;
   max-width: var(--layout-max-width);
   margin: 0 auto;
   padding: 0 20px;
 }
-
-/* ---- Common UI Elements ---- */
 .header {
-  background: var(--color-surface);
+  background: var(--color-bg-alt);
   border-bottom: 1px solid var(--color-border);
 }
-
 .header-inner {
+  min-height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 64px;
+}
+.header-logo-wrapper img {
+  height: 32px;
+  display: block;
+}
+
+.search-section {
+  padding: 20px 0 0 0;
+}
+.search-form {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  padding: 16px;
+}
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.form-input, .form-group select, .form-group input {
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+.form-input::placeholder {
+  color: var(--color-text-faint);
 }
 
 .premium-box .premium-link {
@@ -122,57 +116,142 @@ a:hover { color: var(--color-accent-alt-hover); }
   color: var(--color-text);
 }
 
-.events-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: var(--card-gap);
+.filter-chips-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
-
-.event-card {
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-sm);
-  padding: 16px;
-}
-
-.venue-link {
-  color: var(--color-accent-alt);
-}
-.venue-link:hover {
-  color: var(--color-accent-alt-hover);
-}
-
-/* Chips / Filters */
 .filter-chip {
   border: 1px solid var(--color-border);
   background: transparent;
   color: var(--color-text);
   border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+.filter-chip:hover {
+  background: var(--chip-hover);
 }
 .filter-chip-active {
   background: var(--color-text);
   color: var(--color-accent-contrast);
   border-color: var(--color-text);
 }
+.filter-count {
+  font-size: 11px;
+  background: rgba(0,0,0,0.06);
+  padding: 3px 8px;
+  border-radius: 999px;
+}
 
-/* Buttons */
-.btn-outline {
+.btn-search {
+  border: none;
+  background: #404040;
+  color: #fff;
+  font-size: 15px;
+  padding: 14px 20px;
+  border-radius: 10px;
+  font-weight: 500;
+  letter-spacing: .4px;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  transition: background .2s, box-shadow .2s, transform .2s, color .2s;
+}
+.btn-search:hover { background: #222; }
+
+.btn-secondary {
+  background: transparent;
   border: 1px solid var(--color-border);
   color: var(--color-text);
-  background: transparent;
-  border-radius: var(--radius);
-  padding: 8px 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
 }
-.btn-outline.tickets {
-  border-color: var(--color-accent-alt);
-  color: var(--color-accent-alt);
-}
-.btn-outline.with-icon svg {
-  margin-right: 6px;
+.btn-secondary:hover {
+  background: #e9ecef;
+  border-color: #adb5bd;
 }
 
-/* Small util */
+.events-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 30px;
+  margin-top: 40px;
+}
+
+.event-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s ease;
+  padding: 16px;
+}
+.event-card:hover {
+  transform: translateY(-5px);
+  box-shadow: var(--shadow);
+}
+
+.event-content { padding: 25px; }
+
+.event-title,
+.event-card .event-title,
+.event-item h3 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--color-text-dim) !important;
+}
+
+.event-description {
+  color: var(--color-text-faint);
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.event-meta-line,
+.event-datetime,
+.venue-info {
+  line-height: 1.5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text);
+  margin: 6px 0;
+}
+
+.event-date {
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.event-time::before {
+  content: "\00a0\00a0";
+}
+.event-time {
+  background: rgba(91, 140, 255, 0.12);
+  color: var(--color-accent-alt);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.venue-link {
+  color: var(--color-accent-alt);
+  text-decoration: none;
+  transition: color var(--transition);
+}
+.venue-link:hover {
+  color: var(--color-accent-alt-hover);
+  text-decoration: underline;
+}
+
 .price-chip {
   display: inline-block;
   padding: 4px 8px;
@@ -181,60 +260,28 @@ a:hover { color: var(--color-accent-alt-hover); }
   border: 1px solid var(--chip-border);
   color: var(--color-text);
 }
-.price-chip:hover {
-  background: var(--chip-hover);
+.price-chip:hover { background: var(--chip-hover); }
+
+.src-badge {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,0.18);
+  background: #f7f7f7;
+  color: #444;
+  vertical-align: middle;
 }
 
-/* ---- Where2Go Loader (W2GLoader5) ---- */
 .w2g-loader-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-12, 24px) 0;
+  display: flex; align-items: center; justify-content: center;
+  padding: var(--space-12) 0;
 }
 
-.w2g-loader {
-  position: relative;
-  width: 130px;
-  height: 130px;
-}
-
-.w2g-loader svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-/* Ringe: keine Füllung, dezente Ränder */
-.w2g-loader .ring circle {
-  fill: none;
-  stroke: var(--color-border);
-  stroke-width: 2;
-  opacity: 0.55;
-}
-
-.w2g-loader .ring--2 circle { opacity: 0.35; }
-.w2g-loader .ring--3 circle { opacity: 0.25; }
-
-/* Orbital-Punkte */
-.orb5 {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 8px;
-  height: 8px;
-  margin: -4px 0 0 -4px; /* optische Zentrierung */
-  border-radius: 50%;
-  background: var(--chip-active-bg, var(--color-text));
-  box-shadow: 0 0 0 3px rgba(0,0,0,0.04);
-  transform: rotate(var(--angle, 0deg)) translateX(var(--radius, 20px)) translate(-50%, -50%);
-  transform-origin: center center;
-  animation: orb5-orbit var(--speed, 1.2s) linear infinite;
-  will-change: transform;
-}
-
-@keyframes orb5-orbit {
-  to {
-    transform: rotate(calc(var(--angle, 0deg) + 360deg)) translateX(var(--radius, 20px)) translate(-50%, -50%);
-  }
+@media (max-width: 600px) {
+  .search-form .form-row { gap: 12px; }
+  .events-grid { grid-template-columns: 1fr; gap: 18px; }
+  .header-inner { min-height: 56px; }
 }

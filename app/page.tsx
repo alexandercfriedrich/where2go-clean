@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, CSSProperties } from 'react';
 import { EVENT_CATEGORY_SUBCATEGORIES } from './lib/eventCategories';
 import { useTranslation } from './lib/useTranslation';
 import { startJobPolling, deduplicateEvents as dedupFront } from './lib/polling';
@@ -26,8 +26,8 @@ const ALL_SUPER_CATEGORIES = Object.keys(EVENT_CATEGORY_SUBCATEGORIES);
 const MAX_CATEGORY_SELECTION = 3;
 
 // Polling config
-const POLL_INTERVAL_MS = 2000; // vorher 4000
-const MAX_POLLS = 48; // UI and tests may refer to 48; adjust here if you raise global window
+const POLL_INTERVAL_MS = 2000;
+const MAX_POLLS = 48;
 
 export default function Home() {
   const { t } = useTranslation();
@@ -51,11 +51,9 @@ export default function Home() {
   const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean; totalEvents: number; cachedEvents: number} | null>(null);
   const [toast, setToast] = useState<{show:boolean; message:string}>({show:false,message:''});
 
-  // Active polling state (Fix: ensure pollInstanceId is provided)
   const pollInstanceRef = useRef(0);
   const [activePolling, setActivePolling] = useState<{ jobId: string; cleanup: () => void; pollInstanceId: number } | null>(null);
 
-  // Debug logs state
   const [debugLogs, setDebugLogs] = useState<{
     apiCalls: Array<{
       timestamp: string;
@@ -96,15 +94,10 @@ export default function Home() {
   const timeSelectWrapperRef = useRef<HTMLDivElement | null>(null);
   const cancelRef = useRef<{cancel:boolean}>({cancel:false});
 
-  // design1.css laden und andere Designs entfernen
-  // ✅ ERSETZEN MIT:
-useEffect(() => {
-  // Lass DesignCssLoader.tsx das Design-Switching handhaben
-  // Kein manueller Override mehr nötig
-}, []);
+  // Design CSS handled elsewhere (no manual overrides)
+  useEffect(() => {}, []);
 
-
-  // Dropdown außerhalb/Escape schließen
+  // Close dropdown on outside click / Escape
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!showDateDropdown) return;
@@ -112,9 +105,7 @@ useEffect(() => {
         setShowDateDropdown(false);
       }
     }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setShowDateDropdown(false);
-    }
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') setShowDateDropdown(false); }
     document.addEventListener('mousedown', onDocClick);
     document.addEventListener('keydown', onKey);
     return () => {
@@ -149,8 +140,8 @@ useEffect(() => {
   function tomorrowISO() { const d = new Date(); d.setDate(d.getDate()+1); return toISODate(d); }
   function nextWeekendDatesISO(): string[] {
     const t = new Date();
-       const day = t.getDay(); // 0 So ... 6 Sa
-    const offset = (5 - day + 7) % 7; // nächster Freitag
+    const day = t.getDay(); // 0 So ... 6 Sa
+    const offset = (5 - day + 7) % 7; // next Friday
     const fri = new Date(t); fri.setDate(t.getDate() + offset);
     const sat = new Date(fri); sat.setDate(fri.getDate() + 1);
     const sun = new Date(fri); sun.setDate(fri.getDate() + 2);
@@ -186,9 +177,9 @@ useEffect(() => {
     const dateObj = new Date(dateStr);
     if (isNaN(dateObj.getTime())) return { date: dateStr, time: startTime || '' };
 
-    const weekday = dateObj.toLocaleDateString('en-GB', { weekday: 'short' }); // Fri
+    const weekday = dateObj.toLocaleDateString('en-GB', { weekday: 'short' });
     const day = dateObj.getDate();
-    const monthLabel = dateObj.toLocaleDateString('en-GB', { month: 'short' }); // Sept
+    const monthLabel = dateObj.toLocaleDateString('en-GB', { month: 'short' });
     const year = dateObj.getFullYear();
     const ordinal = (d: number) => {
       if (d === 1 || d === 21 || d === 31) return `${d}st`;
@@ -211,15 +202,11 @@ useEffect(() => {
     };
 
     let timeLabel = '';
-    if (startTime && endTime) {
-      timeLabel = `${fmtTime(startTime)} - ${fmtTime(endTime)}`;
-    } else if (startTime) {
-      timeLabel = fmtTime(startTime);
-    }
+    if (startTime && endTime) timeLabel = `${fmtTime(startTime)} - ${fmtTime(endTime)}`;
+    else if (startTime) timeLabel = fmtTime(startTime);
     return { date: dateFormatted, time: timeLabel };
   }
 
-  // Preisformat
   function guessCurrencyByCity(c: string) {
     const cityLC = c.toLowerCase();
     if (/miami|new york|los angeles|san francisco|usa|united states|orlando/.test(cityLC)) return { symbol: '$', code: 'USD' };
@@ -231,9 +218,7 @@ useEffect(() => {
   function formatPriceDisplay(p: string): string {
     if (!p) return 'Keine Preisinfos';
     const str = normalizePriceString(p);
-    if (/[€$£]|EUR|USD|GBP|CHF|PLN|CZK|HUF|DKK|SEK|NOK|CAD|AUD/i.test(str)) {
-      return str.replace(/(\d)\s*€/, '$1 €');
-    }
+    if (/[€$£]|EUR|USD|GBP|CHF|PLN|CZK|HUF|DKK|SEK|NOK|CAD|AUD/i.test(str)) return str.replace(/(\d)\s*€/, '$1 €');
     if (/anfrage/i.test(str)) return 'Preis auf Anfrage';
     const cur = guessCurrencyByCity(city);
     const range = str.match(/^(\d+)\s*[-–]\s*(\d+)$/);
@@ -244,7 +229,6 @@ useEffect(() => {
   }
 
   function dedupMerge(current: EventData[], incoming: EventData[]) {
-    // Reuse front-end light dedup
     return dedupFront(current, incoming);
   }
 
@@ -261,11 +245,10 @@ useEffect(() => {
           temperature: 0.2,
           max_tokens: 12000,
           expandedSubcategories: true,
-          debug: true // Always enable debug for logging
+          debug: true
         }
       };
 
-      // Log API call
       setDebugLogs(prev => ({
         ...prev,
         apiCalls: [...prev.apiCalls, {
@@ -281,30 +264,16 @@ useEffect(() => {
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify(reqBody)
       });
-      
-      if (!res.ok) {
-        const data = await res.json().catch(()=> ({}));
-        // Log error response
-        setDebugLogs(prev => ({
-          ...prev,
-          apiCalls: prev.apiCalls.map((call, idx) => 
-            idx === prev.apiCalls.length - 1 ? 
-            { ...call, status: res.status, response: data } : call
-          )
-        }));
-        throw new Error(data.error || `Serverfehler ${res.status}`);
-      }
-      
-      const data = await res.json();
-      
-      // Log successful response
+      const data = await res.json().catch(()=> ({}));
+
       setDebugLogs(prev => ({
         ...prev,
-        apiCalls: prev.apiCalls.map((call, idx) => 
-          idx === prev.apiCalls.length - 1 ? 
-          { ...call, status: res.status, response: data } : call
+        apiCalls: prev.apiCalls.map((call, idx) =>
+          idx === prev.apiCalls.length - 1 ? { ...call, status: res.status, response: data } : call
         )
       }));
+
+      if (!res.ok) throw new Error(data.error || `Serverfehler ${res.status}`);
 
       const incoming: EventData[] = data.events || [];
       setEvents(prev => dedupMerge(prev, incoming));
@@ -314,139 +283,113 @@ useEffect(() => {
     }
   }
 
-  // ...
-async function progressiveSearchEvents() {
-  if (!city.trim()) {
-    setError('Bitte gib eine Stadt ein.');
-    return;
-  }
-  cancelRef.current.cancel = true;
-  await new Promise(r => setTimeout(r, 0));
-  cancelRef.current = { cancel:false };
+  async function progressiveSearchEvents() {
+    if (!city.trim()) {
+      setError('Bitte gib eine Stadt ein.');
+      return;
+    }
+    // cancel running batch
+    cancelRef.current.cancel = true;
+    await new Promise(r => setTimeout(r, 0));
+    cancelRef.current = { cancel:false };
 
-  if (activePolling) {
-    try { activePolling.cleanup(); } catch {}
-    setActivePolling(null);
-  }
+    if (activePolling) {
+      try { activePolling.cleanup(); } catch {}
+      setActivePolling(null);
+    }
 
-  // Clear previous debug logs
-  setDebugLogs({
-    apiCalls: [],
-    aiRequests: [],
-    wienInfoData: []
-  });
+    setDebugLogs({ apiCalls: [], aiRequests: [], wienInfoData: [] });
+    setLoading(true);
+    setError(null);
+    setEvents([]);
+    setCacheInfo(null);
+    setSearchSubmitted(true);
+    setSearchedSuperCategories([...selectedSuperCategories]);
+    setActiveFilter('Alle');
 
-  setLoading(true);
-  setError(null);
-  setEvents([]);
-  setCacheInfo(null);
-  setSearchSubmitted(true);
-  setSearchedSuperCategories([...selectedSuperCategories]);
-  setActiveFilter('Alle');
+    try {
+      const reqBody = {
+        city: city.trim(),
+        date: formatDateForAPI(),
+        categories: selectedSuperCategories.length ? getSelectedSubcategories(selectedSuperCategories) : [],
+        options: {
+          progressive: true,
+          timePeriod: timePeriod,
+          customDate: customDate,
+          debug: true,
+          fetchWienInfo: true
+        }
+      };
 
-  try {
-    const reqBody = {
-      city: city.trim(),
-      date: formatDateForAPI(),
-      categories: selectedSuperCategories.length ? getSelectedSubcategories(selectedSuperCategories) : [],
-      options: {
-        progressive: true,
-        timePeriod: timePeriod,
-        customDate: customDate,
-        debug: true, // Always enable debug
-        fetchWienInfo: true // Enable Wien.info fetching
-      }
-    };
-
-    // Log main API call
-    setDebugLogs(prev => ({
-      ...prev,
-      apiCalls: [...prev.apiCalls, {
-        timestamp: new Date().toISOString(),
-        url: '/api/events',
-        method: 'POST',
-        body: reqBody
-      }]
-    }));
-
-    // RICHTIG: Job per /api/events anlegen (keine jobId im Body mitschicken)
-    const jobRes = await fetch('/api/events', {
-      method: 'POST',
-      headers: { 'Content-Type':'application/json' },
-      body: JSON.stringify(reqBody)
-    });
-    if (!jobRes.ok) {
-      const data = await jobRes.json().catch(()=> ({}));
-      // Log error response
       setDebugLogs(prev => ({
         ...prev,
-        apiCalls: prev.apiCalls.map((call, idx) => 
-          idx === prev.apiCalls.length - 1 ? 
-          { ...call, status: jobRes.status, response: data } : call
+        apiCalls: [...prev.apiCalls, {
+          timestamp: new Date().toISOString(),
+          url: '/api/events',
+          method: 'POST',
+          body: reqBody
+        }]
+      }));
+
+      const jobRes = await fetch('/api/events', {
+        method: 'POST',
+        headers: { 'Content-Type':'application/json' },
+        body: JSON.stringify(reqBody)
+      });
+      const data = await jobRes.json().catch(()=> ({}));
+
+      setDebugLogs(prev => ({
+        ...prev,
+        apiCalls: prev.apiCalls.map((call, idx) =>
+          idx === prev.apiCalls.length - 1 ? { ...call, status: jobRes.status, response: data } : call
         )
       }));
-      throw new Error(data.error || `Serverfehler ${jobRes.status}`);
-    }
-    const data = await jobRes.json();
-    const initialEvents = Array.isArray(data.events) ? data.events : [];
-if (initialEvents.length) {
-  setEvents(prev => dedupMerge(prev, initialEvents));
-  if (data.cacheInfo) setCacheInfo(data.cacheInfo);
-}
 
-    // Log successful response
-    setDebugLogs(prev => ({
-      ...prev,
-      apiCalls: prev.apiCalls.map((call, idx) => 
-        idx === prev.apiCalls.length - 1 ? 
-        { ...call, status: jobRes.status, response: data } : call
-      )
-    }));
+      if (!jobRes.ok) throw new Error(data.error || `Serverfehler ${jobRes.status}`);
 
-    const onEvents = (chunk: EventData[], _getCurrent: () => EventData[]) => {
-      setEvents(prev => dedupMerge(prev, chunk));
-    };
-    const getCurrent = () => events;
-    const onDone = (_final: EventData[], _status: string) => {
-      setStepLoading(null);
+      const initialEvents = Array.isArray(data.events) ? data.events : [];
+      if (initialEvents.length) {
+        setEvents(prev => dedupMerge(prev, initialEvents));
+        if (data.cacheInfo) setCacheInfo(data.cacheInfo);
+      }
+
+      const onEvents = (chunk: EventData[], _getCurrent: () => EventData[]) => {
+        setEvents(prev => dedupMerge(prev, chunk));
+      };
+      const getCurrent = () => events;
+      const onDone = (_final: EventData[], _status: string) => {
+        setStepLoading(null);
+        setLoading(false);
+        setTimeout(()=> setToast({show:false, message:''}), 2000);
+        if (resultsAnchorRef.current) {
+          resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        if (data.jobId) fetchDebugInfo(data.jobId);
+      };
+
+      const cleanup = startJobPolling(data.jobId, onEvents, getCurrent, onDone, POLL_INTERVAL_MS, MAX_POLLS);
+      const nextInstance = ++pollInstanceRef.current;
+      setActivePolling({ jobId: data.jobId, cleanup, pollInstanceId: nextInstance });
+
+      const superCats =
+        selectedSuperCategories.length > 0 ? [...selectedSuperCategories] : [...ALL_SUPER_CATEGORIES];
+      for (const sc of superCats) {
+        if (cancelRef.current.cancel) return;
+        await fetchForSuperCategory(sc);
+      }
+    } catch(e:any){
+      setError(e.message || 'Fehler bei der Suche');
       setLoading(false);
-      setTimeout(()=> setToast({show:false, message:''}), 2000);
-      if (resultsAnchorRef.current) {
-        resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-
-      // Fetch debug information after job is done
-      if (data.jobId) {
-        fetchDebugInfo(data.jobId);
-      }
-    };
-
-    const cleanup = startJobPolling(data.jobId, onEvents, getCurrent, onDone, POLL_INTERVAL_MS, MAX_POLLS);
-    const nextInstance = ++pollInstanceRef.current;
-    setActivePolling({ jobId: data.jobId, cleanup, pollInstanceId: nextInstance });
-
-    // Optional: parallele UI-Fetches pro Superkategorie
-    const superCats =
-      selectedSuperCategories.length > 0 ? [...selectedSuperCategories] : [...ALL_SUPER_CATEGORIES];
-    for (const sc of superCats) {
-      if (cancelRef.current.cancel) return;
-      await fetchForSuperCategory(sc);
+      setStepLoading(null);
     }
-  } catch(e:any){
-    setError(e.message || 'Fehler bei der Suche');
-    setLoading(false);
-    setStepLoading(null);
   }
-}
 
-// Fetch debug information from job
-async function fetchDebugInfo(jobId: string) {
-  try {
-    const debugRes = await fetch(`/api/jobs/${jobId}?debug=1`);
-    if (debugRes.ok) {
+  async function fetchDebugInfo(jobId: string) {
+    try {
+      const debugRes = await fetch(`/api/jobs/${jobId}?debug=1`);
+      if (!debugRes.ok) return;
       const debugData = await debugRes.json();
-      
-      // Log debug data
+
       setDebugLogs(prev => ({
         ...prev,
         apiCalls: [...prev.apiCalls, {
@@ -458,7 +401,6 @@ async function fetchDebugInfo(jobId: string) {
         }]
       }));
 
-      // Extract AI requests from debug data
       if (debugData.debug && debugData.debug.steps) {
         const aiRequests = debugData.debug.steps.map((step: any) => ({
           timestamp: debugData.debug.createdAt || new Date().toISOString(),
@@ -468,13 +410,9 @@ async function fetchDebugInfo(jobId: string) {
           parsedCount: step.parsedCount || 0
         }));
 
-        setDebugLogs(prev => ({
-          ...prev,
-          aiRequests: [...prev.aiRequests, ...aiRequests]
-        }));
+        setDebugLogs(prev => ({ ...prev, aiRequests: [...prev.aiRequests, ...aiRequests] }));
       }
 
-      // Check for Wien.info specific data
       if (debugData.debug && debugData.debug.wienInfoData) {
         const wienData = debugData.debug.wienInfoData;
         setDebugLogs(prev => ({
@@ -495,11 +433,10 @@ async function fetchDebugInfo(jobId: string) {
           }]
         }));
       }
+    } catch (e) {
+      console.warn('Failed to fetch debug info:', e);
     }
-  } catch (e) {
-    console.warn('Failed to fetch debug info:', e);
   }
-}
 
   const displayedEvents = (() => {
     const dateFiltered = events.filter(matchesSelectedDate);
@@ -579,10 +516,7 @@ async function fetchDebugInfo(jobId: string) {
         <div className="container">
           <form
             className="search-form"
-            onSubmit={e => {
-              e.preventDefault();
-              progressiveSearchEvents();
-            }}
+            onSubmit={e => { e.preventDefault(); progressiveSearchEvents(); }}
           >
             <div className="form-row">
               <div className="form-group">
@@ -611,9 +545,6 @@ async function fetchDebugInfo(jobId: string) {
                     } else {
                       setShowDateDropdown(false);
                     }
-                  }}
-                  onClick={() => {
-                    if (timePeriod === 'benutzerdefiniert') setShowDateDropdown(v => !v);
                   }}
                 >
                   <option value="heute">Heute</option>
@@ -705,9 +636,7 @@ async function fetchDebugInfo(jobId: string) {
               ))}
             </div>
             {stepLoading && (
-              <div className="progress-note">
-                Lädt Kategorie: {stepLoading} ...
-              </div>
+              <div className="progress-note">Lädt Kategorie: {stepLoading} ...</div>
             )}
           </div>
         )}
@@ -763,13 +692,13 @@ async function fetchDebugInfo(jobId: string) {
                         <line x1="8" y1="2" x2="8" y2="6"/>
                         <line x1="3" y1="10" x2="21" y2="10"/>
                       </svg>
-                      <span>{formattedDate}</span>
+                      <span className="event-date">{formattedDate}</span>
                       {formattedTime && (
                         <>
                           <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
                             <circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/>
                           </svg>
-                          <span>{formattedTime}</span>
+                          <span className="event-time">{formattedTime}</span>
                         </>
                       )}
                     </div>
@@ -865,28 +794,26 @@ async function fetchDebugInfo(jobId: string) {
         </div>
       )}
 
-      {/* Debug Logs Section */}
       {(debugLogs.apiCalls.length > 0 || debugLogs.aiRequests.length > 0 || debugLogs.wienInfoData.length > 0) && (
-        <div style={{ 
-          margin: '40px 0', 
-          padding: '20px', 
-          background: '#f8f9fa', 
+        <div style={{
+          margin: '40px 0',
+          padding: '20px',
+          background: '#f8f9fa',
           border: '1px solid #dee2e6',
           borderRadius: '8px',
           fontFamily: 'monospace',
           fontSize: '12px'
         }}>
           <h3 style={{ marginBottom: '20px', color: '#495057' }}>🔍 Debug Logs (Temporary)</h3>
-          
-          {/* API Calls */}
+
           {debugLogs.apiCalls.length > 0 && (
             <div style={{ marginBottom: '30px' }}>
               <h4 style={{ color: '#007bff', marginBottom: '10px' }}>📡 API Calls ({debugLogs.apiCalls.length})</h4>
               {debugLogs.apiCalls.map((call, idx) => (
-                <div key={idx} style={{ 
-                  marginBottom: '15px', 
-                  padding: '10px', 
-                  background: '#fff', 
+                <div key={idx} style={{
+                  marginBottom: '15px',
+                  padding: '10px',
+                  background: '#fff',
                   border: '1px solid #e9ecef',
                   borderRadius: '4px'
                 }}>
@@ -897,10 +824,10 @@ async function fetchDebugInfo(jobId: string) {
                   {call.body && (
                     <details style={{ marginTop: '8px' }}>
                       <summary style={{ cursor: 'pointer', color: '#007bff' }}>Request Body</summary>
-                      <pre style={{ 
-                        marginTop: '5px', 
-                        padding: '8px', 
-                        background: '#f8f9fa', 
+                      <pre style={{
+                        marginTop: '5px',
+                        padding: '8px',
+                        background: '#f8f9fa',
                         border: '1px solid #dee2e6',
                         borderRadius: '3px',
                         overflow: 'auto',
@@ -913,10 +840,10 @@ async function fetchDebugInfo(jobId: string) {
                   {call.response && (
                     <details style={{ marginTop: '8px' }}>
                       <summary style={{ cursor: 'pointer', color: '#007bff' }}>Response</summary>
-                      <pre style={{ 
-                        marginTop: '5px', 
-                        padding: '8px', 
-                        background: '#f8f9fa', 
+                      <pre style={{
+                        marginTop: '5px',
+                        padding: '8px',
+                        background: '#f8f9fa',
                         border: '1px solid #dee2e6',
                         borderRadius: '3px',
                         overflow: 'auto',
@@ -931,15 +858,14 @@ async function fetchDebugInfo(jobId: string) {
             </div>
           )}
 
-          {/* AI Requests */}
           {debugLogs.aiRequests.length > 0 && (
             <div style={{ marginBottom: '30px' }}>
               <h4 style={{ color: '#dc3545', marginBottom: '10px' }}>🤖 AI Requests ({debugLogs.aiRequests.length})</h4>
               {debugLogs.aiRequests.map((req, idx) => (
-                <div key={idx} style={{ 
-                  marginBottom: '15px', 
-                  padding: '10px', 
-                  background: '#fff', 
+                <div key={idx} style={{
+                  marginBottom: '15px',
+                  padding: '10px',
+                  background: '#fff',
                   border: '1px solid #e9ecef',
                   borderRadius: '4px'
                 }}>
@@ -951,10 +877,10 @@ async function fetchDebugInfo(jobId: string) {
                   </div>
                   <details style={{ marginTop: '8px' }}>
                     <summary style={{ cursor: 'pointer', color: '#007bff' }}>Query</summary>
-                    <pre style={{ 
-                      marginTop: '5px', 
-                      padding: '8px', 
-                      background: '#fff3cd', 
+                    <pre style={{
+                      marginTop: '5px',
+                      padding: '8px',
+                      background: '#fff3cd',
                       border: '1px solid #ffeaa7',
                       borderRadius: '3px',
                       overflow: 'auto',
@@ -965,10 +891,10 @@ async function fetchDebugInfo(jobId: string) {
                   </details>
                   <details style={{ marginTop: '8px' }}>
                     <summary style={{ cursor: 'pointer', color: '#007bff' }}>AI Response</summary>
-                    <pre style={{ 
-                      marginTop: '5px', 
-                      padding: '8px', 
-                      background: '#d1ecf1', 
+                    <pre style={{
+                      marginTop: '5px',
+                      padding: '8px',
+                      background: '#d1ecf1',
                       border: '1px solid #bee5eb',
                       borderRadius: '3px',
                       overflow: 'auto',
@@ -982,21 +908,18 @@ async function fetchDebugInfo(jobId: string) {
             </div>
           )}
 
-          {/* Wien.info Data */}
           {debugLogs.wienInfoData.length > 0 && (
             <div style={{ marginBottom: '20px' }}>
               <h4 style={{ color: '#fd7e14', marginBottom: '10px' }}>🇦🇹 Wien.info Data ({debugLogs.wienInfoData.length})</h4>
               {debugLogs.wienInfoData.map((data, idx) => (
-                <div key={idx} style={{ 
-                  marginBottom: '15px', 
-                  padding: '10px', 
-                  background: '#fff', 
+                <div key={idx} style={{
+                  marginBottom: '15px',
+                  padding: '10px',
+                  background: '#fff',
                   border: '1px solid #e9ecef',
                   borderRadius: '4px'
                 }}>
-                  <div style={{ color: '#fd7e14', fontWeight: 'bold' }}>
-                    Wien.info JSON API
-                  </div>
+                  <div style={{ color: '#fd7e14', fontWeight: 'bold' }}>Wien.info JSON API</div>
                   <div style={{ color: '#6c757d', fontSize: '10px' }}>
                     {data.timestamp} - URL: {data.url}
                   </div>
@@ -1016,10 +939,10 @@ async function fetchDebugInfo(jobId: string) {
                       <summary style={{ cursor: 'pointer', color: '#007bff' }}>
                         Raw Category Counts ({Object.keys(data.rawCategoryCounts).length} types)
                       </summary>
-                      <pre style={{ 
-                        marginTop: '5px', 
-                        padding: '8px', 
-                        background: '#f8f9fa', 
+                      <pre style={{
+                        marginTop: '5px',
+                        padding: '8px',
+                        background: '#f8f9fa',
                         border: '1px solid #dee2e6',
                         borderRadius: '3px',
                         overflow: 'auto',
@@ -1034,10 +957,10 @@ async function fetchDebugInfo(jobId: string) {
                       <summary style={{ cursor: 'pointer', color: '#007bff' }}>
                         Mapped Category Counts ({Object.keys(data.mappedCategoryCounts).length} types)
                       </summary>
-                      <pre style={{ 
-                        marginTop: '5px', 
-                        padding: '8px', 
-                        background: '#f8f9fa', 
+                      <pre style={{
+                        marginTop: '5px',
+                        padding: '8px',
+                        background: '#f8f9fa',
                         border: '1px solid #dee2e6',
                         borderRadius: '3px',
                         overflow: 'auto',
@@ -1048,10 +971,10 @@ async function fetchDebugInfo(jobId: string) {
                     </details>
                   )}
                   {data.unknownRawCategories && data.unknownRawCategories.length > 0 && (
-                    <div style={{ 
-                      marginTop: '8px', 
-                      padding: '8px', 
-                      background: '#fff3cd', 
+                    <div style={{
+                      marginTop: '8px',
+                      padding: '8px',
+                      background: '#fff3cd',
                       border: '1px solid #ffeaa7',
                       borderRadius: '3px',
                       color: '#856404'
@@ -1061,10 +984,10 @@ async function fetchDebugInfo(jobId: string) {
                     </div>
                   )}
                   {data.error && (
-                    <div style={{ 
-                      marginTop: '8px', 
-                      padding: '8px', 
-                      background: '#f8d7da', 
+                    <div style={{
+                      marginTop: '8px',
+                      padding: '8px',
+                      background: '#f8d7da',
                       border: '1px solid #f5c6cb',
                       borderRadius: '3px',
                       color: '#721c24'
@@ -1077,34 +1000,16 @@ async function fetchDebugInfo(jobId: string) {
                       <summary style={{ cursor: 'pointer', color: '#007bff' }}>
                         API Events ({data.events.length})
                       </summary>
-                      <pre style={{ 
-                        marginTop: '5px', 
-                        padding: '8px', 
-                        background: '#f8f9fa', 
+                      <pre style={{
+                        marginTop: '5px',
+                        padding: '8px',
+                        background: '#f8f9fa',
                         border: '1px solid #dee2e6',
                         borderRadius: '3px',
                         overflow: 'auto',
                         maxHeight: '200px'
                       }}>
                         {JSON.stringify(data.events, null, 2)}
-                      </pre>
-                    </details>
-                  )}
-                  {data.scrapedContent && (
-                    <details style={{ marginTop: '8px' }}>
-                      <summary style={{ cursor: 'pointer', color: '#007bff' }}>
-                        Raw HTML Content (first 1000 chars)
-                      </summary>
-                      <pre style={{ 
-                        marginTop: '5px', 
-                        padding: '8px', 
-                        background: '#f8f9fa', 
-                        border: '1px solid #dee2e6',
-                        borderRadius: '3px',
-                        overflow: 'auto',
-                        maxHeight: '150px'
-                      }}>
-                        {data.scrapedContent.substring(0, 1000)}...
                       </pre>
                     </details>
                   )}
@@ -1121,7 +1026,7 @@ async function fetchDebugInfo(jobId: string) {
         </div>
       </footer>
 
-      {/* Globale Style-Overrides */}
+      {/* Global overrides incl. calendar fix */}
       <style jsx global>{`
         .header-inner.header-centered {
           position: relative;
@@ -1130,28 +1035,17 @@ async function fetchDebugInfo(jobId: string) {
           justify-content:center;
           min-height:64px;
         }
-        .header-inner.header-centered .premium-box {
-          position:absolute;
-          right:0;
-        }
+        .header-inner.header-centered .premium-box { position:absolute; right:0; }
+
         .results-filter-bar {
-          display:flex;
-          justify-content:space-between;
-          align-items:center;
-          gap:12px;
-          padding:10px 0 18px;
+          display:flex; justify-content:space-between; align-items:center;
+          gap:12px; padding:10px 0 18px;
         }
-        .filter-chips-inline {
-          display:flex;
-          flex-wrap:wrap;
-          gap:10px;
-        }
+        .filter-chips-inline { display:flex; flex-wrap:wrap; gap:10px; }
         .filter-sidebar { display:none !important; }
         .filter-chip {
-          display:flex; justify-content:space-between; align-items:center;
-          gap:8px;
-          font-size:13px; padding:10px 14px;
-          border:1px solid #dcdfe3;
+          display:flex; justify-content:space-between; align-items:center; gap:8px;
+          font-size:13px; padding:10px 14px; border:1px solid #dcdfe3;
           background:transparent; border-radius:10px; cursor:pointer;
           transition:background .2s, border-color .2s, color .2s;
           color:#444; font-weight:500; text-align:left;
@@ -1161,6 +1055,7 @@ async function fetchDebugInfo(jobId: string) {
         .filter-chip-active:hover { background:#e5e7eb; color:#9aa0a6; }
         .filter-count { font-size:11px; background:rgba(0,0,0,0.06); padding:3px 8px; border-radius:999px; color:inherit; font-weight:500; }
         .filter-chip-active .filter-count { background:rgba(255,255,255,0.18); }
+
         .category-checkbox {
           display:flex; align-items:center; gap:8px; padding:8px 10px;
           border:1px solid #dfe1e4; background:transparent; border-radius:8px;
@@ -1172,39 +1067,103 @@ async function fetchDebugInfo(jobId: string) {
         .category-checkbox:has(input:checked) { background:#404040; color:#fff; border-color:#404040; }
         .category-checkbox:has(input:checked):hover { background:#e5e7eb; color:#9aa0a6; }
         .category-checkbox:has(input:checked) input { accent-color:#ffffff; }
+
         .btn-search {
           border:none; background:#404040; color:#fff; font-size:15px; padding:14px 20px; border-radius:10px;
           font-weight:500; letter-spacing:.4px; cursor:pointer; box-shadow:0 6px 18px rgba(0,0,0,0.08);
           transition:background .2s, box-shadow .2s, transform .2s, color .2s;
         }
         .btn-search:hover { background:#222; }
+
         @media (max-width: 600px) {
           .search-form .form-row { gap:12px; }
           .categories-section { gap:10px; }
           .results-filter-bar { flex-direction:column; align-items:flex-start; gap:8px; }
         }
+
         .src-badge {
-          display:inline-block;
-          margin-left:8px;
-          font-size:11px;
-          line-height:1;
-          padding:3px 6px;
-          border-radius:999px;
-          border:1px solid rgba(0,0,0,0.18);
-          background:#f7f7f7;
-          color:#444;
-          vertical-align:middle;
+          display:inline-block; margin-left:8px; font-size:11px; line-height:1; padding:3px 6px;
+          border-radius:999px; border:1px solid rgba(0,0,0,0.18);
+          background:#f7f7f7; color:#444; vertical-align:middle;
         }
         .src-badge.src-ai    { background:#1f2937; color:#fff; border-color:#1f2937; }
         .src-badge.src-rss   { background:#f59e0b; color:#111; border-color:#d97706; }
         .src-badge.src-ra    { background:#0ea5e9; color:#fff; border-color:#0284c7; }
         .src-badge.src-cache { background:#e5e7eb; color:#111; border-color:#d1d5db; }
+
+        /* Calendar dropdown fix */
+        .select-with-dropdown { position: relative; }
+        .date-dropdown {
+          position: absolute;
+          top: calc(100% + 8px);
+          left: 0;
+          z-index: 1000;
+          background: var(--color-surface, #fff);
+          color: var(--color-text, #111);
+          border: 1px solid var(--color-border, #e5e7eb);
+          border-radius: 10px;
+          box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+          padding: 12px;
+          min-width: 560px; /* two 7-col grids side by side */
+        }
+        @media (max-width: 640px) {
+          .date-dropdown { position: fixed; left: 12px; right: 12px; top: 20%; min-width: unset; }
+        }
+
+        .calendar { width: 100%; }
+        .calendar-nav {
+          display:flex; align-items:center; justify-content:space-between;
+          gap:8px; margin-bottom:10px;
+        }
+        .cal-btn {
+          width: 28px; height: 28px;
+          display:inline-flex; align-items:center; justify-content:center;
+          border:1px solid var(--color-border, #e5e7eb);
+          background: var(--color-surface-alt, #fafbfc);
+          color: inherit;
+          border-radius: 8px;
+          cursor: pointer;
+        }
+        .cal-btn:hover { background: rgba(0,0,0,0.04); }
+        .cal-titles { display:flex; gap:16px; }
+        .cal-title { font-weight: 600; }
+
+        .calendar-grids {
+          display:grid; grid-template-columns: 1fr 1fr; gap: 16px;
+        }
+        @media (max-width: 640px) {
+          .calendar-grids { grid-template-columns: 1fr; }
+        }
+
+        .cal-grid {
+          display:grid; grid-template-columns: repeat(7, 1fr); gap: 6px;
+        }
+        .cal-head {
+          text-align:center; font-size:12px; color: var(--color-text-faint, #9aa0a6);
+          padding: 4px 0;
+        }
+        .cal-day {
+          display:inline-flex; align-items:center; justify-content:center;
+          height: 32px;
+          border:1px solid var(--color-border, #e5e7eb);
+          background: var(--color-surface-alt, #fafbfc);
+          color: inherit;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: background .15s, color .15s, border-color .15s, transform .05s;
+        }
+        .cal-day:hover { background: rgba(0,0,0,0.06); }
+        .cal-day--muted { opacity: .5; }
+        .cal-day--sel { background: #404040; color: #fff; border-color: #404040; font-weight: 600; }
+        .cal-day--disabled { opacity: .4; cursor: not-allowed; background: rgba(0,0,0,0.03); }
+
+        /* Spacing for meta rows */
+        .event-meta-line { line-height: 1.5; }
       `}</style>
     </div>
   );
 }
 
-/* Zwei-Monats-Kalender mit Min-Datum, Auswahl & Disabled-Days */
 function TwoMonthCalendar({
   value,
   minISO,
@@ -1301,7 +1260,7 @@ function TwoMonthCalendar({
   );
 }
 
-/* Loader: 5 ruhige s/w Kreise */
+/* Loader: calm orbit rings */
 function W2GLoader5() {
   const [orbs] = useState(
     Array.from({length:5}).map((_,i)=>({
@@ -1325,11 +1284,11 @@ function W2GLoader5() {
             className="orb5"
             style={
               {
-                // @ts-ignore custom props
+                // @ts-ignore custom CSS vars
                 '--angle': `${o.angle}deg`,
                 '--radius': `${o.radius}px`,
                 '--speed': `${o.speed}s`
-              } as React.CSSProperties
+              } as CSSProperties
             }
           />
         ))}
