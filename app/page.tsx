@@ -96,13 +96,6 @@ export default function Home() {
   const timeSelectWrapperRef = useRef<HTMLDivElement | null>(null);
   const cancelRef = useRef<{cancel:boolean}>({cancel:false});
 
-  // design1.css laden und andere Designs entfernen
-  // ✅ ERSETZEN MIT:
-  useEffect(() => {
-    // Lass DesignCssLoader.tsx das Design-Switching handhaben
-    // Kein manueller Override mehr nötig
-  }, []);
-
   // Dropdown außerhalb/Escape schließen
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
