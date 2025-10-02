@@ -15,6 +15,7 @@ import {
   mapToMainCategories
 } from './eventCategories';
 import { PerplexityResult } from './types';
+import { venueQueryService, VenueQuery } from './services/VenueQueryService';
 
 // Declare process for Node.js environment variables (to avoid requiring @types/node)
 declare const process: {
@@ -36,6 +37,10 @@ interface PerplexityOptions {
   additionalSources?: any[];
   debugVerbose?: boolean;
   categoryConcurrency?: number;
+  // NEW: Venue query options
+  enableVenueQueries?: boolean;
+  venueQueryLimit?: number;
+  venueQueryConcurrency?: number;
 }
 
 interface PplxApiRequest {
@@ -400,6 +405,90 @@ Return JSON array with ALL found events.`;
     }
 
     await Promise.all(Array.from({ length: cc }).map(() => worker()));
+
+    // NEW: VENUE QUERIES
+    if (options.enableVenueQueries !== false) {
+      const venueResults = await executeVenueQueries(city, date, options);
+      results.push(...venueResults);
+    }
+
+    return results;
+  }
+
+  // NEW FUNCTION: executeVenueQueries
+  async function executeVenueQueries(
+    city: string,
+    date: string,
+    options: PerplexityOptions
+  ): Promise<PerplexityResult[]> {
+    const results: PerplexityResult[] = [];
+    
+    try {
+      const venueQueries = await venueQueryService.getActiveVenueQueries(city);
+      
+      if (venueQueries.length === 0) {
+        if (options.debug) {
+          console.log('[PPLX:VENUES] No venue queries found for city:', city);
+        }
+        return results;
+      }
+
+      if (options.debug) {
+        console.log(`[PPLX:VENUES] Found ${venueQueries.length} venue queries for ${city}`);
+      }
+
+      // Apply venue limit if specified
+      const limitedVenues = options.venueQueryLimit 
+        ? venueQueries.slice(0, options.venueQueryLimit)
+        : venueQueries;
+
+      // Group by priority for efficient execution
+      const { high, medium } = venueQueryService.getVenuesByPriority(limitedVenues);
+      const prioritizedVenues = [...high, ...medium]; // Skip low priority for now
+      
+      const concurrency = Math.max(1, options.venueQueryConcurrency ?? 3);
+      
+      // Execute venue queries in batches
+      for (let i = 0; i < prioritizedVenues.length; i += concurrency) {
+        const batch = prioritizedVenues.slice(i, i + concurrency);
+        
+        const batchPromises = batch.map(async (venue) => {
+          try {
+            const prompt = venueQueryService.buildVenueSpecificPrompt(venue, city, date);
+            
+            if (options.debug) {
+              console.log(`[PPLX:VENUE] Querying ${venue.venueName} (priority: ${venue.priority})`);
+            }
+
+            const response = await call(prompt, options);
+            
+            return {
+              query: prompt,
+              response,
+              events: [],
+              timestamp: Date.now(),
+              venueId: venue.venueId,
+              venueName: venue.venueName
+            };
+          } catch (error) {
+            console.warn(`[PPLX:VENUE] Failed to query ${venue.venueName}:`, error);
+            return null;
+          }
+        });
+
+        const batchResults = await Promise.all(batchPromises);
+        const validResults = batchResults.filter(result => result !== null) as PerplexityResult[];
+        results.push(...validResults);
+      }
+
+      if (options.debug) {
+        console.log(`[PPLX:VENUES] Completed ${results.length} venue queries`);
+      }
+
+    } catch (error) {
+      console.error('[PPLX:VENUES] Error executing venue queries:', error);
+    }
+
     return results;
   }
 

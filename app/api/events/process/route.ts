@@ -53,19 +53,29 @@ export async function POST(request: NextRequest) {
 
       const results = await service.executeMultiQuery(city, date, batch, {
         ...(options || {}),
-        categoryConcurrency: concurrency
+        categoryConcurrency: concurrency,
+        enableVenueQueries: true,          // NEW: Enable venue queries
+        venueQueryLimit: 20,               // NEW: Process up to 20 venues  
+        venueQueryConcurrency: 2,          // NEW: 2 concurrent venue queries
+        debugVerbose: options?.debug       // NEW: Enhanced debugging
       });
 
       if (options?.debug) {
         for (const result of results) {
           const eventsFromResult = eventAggregator.aggregateResults([result], validDates);
           const category = eventsFromResult.length > 0 ? eventsFromResult[0].category || 'Unknown' : 'Unknown';
+          
+          // ENHANCED DEBUG INFO:
           const debugStep = {
             category,
             query: result.query,
             response: result.response,
-            parsedCount: eventsFromResult.length
+            parsedCount: eventsFromResult.length,
+            venueId: result.venueId || null,          // NEW
+            venueName: result.venueName || null,      // NEW
+            isVenueQuery: !!(result.venueId)          // NEW
           };
+          
           try {
             await jobStore.pushDebugStep(jobId, debugStep);
           } catch (error) {
