@@ -1,5 +1,10 @@
-// Event aggregation and deduplication service
-// Phase 2A: Integrierte Normalisierung & Validierung
+// Event aggregation and parsing – JSON-first, fragment-safe
+// Fixes “Event-Fetzen” by:
+// - Preferring full JSON (array/object) parsing
+// - Extracting embedded JSON blocks
+// - Reconstructing contiguous "key": "value" lines into objects
+// - Strictly rejecting fragments without a valid title
+// - Skipping property-like lines in free-text fallback
 
 import { EventData, PerplexityResult } from './types';
 import { normalizeEvents } from './event-normalizer';
@@ -12,43 +17,27 @@ const DATE_DDMMYYYY_REGEX = /^\d{1,2}\.\d{1,2}\.\d{4}$/;
 export class EventAggregator {
   aggregateResults(results: PerplexityResult[], requestedDate?: string | string[]): EventData[] {
     const parsedRaw: EventData[] = [];
-    for (const result of results) {
-      const queryCategory = this.extractCategoryFromQuery(result.query);
-      const events = this.parseEventsFromResponse(result.response, queryCategory, 
-        Array.isArray(requestedDate) ? requestedDate[0] : requestedDate);
+    for (const r of results) {
+      const queryCategory = this.extractCategoryFromQuery(r.query);
+      const events = this.parseEventsFromResponse(
+        r.response, // FIX: use `response`, not `responseText`
+        queryCategory,
+        Array.isArray(requestedDate) ? requestedDate[0] : requestedDate
+      );
       parsedRaw.push(...events);
     }
+
+    // Normalize structure, validate/massage fields, dedupe and filter by requested date(s)
     const structurallyNormalized = normalizeEvents(parsedRaw);
     const canonical = validateAndNormalizeEvents(structurallyNormalized);
     const deduped = this.deduplicateEvents(canonical);
 
-    // Filter by requested date(s) if provided
     let filtered = deduped;
     if (requestedDate) {
       const validDates = Array.isArray(requestedDate) ? requestedDate : [requestedDate];
-      filtered = deduped.filter(event => {
-        const eventDate = event.date?.slice(0, 10); // Extract YYYY-MM-DD
-        return !eventDate || validDates.includes(eventDate);
-      });
-      
-      if (process.env.LOG_AGG_DEBUG === '1' && filtered.length !== deduped.length) {
-        console.log('[AGG:DATE-FILTER]', {
-          requestedDates: validDates,
-          beforeFilter: deduped.length,
-          afterFilter: filtered.length,
-          filteredOut: deduped.length - filtered.length
-        });
-      }
-    }
-
-    if (process.env.LOG_AGG_DEBUG === '1') {
-      console.log('[AGG:SUMMARY]', {
-        inputResults: results.length,
-        parsedRaw: parsedRaw.length,
-        normalized: canonical.length,
-        deduped: deduped.length,
-        dateFiltered: filtered.length,
-        sample: filtered[0] || null
+      filtered = deduped.filter(ev => {
+        const d = ev.date?.slice(0, 10);
+        return !d || validDates.includes(d);
       });
     }
 
@@ -56,70 +45,83 @@ export class EventAggregator {
   }
 
   private extractCategoryFromQuery(query: string): string | undefined {
+    if (!query) return;
+    const lower = query.toLowerCase();
     const hints: { [k: string]: string } = {
       'dj sets': 'DJ Sets/Electronic',
       'electronic': 'DJ Sets/Electronic',
-      'clubs': 'Clubs/Discos',
-      'discos': 'Clubs/Discos',
-      'konzerte': 'Live-Konzerte',
+      'club': 'Clubs/Discos',
+      'disco': 'Clubs/Discos',
+      'konzert': 'Live-Konzerte',
+      'concert': 'Live-Konzerte',
       'musik': 'Live-Konzerte',
-      'open air': 'Open Air',
-      'festival': 'Open Air',
-      'museen': 'Museen',
-      'ausstellung': 'Museen',
-      'lgbtq': 'LGBTQ+',
-      'queer': 'LGBTQ+',
-      'pride': 'LGBTQ+',
-      'comedy': 'Comedy/Kabarett',
-      'kabarett': 'Comedy/Kabarett',
+      'kultur': 'Kultur/Traditionen',
+      'tradition': 'Kultur/Traditionen',
       'theater': 'Theater/Performance',
-      'performance ': 'Theater/Performance',
-      'film': 'Film',
-      'kino': 'Film',
-      'food': 'Food/Culinary',
-      'culinary': 'Food/Culinary',
-      'sport': 'Sport',
-      'familie': 'Familien/Kids',
-      'kinder': 'Familien/Kids',
-      'kunst': 'Kunst/Design',
-      'design': 'Kunst/Design',
-      'wellness': 'Wellness/Spirituell',
-      'spirituell': 'Wellness/Spirituell',
-      'networking': 'Networking/Business',
-      'business': 'Networking/Business',
-      'natur': 'Natur/Outdoor',
-      'outdoor': 'Natur/Outdoor'
+      'performance': 'Theater/Performance',
+      'festival': 'Open Air',
+      'open air': 'Open Air'
     };
-    const lower = query.toLowerCase();
     for (const [kw, cat] of Object.entries(hints)) {
       if (lower.includes(kw)) return normalizeCategory(cat);
     }
     return undefined;
   }
 
+  // Core robust parsing pipeline
   parseEventsFromResponse(responseText: string, requestCategory?: string, requestDate?: string): EventData[] {
     const events: EventData[] = [];
     try {
-      const trimmed = responseText.trim();
+      const trimmed = (responseText || '').trim();
       if (!trimmed ||
           trimmed.toLowerCase().includes('keine passenden events') ||
           trimmed.toLowerCase().includes('keine events gefunden') ||
           trimmed.toLowerCase().includes('no events found')) {
         return [];
       }
+
+      // 1) Try parsing the entire response as JSON first
       try {
         const json = JSON.parse(trimmed);
         if (Array.isArray(json)) {
           const arr = this.parseJsonArray(json, requestCategory, requestDate);
           if (arr.length > 0) return arr;
+        } else if (json && typeof json === 'object') {
+          const ev = this.createEventFromObject(json, requestCategory, requestDate);
+          if (ev.title) return [ev];
         }
-      } catch {/* ignore */}
+      } catch { /* continue */ }
+
+      // 2) Extract embedded JSON arrays/objects within noisy text
+      const jsonBlocks = this.extractJsonBlocks(trimmed);
+      for (const blk of jsonBlocks) {
+        try {
+          const parsed = JSON.parse(blk);
+          if (Array.isArray(parsed)) {
+            events.push(...this.parseJsonArray(parsed, requestCategory, requestDate));
+          } else if (parsed && typeof parsed === 'object') {
+            const ev = this.createEventFromObject(parsed, requestCategory, requestDate);
+            if (ev.title) events.push(ev);
+          }
+        } catch { /* ignore broken blocks */ }
+      }
+      if (events.length > 0) return events;
+
+      // 3) Reconstruct contiguous key/value lines to objects
+      const reconstructed = this.tryAssembleEventsFromKeyValueLines(trimmed, requestCategory, requestDate);
+      if (reconstructed.length > 0) return reconstructed;
+
+      // 4) Accept only strict single-line JSON objects containing a title
       const lineJson = this.parseJsonEvents(trimmed, requestCategory, requestDate);
       if (lineJson.length > 0) events.push(...lineJson);
+
+      // 5) Pipe table fallback
       if (events.length === 0) {
         const md = this.parseMarkdownTable(trimmed, requestCategory, requestDate);
         if (md.length > 0) events.push(...md);
       }
+
+      // 6) Free text salvage – skip property-like lines to avoid “Fetzen”
       if (events.length === 0) {
         events.push(...this.extractKeywordBasedEvents(trimmed, requestCategory, requestDate));
       }
@@ -129,56 +131,56 @@ export class EventAggregator {
     return events;
   }
 
+  // Detect JSON blocks (arrays/objects); JSON.parse verifies the correctness later
+  private extractJsonBlocks(text: string): string[] {
+    const blocks: string[] = [];
+    const regex = /\[[\s\S]*?\]|\{[\s\S]*?\}/g;
+    let m: RegExpExecArray | null;
+    while ((m = regex.exec(text)) !== null) {
+      blocks.push(m[0]);
+    }
+    return blocks;
+  }
+
   private parseMarkdownTable(text: string, requestCategory?: string, requestDate?: string): EventData[] {
-    const events: EventData[] = [];
-    const lines = text.split('\n');
-    const tableLines = lines.filter(l => l.trim().includes('|') && l.trim().split('|').length >= 3);
-    if (tableLines.length < 2) return events;
-    let startIndex = 1;
-    const second = tableLines[1]?.trim();
-    if (second && (/^\|[\s\-\|]+\|$/.test(second) || second.split('|').every(c => c.trim() === '' || /^[\-\s]*$/.test(c.trim())))) {
-      startIndex = 2;
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    const tableLines = lines.filter(l => l.startsWith('|') && l.endsWith('|'));
+    if (tableLines.length < 2) return [];
+
+    const header = tableLines[0].split('|').map(s => s.trim()).filter(Boolean);
+    const titleIdx = this.findHeaderIndex(header, ['title', 'event', 'name']);
+    const catIdx = this.findHeaderIndex(header, ['category', 'type', 'genre']);
+    const dateIdx = this.findHeaderIndex(header, ['date', 'datum', 'day']);
+    const timeIdx = this.findHeaderIndex(header, ['time', 'start', 'starttime', 'begin']);
+    const venueIdx = this.findHeaderIndex(header, ['venue', 'location', 'place']);
+    const priceIdx = this.findHeaderIndex(header, ['price', 'cost', 'ticketprice', 'entry']);
+    const webIdx = this.findHeaderIndex(header, ['website', 'url', 'link']);
+
+    const out: EventData[] = [];
+    for (let i = 1; i < tableLines.length; i++) {
+      const cols = tableLines[i].split('|').map(s => s.trim()).filter(Boolean);
+      const title = titleIdx >= 0 ? (cols[titleIdx] || '') : '';
+      if (!title || title.length < 3) continue;
+
+      const category = catIdx >= 0 ? (cols[catIdx] || '') : (requestCategory || '');
+      const date = dateIdx >= 0 ? (cols[dateIdx] || '') : (requestDate || '');
+      const time = timeIdx >= 0 ? (cols[timeIdx] || '') : '';
+      const venue = venueIdx >= 0 ? (cols[venueIdx] || '') : '';
+      const price = priceIdx >= 0 ? (cols[priceIdx] || '') : '';
+      const website = webIdx >= 0 ? (cols[webIdx] || '') : '';
+
+      out.push({ title, category, date, time, venue, price, website });
     }
-    for (let i = startIndex; i < tableLines.length; i++) {
-      const line = tableLines[i].trim();
-      if (!line || line.startsWith('|---') || line.includes('---')) continue;
-      const cols = line.split('|').map(c => c.trim())
-        .filter((col, idx, arr) => !(idx === 0 && col === '') && !(idx === arr.length - 1 && col === ''));
-      if (cols.length >= 3) {
-        let event: EventData;
-        if (cols.length === 3) {
-          const c2 = cols[1];
-          const isTime = TIME_24H_REGEX.test(c2);
-          const isDate = DATE_ISO_REGEX.test(c2) || DATE_DDMMYYYY_REGEX.test(c2);
-          if (isTime) {
-            event = { title: cols[0] || '', category: requestCategory || '', date: requestDate || '', time: cols[1] || '', venue: cols[2] || '', price: '', website: '' };
-          } else if (isDate) {
-            event = { title: cols[0] || '', category: requestCategory || '', date: cols[1] || requestDate || '', time: '', venue: cols[2] || '', price: '', website: '' };
-          } else {
-            event = { title: cols[0] || '', category: cols[1] || requestCategory || '', date: cols[2] || requestDate || '', time: '', venue: '', price: '', website: '' };
-          }
-        } else {
-          event = {
-            title: cols[0] || '',
-            category: cols[1] || requestCategory || '',
-            date: cols[2] || requestDate || '',
-            time: cols[3] || '',
-            venue: cols[4] || '',
-            price: cols[5] || '',
-            website: cols[6] || '',
-            endTime: cols[7] || undefined,
-            address: cols[8] || undefined,
-            ticketPrice: cols[9] || cols[5] || undefined,
-            eventType: cols[10] || undefined,
-            description: cols[11] || undefined,
-            bookingLink: cols[12] || cols[6] || undefined,
-            ageRestrictions: cols[13] || undefined,
-          };
-        }
-        if (event.title) events.push(event);
-      }
+    return out;
+  }
+
+  private findHeaderIndex(header: string[], candidates: string[]): number {
+    const lower = header.map(h => h.toLowerCase());
+    for (const c of candidates) {
+      const idx = lower.indexOf(c.toLowerCase());
+      if (idx >= 0) return idx;
     }
-    return events;
+    return -1;
   }
 
   private parseJsonArray(arr: any[], requestCategory?: string, requestDate?: string): EventData[] {
@@ -196,26 +198,39 @@ export class EventAggregator {
     const out: EventData[] = [];
     for (const line of text.split('\n')) {
       const t = line.trim();
-      if (t.startsWith('{') && t.endsWith('}')) {
+      if (t.startsWith('{') && t.endsWith('}') && /"title"\s*:/.test(t)) {
         try {
           const raw = JSON.parse(t);
           const ev = this.createEventFromObject(raw, requestCategory, requestDate);
           if (ev.title) out.push(ev);
-        } catch {/* ignore */}
+        } catch { /* ignore */ }
       }
     }
     return out;
   }
 
   private createEventFromObject(raw: any, requestCategory?: string, requestDate?: string): EventData {
+    const title = this.extractField(raw, ['title', 'name', 'event', 'eventName']) || '';
+    if (!title || title.trim().length < 3) {
+      // strict: reject fragments
+      return {
+        title: '',
+        category: '',
+        date: '',
+        time: '',
+        venue: '',
+        price: '',
+        website: '',
+      };
+    }
     return {
-      title: this.extractField(raw, ['title', 'name', 'event', 'eventName']) || '',
-      category: this.extractField(raw, ['category', 'type', 'genre']) || requestCategory || '',
-      date: this.extractField(raw, ['date', 'eventDate', 'day']) || requestDate || '',
-      time: this.extractField(raw, ['time', 'startTime', 'start', 'begin', 'doors']) || '',
-      venue: this.extractField(raw, ['venue', 'location', 'place']) || '',
-      price: this.extractField(raw, ['price', 'cost', 'ticketPrice', 'entry']) || '',
-      website: this.extractField(raw, ['website', 'url', 'link']) || '',
+      title: title.trim(),
+      category: (this.extractField(raw, ['category', 'type', 'genre']) || requestCategory || '').trim(),
+      date: (this.extractField(raw, ['date', 'eventDate', 'day']) || requestDate || '').trim(),
+      time: (this.extractField(raw, ['time', 'startTime', 'start', 'begin', 'doors']) || '').trim(),
+      venue: (this.extractField(raw, ['venue', 'location', 'place']) || '').trim(),
+      price: (this.extractField(raw, ['price', 'cost', 'ticketPrice', 'entry']) || '').trim(),
+      website: (this.extractField(raw, ['website', 'url', 'link']) || '').trim(),
       endTime: this.extractField(raw, ['endTime', 'end', 'finish']),
       address: this.extractField(raw, ['address', 'venueAddress']),
       ticketPrice: this.extractField(raw, ['ticketPrice', 'cost', 'entry']),
@@ -227,32 +242,96 @@ export class EventAggregator {
   }
 
   private extractField(obj: any, names: string[]): string | undefined {
+    if (!obj || typeof obj !== 'object') return undefined;
     for (const n of names) {
-      if (obj && typeof obj === 'object' && obj[n] && typeof obj[n] === 'string') return obj[n].trim();
+      if (Object.prototype.hasOwnProperty.call(obj, n) && typeof obj[n] === 'string') {
+        return (obj[n] as string).trim();
+      }
+    }
+    // case-insensitive fallback
+    const dict = Object.keys(obj).reduce((acc, k) => { acc[k.toLowerCase()] = k; return acc; }, {} as Record<string, string>);
+    for (const n of names) {
+      const real = dict[n.toLowerCase()];
+      if (real && typeof obj[real] === 'string') return (obj[real] as string).trim();
     }
     return undefined;
   }
 
-  private extractKeywordBasedEvents(text: string, requestCategory?: string, requestDate?: string): EventData[] {
-    const events: EventData[] = [];
-    const sentences = text
-      .split(/[.\n\r•\-\*]/)
-      .map(s => s.trim())
-      .filter(s => s.length > 10 && s.length < 200);
+  // Attempts to rebuild events from contiguous `"key": "value"` lines
+  private tryAssembleEventsFromKeyValueLines(text: string, requestCategory?: string, requestDate?: string): EventData[] {
+    const lines = text.split('\n');
+    const out: EventData[] = [];
+    let buffer: string[] = [];
 
-    for (const s of sentences) {
-      const lower = s.toLowerCase();
-      if (lower.includes('keine events') || lower.includes('no events') || lower.includes('sorry')) continue;
-      const evt = this.parseEventFromText(s, requestCategory, requestDate);
-      if (evt.title) events.push(evt);
+    const flush = () => {
+      if (buffer.length === 0) return;
+      const objStr = '{' + buffer.join(',') + '}';
+      buffer = [];
+      try {
+        const raw = JSON.parse(objStr);
+        const ev = this.createEventFromObject(raw, requestCategory, requestDate);
+        if (ev.title) out.push(ev);
+      } catch { /* ignore */ }
+    };
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim().replace(/,\s*$/, '');
+      if (this.isKeyValueJsonLine(line)) {
+        buffer.push(line);
+      } else {
+        flush();
+      }
     }
-    return events;
+    flush();
+
+    return out;
+  }
+
+  private isKeyValueJsonLine(line: string): boolean {
+    // "key": "value" | key: "value" | 'key': 'value'
+    if (/^"[^"]+"\s*:\s*".*"$/.test(line)) return true;
+    if (/^[a-zA-Z_][\w\s-]*\s*:\s*".*"$/.test(line)) return true;
+    if (/^'[^']+'\s*:\s*'.*'$/.test(line)) return true;
+    if (line.includes('{') || line.includes('}')) return false;
+    return false;
+  }
+
+  private extractKeywordBasedEvents(text: string, requestCategory?: string, requestDate?: string): EventData[] {
+    const out: EventData[] = [];
+    for (const rawLine of text.split('\n')) {
+      const line = rawLine.trim();
+      if (!line) continue;
+
+      // Skip JSON property fragments like `"title": "X"`
+      if (this.looksLikeJsonPropertyFragment(line)) continue;
+      // Skip bare URLs
+      if (this.looksLikeBareUrl(line)) continue;
+      // Skip too short lines
+      if (line.length < 6) continue;
+
+      const ev = this.parseEventFromText(line, requestCategory, requestDate);
+      if (ev.title && ev.title.length >= 3) out.push(ev);
+    }
+    return out;
+  }
+
+  private looksLikeJsonPropertyFragment(line: string): boolean {
+    if (/^"[^"]+"\s*:/.test(line)) return true;
+    if (/^[a-zA-Z_][\w\s-]*\s*:/.test(line) && line.includes('"')) return true;
+    return false;
+  }
+
+  private looksLikeBareUrl(line: string): boolean {
+    if (/https?:\/\/\S+/i.test(line)) return true;
+    if (/(^|\s)(www\.[^\s]+)/i.test(line)) return true;
+    if (/[a-z0-9.-]+\.(com|net|org|io|de|at)(\/\S*)?$/i.test(line)) return true;
+    return false;
   }
 
   private parseEventFromText(line: string, requestCategory?: string, requestDate?: string): EventData {
     const timePattern = /(\d{1,2}:\d{2}|\d{1,2}\s*Uhr)/i;
-    const datePattern = /(\d{1,2}\.?\d{1,2}\.?\d{2,4})/;
-    const pricePattern = /(€\s?\d+|kostenlos|frei|free)/i;
+    const datePattern = /(\d{1,2}\.\d{1,2}\.\d{2,4})/;
+    const pricePattern = /(€\s?\d+[.,]?\d*|kostenlos|frei|free)/i;
 
     const time = line.match(timePattern)?.[1] || '';
     const date = line.match(datePattern)?.[1] || requestDate || '';
@@ -266,45 +345,97 @@ export class EventAggregator {
       venue: '',
       price,
       website: '',
-      description: line.length > 80 ? line.slice(0, 120) + '...' : undefined
+      description: line.length > 80 ? `${line.slice(0, 120)}...` : undefined
     };
   }
 
+  // Deduplication with normalization + fuzzy title matching (same date)
   deduplicateEvents(events: EventData[]): EventData[] {
-    const unique: EventData[] = [];
-    const keys = new Set<string>();
+    const norm = (s: string) => (s || '').toLowerCase().normalize('NFKD').replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const keyOf = (e: EventData) => `${norm(e.title)}|${(e.date||'').slice(0,10)}|${norm(e.venue)}`;
+
+    const map = new Map<string, EventData>();
     for (const ev of events) {
-      const key = `${this.normalizeTitle(ev.title)}_${this.normalizeVenue(ev.venue)}_${this.normalizeDate(ev.date)}`;
-      const fuzzy = unique.some(x => this.isFuzzyDuplicate(ev, x));
-      if (!keys.has(key) && !fuzzy) {
-        keys.add(key);
-        unique.push(ev);
+      if (!ev.title) continue;
+      const k = keyOf(ev);
+      const existing = map.get(k);
+
+      if (!existing) {
+        map.set(k, { ...ev });
+        continue;
       }
+
+      // Merge: prefer non-empty fields, keep earliest price/links if missing
+      map.set(k, {
+        ...existing,
+        category: existing.category || ev.category,
+        date: existing.date || ev.date,
+        time: existing.time || ev.time,
+        endTime: existing.endTime || ev.endTime,
+        venue: existing.venue || ev.venue,
+        address: existing.address || ev.address,
+        price: existing.price || ev.price,
+        ticketPrice: existing.ticketPrice || ev.ticketPrice,
+        website: existing.website || ev.website,
+        bookingLink: existing.bookingLink || ev.bookingLink,
+        eventType: existing.eventType || ev.eventType,
+        ageRestrictions: existing.ageRestrictions || ev.ageRestrictions,
+        description: existing.description || ev.description,
+        source: existing.source || ev.source
+      });
     }
-    return unique;
-  }
 
-  private normalizeTitle(t: string) { return t.toLowerCase().trim().replace(/[^\w\s]/g, '').replace(/\s+/g, ' '); }
-  private normalizeVenue(v: string) { return v.toLowerCase().trim().replace(/[^\w\s]/g, '').replace(/\s+/g, ' '); }
-  private normalizeDate(d: string) { return d.toLowerCase().trim().replace(/[^\d\-\/\.]/g, ''); }
+    // Secondary fuzzy dedup across keys with same date
+    const list = Array.from(map.values());
+    const out: EventData[] = [];
+    const used = new Set<number>();
 
-  private isFuzzyDuplicate(a: EventData, b: EventData): boolean {
-    const titleSim = this.sim(this.normalizeTitle(a.title), this.normalizeTitle(b.title));
-    const venueSim = this.sim(this.normalizeVenue(a.venue), this.normalizeVenue(b.venue));
-    return (titleSim > 0.8 && venueSim > 0.6) || (titleSim > 0.9 && venueSim > 0.9);
+    for (let i = 0; i < list.length; i++) {
+      if (used.has(i)) continue;
+      let base = list[i];
+      for (let j = i + 1; j < list.length; j++) {
+        if (used.has(j)) continue;
+        if ((base.date || '').slice(0,10) !== (list[j].date || '').slice(0,10)) continue;
+
+        const sTitle = this.sim(norm(base.title), norm(list[j].title));
+        const sVenue = this.sim(norm(base.venue), norm(list[j].venue || ''));
+        if (sTitle >= 0.92 && sVenue >= 0.7) {
+          // merge j into base
+          base = {
+            ...base,
+            category: base.category || list[j].category,
+            time: base.time || list[j].time,
+            endTime: base.endTime || list[j].endTime,
+            venue: base.venue || list[j].venue,
+            address: base.address || list[j].address,
+            price: base.price || list[j].price,
+            ticketPrice: base.ticketPrice || list[j].ticketPrice,
+            website: base.website || list[j].website,
+            bookingLink: base.bookingLink || list[j].bookingLink,
+            eventType: base.eventType || list[j].eventType,
+            ageRestrictions: base.ageRestrictions || list[j].ageRestrictions,
+            description: base.description || list[j].description,
+            source: base.source || list[j].source
+          };
+          used.add(j);
+        }
+      }
+      out.push(base);
+    }
+
+    return out;
   }
 
   private sim(a: string, b: string): number {
-    if (a === b) return 1;
+    if (!a && !b) return 1;
     if (!a || !b) return 0;
-    const longer = a.length > b.length ? a : b;
-    const shorter = a.length > b.length ? b : a;
-    let matches = 0;
-    for (const ch of shorter) if (longer.includes(ch)) matches++;
-    return matches / longer.length;
+    // token-based similarity
+    const ta = new Set(a.split(/\s+/).filter(Boolean));
+    const tb = new Set(b.split(/\s+/).filter(Boolean));
+    const inter = Array.from(ta).filter(x => tb.has(x)).length;
+    const union = new Set([...Array.from(ta), ...Array.from(tb)]).size || 1;
+    return inter / union;
   }
-
-  // categorizeEvents() war veraltet und nutzte nicht die 20 kanonischen Kategorien – entfernt.
 }
 
 export const eventAggregator = new EventAggregator();

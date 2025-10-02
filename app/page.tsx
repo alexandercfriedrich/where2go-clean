@@ -96,10 +96,7 @@ export default function Home() {
   const timeSelectWrapperRef = useRef<HTMLDivElement | null>(null);
   const cancelRef = useRef<{cancel:boolean}>({cancel:false});
 
-  // Design CSS handled by DesignCssLoader – no manual override here
-  useEffect(() => {}, []);
-
-  // Close date dropdown on outside click / Escape
+  // Dropdown außerhalb/Escape schließen
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!showDateDropdown) return;
@@ -144,7 +141,7 @@ export default function Home() {
   function tomorrowISO() { const d = new Date(); d.setDate(d.getDate()+1); return toISODate(d); }
   function nextWeekendDatesISO(): string[] {
     const t = new Date();
-    const day = t.getDay(); // 0 So ... 6 Sa
+       const day = t.getDay(); // 0 So ... 6 Sa
     const offset = (5 - day + 7) % 7; // nächster Freitag
     const fri = new Date(t); fri.setDate(t.getDate() + offset);
     const sat = new Date(fri); sat.setDate(fri.getDate() + 1);
@@ -309,6 +306,7 @@ export default function Home() {
     }
   }
 
+  
   async function progressiveSearchEvents() {
     if (!city.trim()) {
       setError('Bitte gib eine Stadt ein.');
@@ -363,7 +361,7 @@ export default function Home() {
         }]
       }));
 
-      // Create job via /api/events
+      // RICHTIG: Job per /api/events anlegen (keine jobId im Body mitschicken)
       const jobRes = await fetch('/api/events', {
         method: 'POST',
         headers: { 'Content-Type':'application/json' },
@@ -409,7 +407,7 @@ export default function Home() {
           resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
-        // Fetch debug info after job is done
+        // Fetch debug information after job is done
         if (data.jobId) {
           fetchDebugInfo(data.jobId);
         }
@@ -419,7 +417,7 @@ export default function Home() {
       const nextInstance = ++pollInstanceRef.current;
       setActivePolling({ jobId: data.jobId, cleanup, pollInstanceId: nextInstance });
 
-      // Optional: parallel UI fetches per super category
+      // Optional: parallele UI-Fetches pro Superkategorie
       const superCats =
         selectedSuperCategories.length > 0 ? [...selectedSuperCategories] : [...ALL_SUPER_CATEGORIES];
       for (const sc of superCats) {
@@ -468,7 +466,7 @@ export default function Home() {
           }));
         }
 
-        // Wien.info debug data, if present
+        // Check for Wien.info specific data
         if (debugData.debug && debugData.debug.wienInfoData) {
           const wienData = debugData.debug.wienInfoData;
           setDebugLogs(prev => ({
@@ -1112,7 +1110,7 @@ export default function Home() {
         </div>
       </footer>
 
-      {/* Globale Style-Overrides */}
+      {/* Globale Style-Overrides + Date selector/calendar styles */}
       <style jsx global>{`
         .header-inner.header-centered {
           position: relative;
@@ -1190,8 +1188,80 @@ export default function Home() {
         .src-badge.src-rss   { background:#f59e0b; color:#111; border-color:#d97706; }
         .src-badge.src-ra    { background:#0ea5e9; color:#fff; border-color:#0284c7; }
         .src-badge.src-cache { background:#e5e7eb; color:#111; border-color:#d1d5db; }
-        /* Requested spacing across meta rows */
+
+        /* Spacing improvement requested between meta rows */
         .event-meta-line { line-height: 1.5; }
+
+        /* ---------------- Date selector dropdown + calendar styles (fixes broken layout) ---------------- */
+        .select-with-dropdown { position: relative; }
+        .date-dropdown {
+          position: absolute;
+          top: calc(100% + 8px);
+          left: 0;
+          z-index: 1000;
+          background: var(--color-surface, #fff);
+          color: var(--color-text, #111);
+          border: 1px solid var(--color-border, #e5e7eb);
+          border-radius: 10px;
+          box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+          padding: 12px;
+          min-width: 560px; /* ensures two 7-col grids fit side by side */
+        }
+        @media (max-width: 640px) {
+          .date-dropdown { position: fixed; left: 12px; right: 12px; top: 20%; min-width: unset; }
+        }
+
+        .calendar { width: 100%; }
+        .calendar-nav {
+          display:flex; align-items:center; justify-content:space-between;
+          gap:8px; margin-bottom:10px;
+        }
+        .cal-btn {
+          width: 28px; height: 28px;
+          display:inline-flex; align-items:center; justify-content:center;
+          border:1px solid var(--color-border, #e5e7eb);
+          background: var(--color-surface-alt, #fafbfc);
+          color: inherit;
+          border-radius: 8px;
+          cursor: pointer;
+        }
+        .cal-btn:hover { background: rgba(0,0,0,0.04); }
+        .cal-titles { display:flex; gap:16px; }
+        .cal-title { font-weight: 600; }
+
+        .calendar-grids {
+          display:grid; grid-template-columns: 1fr 1fr; gap: 16px;
+        }
+        @media (max-width: 640px) {
+          .calendar-grids { grid-template-columns: 1fr; }
+        }
+
+        .cal-grid {
+          display:grid; grid-template-columns: repeat(7, 1fr); gap: 6px;
+        }
+        .cal-head {
+          text-align:center; font-size:12px; color: var(--color-text-faint, #9aa0a6);
+          padding: 4px 0;
+        }
+        .cal-day {
+          display:inline-flex; align-items:center; justify-content:center;
+          height: 32px;
+          border:1px solid var(--color-border, #e5e7eb);
+          background: var(--color-surface-alt, #fafbfc);
+          color: inherit;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: background .15s, color .15s, border-color .15s, transform .05s;
+        }
+        .cal-day:hover { background: rgba(0,0,0,0.06); }
+        .cal-day--muted { opacity: .5; }
+        .cal-day--sel {
+          background: #404040; color: #fff; border-color: #404040; font-weight: 600;
+        }
+        .cal-day--disabled {
+          opacity: .4; cursor: not-allowed; background: rgba(0,0,0,0.03);
+        }
+        /* ----------------------------------------------------------------------------------------------- */
       `}</style>
     </div>
   );
@@ -1318,7 +1388,7 @@ function W2GLoader5() {
             className="orb5"
             style={
               {
-                // @ts-ignore custom props for CSS
+                // @ts-ignore custom props
                 '--angle': `${o.angle}deg`,
                 '--radius': `${o.radius}px`,
                 '--speed': `${o.speed}s`
