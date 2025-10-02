@@ -134,10 +134,30 @@ export class EventAggregator {
   // Detect JSON blocks (arrays/objects); JSON.parse verifies the correctness later
   private extractJsonBlocks(text: string): string[] {
     const blocks: string[] = [];
-    const regex = /\[[\s\S]*?\]|\{[\s\S]*?\}/g;
-    let m: RegExpExecArray | null;
-    while ((m = regex.exec(text)) !== null) {
-      blocks.push(m[0]);
+    const openers = ['{', '['];
+    const closers = {'{': '}', '[': ']'};
+    let i = 0;
+    while (i < text.length) {
+      if (openers.includes(text[i])) {
+        const start = i;
+        const opener = text[i];
+        const closer = closers[opener];
+        let depth = 1;
+        i++;
+        while (i < text.length && depth > 0) {
+          if (text[i] === opener) {
+            depth++;
+          } else if (text[i] === closer) {
+            depth--;
+          }
+          i++;
+        }
+        if (depth === 0) {
+          blocks.push(text.slice(start, i));
+        }
+      } else {
+        i++;
+      }
     }
     return blocks;
   }
