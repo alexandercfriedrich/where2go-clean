@@ -458,8 +458,8 @@ export class EventAggregator {
     const ta = new Set(a.split(/\s+/).filter(Boolean));
     const tb = new Set(b.split(/\s+/).filter(Boolean));
     const inter = Array.from(ta).filter(x => tb.has(x)).length;
-    const union = new Set([...ta, ...tb]).size || 1;
-    return inter / union;
+    const union = new Set([...ta, ...tb]).size;
+    return inter / Math.max(1, union);
   }
 }
 
