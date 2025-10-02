@@ -20,7 +20,7 @@ export class EventAggregator {
     for (const r of results) {
       const queryCategory = this.extractCategoryFromQuery(r.query);
       const events = this.parseEventsFromResponse(
-        r.response,
+        r.response, // use correct field from PerplexityResult
         queryCategory,
         Array.isArray(requestedDate) ? requestedDate[0] : requestedDate
       );
@@ -37,7 +37,7 @@ export class EventAggregator {
       const validDates = Array.isArray(requestedDate) ? requestedDate : [requestedDate];
       filtered = deduped.filter(ev => {
         const d = ev.date?.slice(0, 10);
-        return d && validDates.includes(d);
+        return !d || validDates.includes(d);
       });
     }
 
@@ -134,30 +134,10 @@ export class EventAggregator {
   // Detect JSON blocks (arrays/objects); JSON.parse verifies the correctness later
   private extractJsonBlocks(text: string): string[] {
     const blocks: string[] = [];
-    const openers = ['{', '['];
-    const closers = {'{': '}', '[': ']'};
-    let i = 0;
-    while (i < text.length) {
-      if (openers.includes(text[i])) {
-        const start = i;
-        const opener = text[i];
-        const closer = closers[opener];
-        let depth = 1;
-        i++;
-        while (i < text.length && depth > 0) {
-          if (text[i] === opener) {
-            depth++;
-          } else if (text[i] === closer) {
-            depth--;
-          }
-          i++;
-        }
-        if (depth === 0) {
-          blocks.push(text.slice(start, i));
-        }
-      } else {
-        i++;
-      }
+    const regex = /\[[\s\S]*?\]|\{[\s\S]*?\}/g;
+    let m: RegExpExecArray | null;
+    while ((m = regex.exec(text)) !== null) {
+      blocks.push(m[0]);
     }
     return blocks;
   }
@@ -272,7 +252,7 @@ export class EventAggregator {
     const dict = Object.keys(obj).reduce((acc, k) => { acc[k.toLowerCase()] = k; return acc; }, {} as Record<string, string>);
     for (const n of names) {
       const real = dict[n.toLowerCase()];
-      if (real && typeof obj[real] === 'string') return obj[real].trim();
+      if (real && typeof obj[real] === 'string') return (obj[real] as string).trim();
     }
     return undefined;
   }
@@ -309,7 +289,9 @@ export class EventAggregator {
 
   private isKeyValueJsonLine(line: string): boolean {
     // "key": "value" | key: "value" | 'key': 'value'
-    if (/^(\"[^\"]+\"|'[^']+'|[a-zA-Z_][\w\s-]*)\s*:\s*(\".*\"|'.*')$/.test(line)) return true;
+    if (/^"[^"]+"\s*:\s*".*"$/.test(line)) return true;
+    if (/^[a-zA-Z_][\w\s-]*\s*:\s*".*"$/.test(line)) return true;
+    if (/^'[^']+'\s*:\s*'.*'$/.test(line)) return true;
     if (line.includes('{') || line.includes('}')) return false;
     return false;
   }
@@ -369,14 +351,7 @@ export class EventAggregator {
 
   // Deduplication with normalization + fuzzy title matching (same date)
   deduplicateEvents(events: EventData[]): EventData[] {
-    const normCache = new Map<string, string>();
-    const norm = (s: string) => {
-      const key = s || '';
-      if (normCache.has(key)) return normCache.get(key)!;
-      const normalized = key.toLowerCase().normalize('NFKD').replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
-      normCache.set(key, normalized);
-      return normalized;
-    };
+    const norm = (s: string) => (s || '').toLowerCase().normalize('NFKD').replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
     const keyOf = (e: EventData) => `${norm(e.title)}|${(e.date||'').slice(0,10)}|${norm(e.venue)}`;
 
     const map = new Map<string, EventData>();
@@ -458,8 +433,8 @@ export class EventAggregator {
     const ta = new Set(a.split(/\s+/).filter(Boolean));
     const tb = new Set(b.split(/\s+/).filter(Boolean));
     const inter = Array.from(ta).filter(x => tb.has(x)).length;
-    const union = new Set([...ta, ...tb]).size;
-    return inter / Math.max(1, union);
+    const union = new Set([...Array.from(ta), ...Array.from(tb)]).size || 1;
+    return inter / union;
   }
 }
 
