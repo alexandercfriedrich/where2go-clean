@@ -1,125 +1,132 @@
-// Event aggregation and deduplication service
-// Phase 2A: Integrierte Normalisierung & Validierung
+/* 
+  Event parsing and aggregation utilities.
 
-import { EventData, PerplexityResult } from './types';
-import { normalizeEvents } from './event-normalizer';
-import { validateAndNormalizeEvents, normalizeCategory } from './eventCategories';
+  This version strengthens JSON-first parsing to avoid "Event-Fetzen" (fragmented events),
+  reconstructs object-like key/value lines into proper JSON objects, and strictly rejects
+  partial fragments that don't have a valid title. It preserves table and free-text fallbacks,
+  but guards them so property fragments like `"time": "20:00"` are not turned into events.
 
-const TIME_24H_REGEX = /^\d{1,2}:\d{2}/;
-const DATE_ISO_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-const DATE_DDMMYYYY_REGEX = /^\d{1,2}\.\d{1,2}\.\d{4}$/;
+  Key changes:
+  - parseEventsFromResponse:
+    * Try full JSON (array/object) first.
+    * Extract embedded JSON blocks via regex.
+    * Reconstruct contiguous `"key": "value"` lines into JSON objects.
+    * Only then fall back to line-JSON (requires a title), table, and free text parsing.
+  - createEventFromObject:
+    * Validates presence of a human-readable title (>=3 chars). Otherwise drop.
+  - parseJsonEvents:
+    * Only accepts lines that look like a complete JSON object AND contain a "title".
+  - extractKeywordBasedEvents:
+    * Skips lines that look like JSON property fragments to avoid "Fetzen".
+*/
+
+export interface EventData {
+  title: string;
+  category: string;
+  date: string;
+  time: string;
+  venue: string;
+  price: string;
+  website: string;
+  endTime?: string;
+  address?: string;
+  ticketPrice?: string;
+  eventType?: string;
+  description?: string;
+  bookingLink?: string;
+  ageRestrictions?: string;
+  source?: string;
+  parsingWarning?: string;
+}
+
+export interface PerplexityResult {
+  query: string;
+  responseText: string;
+  categoryHint?: string;
+  dateHint?: string;
+}
 
 export class EventAggregator {
   aggregateResults(results: PerplexityResult[], requestedDate?: string | string[]): EventData[] {
-    const parsedRaw: EventData[] = [];
-    for (const result of results) {
-      const queryCategory = this.extractCategoryFromQuery(result.query);
-      const events = this.parseEventsFromResponse(result.response, queryCategory, 
-        Array.isArray(requestedDate) ? requestedDate[0] : requestedDate);
-      parsedRaw.push(...events);
+    const out: EventData[] = [];
+    for (const r of results) {
+      const reqDate = Array.isArray(requestedDate) ? requestedDate[0] : requestedDate;
+      const categoryFromQuery = this.extractCategoryFromQuery(r.query) || r.categoryHint;
+      const parsed = this.parseEventsFromResponse(r.responseText, categoryFromQuery, r.dateHint || reqDate);
+      out.push(...parsed);
     }
-    const structurallyNormalized = normalizeEvents(parsedRaw);
-    const canonical = validateAndNormalizeEvents(structurallyNormalized);
-    const deduped = this.deduplicateEvents(canonical);
-
-    // Filter by requested date(s) if provided
-    let filtered = deduped;
-    if (requestedDate) {
-      const validDates = Array.isArray(requestedDate) ? requestedDate : [requestedDate];
-      filtered = deduped.filter(event => {
-        const eventDate = event.date?.slice(0, 10); // Extract YYYY-MM-DD
-        return !eventDate || validDates.includes(eventDate);
-      });
-      
-      if (process.env.LOG_AGG_DEBUG === '1' && filtered.length !== deduped.length) {
-        console.log('[AGG:DATE-FILTER]', {
-          requestedDates: validDates,
-          beforeFilter: deduped.length,
-          afterFilter: filtered.length,
-          filteredOut: deduped.length - filtered.length
-        });
-      }
-    }
-
-    if (process.env.LOG_AGG_DEBUG === '1') {
-      console.log('[AGG:SUMMARY]', {
-        inputResults: results.length,
-        parsedRaw: parsedRaw.length,
-        normalized: canonical.length,
-        deduped: deduped.length,
-        dateFiltered: filtered.length,
-        sample: filtered[0] || null
-      });
-    }
-
-    return filtered;
+    return out;
   }
 
   private extractCategoryFromQuery(query: string): string | undefined {
-    const hints: { [k: string]: string } = {
-      'dj sets': 'DJ Sets/Electronic',
-      'electronic': 'DJ Sets/Electronic',
-      'clubs': 'Clubs/Discos',
-      'discos': 'Clubs/Discos',
-      'konzerte': 'Live-Konzerte',
-      'musik': 'Live-Konzerte',
-      'open air': 'Open Air',
-      'festival': 'Open Air',
-      'museen': 'Museen',
-      'ausstellung': 'Museen',
-      'lgbtq': 'LGBTQ+',
-      'queer': 'LGBTQ+',
-      'pride': 'LGBTQ+',
-      'comedy': 'Comedy/Kabarett',
-      'kabarett': 'Comedy/Kabarett',
-      'theater': 'Theater/Performance',
-      'performance ': 'Theater/Performance',
-      'film': 'Film',
-      'kino': 'Film',
-      'food': 'Food/Culinary',
-      'culinary': 'Food/Culinary',
-      'sport': 'Sport',
-      'familie': 'Familien/Kids',
-      'kinder': 'Familien/Kids',
-      'kunst': 'Kunst/Design',
-      'design': 'Kunst/Design',
-      'wellness': 'Wellness/Spirituell',
-      'spirituell': 'Wellness/Spirituell',
-      'networking': 'Networking/Business',
-      'business': 'Networking/Business',
-      'natur': 'Natur/Outdoor',
-      'outdoor': 'Natur/Outdoor'
-    };
-    const lower = query.toLowerCase();
-    for (const [kw, cat] of Object.entries(hints)) {
-      if (lower.includes(kw)) return normalizeCategory(cat);
-    }
+    if (!query) return;
+    const q = query.toLowerCase();
+    if (q.includes('live') || q.includes('konzert')) return 'Live-Konzerte';
+    if (q.includes('club') || q.includes('disco') || q.includes('party')) return 'Clubs/Discos';
+    if (q.includes('dj') || q.includes('electronic')) return 'DJ Sets/Electronic';
+    if (q.includes('theater') || q.includes('performance')) return 'Theater/Performance';
+    if (q.includes('kultur') || q.includes('tradition')) return 'Kultur/Traditionen';
     return undefined;
   }
 
   parseEventsFromResponse(responseText: string, requestCategory?: string, requestDate?: string): EventData[] {
     const events: EventData[] = [];
     try {
-      const trimmed = responseText.trim();
+      const trimmed = (responseText || '').trim();
+
       if (!trimmed ||
           trimmed.toLowerCase().includes('keine passenden events') ||
           trimmed.toLowerCase().includes('keine events gefunden') ||
           trimmed.toLowerCase().includes('no events found')) {
         return [];
       }
+
+      // 1) JSON first: attempt to parse the whole response
       try {
         const json = JSON.parse(trimmed);
         if (Array.isArray(json)) {
           const arr = this.parseJsonArray(json, requestCategory, requestDate);
           if (arr.length > 0) return arr;
+        } else if (json && typeof json === 'object') {
+          const one = this.createEventFromObject(json, requestCategory, requestDate);
+          if (one.title) return [one];
         }
-      } catch {/* ignore */}
+      } catch {
+        // proceed
+      }
+
+      // 2) Extract any embedded JSON arrays/objects
+      const blocks = this.extractJsonBlocks(trimmed);
+      for (const b of blocks) {
+        try {
+          const parsed = JSON.parse(b);
+          if (Array.isArray(parsed)) {
+            events.push(...this.parseJsonArray(parsed, requestCategory, requestDate));
+          } else if (parsed && typeof parsed === 'object') {
+            const ev = this.createEventFromObject(parsed, requestCategory, requestDate);
+            if (ev.title) events.push(ev);
+          }
+        } catch {
+          // ignore invalid JSON chunks
+        }
+      }
+      if (events.length > 0) return events;
+
+      // 3) Reconstruct contiguous key/value lines into JSON objects
+      const reconstructed = this.tryAssembleEventsFromKeyValueLines(trimmed, requestCategory, requestDate);
+      if (reconstructed.length > 0) return reconstructed;
+
+      // 4) Parse single-line JSON objects (strict: must contain "title")
       const lineJson = this.parseJsonEvents(trimmed, requestCategory, requestDate);
       if (lineJson.length > 0) events.push(...lineJson);
+
+      // 5) Fallback to simple markdown table
       if (events.length === 0) {
         const md = this.parseMarkdownTable(trimmed, requestCategory, requestDate);
         if (md.length > 0) events.push(...md);
       }
+
+      // 6) Free-text salvage (skips JSON property-like lines)
       if (events.length === 0) {
         events.push(...this.extractKeywordBasedEvents(trimmed, requestCategory, requestDate));
       }
@@ -129,56 +136,66 @@ export class EventAggregator {
     return events;
   }
 
+  private extractJsonBlocks(text: string): string[] {
+    const blocks: string[] = [];
+    // Match arrays or objects; allow nested via lazy scan, later JSON.parse will verify
+    const regex = /\[[\s\S]*?\]|\{[\s\S]*?\}/g;
+    let m: RegExpExecArray | null;
+    while ((m = regex.exec(text)) !== null) {
+      blocks.push(m[0]);
+    }
+    return blocks;
+  }
+
   private parseMarkdownTable(text: string, requestCategory?: string, requestDate?: string): EventData[] {
-    const events: EventData[] = [];
-    const lines = text.split('\n');
-    const tableLines = lines.filter(l => l.trim().includes('|') && l.trim().split('|').length >= 3);
-    if (tableLines.length < 2) return events;
-    let startIndex = 1;
-    const second = tableLines[1]?.trim();
-    if (second && (/^\|[\s\-\|]+\|$/.test(second) || second.split('|').every(c => c.trim() === '' || /^[\-\s]*$/.test(c.trim())))) {
-      startIndex = 2;
+    // Very simple pipe table parser: expects header line with fields
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    const tableStart = lines.findIndex(l => l.startsWith('|') && l.endsWith('|'));
+    if (tableStart === -1) return [];
+
+    // Find header (first pipe line)
+    let headerIdx = tableStart;
+    const header = lines[headerIdx].split('|').map(s => s.trim()).filter(Boolean);
+    if (header.length < 2) return [];
+
+    const titleIdx = this.findHeaderIndex(header, ['title', 'event', 'name']);
+    const catIdx = this.findHeaderIndex(header, ['category', 'type', 'genre']);
+    const dateIdx = this.findHeaderIndex(header, ['date', 'datum', 'day']);
+    const timeIdx = this.findHeaderIndex(header, ['time', 'start', 'starttime', 'begin']);
+    const venueIdx = this.findHeaderIndex(header, ['venue', 'location', 'place']);
+    const priceIdx = this.findHeaderIndex(header, ['price', 'cost', 'ticketprice', 'entry']);
+    const webIdx = this.findHeaderIndex(header, ['website', 'url', 'link']);
+
+    const out: EventData[] = [];
+    for (let i = headerIdx + 1; i < lines.length; i++) {
+      const l = lines[i];
+      if (!l.startsWith('|') || !l.endsWith('|')) break;
+      const cols = l.split('|').map(s => s.trim()).filter(Boolean);
+      // minimally need a title cell
+      const title = titleIdx >= 0 ? (cols[titleIdx] || '') : '';
+      if (!title || title.length < 3) continue;
+
+      const category = catIdx >= 0 ? (cols[catIdx] || '') : (requestCategory || '');
+      const date = dateIdx >= 0 ? (cols[dateIdx] || '') : (requestDate || '');
+      const time = timeIdx >= 0 ? (cols[timeIdx] || '') : '';
+      const venue = venueIdx >= 0 ? (cols[venueIdx] || '') : '';
+      const price = priceIdx >= 0 ? (cols[priceIdx] || '') : '';
+      const website = webIdx >= 0 ? (cols[webIdx] || '') : '';
+
+      out.push({
+        title, category, date, time, venue, price, website
+      });
     }
-    for (let i = startIndex; i < tableLines.length; i++) {
-      const line = tableLines[i].trim();
-      if (!line || line.startsWith('|---') || line.includes('---')) continue;
-      const cols = line.split('|').map(c => c.trim())
-        .filter((col, idx, arr) => !(idx === 0 && col === '') && !(idx === arr.length - 1 && col === ''));
-      if (cols.length >= 3) {
-        let event: EventData;
-        if (cols.length === 3) {
-          const c2 = cols[1];
-          const isTime = TIME_24H_REGEX.test(c2);
-          const isDate = DATE_ISO_REGEX.test(c2) || DATE_DDMMYYYY_REGEX.test(c2);
-          if (isTime) {
-            event = { title: cols[0] || '', category: requestCategory || '', date: requestDate || '', time: cols[1] || '', venue: cols[2] || '', price: '', website: '' };
-          } else if (isDate) {
-            event = { title: cols[0] || '', category: requestCategory || '', date: cols[1] || requestDate || '', time: '', venue: cols[2] || '', price: '', website: '' };
-          } else {
-            event = { title: cols[0] || '', category: cols[1] || requestCategory || '', date: cols[2] || requestDate || '', time: '', venue: '', price: '', website: '' };
-          }
-        } else {
-          event = {
-            title: cols[0] || '',
-            category: cols[1] || requestCategory || '',
-            date: cols[2] || requestDate || '',
-            time: cols[3] || '',
-            venue: cols[4] || '',
-            price: cols[5] || '',
-            website: cols[6] || '',
-            endTime: cols[7] || undefined,
-            address: cols[8] || undefined,
-            ticketPrice: cols[9] || cols[5] || undefined,
-            eventType: cols[10] || undefined,
-            description: cols[11] || undefined,
-            bookingLink: cols[12] || cols[6] || undefined,
-            ageRestrictions: cols[13] || undefined,
-          };
-        }
-        if (event.title) events.push(event);
-      }
+    return out;
+  }
+
+  private findHeaderIndex(header: string[], candidates: string[]): number {
+    const lower = header.map(h => h.toLowerCase());
+    for (const c of candidates) {
+      const idx = lower.indexOf(c.toLowerCase());
+      if (idx >= 0) return idx;
     }
-    return events;
+    return -1;
   }
 
   private parseJsonArray(arr: any[], requestCategory?: string, requestDate?: string): EventData[] {
@@ -196,26 +213,41 @@ export class EventAggregator {
     const out: EventData[] = [];
     for (const line of text.split('\n')) {
       const t = line.trim();
-      if (t.startsWith('{') && t.endsWith('}')) {
+      // Strict: full object and must include "title"
+      if (t.startsWith('{') && t.endsWith('}') && /"title"\s*:/.test(t)) {
         try {
           const raw = JSON.parse(t);
           const ev = this.createEventFromObject(raw, requestCategory, requestDate);
           if (ev.title) out.push(ev);
-        } catch {/* ignore */}
+        } catch { /* ignore */ }
       }
     }
     return out;
   }
 
   private createEventFromObject(raw: any, requestCategory?: string, requestDate?: string): EventData {
+    const title = this.extractField(raw, ['title', 'name', 'event', 'eventName']) || '';
+    // Hard validation to avoid "Event-Fetzen"
+    if (!title || title.trim().length < 3) {
+      return {
+        title: '',
+        category: '',
+        date: '',
+        time: '',
+        venue: '',
+        price: '',
+        website: ''
+      };
+    }
+
     return {
-      title: this.extractField(raw, ['title', 'name', 'event', 'eventName']) || '',
-      category: this.extractField(raw, ['category', 'type', 'genre']) || requestCategory || '',
-      date: this.extractField(raw, ['date', 'eventDate', 'day']) || requestDate || '',
-      time: this.extractField(raw, ['time', 'startTime', 'start', 'begin', 'doors']) || '',
-      venue: this.extractField(raw, ['venue', 'location', 'place']) || '',
-      price: this.extractField(raw, ['price', 'cost', 'ticketPrice', 'entry']) || '',
-      website: this.extractField(raw, ['website', 'url', 'link']) || '',
+      title: title.trim(),
+      category: (this.extractField(raw, ['category', 'type', 'genre']) || requestCategory || '').trim(),
+      date: (this.extractField(raw, ['date', 'eventDate', 'day']) || requestDate || '').trim(),
+      time: (this.extractField(raw, ['time', 'startTime', 'start', 'begin', 'doors']) || '').trim(),
+      venue: (this.extractField(raw, ['venue', 'location', 'place']) || '').trim(),
+      price: (this.extractField(raw, ['price', 'cost', 'ticketPrice', 'entry']) || '').trim(),
+      website: (this.extractField(raw, ['website', 'url', 'link']) || '').trim(),
       endTime: this.extractField(raw, ['endTime', 'end', 'finish']),
       address: this.extractField(raw, ['address', 'venueAddress']),
       ticketPrice: this.extractField(raw, ['ticketPrice', 'cost', 'entry']),
@@ -228,31 +260,67 @@ export class EventAggregator {
 
   private extractField(obj: any, names: string[]): string | undefined {
     for (const n of names) {
-      if (obj && typeof obj === 'object' && obj[n] && typeof obj[n] === 'string') return obj[n].trim();
+      if (obj && typeof obj === 'object' && n in obj && typeof obj[n] === 'string') {
+        return obj[n] as string;
+      }
+    }
+    // Handle case-insensitive keys
+    const lowerKeys = obj && typeof obj === 'object'
+      ? Object.keys(obj).reduce((acc, k) => { acc[k.toLowerCase()] = k; return acc; }, {} as Record<string, string>)
+      : {};
+    for (const n of names) {
+      const lk = n.toLowerCase();
+      if (lk in lowerKeys) {
+        const real = lowerKeys[lk];
+        if (typeof obj[real] === 'string') return obj[real] as string;
+      }
     }
     return undefined;
   }
 
   private extractKeywordBasedEvents(text: string, requestCategory?: string, requestDate?: string): EventData[] {
-    const events: EventData[] = [];
-    const sentences = text
-      .split(/[.\n\r•\-\*]/)
-      .map(s => s.trim())
-      .filter(s => s.length > 10 && s.length < 200);
+    const out: EventData[] = [];
+    const lines = text.split('\n');
 
-    for (const s of sentences) {
-      const lower = s.toLowerCase();
-      if (lower.includes('keine events') || lower.includes('no events') || lower.includes('sorry')) continue;
-      const evt = this.parseEventFromText(s, requestCategory, requestDate);
-      if (evt.title) events.push(evt);
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+
+      // Skip pure JSON property fragments like `"time": "20:00"` (no braces)
+      if (this.looksLikeJsonPropertyFragment(line)) continue;
+
+      // Skip bare URLs or fragments that look like domain tails
+      if (this.looksLikeBareUrl(line)) continue;
+
+      // Too short to be an event title
+      if (line.length < 6) continue;
+
+      const ev = this.parseEventFromText(line, requestCategory, requestDate);
+      if (ev.title && ev.title.length >= 3) out.push(ev);
     }
-    return events;
+    return out;
+  }
+
+  private looksLikeJsonPropertyFragment(line: string): boolean {
+    // e.g. "title": "Abor and Tynna", OR title: "X", OR "ticketPrice": "€54"
+    if (/^"[^"]+"\s*:/.test(line)) return true;
+    if (/^[a-zA-Z_][\w\s-]*\s*:/.test(line) && line.includes('"')) return true;
+    // also fragments like com/show/abor or wavesvienna (domain tails) will be filtered elsewhere
+    return false;
+  }
+
+  private looksLikeBareUrl(line: string): boolean {
+    if (/https?:\/\/\S+/i.test(line)) return true;
+    if (/(^|\s)(www\.[^\s]+)/i.test(line)) return true;
+    // obvious domain/path tails without protocol
+    if (/[a-z0-9.-]+\.(com|net|org|io|de|at)(\/\S*)?$/i.test(line)) return true;
+    return false;
   }
 
   private parseEventFromText(line: string, requestCategory?: string, requestDate?: string): EventData {
     const timePattern = /(\d{1,2}:\d{2}|\d{1,2}\s*Uhr)/i;
-    const datePattern = /(\d{1,2}\.?\d{1,2}\.?\d{2,4})/;
-    const pricePattern = /(€\s?\d+|kostenlos|frei|free)/i;
+    const datePattern = /(\d{1,2}\.\d{1,2}\.\d{2,4})/;
+    const pricePattern = /(€\s?\d+[.,]?\d*|kostenlos|frei|free)/i;
 
     const time = line.match(timePattern)?.[1] || '';
     const date = line.match(datePattern)?.[1] || requestDate || '';
@@ -266,45 +334,57 @@ export class EventAggregator {
       venue: '',
       price,
       website: '',
-      description: line.length > 80 ? line.slice(0, 120) + '...' : undefined
+      description: line.length > 80 ? `${line.slice(0, 120)}...` : undefined
     };
   }
 
-  deduplicateEvents(events: EventData[]): EventData[] {
-    const unique: EventData[] = [];
-    const keys = new Set<string>();
-    for (const ev of events) {
-      const key = `${this.normalizeTitle(ev.title)}_${this.normalizeVenue(ev.venue)}_${this.normalizeDate(ev.date)}`;
-      const fuzzy = unique.some(x => this.isFuzzyDuplicate(ev, x));
-      if (!keys.has(key) && !fuzzy) {
-        keys.add(key);
-        unique.push(ev);
+  // Reconstruct events from contiguous JSON-like key/value lines:
+  // "title": "X"
+  // "time": "20:00"
+  // ...
+  // Produces a JSON object and parses it (only accepted if it has a valid title).
+  private tryAssembleEventsFromKeyValueLines(text: string, requestCategory?: string, requestDate?: string): EventData[] {
+    const lines = text.split('\n');
+    const out: EventData[] = [];
+
+    let buffer: string[] = [];
+    const flush = () => {
+      if (buffer.length === 0) return;
+      const objStr = '{' + buffer.join(',') + '}';
+      buffer = [];
+      try {
+        const candidate = JSON.parse(objStr);
+        const ev = this.createEventFromObject(candidate, requestCategory, requestDate);
+        if (ev.title) out.push(ev);
+      } catch {
+        // ignore
       }
+    };
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (this.isKeyValueJsonLine(line)) {
+        // normalize: ensure ends with "key": "value"
+        const normalized = line.replace(/,\s*$/, '');
+        buffer.push(normalized);
+        continue;
+      }
+      // On any non key/value line -> flush buffer
+      flush();
     }
-    return unique;
+    // flush remaining
+    flush();
+
+    return out;
   }
 
-  private normalizeTitle(t: string) { return t.toLowerCase().trim().replace(/[^\w\s]/g, '').replace(/\s+/g, ' '); }
-  private normalizeVenue(v: string) { return v.toLowerCase().trim().replace(/[^\w\s]/g, '').replace(/\s+/g, ' '); }
-  private normalizeDate(d: string) { return d.toLowerCase().trim().replace(/[^\d\-\/\.]/g, ''); }
-
-  private isFuzzyDuplicate(a: EventData, b: EventData): boolean {
-    const titleSim = this.sim(this.normalizeTitle(a.title), this.normalizeTitle(b.title));
-    const venueSim = this.sim(this.normalizeVenue(a.venue), this.normalizeVenue(b.venue));
-    return (titleSim > 0.8 && venueSim > 0.6) || (titleSim > 0.9 && venueSim > 0.9);
+  private isKeyValueJsonLine(line: string): boolean {
+    // Accept lines like: "key": "value" or 'key': 'value' or key: "value"
+    if (/^"[^"]+"\s*:\s*".*"$/.test(line)) return true;
+    if (/^[a-zA-Z_][\w\s-]*\s*:\s*".*"$/.test(line)) return true;
+    if (/^'[^']+'\s*:\s*'.*'$/.test(line)) return true;
+    // reject lines that already include braces (handled elsewhere)
+    if (line.includes('{') || line.includes('}')) return false;
+    return false;
   }
-
-  private sim(a: string, b: string): number {
-    if (a === b) return 1;
-    if (!a || !b) return 0;
-    const longer = a.length > b.length ? a : b;
-    const shorter = a.length > b.length ? b : a;
-    let matches = 0;
-    for (const ch of shorter) if (longer.includes(ch)) matches++;
-    return matches / longer.length;
-  }
-
-  // categorizeEvents() war veraltet und nutzte nicht die 20 kanonischen Kategorien – entfernt.
 }
-
-export const eventAggregator = new EventAggregator();
