@@ -20,9 +20,9 @@ export class EventAggregator {
     for (const r of results) {
       const queryCategory = this.extractCategoryFromQuery(r.query);
       const events = this.parseEventsFromResponse(
-        r.responseText,
-        queryCategory || r.categoryHint,
-        Array.isArray(requestedDate) ? requestedDate[0] : (requestedDate || r.dateHint)
+        r.response, // FIX: use `response`, not `responseText`
+        queryCategory,
+        Array.isArray(requestedDate) ? requestedDate[0] : requestedDate
       );
       parsedRaw.push(...events);
     }
@@ -294,7 +294,7 @@ export class EventAggregator {
     if (/^'[^']+'\s*:\s*'.*'$/.test(line)) return true;
     if (line.includes('{') || line.includes('}')) return false;
     return false;
-    }
+  }
 
   private extractKeywordBasedEvents(text: string, requestCategory?: string, requestDate?: string): EventData[] {
     const out: EventData[] = [];
