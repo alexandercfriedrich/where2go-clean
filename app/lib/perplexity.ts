@@ -415,7 +415,7 @@ Return JSON array with ALL found events.`;
     return results;
   }
 
-  // NEW FUNCTION: executeVenueQueries
+  // NEW FUNCTION: executeVenueQueries with strategy-based optimization
   async function executeVenueQueries(
     city: string,
     date: string,
@@ -442,47 +442,89 @@ Return JSON array with ALL found events.`;
         ? venueQueries.slice(0, options.venueQueryLimit)
         : venueQueries;
 
-      // Group by priority for efficient execution
-      const { high, medium } = venueQueryService.getVenuesByPriority(limitedVenues);
-      const prioritizedVenues = [...high, ...medium]; // Skip low priority for now
+      // Create optimized strategy: individual for high-priority, grouped for medium-priority
+      const strategy = venueQueryService.createVenueStrategy(limitedVenues);
       
+      if (options.debug) {
+        console.log(`[PPLX:VENUES] Strategy: ${strategy.individualQueries.length} individual, ${strategy.groupedQueries.length} groups, ${strategy.skippedVenues.length} skipped`);
+        console.log(`[PPLX:VENUES] Estimated API calls: ${strategy.estimatedApiCalls} (vs ${strategy.totalQueries} without grouping)`);
+      }
+
       const concurrency = Math.max(1, options.venueQueryConcurrency ?? 3);
       
-      // Execute venue queries in batches
-      for (let i = 0; i < prioritizedVenues.length; i += concurrency) {
-        const batch = prioritizedVenues.slice(i, i + concurrency);
-        
-        const batchPromises = batch.map(async (venue) => {
-          try {
-            const prompt = venueQueryService.buildVenueSpecificPrompt(venue, city, date);
-            
-            if (options.debug) {
-              console.log(`[PPLX:VENUE] Querying ${venue.venueName} (priority: ${venue.priority})`);
+      // Execute individual high-priority venue queries
+      if (strategy.individualQueries.length > 0) {
+        for (let i = 0; i < strategy.individualQueries.length; i += concurrency) {
+          const batch = strategy.individualQueries.slice(i, i + concurrency);
+          
+          const batchPromises = batch.map(async (venue) => {
+            try {
+              const prompt = venueQueryService.buildVenueSpecificPrompt(venue, city, date);
+              
+              if (options.debug) {
+                console.log(`[PPLX:VENUE:INDIVIDUAL] Querying ${venue.venueName} (priority: ${venue.priority})`);
+              }
+
+              const response = await call(prompt, options);
+              
+              return {
+                query: prompt,
+                response,
+                events: [],
+                timestamp: Date.now(),
+                venueId: venue.venueId,
+                venueName: venue.venueName
+              };
+            } catch (error) {
+              console.warn(`[PPLX:VENUE] Failed to query ${venue.venueName}:`, error);
+              return null;
             }
+          });
 
-            const response = await call(prompt, options);
-            
-            return {
-              query: prompt,
-              response,
-              events: [],
-              timestamp: Date.now(),
-              venueId: venue.venueId,
-              venueName: venue.venueName
-            };
-          } catch (error) {
-            console.warn(`[PPLX:VENUE] Failed to query ${venue.venueName}:`, error);
-            return null;
-          }
-        });
+          const batchResults = await Promise.all(batchPromises);
+          const validResults = batchResults.filter(result => result !== null) as PerplexityResult[];
+          results.push(...validResults);
+        }
+      }
 
-        const batchResults = await Promise.all(batchPromises);
-        const validResults = batchResults.filter(result => result !== null) as PerplexityResult[];
-        results.push(...validResults);
+      // Execute grouped medium-priority venue queries
+      if (strategy.groupedQueries.length > 0) {
+        for (let i = 0; i < strategy.groupedQueries.length; i += concurrency) {
+          const batch = strategy.groupedQueries.slice(i, i + concurrency);
+          
+          const batchPromises = batch.map(async (group) => {
+            try {
+              const prompt = venueQueryService.buildGroupPrompt(group, city, date);
+              
+              if (options.debug) {
+                console.log(`[PPLX:VENUE:GROUP] Querying ${group.category} (${group.venueCount} venues, total priority: ${group.totalPriority})`);
+              }
+
+              const response = await call(prompt, options);
+              
+              // Mark result with group info
+              return {
+                query: prompt,
+                response,
+                events: [],
+                timestamp: Date.now(),
+                venueId: group.venues.map(v => v.venueId).join(','),
+                venueName: `${group.category} Group (${group.venueCount} venues)`
+              };
+            } catch (error) {
+              console.warn(`[PPLX:VENUE:GROUP] Failed to query ${group.category}:`, error);
+              return null;
+            }
+          });
+
+          const batchResults = await Promise.all(batchPromises);
+          const validResults = batchResults.filter(result => result !== null) as PerplexityResult[];
+          results.push(...validResults);
+        }
       }
 
       if (options.debug) {
-        console.log(`[PPLX:VENUES] Completed ${results.length} venue queries`);
+        console.log(`[PPLX:VENUES] Completed ${results.length} venue queries (${strategy.estimatedApiCalls} API calls)`);
       }
 
     } catch (error) {
