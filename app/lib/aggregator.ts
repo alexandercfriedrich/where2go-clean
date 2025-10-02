@@ -37,7 +37,7 @@ export class EventAggregator {
       const validDates = Array.isArray(requestedDate) ? requestedDate : [requestedDate];
       filtered = deduped.filter(ev => {
         const d = ev.date?.slice(0, 10);
-        return !d || validDates.includes(d);
+        return d && validDates.includes(d);
       });
     }
 
