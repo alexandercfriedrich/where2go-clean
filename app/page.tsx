@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState, CSSProperties } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { EVENT_CATEGORY_SUBCATEGORIES } from './lib/eventCategories';
 import { useTranslation } from './lib/useTranslation';
 import { startJobPolling, deduplicateEvents as dedupFront } from './lib/polling';
