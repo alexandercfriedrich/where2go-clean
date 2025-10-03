@@ -15,6 +15,7 @@ import {
   mapToMainCategories
 } from './eventCategories';
 import { PerplexityResult } from './types';
+import { venueQueryService, VenueQuery } from './services/VenueQueryService';
 
 // Declare process for Node.js environment variables (to avoid requiring @types/node)
 declare const process: {
@@ -36,6 +37,10 @@ interface PerplexityOptions {
   additionalSources?: any[];
   debugVerbose?: boolean;
   categoryConcurrency?: number;
+  // NEW: Venue query options
+  enableVenueQueries?: boolean;
+  venueQueryLimit?: number;
+  venueQueryConcurrency?: number;
 }
 
 interface PplxApiRequest {
@@ -51,7 +56,7 @@ export function createPerplexityService(apiKey: string) {
   }
   
   const baseUrl = 'https://api.perplexity.ai/chat/completions';
-  const model = 'sonar-pro';
+  const model = 'sonar';
 
   async function call(prompt: string, options: PerplexityOptions): Promise<string> {
     const body: PplxApiRequest = {
@@ -61,7 +66,7 @@ export function createPerplexityService(apiKey: string) {
         { role: 'user', content: prompt }
       ],
       max_tokens: options.max_tokens || 40000, // Erhöht von 30000
-      temperature: options.temperature ?? 0.1  // Reduziert für fokussiertere Ergebnisse
+      temperature: options.temperature ?? 0.2  // Reduziert für fokussiertere Ergebnisse
     };
 
     const t0 = Date.now();
@@ -400,6 +405,132 @@ Return JSON array with ALL found events.`;
     }
 
     await Promise.all(Array.from({ length: cc }).map(() => worker()));
+
+    // NEW: VENUE QUERIES
+    if (options.enableVenueQueries !== false) {
+      const venueResults = await executeVenueQueries(city, date, options);
+      results.push(...venueResults);
+    }
+
+    return results;
+  }
+
+  // NEW FUNCTION: executeVenueQueries with strategy-based optimization
+  async function executeVenueQueries(
+    city: string,
+    date: string,
+    options: PerplexityOptions
+  ): Promise<PerplexityResult[]> {
+    const results: PerplexityResult[] = [];
+    
+    try {
+      const venueQueries = await venueQueryService.getActiveVenueQueries(city);
+      
+      if (venueQueries.length === 0) {
+        if (options.debug) {
+          console.log('[PPLX:VENUES] No venue queries found for city:', city);
+        }
+        return results;
+      }
+
+      if (options.debug) {
+        console.log(`[PPLX:VENUES] Found ${venueQueries.length} venue queries for ${city}`);
+      }
+
+      // Apply venue limit if specified
+      const limitedVenues = options.venueQueryLimit 
+        ? venueQueries.slice(0, options.venueQueryLimit)
+        : venueQueries;
+
+      // Create optimized strategy: individual for high-priority, grouped for medium-priority
+      const strategy = venueQueryService.createVenueStrategy(limitedVenues);
+      
+      if (options.debug) {
+        console.log(`[PPLX:VENUES] Strategy: ${strategy.individualQueries.length} individual, ${strategy.groupedQueries.length} groups, ${strategy.skippedVenues.length} skipped`);
+        console.log(`[PPLX:VENUES] Estimated API calls: ${strategy.estimatedApiCalls} (vs ${strategy.totalQueries} without grouping)`);
+      }
+
+      const concurrency = Math.max(1, options.venueQueryConcurrency ?? 3);
+      
+      // Execute individual high-priority venue queries
+      if (strategy.individualQueries.length > 0) {
+        for (let i = 0; i < strategy.individualQueries.length; i += concurrency) {
+          const batch = strategy.individualQueries.slice(i, i + concurrency);
+          
+          const batchPromises = batch.map(async (venue) => {
+            try {
+              const prompt = venueQueryService.buildVenueSpecificPrompt(venue, city, date);
+              
+              if (options.debug) {
+                console.log(`[PPLX:VENUE:INDIVIDUAL] Querying ${venue.venueName} (priority: ${venue.priority})`);
+              }
+
+              const response = await call(prompt, options);
+              
+              return {
+                query: prompt,
+                response,
+                events: [],
+                timestamp: Date.now(),
+                venueId: venue.venueId,
+                venueName: venue.venueName
+              };
+            } catch (error) {
+              console.warn(`[PPLX:VENUE] Failed to query ${venue.venueName}:`, error);
+              return null;
+            }
+          });
+
+          const batchResults = await Promise.all(batchPromises);
+          const validResults = batchResults.filter(result => result !== null) as PerplexityResult[];
+          results.push(...validResults);
+        }
+      }
+
+      // Execute grouped medium-priority venue queries
+      if (strategy.groupedQueries.length > 0) {
+        for (let i = 0; i < strategy.groupedQueries.length; i += concurrency) {
+          const batch = strategy.groupedQueries.slice(i, i + concurrency);
+          
+          const batchPromises = batch.map(async (group) => {
+            try {
+              const prompt = venueQueryService.buildGroupPrompt(group, city, date);
+              
+              if (options.debug) {
+                console.log(`[PPLX:VENUE:GROUP] Querying ${group.category} (${group.venueCount} venues, total priority: ${group.totalPriority})`);
+              }
+
+              const response = await call(prompt, options);
+              
+              // Mark result with group info
+              return {
+                query: prompt,
+                response,
+                events: [],
+                timestamp: Date.now(),
+                venueId: group.venues.map(v => v.venueId).join(','),
+                venueName: `${group.category} Group (${group.venueCount} venues)`
+              };
+            } catch (error) {
+              console.warn(`[PPLX:VENUE:GROUP] Failed to query ${group.category}:`, error);
+              return null;
+            }
+          });
+
+          const batchResults = await Promise.all(batchPromises);
+          const validResults = batchResults.filter(result => result !== null) as PerplexityResult[];
+          results.push(...validResults);
+        }
+      }
+
+      if (options.debug) {
+        console.log(`[PPLX:VENUES] Completed ${results.length} venue queries (${strategy.estimatedApiCalls} API calls)`);
+      }
+
+    } catch (error) {
+      console.error('[PPLX:VENUES] Error executing venue queries:', error);
+    }
+
     return results;
   }
 

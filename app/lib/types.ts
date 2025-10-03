@@ -32,6 +32,9 @@ export interface PerplexityResult {
   response: string;
   events?: EventData[]; // parsed events (filled by aggregator)
   timestamp?: number;   // when the query was executed
+  // Venue-specific query fields
+  venueId?: string;
+  venueName?: string;
 }
 
 // Cache-Eintrag (wird von app/lib/cache.ts verwendet)
@@ -88,6 +91,10 @@ export interface DebugStep {
   query: string;
   response: string;
   parsedCount: number;
+  // Venue-specific debug fields
+  venueId?: string | null;
+  venueName?: string | null;
+  isVenueQuery?: boolean;
 }
 
 // Debug-Infos optional je Job
