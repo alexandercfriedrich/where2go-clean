@@ -56,7 +56,7 @@ export function createPerplexityService(apiKey: string) {
   }
   
   const baseUrl = 'https://api.perplexity.ai/chat/completions';
-  const model = 'sonar-pro';
+  const model = 'sonar';
 
   async function call(prompt: string, options: PerplexityOptions): Promise<string> {
     const body: PplxApiRequest = {
@@ -66,7 +66,7 @@ export function createPerplexityService(apiKey: string) {
         { role: 'user', content: prompt }
       ],
       max_tokens: options.max_tokens || 40000, // Erhöht von 30000
-      temperature: options.temperature ?? 0.1  // Reduziert für fokussiertere Ergebnisse
+      temperature: options.temperature ?? 0.2  // Reduziert für fokussiertere Ergebnisse
     };
 
     const t0 = Date.now();
