@@ -47,6 +47,8 @@ export default function Home() {
   const [searchSubmitted, setSearchSubmitted] = useState(false);
   const [searchedSuperCategories, setSearchedSuperCategories] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState('Alle');
+  
+  const [autoLoadCompleted, setAutoLoadCompleted] = useState(false);
 
   const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean; totalEvents: number; cachedEvents: number} | null>(null);
   const [toast, setToast] = useState<{show:boolean; message:string}>({show:false,message:''});
@@ -113,6 +115,34 @@ export default function Home() {
       document.removeEventListener('keydown', onKey);
     };
   }, [showDateDropdown]);
+
+  // Auto-load Wien events for today on page load
+  useEffect(() => {
+    if (!autoLoadCompleted && !searchSubmitted && events.length === 0 && !loading) {
+      const autoLoadWienToday = async () => {
+        console.log('🚀 Auto-loading Wien events for today...');
+        
+        // Set default values
+        setCity('Wien');
+        setTimePeriod('heute');
+        setSelectedSuperCategories([]); // All categories
+        
+        // Small delay for better UX
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        // Trigger search
+        try {
+          await progressiveSearchEvents();
+          setAutoLoadCompleted(true);
+        } catch (error) {
+          console.error('Auto-load failed:', error);
+          setAutoLoadCompleted(true); // Prevent further attempts
+        }
+      };
+
+      autoLoadWienToday();
+    }
+  }, [autoLoadCompleted, searchSubmitted, events.length, loading]);
 
   const toggleSuperCategory = (cat: string) => {
     setCategoryLimitError(null);
@@ -285,6 +315,11 @@ export default function Home() {
 
   async function progressiveSearchEvents() {
     if (!city.trim()) {
+      // For auto-load: set default city instead of error
+      if (!autoLoadCompleted) {
+        setCity('Wien');
+        return; // Let the next cycle handle it
+      }
       setError('Bitte gib eine Stadt ein.');
       return;
     }
@@ -497,20 +532,111 @@ export default function Home() {
     return <span className={`src-badge src-${src}`}>{label}</span>;
   };
 
-  return (
-    <div className="min-h-screen">
-      <header className="header">
-        <div className="container header-inner header-centered">
+  // Compact Header for Design 3
+  const renderCompactHeader = () => (
+    <header className="header">
+      <div className="container">
+        <div className="header-inner">
           <div className="header-logo-wrapper">
             <img src="/where2go-full.png" alt="Where2Go" />
           </div>
-          <div className="premium-box">
-            <a href="#premium" className="premium-link">
-              <span className="premium-icon">⭐</span> Premium
-            </a>
+          <div className="header-search">
+            <div className="search-compact">
+              <input
+                type="text"
+                className="search-compact-city"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                placeholder="Stadt eingeben..."
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    progressiveSearchEvents();
+                  }
+                }}
+              />
+              <div className="search-compact-divider"></div>
+              <select
+                className="search-compact-date"
+                value={timePeriod}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setTimePeriod(val);
+                  if (val === 'benutzerdefiniert') {
+                    if (!customDate) setCustomDate(todayISO());
+                    setShowDateDropdown(true);
+                  } else {
+                    setShowDateDropdown(false);
+                  }
+                }}
+              >
+                <option value="heute">Heute</option>
+                <option value="morgen">Morgen</option>
+                <option value="kommendes-wochenende">Kommendes Wochenende</option>
+                <option value="benutzerdefiniert">
+                  {customDate ? formatLabelDE(customDate) : 'Benutzerdefiniert'}
+                </option>
+              </select>
+            </div>
           </div>
+          {events.length > 0 && (
+            <div className="auto-today-status">
+              <div className="auto-today-indicator"></div>
+              <span>{events.length} Events heute</span>
+            </div>
+          )}
         </div>
-      </header>
+      </div>
+    </header>
+  );
+
+  // Auto-Today Hero Section
+  const renderAutoTodayHero = () => (
+    <section className="auto-today-hero">
+      <h1 className="auto-today-title">
+        {city ? `Events in ${city}` : 'Events heute'}
+      </h1>
+      <p>
+        {loading ? 'Lade aktuelle Events...' : `${displayedEvents.length} Events gefunden`}
+      </p>
+    </section>
+  );
+
+  // Enhanced Filter Section
+  const renderFilters = () => (
+    <section className="filters-section">
+      <div className="filters-header">
+        <h3 className="filters-title">Filter Events</h3>
+        <button
+          className="filters-clear"
+          onClick={() => {
+            setActiveFilter('Alle');
+            setSelectedSuperCategories([]);
+          }}
+        >
+          Alle anzeigen
+        </button>
+      </div>
+      <div className="filter-chips-inline">
+        {['Alle', ...searchedSuperCategories].map(cat => {
+          const count = getCategoryCounts()[cat] || 0;
+          return (
+            <div
+              key={cat}
+              className={`filter-chip ${activeFilter === cat ? 'filter-chip-active' : ''}`}
+              onClick={() => setActiveFilter(cat)}
+            >
+              {cat}
+              <span className="filter-chip-count">{count}</span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+
+  return (
+    <div className="app min-h-screen">
+      {renderCompactHeader()}
 
       <section className="search-section">
         <div className="container">
@@ -613,48 +739,30 @@ export default function Home() {
         </div>
       </section>
 
-      <div className="container" ref={resultsAnchorRef}>
-        {searchSubmitted && (
-          <div className="results-filter-bar">
-            <div className="filter-chips-inline">
-              <button
-                className={`filter-chip ${activeFilter==='Alle' ? 'filter-chip-active':''}`}
-                onClick={()=>setActiveFilter('Alle')}
-              >
-                <span>Alle</span>
-                <span className="filter-count">{getCategoryCounts()['Alle']}</span>
-              </button>
-              {searchedSuperCategories.map(cat => (
-                <button
-                  key={cat}
-                  className={`filter-chip ${activeFilter===cat ? 'filter-chip-active':''}`}
-                  onClick={()=>setActiveFilter(cat)}
-                >
-                  <span>{cat}</span>
-                  <span className="filter-count">{getCategoryCounts()[cat] || 0}</span>
-                </button>
-              ))}
-            </div>
-            {stepLoading && (
-              <div className="progress-note">Lädt Kategorie: {stepLoading} ...</div>
-            )}
-          </div>
-        )}
-
-        <main className="main-content">
+      
+      <main className="main-content">
+        <div className="container" ref={resultsAnchorRef}>
+          {renderAutoTodayHero()}
+          
+          {searchSubmitted && renderFilters()}
+          
           {error && <div className="error">{error}</div>}
 
           {loading && events.length === 0 && (
-            <div className="loading">
-              <W2GLoader5 />
-              <p>Suche läuft...</p>
+            <div className="auto-today-loading">
+              <p className="loading-message">
+                {autoLoadCompleted ? 'Suche läuft...' : 'Lade heutige Events für Wien...'}
+              </p>
+              <div className="w2g-loader-wrapper">
+                <W2GLoader5 />
+              </div>
             </div>
           )}
 
-          {!loading && !error && searchSubmitted && displayedEvents.length === 0 && (
+          {!loading && !error && events.length === 0 && autoLoadCompleted && (
             <div className="empty-state">
               <h3>Keine Events gefunden</h3>
-              <p>Probiere andere Kategorien oder ein anderes Datum.</p>
+              <p>Probiere eine andere Stadt oder ein anderes Datum.</p>
             </div>
           )}
 
@@ -785,8 +893,8 @@ export default function Home() {
               })}
             </div>
           )}
-        </main>
-      </div>
+        </div>
+      </main>
 
       {toast.show && (
         <div className="toast-container">
