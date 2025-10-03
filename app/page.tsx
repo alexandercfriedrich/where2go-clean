@@ -31,7 +31,8 @@ const MAX_POLLS = 48;
 
 export default function Home() {
   const { t } = useTranslation();
-  const [city, setCity] = useState('');
+  // Default: Wien + heute
+  const [city, setCity] = useState('Wien');
   const [timePeriod, setTimePeriod] = useState('heute');
   const [customDate, setCustomDate] = useState('');
   const [showDateDropdown, setShowDateDropdown] = useState(false);
@@ -93,6 +94,9 @@ export default function Home() {
   const resultsAnchorRef = useRef<HTMLDivElement | null>(null);
   const timeSelectWrapperRef = useRef<HTMLDivElement | null>(null);
   const cancelRef = useRef<{cancel:boolean}>({cancel:false});
+
+  // Flag für initialen Cache-Preload (ohne neue Suche)
+  const [initialPreloadDone, setInitialPreloadDone] = useState(false);
 
   // Design CSS handled elsewhere (no manual overrides)
   useEffect(() => {}, []);
@@ -231,6 +235,32 @@ export default function Home() {
   function dedupMerge(current: EventData[], incoming: EventData[]) {
     return dedupFront(current, incoming);
   }
+
+  // Initial: Cache-only für Wien (heute) laden – keine neue Suche
+  async function preloadDefaultEventsFromCache() {
+    try {
+      const today = todayISO();
+      const url = `/api/events/cache?city=${encodeURIComponent('Wien')}&date=${encodeURIComponent(today)}`;
+      const res = await fetch(url, { cache: 'no-store' });
+      const json = await res.json().catch(() => ({} as any));
+      if (!res.ok) {
+        console.warn('Initial cache preload failed:', json?.error || res.status);
+        setInitialPreloadDone(true);
+        return;
+      }
+      const incoming: EventData[] = Array.isArray(json.events) ? json.events : [];
+      setEvents(incoming);
+      if (json.cacheInfo) setCacheInfo(json.cacheInfo);
+    } catch (e) {
+      console.warn('Initial cache preload error:', e);
+    } finally {
+      setInitialPreloadDone(true);
+    }
+  }
+
+  useEffect(() => {
+    void preloadDefaultEventsFromCache();
+  }, []);
 
   async function fetchForSuperCategory(superCat: string) {
     const subs = EVENT_CATEGORY_SUBCATEGORIES[superCat] || [];
@@ -648,6 +678,13 @@ export default function Home() {
             <div className="loading">
               <W2GLoader5 />
               <p>Suche läuft...</p>
+            </div>
+          )}
+
+          {!loading && !error && initialPreloadDone && !searchSubmitted && events.length === 0 && (
+            <div className="empty-state">
+              <h3>Keine Events im Cache für Wien (heute)</h3>
+              <p>Um events für heute zu entdecken führe eine neue Suche durch!</p>
             </div>
           )}
 

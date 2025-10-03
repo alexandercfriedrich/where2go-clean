@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 
 /**
- * Globale Design-Datei-Umschaltung per URL-Parameter ?design=1|2|3
+ * Globale Design-Datei-Umschaltung per URL-Parameter ?design=1|2|3|4|5|6|7|8|9
  * - Default: design1.css
  * - Bei ?design=2 wird /designs/design2.css geladen.
  * - Erzwingt das Ziel-CSS auch dann, wenn einzelne Pages vorher design1.css gesetzt haben.
@@ -14,7 +14,7 @@ export default function DesignCssLoader() {
       try {
         const params = new URLSearchParams(window.location.search);
         const designParam = params.get('design') || '1';
-        const normalized = ['1', '2', '3'].includes(designParam) ? designParam : '1';
+        const normalized = ['1', '2', '3', '4', '5', '6', '7', '8', '9'].includes(designParam) ? designParam : '1';
         const targetHref = `/designs/design${normalized}.css`;
 
         const id = 'w2g-design-css';

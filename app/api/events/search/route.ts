@@ -4,7 +4,7 @@ import { eventsCache } from '@/lib/cache';
 import { createPerplexityService } from '@/lib/perplexity';
 import { eventAggregator } from '@/lib/aggregator';
 import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
-import { EVENT_CATEGORIES } from '@/lib/eventCategories';
+import { EVENT_CATEGORIES, normalizeCategory } from '@/lib/eventCategories';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -65,19 +65,22 @@ export async function POST(request: NextRequest) {
 
     const results = await service.executeMultiQuery(city, date, missingCategories, mergedOptions);
 
-    const newEvents = eventAggregator.aggregateResults(results).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
+    // KI-Ergebnisse normalisieren: Quelle + kanonische Kategorie
+    const newEventsRaw = eventAggregator.aggregateResults(results).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
+    const newEvents = newEventsRaw.map(e => ({ ...e, category: normalizeCategory(e.category || '') }));
+
     const combined = eventAggregator.deduplicateEvents([...dedupCached, ...newEvents]);
 
     const disableCache = (options?.disableCache === true);
     if (!disableCache && newEvents.length > 0) {
       const ttlSeconds = computeTTLSecondsForEvents(newEvents);
-      const seen = new Set<string>();
+      const grouped: Record<string, EventData[]> = {};
       for (const ev of newEvents) {
-        if (ev.category && !seen.has(ev.category)) {
-          const catEvents = newEvents.filter(e => e.category === ev.category);
-          await eventsCache.setEventsByCategory(city, date, ev.category, catEvents, ttlSeconds);
-          seen.add(ev.category);
-        }
+        if (!ev.category) continue;
+        (grouped[ev.category] ||= []).push(ev);
+      }
+      for (const cat of Object.keys(grouped)) {
+        await eventsCache.setEventsByCategory(city, date, cat, grouped[cat], ttlSeconds);
       }
     }
 

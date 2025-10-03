@@ -4,7 +4,7 @@ import { createPerplexityService } from '@/lib/perplexity';
 import { eventAggregator } from '@/lib/aggregator';
 import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
 import { getJobStore } from '@/lib/jobStore';
-import { EVENT_CATEGORIES, mapToMainCategories } from '@/lib/eventCategories';
+import { EVENT_CATEGORIES, mapToMainCategories, normalizeCategory } from '@/lib/eventCategories';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -54,28 +54,28 @@ export async function POST(request: NextRequest) {
       const results = await service.executeMultiQuery(city, date, batch, {
         ...(options || {}),
         categoryConcurrency: concurrency,
-        enableVenueQueries: true,          // NEW: Enable venue queries
-        venueQueryLimit: 20,               // NEW: Process up to 20 venues  
-        venueQueryConcurrency: 2,          // NEW: 2 concurrent venue queries
-        debugVerbose: options?.debug       // NEW: Enhanced debugging
+        enableVenueQueries: true,          // venue queries
+        venueQueryLimit: 20,
+        venueQueryConcurrency: 2,
+        debugVerbose: options?.debug
       });
 
       if (options?.debug) {
         for (const result of results) {
-          const eventsFromResult = eventAggregator.aggregateResults([result], validDates);
-          const category = eventsFromResult.length > 0 ? eventsFromResult[0].category || 'Unknown' : 'Unknown';
-          
-          // ENHANCED DEBUG INFO:
+          const eventsFromResultRaw = eventAggregator.aggregateResults([result], validDates);
+          const eventsFromResult = eventsFromResultRaw.map(e => ({ ...e, category: normalizeCategory(e.category || '') }));
+          const category = eventsFromResult.length > 0 ? (eventsFromResult[0].category || 'Unknown') : 'Unknown';
+
           const debugStep = {
             category,
             query: result.query,
             response: result.response,
             parsedCount: eventsFromResult.length,
-            venueId: result.venueId || null,          // NEW
-            venueName: result.venueName || null,      // NEW
-            isVenueQuery: !!(result.venueId)          // NEW
+            venueId: (result as any).venueId || null,
+            venueName: (result as any).venueName || null,
+            isVenueQuery: !!(result as any).venueId
           };
-          
+
           try {
             await jobStore.pushDebugStep(jobId, debugStep);
           } catch (error) {
@@ -84,9 +84,11 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      const chunk = eventAggregator.aggregateResults(results, validDates).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
+      // KI-Events: Quelle setzen + Kategorie normalisieren
+      const chunkRaw = eventAggregator.aggregateResults(results, validDates).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
+      const chunk = chunkRaw.map(e => ({ ...e, category: normalizeCategory(e.category || '') }));
 
-      // Cache per category (await)
+      // Cache per Kategorie
       const ttlSeconds = computeTTLSecondsForEvents(chunk);
       const grouped: Record<string, any[]> = {};
       for (const ev of chunk) {
