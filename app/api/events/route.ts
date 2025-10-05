@@ -7,6 +7,7 @@ import { getJobStore } from '@/lib/jobStore';
 import { getHotCity, getCityWebsitesForCategories } from '@/lib/hotCityStore';
 import { getMainCategoriesForAICalls } from '@/categories';
 import { EVENT_CATEGORIES } from '@/lib/eventCategories';
+import { upsertDayEvents } from '@/lib/dayCache';
 
 // Wien.info (Discovery + JSON API)
 import { buildWienInfoUrl, getWienInfoF1IdsForCategories } from '@/event_mapping_wien_info';
@@ -267,6 +268,13 @@ export async function POST(request: NextRequest) {
             }
           }
         }
+        
+        // Also upsert Wien.info events into day-bucket cache
+        try {
+          await upsertDayEvents(city, date, filteredEarlyEvents);
+        } catch (error) {
+          console.warn('Failed to upsert Wien.info events to day-bucket:', error);
+        }
       }
     }
 
@@ -298,6 +306,13 @@ export async function POST(request: NextRequest) {
               fromCache: cacheInfo[cat]?.fromCache ?? false,
               eventCount: (cacheInfo[cat]?.eventCount || 0) + grouped[cat].length
             };
+          }
+          
+          // Also upsert RSS events into day-bucket cache
+          try {
+            await upsertDayEvents(city, date, raEventsAll);
+          } catch (error) {
+            console.warn('Failed to upsert RSS events to day-bucket:', error);
           }
         }
       }
