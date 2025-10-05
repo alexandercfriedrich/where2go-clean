@@ -1,5 +1,7 @@
 import { Redis } from '@upstash/redis';
 import { normalizeCategory as canonicalCategory } from './eventCategories';
+import { DayBucket, EventData } from './types';
+import { generateEventId } from './eventId';
 
 export interface CacheEntryDebug {
   key: string;
@@ -18,6 +20,7 @@ export interface CacheEntryDebug {
 class InMemoryCache {
   private redis: Redis;
   private prefix = 'events:v2:'; // versioned namespace to avoid old/corrupt entries
+  private dayBucketPrefix = 'events:v3:'; // day-bucket namespace
 
   constructor() {
     const url = process.env.UPSTASH_REDIS_REST_URL;
@@ -225,6 +228,196 @@ class InMemoryCache {
 
   async cleanup(): Promise<void> {
     // TTL-based cleanup handled by Redis
+  }
+
+  // Day-Bucket Cache Operations (v3)
+
+  /**
+   * Creates a cache key for the day-bucket format: events:v3:day:{city}_{date}
+   */
+  static createDayBucketKey(city: string, date: string): string {
+    return `day:${city.toLowerCase().trim()}_${date.slice(0, 10)}`;
+  }
+
+  /**
+   * Retrieves the day-bucket for a given city and date.
+   * Returns null if not found or invalid.
+   */
+  async getDayEvents(city: string, date: string): Promise<DayBucket | null> {
+    const baseKey = InMemoryCache.createDayBucketKey(city, date);
+    const fullKey = `${this.dayBucketPrefix}${baseKey}`;
+    
+    try {
+      const raw = await this.redis.get(fullKey);
+      if (!raw) return null;
+
+      if (typeof raw === 'object' && raw !== null) {
+        return raw as DayBucket;
+      }
+
+      const str = String(raw);
+      if (str === '[object Object]' || str.startsWith('[object Object]')) {
+        console.warn(`[eventsCache.getDayEvents] Corrupted value for key=${baseKey}. Deleting key.`);
+        await this.redis.del(fullKey);
+        return null;
+      }
+
+      return JSON.parse(str) as DayBucket;
+    } catch (e) {
+      console.error('[eventsCache.getDayEvents] Parse/Redis error for key=', baseKey, e);
+      return null;
+    }
+  }
+
+  /**
+   * Upserts events into the day-bucket cache.
+   * Performs field-wise merge for existing events (prefer non-empty fields, longer descriptions).
+   * 
+   * @param city City name
+   * @param date Date in YYYY-MM-DD format
+   * @param events Events to upsert
+   * @param ttlSeconds Optional TTL; if not provided, computed from events
+   */
+  async upsertDayEvents(
+    city: string,
+    date: string,
+    events: EventData[],
+    ttlSeconds?: number
+  ): Promise<void> {
+    const baseKey = InMemoryCache.createDayBucketKey(city, date);
+    const fullKey = `${this.dayBucketPrefix}${baseKey}`;
+    
+    // Get existing bucket or create new one
+    let bucket: DayBucket = await this.getDayEvents(city, date) || {
+      eventsById: {},
+      index: {},
+      updatedAt: new Date().toISOString()
+    };
+
+    // Upsert each event
+    for (const event of events) {
+      if (!event.title) continue;
+      
+      const eventId = generateEventId(event);
+      const existing = bucket.eventsById[eventId];
+
+      if (!existing) {
+        // New event - add it
+        bucket.eventsById[eventId] = { ...event };
+      } else {
+        // Merge with existing event - prefer non-empty fields
+        bucket.eventsById[eventId] = this.mergeEvents(existing, event);
+      }
+
+      // Update category index
+      const category = bucket.eventsById[eventId].category;
+      if (category) {
+        if (!bucket.index[category]) {
+          bucket.index[category] = [];
+        }
+        if (!bucket.index[category].includes(eventId)) {
+          bucket.index[category].push(eventId);
+          bucket.index[category].sort(); // Keep sorted
+        }
+      }
+    }
+
+    bucket.updatedAt = new Date().toISOString();
+
+    // Compute TTL if not provided
+    const allEvents = Object.values(bucket.eventsById);
+    const computedTtl = ttlSeconds ?? this.computeDayBucketTTL(allEvents, date);
+
+    // Write to Redis
+    try {
+      const serialized = JSON.stringify(bucket);
+      await this.redis.set(fullKey, serialized, { ex: computedTtl });
+    } catch (e) {
+      console.error('[eventsCache.upsertDayEvents] Redis error:', e);
+    }
+  }
+
+  /**
+   * Merges two events with field-wise preference logic:
+   * - Prefer non-empty fields
+   * - Longer description wins
+   * - Keep earliest price/links if missing
+   * - Union sources
+   */
+  private mergeEvents(existing: EventData, incoming: EventData): EventData {
+    return {
+      ...existing,
+      category: existing.category || incoming.category,
+      date: existing.date || incoming.date,
+      time: existing.time || incoming.time,
+      endTime: existing.endTime || incoming.endTime,
+      venue: existing.venue || incoming.venue,
+      address: existing.address || incoming.address,
+      price: existing.price || incoming.price,
+      ticketPrice: existing.ticketPrice || incoming.ticketPrice,
+      website: existing.website || incoming.website,
+      bookingLink: existing.bookingLink || incoming.bookingLink,
+      eventType: existing.eventType || incoming.eventType,
+      ageRestrictions: existing.ageRestrictions || incoming.ageRestrictions,
+      // Longer description wins
+      description: 
+        !existing.description ? incoming.description :
+        !incoming.description ? existing.description :
+        incoming.description.length > existing.description.length ? incoming.description : existing.description,
+      // Union sources (deduplicated)
+      source: this.mergeSources(existing.source, incoming.source)
+    };
+  }
+
+  /**
+   * Merges source fields, ensuring unique sources
+   */
+  private mergeSources(existing?: string, incoming?: string): string {
+    if (!existing) return incoming || '';
+    if (!incoming) return existing;
+    
+    const sources = new Set([existing, incoming]);
+    return Array.from(sources).join(',');
+  }
+
+  /**
+   * Computes TTL for day-bucket:
+   * - Until latest endTime among events
+   * - At least until 23:59 of the day
+   * - Never more than 7 days (safety limit)
+   */
+  private computeDayBucketTTL(events: EventData[], date: string): number {
+    const now = new Date();
+    let latestEndTime: Date | null = null;
+
+    // Parse the day's end (23:59:59)
+    const dayEnd = new Date(date.slice(0, 10) + 'T23:59:59');
+
+    // Find latest event end time
+    for (const event of events) {
+      if (event.endTime) {
+        try {
+          const endTime = new Date(event.endTime);
+          if (!isNaN(endTime.getTime()) && (!latestEndTime || endTime > latestEndTime)) {
+            latestEndTime = endTime;
+          }
+        } catch {
+          // Ignore invalid dates
+        }
+      }
+    }
+
+    // Use latest end time, but at least day end
+    const targetTime = latestEndTime && latestEndTime > dayEnd ? latestEndTime : dayEnd;
+    
+    // Compute TTL in seconds
+    let ttlSeconds = Math.floor((targetTime.getTime() - now.getTime()) / 1000);
+    
+    // Safety bounds: minimum 60s, maximum 7 days
+    const sevenDays = 7 * 24 * 60 * 60;
+    ttlSeconds = Math.max(60, Math.min(ttlSeconds, sevenDays));
+
+    return ttlSeconds;
   }
 }
 

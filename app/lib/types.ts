@@ -173,3 +173,10 @@ export interface HotCity {
   createdAt: Date;
   updatedAt: Date;
 }
+
+// Day-Bucket Cache: materialized view of all events for a city+date
+export interface DayBucket {
+  eventsById: { [eventId: string]: EventData };
+  index: { [category: string]: string[] }; // sorted unique eventIds per category
+  updatedAt: string; // ISO timestamp
+}
