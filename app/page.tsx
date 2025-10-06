@@ -53,6 +53,7 @@ export default function Home() {
   // New multi-select filters
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedVenues, setSelectedVenues] = useState<string[]>([]);
+  const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
 
   const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean; totalEvents: number; cachedEvents: number} | null>(null);
   const [toast, setToast] = useState<{show:boolean; message:string}>({show:false,message:''});
@@ -363,6 +364,10 @@ export default function Home() {
       setError('Bitte gib eine Stadt ein.');
       return;
     }
+    if (selectedSuperCategories.length === 0) {
+      setCategoryLimitError('Bitte wähle mindestens eine Kategorie aus.');
+      return;
+    }
     // cancel running batch
     cancelRef.current.cancel = true;
     await new Promise(r => setTimeout(r, 0));
@@ -537,9 +542,10 @@ export default function Home() {
         }
       });
       
-      // Initialize all filters as selected
+      // Initialize all filters as selected and expand all categories
       if (selectedCategories.length === 0) {
         setSelectedCategories(Array.from(categorySet));
+        setExpandedCategories(Array.from(categorySet));
       }
       if (selectedVenues.length === 0) {
         setSelectedVenues(Array.from(venueSet));
@@ -596,6 +602,22 @@ export default function Home() {
     });
     
     return counts;
+  };
+  
+  const getVenuesByCategory = (category: string) => {
+    const dateFiltered = events.filter(matchesSelectedDate);
+    const subs = EVENT_CATEGORY_SUBCATEGORIES[category] || [];
+    const venues: Record<string, number> = {};
+    
+    dateFiltered
+      .filter(e => subs.includes(e.category))
+      .forEach(e => {
+        if (e.venue && e.venue.trim()) {
+          venues[e.venue] = (venues[e.venue] || 0) + 1;
+        }
+      });
+    
+    return venues;
   };
 
   const eventIcon = (cat: string) => {
@@ -757,85 +779,112 @@ export default function Home() {
       </section>
 
       <div className="container" ref={resultsAnchorRef}>
-        {searchSubmitted && (
-          <>
-            {/* Horizontal category multi-select filter */}
-            <div className="results-filter-bar">
-              <div className="filter-chips-inline">
-                <button
-                  className={`filter-chip ${selectedCategories.length === Object.keys(getCategoryCounts()).length ? 'filter-chip-active' : ''}`}
-                  onClick={() => {
-                    const allCats = Object.keys(getCategoryCounts());
-                    setSelectedCategories(allCats.length === selectedCategories.length ? [] : allCats);
-                  }}
-                >
-                  <span>{t('filter.all')}</span>
-                  <span className="filter-count">{events.filter(matchesSelectedDate).length}</span>
-                </button>
-                {Object.entries(getCategoryCounts()).map(([cat, count]) => (
-                  <button
-                    key={cat}
-                    className={`filter-chip ${selectedCategories.includes(cat) ? 'filter-chip-active' : ''}`}
-                    onClick={() => {
-                      setSelectedCategories(prev => 
-                        prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
-                      );
-                    }}
-                  >
-                    <span>{cat}</span>
-                    <span className="filter-count">{count}</span>
-                  </button>
-                ))}
-              </div>
-              {stepLoading && (
-                <div className="progress-note">Lädt Kategorie: {stepLoading} ...</div>
-              )}
-            </div>
-          </>
+        {stepLoading && searchSubmitted && (
+          <div className="progress-note" style={{ marginBottom: '16px' }}>Lädt Kategorie: {stepLoading} ...</div>
         )}
 
         <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
-          {/* Left sidebar venue filter */}
-          {searchSubmitted && Object.keys(getVenueCounts()).length > 0 && (
+          {/* Left sidebar: Category-Venue hierarchy */}
+          {searchSubmitted && Object.keys(getCategoryCounts()).length > 0 && (
             <aside className="venue-filter-sidebar">
-              <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>Venues</h3>
-              <div className="venue-filter-item" style={{ marginBottom: '8px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
-                  <input
-                    type="checkbox"
-                    checked={selectedVenues.length === Object.keys(getVenueCounts()).length}
-                    onChange={(e) => {
-                      const allVenues = Object.keys(getVenueCounts());
-                      setSelectedVenues(e.target.checked ? allVenues : []);
-                    }}
-                  />
-                  <span>{t('filter.all')}</span>
-                  <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#666' }}>
-                    ({events.filter(matchesSelectedDate).length})
-                  </span>
-                </label>
-              </div>
-              {Object.entries(getVenueCounts())
+              <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>Kategorien & Venues</h3>
+              
+              {Object.entries(getCategoryCounts())
                 .sort((a, b) => b[1] - a[1])
-                .map(([venue, count]) => (
-                  <div key={venue} className="venue-filter-item" style={{ marginBottom: '8px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
-                      <input
-                        type="checkbox"
-                        checked={selectedVenues.includes(venue)}
-                        onChange={(e) => {
-                          setSelectedVenues(prev =>
-                            e.target.checked ? [...prev, venue] : prev.filter(v => v !== venue)
+                .map(([category, categoryCount]) => {
+                  const venues = getVenuesByCategory(category);
+                  const categoryVenues = Object.keys(venues);
+                  const isExpanded = expandedCategories.includes(category);
+                  const allVenuesSelected = categoryVenues.every(v => selectedVenues.includes(v));
+                  const someVenuesSelected = categoryVenues.some(v => selectedVenues.includes(v));
+                  
+                  return (
+                    <div key={category} style={{ marginBottom: '12px' }}>
+                      <div 
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '8px',
+                          padding: '8px',
+                          background: isExpanded ? '#f5f5f5' : 'transparent',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          transition: 'background 0.2s'
+                        }}
+                        onClick={() => {
+                          setExpandedCategories(prev =>
+                            prev.includes(category)
+                              ? prev.filter(c => c !== category)
+                              : [...prev, category]
                           );
                         }}
-                      />
-                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {venue}
-                      </span>
-                      <span style={{ fontSize: '12px', color: '#666' }}>({count})</span>
-                    </label>
-                  </div>
-                ))}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={allVenuesSelected}
+                          ref={(el) => {
+                            if (el) el.indeterminate = someVenuesSelected && !allVenuesSelected;
+                          }}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            if (e.target.checked) {
+                              setSelectedVenues(prev => [...new Set([...prev, ...categoryVenues])]);
+                            } else {
+                              setSelectedVenues(prev => prev.filter(v => !categoryVenues.includes(v)));
+                            }
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          style={{ cursor: 'pointer' }}
+                        />
+                        <svg 
+                          width="16" 
+                          height="16" 
+                          viewBox="0 0 24 24" 
+                          fill="none" 
+                          stroke="currentColor" 
+                          strokeWidth="2"
+                          style={{ 
+                            transition: 'transform 0.2s',
+                            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'
+                          }}
+                        >
+                          <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                        <span style={{ flex: 1, fontWeight: 500, fontSize: '14px' }}>{category}</span>
+                        <span style={{ fontSize: '12px', color: '#666' }}>({categoryCount})</span>
+                      </div>
+                      
+                      {isExpanded && (
+                        <div style={{ marginLeft: '32px', marginTop: '8px' }}>
+                          {Object.entries(venues)
+                            .sort((a, b) => b[1] - a[1])
+                            .map(([venue, count]) => (
+                              <div key={venue} style={{ marginBottom: '6px' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', padding: '4px 0' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedVenues.includes(venue)}
+                                    onChange={(e) => {
+                                      setSelectedVenues(prev =>
+                                        e.target.checked
+                                          ? [...prev, venue]
+                                          : prev.filter(v => v !== venue)
+                                      );
+                                    }}
+                                    style={{ cursor: 'pointer' }}
+                                  />
+                                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {venue}
+                                  </span>
+                                  <span style={{ fontSize: '11px', color: '#999' }}>({count})</span>
+                                </label>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
             </aside>
           )}
 
@@ -1308,17 +1357,53 @@ export default function Home() {
         .filter-count { font-size:11px; background:rgba(0,0,0,0.06); padding:3px 8px; border-radius:999px; color:inherit; font-weight:500; }
         .filter-chip-active .filter-count { background:rgba(255,255,255,0.18); }
 
-        .category-checkbox {
-          display:flex; align-items:center; gap:8px; padding:8px 10px;
-          border:1px solid #dfe1e4; background:transparent; border-radius:8px;
-          font-size:13px; cursor:pointer; transition:background .2s, border-color .2s, color .2s;
-          color:#444;
+        .categories-section {
+          margin-top: 20px;
+          padding: 18px;
+          background: #f9fafb;
+          border: 1px solid #e5e7eb;
+          border-radius: 10px;
         }
-        .category-checkbox:hover { background:#f0f2f4; }
-        .category-checkbox input { accent-color:#222; width:14px; height:14px; cursor:pointer; margin:0; }
-        .category-checkbox:has(input:checked) { background:#404040; color:#fff; border-color:#404040; }
-        .category-checkbox:has(input:checked):hover { background:#e5e7eb; color:#9aa0a6; }
+        .categories-label {
+          display: block;
+          font-weight: 600;
+          font-size: 14px;
+          margin-bottom: 12px;
+          color: #374151;
+        }
+        .categories-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+          gap: 10px;
+          margin-bottom: 14px;
+        }
+        .category-checkbox {
+          display:flex; align-items:center; gap:8px; padding:10px 12px;
+          border:1.5px solid #d1d5db; background:#fff; border-radius:8px;
+          font-size:13px; cursor:pointer; transition:all .2s ease;
+          color:#374151; font-weight:500;
+        }
+        .category-checkbox:hover { background:#f3f4f6; border-color:#9ca3af; }
+        .category-checkbox input { accent-color:#404040; width:16px; height:16px; cursor:pointer; margin:0; }
+        .category-checkbox:has(input:checked) { background:#404040; color:#fff; border-color:#404040; box-shadow:0 1px 3px rgba(0,0,0,0.12); }
+        .category-checkbox:has(input:checked):hover { background:#1f2937; border-color:#1f2937; }
         .category-checkbox:has(input:checked) input { accent-color:#ffffff; }
+        .category-checkbox:has(input:disabled) { opacity: 0.5; cursor: not-allowed; }
+        .categories-actions {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+        .cat-error {
+          margin-top: 10px;
+          padding: 10px 12px;
+          background: #fef2f2;
+          border: 1px solid #fecaca;
+          border-radius: 6px;
+          color: #991b1b;
+          font-size: 13px;
+          font-weight: 500;
+        }
 
         .btn-search {
           border:none; background:#404040; color:#fff; font-size:15px; padding:14px 20px; border-radius:10px;
