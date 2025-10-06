@@ -783,11 +783,17 @@ export default function Home() {
           <div className="progress-note" style={{ marginBottom: '16px' }}>Lädt Kategorie: {stepLoading} ...</div>
         )}
 
+        {searchSubmitted && displayedEvents.length > 0 && (
+          <h2 className="results-page-title" style={{ fontSize: '32px', fontWeight: 700, marginBottom: '24px', marginTop: '24px', letterSpacing: '-0.02em' }}>
+            {t('filter.todaysEventsIn')} {city}
+          </h2>
+        )}
+
         <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
           {/* Left sidebar: Category-Venue hierarchy */}
           {searchSubmitted && Object.keys(getCategoryCounts()).length > 0 && (
             <aside className="venue-filter-sidebar">
-              <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>Kategorien & Venues</h3>
+              <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>{t('filter.filtersAndCategories')}</h3>
               
               {Object.entries(getCategoryCounts())
                 .sort((a, b) => b[1] - a[1])

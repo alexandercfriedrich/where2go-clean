@@ -188,6 +188,16 @@ html, body {
   border-color: #adb5bd;
 }
 
+.results-page-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-top: 24px;
+  margin-bottom: 24px;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
 .events-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));

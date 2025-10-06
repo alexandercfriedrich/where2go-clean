@@ -43,6 +43,8 @@ export interface Translations {
   
   // Filters
   'filter.all': string;
+  'filter.filtersAndCategories': string;
+  'filter.todaysEventsIn': string;
   
   // Static pages
   'footer.impressum': string;
@@ -88,6 +90,8 @@ const de: Translations = {
   'error.categoryLimit': 'Du kannst maximal 3 Kategorien auswählen.',
   
   'filter.all': 'Alle',
+  'filter.filtersAndCategories': 'Filter & Kategorien',
+  'filter.todaysEventsIn': 'Heutige Events in',
   
   'footer.impressum': 'Impressum',
   'footer.contact': 'Kontakt',
@@ -132,6 +136,8 @@ const en: Translations = {
   'error.categoryLimit': 'You can select a maximum of 3 categories.',
   
   'filter.all': 'All',
+  'filter.filtersAndCategories': 'Filters & Categories',
+  'filter.todaysEventsIn': "Today's events in",
   
   'footer.impressum': 'Legal Notice',
   'footer.contact': 'Contact',

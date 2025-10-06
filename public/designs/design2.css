@@ -57,6 +57,16 @@ html, body {
   text-decoration: none;
 }
 
+.results-page-title {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--color-text);
+  margin-top: 32px;
+  margin-bottom: 24px;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
 .events-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
