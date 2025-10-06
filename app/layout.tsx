@@ -1,5 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
+import Script from 'next/script';
 // Basis-Design 1 früh laden, damit kein FOUC auftritt.
 // Der DesignCssLoader schaltet bei ?design=2 nachträglich auf design2.css um.
 import '../public/designs/design1.css';
@@ -29,6 +30,21 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="de">
+      <head>
+        {/* Google tag (gtag.js) */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-HEC3GGDFZD"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-HEC3GGDFZD');
+          `}
+        </Script>
+      </head>
       <body>
         {/* Lädt das gewünschte Design basierend auf ?design=… */}
         <DesignCssLoader />
