@@ -238,17 +238,48 @@ export default function Home() {
 
   // Initial: Cache-only für Wien (heute) laden – keine neue Suche
   // Uses new cache-day endpoint for better performance and validity filtering
+  // Falls back to legacy /api/events/cache if cache-day fails
   async function preloadDefaultEventsFromCache() {
     try {
       const today = todayISO();
       const url = `/api/events/cache-day?city=${encodeURIComponent('Wien')}&date=${encodeURIComponent(today)}`;
       const res = await fetch(url, { cache: 'no-store' });
       const json = await res.json().catch(() => ({} as any));
+      
       if (!res.ok) {
-        console.warn('Initial cache preload failed:', json?.error || res.status);
+        console.warn('Initial cache-day preload failed, trying legacy cache:', json?.error || res.status);
+        
+        // Fallback to legacy /api/events/cache
+        try {
+          const legacyUrl = `/api/events/cache?city=${encodeURIComponent('Wien')}&date=${encodeURIComponent(today)}`;
+          const legacyRes = await fetch(legacyUrl, { cache: 'no-store' });
+          const legacyJson = await legacyRes.json().catch(() => ({} as any));
+          
+          if (legacyRes.ok) {
+            const incoming: EventData[] = Array.isArray(legacyJson.events) ? legacyJson.events : [];
+            setEvents(incoming);
+            
+            // Derive cacheInfo from legacy response
+            if (legacyJson.cacheInfo) {
+              setCacheInfo(legacyJson.cacheInfo);
+            } else if (legacyJson.cached !== undefined) {
+              setCacheInfo({
+                fromCache: legacyJson.cached,
+                totalEvents: incoming.length,
+                cachedEvents: incoming.length
+              });
+            }
+            setInitialPreloadDone(true);
+            return;
+          }
+        } catch (fallbackError) {
+          console.warn('Legacy cache fallback also failed:', fallbackError);
+        }
+        
         setInitialPreloadDone(true);
         return;
       }
+      
       const incoming: EventData[] = Array.isArray(json.events) ? json.events : [];
       setEvents(incoming);
       
