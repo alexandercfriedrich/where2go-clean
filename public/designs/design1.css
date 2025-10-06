@@ -236,6 +236,13 @@ html, body {
   font-size: 14px;
 }
 
+/* Date and time on same line */
+.event-meta-line:has(.event-date) {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .event-meta-line svg {
   width: 16px;
   height: 16px;
@@ -274,32 +281,35 @@ html, body {
 .event-cta-row {
   display: flex;
   gap: 8px;
-  align-items: center;
+  align-items: stretch;
   margin-top: auto;
   padding-top: 16px;
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid #999;
 }
 
 .price-chip {
   display: inline-flex;
   align-items: center;
-  padding: 6px 12px;
+  justify-content: center;
+  padding: 8px 14px;
   border-radius: 6px;
-  background: var(--color-surface-alt);
-  border: 1px solid var(--color-border);
+  background: #f5f5f5;
+  border: 1px solid transparent;
   color: var(--color-text);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
+  min-height: 36px;
 }
-.price-chip:hover { background: var(--chip-hover); }
+.price-chip:hover { background: #ebebeb; }
 
 .btn-outline {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   padding: 8px 14px;
-  background: transparent;
-  border: 1px solid var(--color-border);
+  background: #f5f5f5;
+  border: 1px solid transparent;
   color: var(--color-text-dim);
   text-decoration: none;
   border-radius: 6px;
@@ -307,23 +317,23 @@ html, body {
   font-weight: 500;
   transition: all var(--transition);
   cursor: pointer;
+  min-height: 36px;
 }
 
 .btn-outline:hover {
-  background: var(--color-surface-alt);
-  border-color: var(--color-border-strong);
+  background: #ebebeb;
   color: var(--color-text);
 }
 
 .btn-outline.tickets {
-  background: var(--color-accent-alt);
-  color: white;
-  border-color: var(--color-accent-alt);
+  background: #f5f5f5;
+  color: var(--color-text-dim);
+  border: 1px solid #666;
 }
 
 .btn-outline.tickets:hover {
-  background: var(--color-accent-alt-hover);
-  border-color: var(--color-accent-alt-hover);
+  background: #ebebeb;
+  border-color: #555;
 }
 
 .btn-outline.with-icon svg {
@@ -413,6 +423,7 @@ html, body {
   opacity: 0.2;
   z-index: 0;
   pointer-events: none;
+  filter: grayscale(100%);
 }
 
 @media (max-width: 768px) {
