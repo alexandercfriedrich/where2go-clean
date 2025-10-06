@@ -5,6 +5,7 @@ import { eventAggregator } from '@/lib/aggregator';
 import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
 import { getJobStore } from '@/lib/jobStore';
 import { EVENT_CATEGORIES, mapToMainCategories, normalizeCategory } from '@/lib/eventCategories';
+import { upsertDayEvents } from '@/lib/dayCache';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -98,6 +99,9 @@ export async function POST(request: NextRequest) {
       for (const cat of Object.keys(grouped)) {
         await eventsCache.setEventsByCategory(city, date, cat, grouped[cat], ttlSeconds);
       }
+      
+      // Also upsert into day-bucket cache
+      await upsertDayEvents(city, date, chunk);
 
       runningEvents = eventAggregator.deduplicateEvents([...runningEvents, ...chunk]);
 

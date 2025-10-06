@@ -237,10 +237,11 @@ export default function Home() {
   }
 
   // Initial: Cache-only für Wien (heute) laden – keine neue Suche
+  // Uses new cache-day endpoint for better performance and validity filtering
   async function preloadDefaultEventsFromCache() {
     try {
       const today = todayISO();
-      const url = `/api/events/cache?city=${encodeURIComponent('Wien')}&date=${encodeURIComponent(today)}`;
+      const url = `/api/events/cache-day?city=${encodeURIComponent('Wien')}&date=${encodeURIComponent(today)}`;
       const res = await fetch(url, { cache: 'no-store' });
       const json = await res.json().catch(() => ({} as any));
       if (!res.ok) {
@@ -250,7 +251,15 @@ export default function Home() {
       }
       const incoming: EventData[] = Array.isArray(json.events) ? json.events : [];
       setEvents(incoming);
-      if (json.cacheInfo) setCacheInfo(json.cacheInfo);
+      
+      // Map cache-day response to cacheInfo format
+      if (json.cached !== undefined) {
+        setCacheInfo({
+          fromCache: json.cached,
+          totalEvents: incoming.length,
+          cachedEvents: incoming.length
+        });
+      }
     } catch (e) {
       console.warn('Initial cache preload error:', e);
     } finally {
