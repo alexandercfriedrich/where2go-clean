@@ -201,6 +201,73 @@ html, body { background: var(--color-bg); color: var(--color-text); }
   .header-inner { min-height: 56px; }
 }
 
+/* Venue Filter Sidebar */
+.venue-filter-sidebar {
+  min-width: 250px;
+  max-width: 300px;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+
+.venue-filter-sidebar h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--color-text);
+}
+
+.venue-filter-item {
+  margin-bottom: 8px;
+}
+
+.venue-filter-item label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  fontSize: 14px;
+  color: var(--color-text);
+  transition: color var(--transition);
+}
+
+.venue-filter-item label:hover {
+  color: var(--color-accent-alt);
+}
+
+.venue-filter-item input[type="checkbox"] {
+  accent-color: var(--color-accent-alt);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .venue-filter-sidebar {
+    display: none;
+  }
+}
+
+/* Event card background image support */
+.event-card-bg-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.2;
+  z-index: 0;
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;

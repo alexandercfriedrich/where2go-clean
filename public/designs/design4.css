@@ -1277,4 +1277,82 @@ body > div:first-child {
     padding: var(--space-24) var(--space-16);
   }
 }
+
+/* === VENUE FILTER SIDEBAR === */
+.venue-filter-sidebar {
+  min-width: 250px;
+  max-width: 300px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-20);
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+
+.venue-filter-sidebar h3 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-12);
+  color: var(--color-text);
+}
+
+.venue-filter-item {
+  margin-bottom: var(--space-8);
+}
+
+.venue-filter-item label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  transition: color var(--duration-fast) var(--ease-standard);
+  padding: var(--space-4) 0;
+}
+
+.venue-filter-item label:hover {
+  color: var(--color-primary);
+}
+
+.venue-filter-item input[type="checkbox"] {
+  accent-color: var(--color-primary);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .venue-filter-sidebar {
+    display: none;
+  }
+}
+
+/* === EVENT CARD BACKGROUND IMAGE SUPPORT === */
+.event-card-bg-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.2;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.event-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.event-content {
+  position: relative;
+  z-index: 1;
+}
 ```
