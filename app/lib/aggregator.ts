@@ -9,6 +9,7 @@
 import { EventData, PerplexityResult } from './types';
 import { normalizeEvents } from './event-normalizer';
 import { validateAndNormalizeEvents, normalizeCategory } from './eventCategories';
+import { normalizeForEventId, generateEventId } from './eventId';
 
 const TIME_24H_REGEX = /^\d{1,2}:\d{2}/;
 const DATE_ISO_REGEX = /^\d{4}-\d{2}-\d{2}$/;
@@ -350,14 +351,12 @@ export class EventAggregator {
   }
 
   // Deduplication with normalization + fuzzy title matching (same date)
+  // Uses shared eventId generation from eventId module for consistency with day-bucket cache
   deduplicateEvents(events: EventData[]): EventData[] {
-    const norm = (s: string) => (s || '').toLowerCase().normalize('NFKD').replace(/[^\w\s]/g, ' ').replace(/\s+/g, ' ').trim();
-    const keyOf = (e: EventData) => `${norm(e.title)}|${(e.date||'').slice(0,10)}|${norm(e.venue)}`;
-
     const map = new Map<string, EventData>();
     for (const ev of events) {
       if (!ev.title) continue;
-      const k = keyOf(ev);
+      const k = generateEventId(ev);
       const existing = map.get(k);
 
       if (!existing) {
@@ -397,8 +396,8 @@ export class EventAggregator {
         if (used.has(j)) continue;
         if ((base.date || '').slice(0,10) !== (list[j].date || '').slice(0,10)) continue;
 
-        const sTitle = this.sim(norm(base.title), norm(list[j].title));
-        const sVenue = this.sim(norm(base.venue), norm(list[j].venue || ''));
+        const sTitle = this.sim(normalizeForEventId(base.title), normalizeForEventId(list[j].title));
+        const sVenue = this.sim(normalizeForEventId(base.venue), normalizeForEventId(list[j].venue || ''));
         if (sTitle >= 0.92 && sVenue >= 0.7) {
           // merge j into base
           base = {
