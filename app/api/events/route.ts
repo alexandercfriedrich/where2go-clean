@@ -180,7 +180,8 @@ export async function POST(request: NextRequest) {
             price: ev.price || '',
             website: ev.website || '',
             source: ev.source,
-            city: ev.city || 'Wien'
+            city: ev.city || 'Wien',
+            ...(ev.imageUrl ? { imageUrl: ev.imageUrl } : {})
           }));
           const deduped = eventAggregator.deduplicateEvents(normalized);
           earlyEvents.push(...deduped);

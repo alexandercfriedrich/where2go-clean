@@ -20,6 +20,7 @@ interface EventData {
   bookingLink?: string;
   ageRestrictions?: string;
   source?: 'cache' | 'ai' | 'rss' | 'ra' | string;
+  imageUrl?: string;
 }
 
 const ALL_SUPER_CATEGORIES = Object.keys(EVENT_CATEGORY_SUBCATEGORIES);
@@ -30,7 +31,7 @@ const POLL_INTERVAL_MS = 2000;
 const MAX_POLLS = 48;
 
 export default function Home() {
-  const { t } = useTranslation();
+  const { t, formatEventDate } = useTranslation();
   // Default: Wien + heute
   const [city, setCity] = useState('Wien');
   const [timePeriod, setTimePeriod] = useState('heute');
@@ -48,6 +49,10 @@ export default function Home() {
   const [searchSubmitted, setSearchSubmitted] = useState(false);
   const [searchedSuperCategories, setSearchedSuperCategories] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState('Alle');
+  
+  // New multi-select filters
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedVenues, setSelectedVenues] = useState<string[]>([]);
 
   const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean; totalEvents: number; cachedEvents: number} | null>(null);
   const [toast, setToast] = useState<{show:boolean; message:string}>({show:false,message:''});
@@ -508,20 +513,88 @@ export default function Home() {
     }
   }
 
+  // Initialize filters when events change
+  useEffect(() => {
+    if (events.length > 0 && searchSubmitted) {
+      const dateFiltered = events.filter(matchesSelectedDate);
+      
+      // Get unique main categories from events
+      const categorySet = new Set<string>();
+      dateFiltered.forEach(ev => {
+        for (const [mainCat, subs] of Object.entries(EVENT_CATEGORY_SUBCATEGORIES)) {
+          if (subs.includes(ev.category)) {
+            categorySet.add(mainCat);
+            break;
+          }
+        }
+      });
+      
+      // Get unique venues
+      const venueSet = new Set<string>();
+      dateFiltered.forEach(ev => {
+        if (ev.venue && ev.venue.trim()) {
+          venueSet.add(ev.venue);
+        }
+      });
+      
+      // Initialize all filters as selected
+      if (selectedCategories.length === 0) {
+        setSelectedCategories(Array.from(categorySet));
+      }
+      if (selectedVenues.length === 0) {
+        setSelectedVenues(Array.from(venueSet));
+      }
+    }
+  }, [events, searchSubmitted]);
+
   const displayedEvents = (() => {
     const dateFiltered = events.filter(matchesSelectedDate);
     if (!searchSubmitted) return dateFiltered;
-    if (activeFilter === 'Alle') return dateFiltered;
-    const subs = EVENT_CATEGORY_SUBCATEGORIES[activeFilter] || [];
-    return dateFiltered.filter(e => subs.includes(e.category));
+    
+    // Apply category filter
+    let filtered = dateFiltered;
+    if (selectedCategories.length > 0) {
+      filtered = filtered.filter(e => {
+        for (const mainCat of selectedCategories) {
+          const subs = EVENT_CATEGORY_SUBCATEGORIES[mainCat] || [];
+          if (subs.includes(e.category)) return true;
+        }
+        return false;
+      });
+    }
+    
+    // Apply venue filter
+    if (selectedVenues.length > 0) {
+      filtered = filtered.filter(e => selectedVenues.includes(e.venue));
+    }
+    
+    return filtered;
   })();
 
   const getCategoryCounts = () => {
-    const counts: Record<string, number> = { 'Alle': events.filter(matchesSelectedDate).length };
-    searchedSuperCategories.forEach(cat => {
-      const subs = EVENT_CATEGORY_SUBCATEGORIES[cat] || [];
-      counts[cat] = events.filter(e => subs.includes(e.category)).filter(matchesSelectedDate).length;
+    const dateFiltered = events.filter(matchesSelectedDate);
+    const counts: Record<string, number> = {};
+    
+    for (const [mainCat, subs] of Object.entries(EVENT_CATEGORY_SUBCATEGORIES)) {
+      const count = dateFiltered.filter(e => subs.includes(e.category)).length;
+      if (count > 0) {
+        counts[mainCat] = count;
+      }
+    }
+    
+    return counts;
+  };
+  
+  const getVenueCounts = () => {
+    const dateFiltered = events.filter(matchesSelectedDate);
+    const counts: Record<string, number> = {};
+    
+    dateFiltered.forEach(e => {
+      if (e.venue && e.venue.trim()) {
+        counts[e.venue] = (counts[e.venue] || 0) + 1;
+      }
     });
+    
     return counts;
   };
 
@@ -685,33 +758,88 @@ export default function Home() {
 
       <div className="container" ref={resultsAnchorRef}>
         {searchSubmitted && (
-          <div className="results-filter-bar">
-            <div className="filter-chips-inline">
-              <button
-                className={`filter-chip ${activeFilter==='Alle' ? 'filter-chip-active':''}`}
-                onClick={()=>setActiveFilter('Alle')}
-              >
-                <span>Alle</span>
-                <span className="filter-count">{getCategoryCounts()['Alle']}</span>
-              </button>
-              {searchedSuperCategories.map(cat => (
+          <>
+            {/* Horizontal category multi-select filter */}
+            <div className="results-filter-bar">
+              <div className="filter-chips-inline">
                 <button
-                  key={cat}
-                  className={`filter-chip ${activeFilter===cat ? 'filter-chip-active':''}`}
-                  onClick={()=>setActiveFilter(cat)}
+                  className={`filter-chip ${selectedCategories.length === Object.keys(getCategoryCounts()).length ? 'filter-chip-active' : ''}`}
+                  onClick={() => {
+                    const allCats = Object.keys(getCategoryCounts());
+                    setSelectedCategories(allCats.length === selectedCategories.length ? [] : allCats);
+                  }}
                 >
-                  <span>{cat}</span>
-                  <span className="filter-count">{getCategoryCounts()[cat] || 0}</span>
+                  <span>{t('filter.all')}</span>
+                  <span className="filter-count">{events.filter(matchesSelectedDate).length}</span>
                 </button>
-              ))}
+                {Object.entries(getCategoryCounts()).map(([cat, count]) => (
+                  <button
+                    key={cat}
+                    className={`filter-chip ${selectedCategories.includes(cat) ? 'filter-chip-active' : ''}`}
+                    onClick={() => {
+                      setSelectedCategories(prev => 
+                        prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
+                      );
+                    }}
+                  >
+                    <span>{cat}</span>
+                    <span className="filter-count">{count}</span>
+                  </button>
+                ))}
+              </div>
+              {stepLoading && (
+                <div className="progress-note">Lädt Kategorie: {stepLoading} ...</div>
+              )}
             </div>
-            {stepLoading && (
-              <div className="progress-note">Lädt Kategorie: {stepLoading} ...</div>
-            )}
-          </div>
+          </>
         )}
 
-        <main className="main-content">
+        <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+          {/* Left sidebar venue filter */}
+          {searchSubmitted && Object.keys(getVenueCounts()).length > 0 && (
+            <aside className="venue-filter-sidebar">
+              <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '12px' }}>Venues</h3>
+              <div className="venue-filter-item" style={{ marginBottom: '8px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedVenues.length === Object.keys(getVenueCounts()).length}
+                    onChange={(e) => {
+                      const allVenues = Object.keys(getVenueCounts());
+                      setSelectedVenues(e.target.checked ? allVenues : []);
+                    }}
+                  />
+                  <span>{t('filter.all')}</span>
+                  <span style={{ marginLeft: 'auto', fontSize: '12px', color: '#666' }}>
+                    ({events.filter(matchesSelectedDate).length})
+                  </span>
+                </label>
+              </div>
+              {Object.entries(getVenueCounts())
+                .sort((a, b) => b[1] - a[1])
+                .map(([venue, count]) => (
+                  <div key={venue} className="venue-filter-item" style={{ marginBottom: '8px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '14px' }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedVenues.includes(venue)}
+                        onChange={(e) => {
+                          setSelectedVenues(prev =>
+                            e.target.checked ? [...prev, venue] : prev.filter(v => v !== venue)
+                          );
+                        }}
+                      />
+                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {venue}
+                      </span>
+                      <span style={{ fontSize: '12px', color: '#666' }}>({count})</span>
+                    </label>
+                  </div>
+                ))}
+            </aside>
+          )}
+
+        <main className="main-content" style={{ flex: 1 }}>
           {error && <div className="error">{error}</div>}
 
           {loading && events.length === 0 && (
@@ -756,7 +884,26 @@ export default function Home() {
                   formatEventDateTime(ev.date, ev.time, ev.endTime);
 
                 return (
-                  <div key={key} className="event-card">
+                  <div key={key} className="event-card" style={{ position: 'relative', overflow: 'hidden' }}>
+                    {ev.imageUrl && (
+                      <div 
+                        className="event-card-bg-image"
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          right: 0,
+                          bottom: 0,
+                          backgroundImage: `url(${ev.imageUrl})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          opacity: 0.2,
+                          zIndex: 0,
+                          pointerEvents: 'none'
+                        }}
+                      />
+                    )}
+                    <div style={{ position: 'relative', zIndex: 1 }}>
                     <h3 className="event-title">
                       {ev.title}
                       {renderSourceBadge(ev.source)}
@@ -769,7 +916,7 @@ export default function Home() {
                         <line x1="8" y1="2" x2="8" y2="6"/>
                         <line x1="3" y1="10" x2="21" y2="10"/>
                       </svg>
-                      <span className="event-date">{formattedDate}</span>
+                      <span className="event-date">{formatEventDate(ev.date)}</span>
                       {formattedTime && (
                         <>
                           <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -857,12 +1004,14 @@ export default function Home() {
                         </a>
                       ) : <span />}
                     </div>
+                    </div>
                   </div>
                 );
               })}
             </div>
           )}
         </main>
+        </div>
       </div>
 
       {toast.show && (
@@ -1119,7 +1268,33 @@ export default function Home() {
           gap:12px; padding:10px 0 18px;
         }
         .filter-chips-inline { display:flex; flex-wrap:wrap; gap:10px; }
-        .filter-sidebar { display:none !important; }
+        
+        .venue-filter-sidebar {
+          min-width: 250px;
+          max-width: 300px;
+          background: #fff;
+          border-radius: 12px;
+          padding: 20px;
+          box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+          position: sticky;
+          top: 80px;
+          max-height: calc(100vh - 100px);
+          overflow-y: auto;
+        }
+        
+        .venue-filter-item input[type="checkbox"] {
+          accent-color: #404040;
+          width: 16px;
+          height: 16px;
+          cursor: pointer;
+        }
+        
+        @media (max-width: 768px) {
+          .venue-filter-sidebar {
+            display: none;
+          }
+        }
+        
         .filter-chip {
           display:flex; justify-content:space-between; align-items:center; gap:8px;
           font-size:13px; padding:10px 14px; border:1px solid #dcdfe3;

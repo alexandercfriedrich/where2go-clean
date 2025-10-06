@@ -328,6 +328,12 @@ function normalizeWienInfoEvent(
     ? wienInfoEvent.url
     : `https://www.wien.info${wienInfoEvent.url}`;
 
+  const imageUrl = wienInfoEvent.imageUrl?.startsWith('http')
+    ? wienInfoEvent.imageUrl
+    : wienInfoEvent.imageUrl
+    ? `https://www.wien.info${wienInfoEvent.imageUrl}`
+    : undefined;
+
   return {
     title: wienInfoEvent.title,
     category,
@@ -340,6 +346,7 @@ function normalizeWienInfoEvent(
     city: 'Wien',
     description: wienInfoEvent.subtitle || '',
     address: wienInfoEvent.location || 'Wien, Austria',
-    ...(endTime ? { endTime } : {})
+    ...(endTime ? { endTime } : {}),
+    ...(imageUrl ? { imageUrl } : {})
   } as unknown as EventData;
 }

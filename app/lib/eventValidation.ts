@@ -62,6 +62,7 @@ export function validateAndNormalizeEventsTolerant(events: any[]): EventData[] {
       bookingLink: e.bookingLink ? s(e.bookingLink) : undefined,
       ageRestrictions: e.ageRestrictions ? s(e.ageRestrictions) : undefined,
       source: e.source,
+      imageUrl: e.imageUrl ? s(e.imageUrl) : undefined,
     };
 
     if (!ev.title) {
