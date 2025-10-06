@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { HotCity, HotCityWebsite } from '@/lib/types';
+import { HotCity, HotCityWebsite, HotCityVenue } from '@/lib/types';
 
 export default function HotCitiesDetailPage() {
   const [cities, setCities] = useState<HotCity[]>([]);
@@ -508,6 +508,75 @@ export default function HotCitiesDetailPage() {
                 <p style={{ textAlign: 'center', color: '#666', fontStyle: 'italic' }}>
                   No websites configured for this city. Click &quot;Add Website&quot; to get started.
                 </p>
+              )}
+
+              {/* Venues Section - Read-only */}
+              {selectedCity.venues && selectedCity.venues.length > 0 && (
+                <>
+                  <div className="section-header" style={{ marginTop: '40px' }}>
+                    <h3>Venues for {selectedCity.name}</h3>
+                  </div>
+
+                  {selectedCity.venues.map(venue => (
+                    <div key={venue.id} className="website-card">
+                      <div className="website-header">
+                        <div>
+                          <div className="website-name">📍 {venue.name}</div>
+                          {venue.address.full && (
+                            <div style={{ fontSize: '0.9rem', color: '#666', marginTop: '5px' }}>
+                              {venue.address.full}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="website-meta">
+                        <span className="priority-badge">Priority: {venue.priority}</span>
+                        <span className={`status-badge ${venue.isActive ? 'status-active' : 'status-inactive'}`}>
+                          {venue.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                        {venue.isVenuePrioritized && (
+                          <span className="venue-badge">
+                            Prioritized
+                          </span>
+                        )}
+                      </div>
+
+                      {venue.categories.length > 0 && (
+                        <div className="categories-list">
+                          {venue.categories.map(cat => (
+                            <span key={cat} className="category-tag">{cat}</span>
+                          ))}
+                        </div>
+                      )}
+
+                      {(venue.website || venue.eventsUrl) && (
+                        <div style={{ marginBottom: '10px' }}>
+                          {venue.website && (
+                            <div>
+                              <a href={venue.website} target="_blank" rel="noopener noreferrer" className="website-url">
+                                🌐 Website
+                              </a>
+                            </div>
+                          )}
+                          {venue.eventsUrl && (
+                            <div>
+                              <a href={venue.eventsUrl} target="_blank" rel="noopener noreferrer" className="website-url">
+                                📅 Events Page
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {venue.description && (
+                        <p style={{ fontSize: '0.9rem', color: '#666', margin: '10px 0' }}>
+                          {venue.description}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </>
               )}
             </>
           ) : (
