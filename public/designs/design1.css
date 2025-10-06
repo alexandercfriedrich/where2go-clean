@@ -178,40 +178,50 @@ html, body {
 
 .events-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-  gap: 30px;
-  margin-top: 40px;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 24px;
+  margin-top: 32px;
 }
 
 .event-card {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 16px;
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: var(--shadow-sm);
-  transition: all 0.3s ease;
-  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  transition: all 0.2s ease;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
 }
 .event-card:hover {
-  transform: translateY(-5px);
-  box-shadow: var(--shadow);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  border-color: var(--color-border-strong);
 }
 
-.event-content { padding: 25px; }
+.event-content { 
+  padding: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
 
 .event-title,
 .event-card .event-title,
 .event-item h3 {
-  font-size: 1.4rem;
-  font-weight: 700;
-  margin-bottom: 10px;
-  color: var(--color-text-dim) !important;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 16px 0;
+  color: var(--color-text) !important;
+  line-height: 1.4;
 }
 
 .event-description {
-  color: var(--color-text-faint);
-  line-height: 1.6;
-  margin-bottom: 20px;
+  color: var(--color-text-dim);
+  line-height: 1.5;
+  margin-bottom: 16px;
+  font-size: 14px;
 }
 
 .event-meta-line,
@@ -221,8 +231,16 @@ html, body {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--color-text);
-  margin: 6px 0;
+  color: var(--color-text-dim);
+  margin: 0 0 10px 0;
+  font-size: 14px;
+}
+
+.event-meta-line svg {
+  width: 16px;
+  height: 16px;
+  color: var(--color-text-faint);
+  flex-shrink: 0;
 }
 
 .event-date {
@@ -231,36 +249,92 @@ html, body {
 }
 
 .event-time::before {
-  content: "\00a0\00a0";
+  content: "";
 }
 .event-time {
-  background: rgba(91, 140, 255, 0.12);
-  color: var(--color-accent-alt);
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 500;
+  background: transparent;
+  color: var(--color-text-dim);
+  padding: 0;
+  border-radius: 0;
+  font-size: 14px;
+  font-weight: 400;
 }
 
 .venue-link {
-  color: var(--color-accent-alt);
+  color: var(--color-text-dim);
   text-decoration: none;
   transition: color var(--transition);
+  font-weight: 400;
 }
 .venue-link:hover {
-  color: var(--color-accent-alt-hover);
-  text-decoration: underline;
+  color: var(--color-accent-alt);
+  text-decoration: none;
+}
+
+.event-cta-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
 }
 
 .price-chip {
-  display: inline-block;
-  padding: 4px 8px;
-  border-radius: 999px;
-  background: var(--chip-bg);
-  border: 1px solid var(--chip-border);
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 6px;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
   color: var(--color-text);
+  font-size: 14px;
+  font-weight: 500;
 }
 .price-chip:hover { background: var(--chip-hover); }
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-dim);
+  text-decoration: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all var(--transition);
+  cursor: pointer;
+}
+
+.btn-outline:hover {
+  background: var(--color-surface-alt);
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+.btn-outline.tickets {
+  background: var(--color-accent-alt);
+  color: white;
+  border-color: var(--color-accent-alt);
+}
+
+.btn-outline.tickets:hover {
+  background: var(--color-accent-alt-hover);
+  border-color: var(--color-accent-alt-hover);
+}
+
+.btn-outline.with-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.btn-outline svg {
+  width: 14px;
+  height: 14px;
+}
 
 .src-badge {
   display: inline-block;
@@ -278,6 +352,73 @@ html, body {
 .w2g-loader-wrapper {
   display: flex; align-items: center; justify-content: center;
   padding: var(--space-12) 0;
+}
+
+/* Venue Filter Sidebar */
+.venue-filter-sidebar {
+  min-width: 250px;
+  max-width: 300px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-sm);
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+
+.venue-filter-sidebar h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--color-text);
+}
+
+.venue-filter-item {
+  margin-bottom: 8px;
+}
+
+.venue-filter-item label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--color-text);
+  transition: color var(--transition);
+}
+
+.venue-filter-item label:hover {
+  color: var(--color-accent-alt);
+}
+
+.venue-filter-item input[type="checkbox"] {
+  accent-color: var(--color-accent-alt);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+/* Event card background image support */
+.event-card-bg-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.2;
+  z-index: 0;
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  .venue-filter-sidebar {
+    display: none;
+  }
 }
 
 @media (max-width: 600px) {
