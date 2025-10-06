@@ -3,7 +3,7 @@ import { getDayEvents, isEventValidNow } from '@/lib/dayCache';
 import { eventsCache } from '@/lib/cache';
 import { EventData } from '@/lib/types';
 import { eventAggregator } from '@/lib/aggregator';
-import { EVENT_CATEGORIES } from '@/lib/eventCategories';
+import { EVENT_CATEGORIES, normalizeCategory } from '@/lib/eventCategories';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -36,9 +36,14 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Parse category filter (optional)
+    // Parse category filter (optional) and normalize
     const requestedCategories = categoryParam
-      ? categoryParam.split(',').map(c => c.trim()).filter(Boolean)
+      ? Array.from(new Set(
+          categoryParam.split(',')
+            .map(c => c.trim())
+            .filter(Boolean)
+            .map(c => normalizeCategory(c))
+        ))
       : null;
 
     let allEvents: EventData[] = [];
@@ -71,12 +76,14 @@ export async function GET(request: NextRequest) {
     const now = new Date();
     const validEvents = allEvents.filter(event => isEventValidNow(event, now));
 
-    // Filter by requested categories if specified
+    // Filter by requested categories if specified (normalize both sides for comparison)
     let filteredEvents = validEvents;
     if (requestedCategories && requestedCategories.length > 0) {
-      filteredEvents = validEvents.filter(event => 
-        event.category && requestedCategories.includes(event.category)
-      );
+      filteredEvents = validEvents.filter(event => {
+        if (!event.category) return false;
+        const normalizedEventCategory = normalizeCategory(event.category);
+        return requestedCategories.includes(normalizedEventCategory);
+      });
     }
 
     // Count events by category

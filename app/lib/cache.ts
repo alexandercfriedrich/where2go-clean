@@ -376,13 +376,19 @@ class InMemoryCache {
     if (!existing) return incoming || '';
     if (!incoming) return existing;
     
-    const sources = new Set([existing, incoming]);
-    return Array.from(sources).join(',');
+    // Split by comma, trim, deduplicate via Set
+    const existingSources = existing.split(',').map(s => s.trim()).filter(Boolean);
+    const incomingSources = incoming.split(',').map(s => s.trim()).filter(Boolean);
+    const allSources = [...existingSources, ...incomingSources];
+    const uniqueSources = Array.from(new Set(allSources));
+    
+    return uniqueSources.join(',');
   }
 
   /**
    * Computes TTL for day-bucket:
    * - Until latest endTime among events
+   * - If endTime missing, use event.time + 3h as candidate
    * - At least until 23:59 of the day
    * - Never more than 7 days (safety limit)
    */
@@ -403,6 +409,26 @@ class InMemoryCache {
           }
         } catch {
           // Ignore invalid dates
+        }
+      } else if (event.time) {
+        // If endTime missing, compute from event.time + 3h
+        try {
+          const timeMatch = event.time.match(/^(\d{1,2}):(\d{2})/);
+          if (timeMatch) {
+            const hour = parseInt(timeMatch[1], 10);
+            const minute = parseInt(timeMatch[2], 10);
+            const eventStart = new Date(date.slice(0, 10) + `T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00`);
+            
+            if (!isNaN(eventStart.getTime())) {
+              // Add 3 hours to the start time
+              const candidateEnd = new Date(eventStart.getTime() + 3 * 60 * 60 * 1000);
+              if (!latestEndTime || candidateEnd > latestEndTime) {
+                latestEndTime = candidateEnd;
+              }
+            }
+          }
+        } catch {
+          // Ignore invalid time parsing
         }
       }
     }
