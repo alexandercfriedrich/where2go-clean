@@ -1,13 +1,15 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { HotCity, HotCityWebsite } from '@/lib/types';
+import { HotCity, HotCityWebsite, HotCityVenue } from '@/lib/types';
 
 export default function HotCitiesDetailPage() {
   const [cities, setCities] = useState<HotCity[]>([]);
   const [selectedCity, setSelectedCity] = useState<HotCity | null>(null);
   const [editingWebsite, setEditingWebsite] = useState<HotCityWebsite | null>(null);
   const [isCreatingWebsite, setIsCreatingWebsite] = useState(false);
+  const [editingVenue, setEditingVenue] = useState<HotCityVenue | null>(null);
+  const [isCreatingVenue, setIsCreatingVenue] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -124,6 +126,107 @@ export default function HotCitiesDetailPage() {
       const refreshedCity = cities.find(c => c.id === selectedCity.id);
       if (refreshedCity) setSelectedCity(refreshedCity);
       alert('Website deleted successfully!');
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    }
+  };
+
+  const handleAddVenue = () => {
+    const newVenue: HotCityVenue = {
+      id: `venue-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name: '',
+      categories: [],
+      description: '',
+      priority: 5,
+      isActive: true,
+      isVenue: true,
+      isVenuePrioritized: false,
+      address: {
+        full: '',
+        street: '',
+        houseNumber: '',
+        postalCode: '',
+        city: '',
+        country: ''
+      },
+      website: '',
+      eventsUrl: '',
+      aiQueryTemplate: ''
+    };
+    setEditingVenue(newVenue);
+    setIsCreatingVenue(true);
+  };
+
+  const handleEditVenue = (venue: HotCityVenue) => {
+    setEditingVenue({ ...venue });
+    setIsCreatingVenue(false);
+  };
+
+  const handleSaveVenue = async (venue: HotCityVenue) => {
+    if (!selectedCity) return;
+
+    try {
+      const currentVenues = selectedCity.venues || [];
+      const updatedVenues = isCreatingVenue
+        ? [...currentVenues, venue]
+        : currentVenues.map(v => v.id === venue.id ? venue : v);
+
+      const updatedCity = {
+        ...selectedCity,
+        venues: updatedVenues,
+        updatedAt: new Date()
+      };
+
+      const response = await fetch('/api/admin/hot-cities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedCity)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save venue');
+      }
+
+      await loadCities();
+      const refreshedCity = cities.find(c => c.id === selectedCity.id);
+      if (refreshedCity) setSelectedCity(refreshedCity);
+      setEditingVenue(null);
+      setIsCreatingVenue(false);
+      alert(`Venue ${isCreatingVenue ? 'added' : 'updated'} successfully!`);
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    }
+  };
+
+  const handleDeleteVenue = async (venueId: string, venueName: string) => {
+    if (!selectedCity) return;
+    if (!confirm(`Are you sure you want to delete "${venueName}"?`)) return;
+
+    try {
+      const currentVenues = selectedCity.venues || [];
+      const updatedVenues = currentVenues.filter(v => v.id !== venueId);
+      const updatedCity = {
+        ...selectedCity,
+        venues: updatedVenues,
+        updatedAt: new Date()
+      };
+
+      const response = await fetch('/api/admin/hot-cities', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedCity)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete venue');
+      }
+
+      await loadCities();
+      const refreshedCity = cities.find(c => c.id === selectedCity.id);
+      if (refreshedCity) setSelectedCity(refreshedCity);
+      alert('Venue deleted successfully!');
     } catch (err: any) {
       alert(`Error: ${err.message}`);
     }
@@ -509,6 +612,98 @@ export default function HotCitiesDetailPage() {
                   No websites configured for this city. Click &quot;Add Website&quot; to get started.
                 </p>
               )}
+
+              {/* Venues Section */}
+              {(selectedCity.venues && selectedCity.venues.length > 0) || true ? (
+                <>
+                  <div className="section-header" style={{ marginTop: '40px' }}>
+                    <h3>Venues for {selectedCity.name}</h3>
+                    <button className="btn btn-primary" onClick={handleAddVenue}>
+                      Add Venue
+                    </button>
+                  </div>
+
+                  {selectedCity.venues && selectedCity.venues.length > 0 ? (
+                    selectedCity.venues.map(venue => (
+                      <div key={venue.id} className="website-card">
+                        <div className="website-header">
+                          <div>
+                            <div className="website-name">📍 {venue.name}</div>
+                            {venue.address.full && (
+                              <div style={{ fontSize: '0.9rem', color: '#666', marginTop: '5px' }}>
+                                {venue.address.full}
+                              </div>
+                            )}
+                          </div>
+                          <div className="website-actions">
+                            <button 
+                              className="btn btn-secondary" 
+                              onClick={() => handleEditVenue(venue)}
+                            >
+                              Edit
+                            </button>
+                            <button 
+                              className="btn btn-danger" 
+                              onClick={() => handleDeleteVenue(venue.id, venue.name)}
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+
+                      <div className="website-meta">
+                        <span className="priority-badge">Priority: {venue.priority}</span>
+                        <span className={`status-badge ${venue.isActive ? 'status-active' : 'status-inactive'}`}>
+                          {venue.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                        {venue.isVenuePrioritized && (
+                          <span className="venue-badge">
+                            Prioritized
+                          </span>
+                        )}
+                      </div>
+
+                      {venue.categories.length > 0 && (
+                        <div className="categories-list">
+                          {venue.categories.map(cat => (
+                            <span key={cat} className="category-tag">{cat}</span>
+                          ))}
+                        </div>
+                      )}
+
+                      {(venue.website || venue.eventsUrl) && (
+                        <div style={{ marginBottom: '10px' }}>
+                          {venue.website && (
+                            <div>
+                              <a href={venue.website} target="_blank" rel="noopener noreferrer" className="website-url">
+                                🌐 Website
+                              </a>
+                            </div>
+                          )}
+                          {venue.eventsUrl && (
+                            <div>
+                              <a href={venue.eventsUrl} target="_blank" rel="noopener noreferrer" className="website-url">
+                                📅 Events Page
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {venue.description && (
+                        <p style={{ fontSize: '0.9rem', color: '#666', margin: '10px 0' }}>
+                          {venue.description}
+                        </p>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <p style={{ textAlign: 'center', color: '#666', fontStyle: 'italic' }}>
+                    No venues configured for this city. Click &quot;Add Venue&quot; to get started.
+                  </p>
+                )}
+                </>
+              ) : null}
             </>
           ) : (
             <p style={{ textAlign: 'center', color: '#666', fontStyle: 'italic' }}>
@@ -648,6 +843,223 @@ export default function HotCitiesDetailPage() {
                 disabled={!editingWebsite.name?.trim() || !editingWebsite.url?.trim()}
               >
                 {isCreatingWebsite ? 'Add Website' : 'Save Changes'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingVenue && (
+        <div className="modal-overlay" onClick={() => setEditingVenue(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h2>{isCreatingVenue ? 'Add New Venue' : 'Edit Venue'}</h2>
+            
+            <div className="form-group">
+              <label className="form-label">Venue Name *</label>
+              <input
+                type="text"
+                className="form-input"
+                value={editingVenue.name}
+                onChange={e => setEditingVenue({...editingVenue, name: e.target.value})}
+                placeholder="e.g., Wiener Konzerthaus"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Full Address *</label>
+              <input
+                type="text"
+                className="form-input"
+                value={editingVenue.address.full}
+                onChange={e => setEditingVenue({
+                  ...editingVenue, 
+                  address: {...editingVenue.address, full: e.target.value}
+                })}
+                placeholder="e.g., Lothringerstraße 20, 1030 Wien, Österreich"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Street</label>
+              <input
+                type="text"
+                className="form-input"
+                value={editingVenue.address.street}
+                onChange={e => setEditingVenue({
+                  ...editingVenue, 
+                  address: {...editingVenue.address, street: e.target.value}
+                })}
+                placeholder="e.g., Lothringerstraße"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">House Number</label>
+              <input
+                type="text"
+                className="form-input"
+                value={editingVenue.address.houseNumber}
+                onChange={e => setEditingVenue({
+                  ...editingVenue, 
+                  address: {...editingVenue.address, houseNumber: e.target.value}
+                })}
+                placeholder="e.g., 20"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Postal Code</label>
+              <input
+                type="text"
+                className="form-input"
+                value={editingVenue.address.postalCode}
+                onChange={e => setEditingVenue({
+                  ...editingVenue, 
+                  address: {...editingVenue.address, postalCode: e.target.value}
+                })}
+                placeholder="e.g., 1030"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">City</label>
+              <input
+                type="text"
+                className="form-input"
+                value={editingVenue.address.city}
+                onChange={e => setEditingVenue({
+                  ...editingVenue, 
+                  address: {...editingVenue.address, city: e.target.value}
+                })}
+                placeholder="e.g., Wien"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Country</label>
+              <input
+                type="text"
+                className="form-input"
+                value={editingVenue.address.country}
+                onChange={e => setEditingVenue({
+                  ...editingVenue, 
+                  address: {...editingVenue.address, country: e.target.value}
+                })}
+                placeholder="e.g., Österreich"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Website</label>
+              <input
+                type="url"
+                className="form-input"
+                value={editingVenue.website || ''}
+                onChange={e => setEditingVenue({...editingVenue, website: e.target.value})}
+                placeholder="https://example.com"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Events URL</label>
+              <input
+                type="url"
+                className="form-input"
+                value={editingVenue.eventsUrl || ''}
+                onChange={e => setEditingVenue({...editingVenue, eventsUrl: e.target.value})}
+                placeholder="https://example.com/events"
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Description</label>
+              <textarea
+                className="form-textarea"
+                value={editingVenue.description || ''}
+                onChange={e => setEditingVenue({...editingVenue, description: e.target.value})}
+                placeholder="Brief description of this venue..."
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Priority (1-10)</label>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                className="form-input"
+                value={editingVenue.priority}
+                onChange={e => setEditingVenue({...editingVenue, priority: parseInt(e.target.value) || 5})}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">AI Query Template</label>
+              <input
+                type="text"
+                className="form-input"
+                value={editingVenue.aiQueryTemplate || ''}
+                onChange={e => setEditingVenue({...editingVenue, aiQueryTemplate: e.target.value})}
+                placeholder="Custom AI query template for this venue..."
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Categories</label>
+              <div className="categories-checkboxes">
+                {availableCategories.map(category => (
+                  <label key={category} className="category-checkbox">
+                    <input
+                      type="checkbox"
+                      className="form-checkbox"
+                      checked={editingVenue.categories.includes(category)}
+                      onChange={e => {
+                        const categories = e.target.checked
+                          ? [...editingVenue.categories, category]
+                          : editingVenue.categories.filter(c => c !== category);
+                        setEditingVenue({...editingVenue, categories});
+                      }}
+                    />
+                    {category}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">
+                <input
+                  type="checkbox"
+                  className="form-checkbox"
+                  checked={editingVenue.isActive}
+                  onChange={e => setEditingVenue({...editingVenue, isActive: e.target.checked})}
+                />
+                Active
+              </label>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">
+                <input
+                  type="checkbox"
+                  className="form-checkbox"
+                  checked={editingVenue.isVenuePrioritized || false}
+                  onChange={e => setEditingVenue({...editingVenue, isVenuePrioritized: e.target.checked})}
+                />
+                Prioritize Venue (Show with special highlighting when events found)
+              </label>
+            </div>
+
+            <div className="form-actions">
+              <button className="btn btn-secondary" onClick={() => setEditingVenue(null)}>
+                Cancel
+              </button>
+              <button 
+                className="btn btn-primary" 
+                onClick={() => handleSaveVenue(editingVenue)}
+                disabled={!editingVenue.name?.trim() || !editingVenue.address.full?.trim()}
+              >
+                {isCreatingVenue ? 'Add Venue' : 'Save Changes'}
               </button>
             </div>
           </div>
