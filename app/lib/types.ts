@@ -24,6 +24,9 @@ export interface EventData {
 
   // Herkunftsmarker für Badges
   source?: 'cache' | 'ai' | 'rss' | 'ra' | string;
+  
+  // Optional image URL for event cards (e.g., from Wien.info)
+  imageUrl?: string;
 }
 
 // Antwort eines Perplexity-Requests, wie vom Aggregator erwartet

@@ -807,7 +807,7 @@ body > div:first-child {
   padding: var(--space-32);
   margin: calc(var(--space-32) * -1.25) auto var(--space-32);
   max-width: 800px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: var(--shadow-md);
   border: 1px solid var(--color-card-border);
 }
 
@@ -833,17 +833,17 @@ body > div:first-child {
   display: block;
   margin-bottom: var(--space-8);
   font-weight: var(--font-weight-semibold);
-  color: var(--color-text-secondary);
+  color: var(--color-text);
   font-size: var(--font-size-sm);
 }
 
 .form-input {
   width: 100%;
   padding: var(--space-12) var(--space-16);
-  border: 2px solid var(--color-border);
+  border: 1.5px solid var(--color-border);
   border-radius: var(--radius-base);
   font-size: var(--font-size-base);
-  background: var(--color-background);
+  background: var(--color-surface);
   color: var(--color-text);
   transition: all var(--duration-normal) var(--ease-standard);
   font-family: var(--font-family-base);
@@ -929,6 +929,17 @@ body > div:first-child {
 .category-checkbox input[type="checkbox"]:checked + .category-name {
   font-weight: var(--font-weight-semibold);
   color: var(--color-primary);
+}
+
+/* === RESULTS PAGE TITLE === */
+.results-page-title {
+  font-size: var(--font-size-4xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  margin-top: var(--space-32);
+  margin-bottom: var(--space-24);
+  letter-spacing: var(--letter-spacing-tight);
+  line-height: var(--line-height-tight);
 }
 
 /* === EVENTS GRID === */
@@ -1276,5 +1287,95 @@ body > div:first-child {
     margin: var(--space-24) var(--space-8);
     padding: var(--space-24) var(--space-16);
   }
+}
+
+/* === VENUE FILTER SIDEBAR === */
+.venue-filter-sidebar {
+  min-width: 280px;
+  max-width: 320px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-24);
+  box-shadow: var(--shadow-md);
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+
+.venue-filter-sidebar h3 {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  margin-bottom: var(--space-16);
+  color: var(--color-text);
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+.venue-filter-item {
+  margin-bottom: var(--space-8);
+}
+
+.venue-filter-item label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  color: var(--color-text);
+  transition: color var(--duration-fast) var(--ease-standard);
+  padding: var(--space-4) 0;
+}
+
+.venue-filter-item label:hover {
+  color: var(--color-primary);
+}
+
+.venue-filter-item input[type="checkbox"] {
+  accent-color: var(--color-primary);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .venue-filter-sidebar {
+    display: none;
+  }
+}
+
+/* === EVENT CARD BACKGROUND IMAGE SUPPORT === */
+.event-card-bg-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-size: cover;
+  background-position: center;
+  opacity: 0.2;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.event-card-bg-image::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.4) 100%);
+  pointer-events: none;
+}
+
+.event-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.event-content {
+  position: relative;
+  z-index: 1;
 }
 ```

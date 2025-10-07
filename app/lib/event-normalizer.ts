@@ -18,7 +18,8 @@ export function normalizeEvents(events: any[]): EventData[] {
       description: e.description,
       bookingLink: e.bookingLink,
       ageRestrictions: e.ageRestrictions,
-      source: e.source as 'cache' | 'rss' | 'ai' | undefined
+      source: e.source as 'cache' | 'rss' | 'ai' | undefined,
+      imageUrl: e.imageUrl
     };
   });
 }
