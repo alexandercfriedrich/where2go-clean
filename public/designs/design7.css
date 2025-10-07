@@ -984,6 +984,18 @@ input:focus-visible + .toggle-slider {
   box-shadow: var(--focus-ring);
 }
 
+/* === RESULTS PAGE TITLE === */
+.results-page-title {
+  font-size: 48px;
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  margin-top: var(--space-24);
+  margin-bottom: var(--space-24);
+  letter-spacing: var(--letter-spacing-tight);
+  line-height: var(--line-height-tight);
+  text-align: left;
+}
+
 /* === MINIMAL EVENTS GRID === */
 .events-grid {
   display: grid;

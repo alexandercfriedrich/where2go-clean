@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
 
     let runningEvents = eventAggregator.deduplicateEvents([...(job.events || [])]);
 
-    const concurrency = Math.max(1, options?.categoryConcurrency ?? 3);
+    const concurrency = Math.max(1, options?.categoryConcurrency ?? 10);
     for (let i = 0; i < effective.length; i += concurrency) {
       const batch = effective.slice(i, i + concurrency);
 

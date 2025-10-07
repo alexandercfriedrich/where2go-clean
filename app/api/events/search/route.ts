@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
       ...(options || {}),
       debug: (options?.debug === true) || qDebug,
       debugVerbose: (options?.debugVerbose === true) || qVerbose,
-      categoryConcurrency: options?.categoryConcurrency ?? 3
+      categoryConcurrency: options?.categoryConcurrency ?? 10
     };
 
     const results = await service.executeMultiQuery(city, date, missingCategories, mergedOptions);
