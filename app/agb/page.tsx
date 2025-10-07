@@ -29,7 +29,7 @@ export default function AGB() {
             <div style={{ marginBottom: '2rem' }}>
               <h3 style={{ marginBottom: '1rem', color: '#404040' }}>§ 1 Geltungsbereich</h3>
               <p style={{ marginBottom: '1rem', lineHeight: '1.6' }}>
-                Diese Allgemeinen Geschäftsbedingungen (nachfolgend &quot;AGB&quot;) gelten für alle Verträge zwischen Where2Go und den Nutzern der Website where2go.example.com.
+                Diese Allgemeinen Geschäftsbedingungen (nachfolgend &quot;AGB&quot;) gelten für alle Verträge zwischen Where2Go und den Nutzern der Website www.where2go.at.
               </p>
             </div>
 
@@ -41,7 +41,7 @@ export default function AGB() {
               <p style={{ marginBottom: '0.5rem' }}><strong>Where2Go</strong></p>
               <p style={{ marginBottom: '0.5rem' }}>Musterstraße 1</p>
               <p style={{ marginBottom: '0.5rem' }}>12345 Musterstadt</p>
-              <p style={{ marginBottom: '1rem' }}>E-Mail: kontakt@where2go.example.com</p>
+              <p style={{ marginBottom: '1rem' }}>E-Mail: kontakt@where2go.at</p>
             </div>
 
             <div style={{ marginBottom: '2rem' }}>
