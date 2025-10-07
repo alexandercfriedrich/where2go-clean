@@ -30,10 +30,7 @@ function pickReadableFile(): string {
 
 function loadStaticPages(): StaticPage[] {
   const filePath = pickReadableFile();
-  if (!fileExists(filePath)) {
-    return [];
-  }
-
+  if (!fileExists(filePath)) return [];
   try {
     const data = fs.readFileSync(filePath, 'utf8');
     if (!data?.trim()) return [];
@@ -53,18 +50,12 @@ export async function GET(
     const page = pages.find(p => p.id === params.id);
 
     if (!page) {
-      return NextResponse.json(
-        { error: 'Page not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Page not found' }, { status: 404 });
     }
 
     return NextResponse.json({ page });
   } catch (error) {
     console.error('Error in GET /api/static-pages/[id]:', error);
-    return NextResponse.json(
-      { error: 'Failed to load static page' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to load static page' }, { status: 500 });
   }
 }
