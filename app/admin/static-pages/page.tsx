@@ -18,6 +18,7 @@ export default function StaticPagesAdmin() {
   const [saving, setSaving] = useState(false);
 
   const staticPages = [
+    { id: 'seo-footer', title: 'SEO Footer (Homepage)', path: '/' },
     { id: 'datenschutz', title: 'Datenschutzerklärung', path: '/datenschutz' },
     { id: 'agb', title: 'Allgemeine Geschäftsbedingungen', path: '/agb' },
     { id: 'impressum', title: 'Impressum', path: '/impressum' },

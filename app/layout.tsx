@@ -6,6 +6,7 @@ import Script from 'next/script';
 import '../public/designs/design1.css';
 import DesignCssLoader from './components/DesignCssLoader';
 import SchemaOrg from './components/SchemaOrg';
+import MainFooter from './components/MainFooter';
 import { generateWebSiteSchema } from './lib/schemaOrg';
 
 export const metadata: Metadata = {
@@ -56,6 +57,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Lädt das gewünschte Design basierend auf ?design=… */}
         <DesignCssLoader />
         {children}
+        <MainFooter />
       </body>
     </html>
   );

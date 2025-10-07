@@ -4,6 +4,7 @@ import { EVENT_CATEGORY_SUBCATEGORIES } from './lib/eventCategories';
 import { useTranslation } from './lib/useTranslation';
 import { startJobPolling, deduplicateEvents as dedupFront } from './lib/polling';
 import SchemaOrg from './components/SchemaOrg';
+import SEOFooter from './components/SEOFooter';
 import { generateEventListSchema, generateEventMicrodata, generateCanonicalUrl } from './lib/schemaOrg';
 
 interface EventData {
@@ -1343,11 +1344,8 @@ export default function Home() {
         </div>
       )}
 
-      <footer className="footer">
-        <div className="container">
-          <p>© 2025 Where2Go - Entdecke deine Stadt neu</p>
-        </div>
-      </footer>
+      {/* SEO Footer - only on homepage */}
+      <SEOFooter />
 
       {/* Global overrides incl. calendar fix */}
       <style jsx global>{`
