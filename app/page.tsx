@@ -958,7 +958,7 @@ export default function Home() {
                         }}
                       />
                     )}
-                    <div style={{ position: 'relative', zIndex: 1 }}>
+                    <div className="event-content">
                     <h3 className="event-title">
                       {ev.title}
                       {renderSourceBadge(ev.source)}
