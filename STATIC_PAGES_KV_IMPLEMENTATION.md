@@ -37,7 +37,7 @@ The storage layer provides a unified interface with two implementations:
 // GET request
 GET {KV_REST_API_URL}/get/where2go:static-pages:v1
 Headers: { Authorization: Bearer {KV_REST_API_TOKEN} }
-Response: { result: "[{...}]" }
+Response: { value: "[{...}]" }  // Note: Upstash returns 'value' not 'result'
 
 // SET request
 POST {KV_REST_API_URL}/set/where2go:static-pages:v1

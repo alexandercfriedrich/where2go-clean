@@ -271,4 +271,35 @@ describe('Static Pages Store', () => {
       expect(pages).toBeDefined();
     });
   });
+
+  describe('KV Response Format Handling', () => {
+    it('should handle Upstash KV response with value field', () => {
+      // Simulating the actual Upstash KV REST API response format
+      const kvResponse = {
+        value: '[{"id":"datenschutz","title":"Datenschutzerklärung","content":"test content","path":"/datenschutz","updatedAt":"2025-10-07T22:54:52.947Z"}]'
+      };
+      
+      // Simulate parsing logic
+      const result = kvResponse.value !== undefined ? kvResponse.value : kvResponse;
+      const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+      
+      expect(Array.isArray(parsed)).toBe(true);
+      expect(parsed).toHaveLength(1);
+      expect(parsed[0].id).toBe('datenschutz');
+      expect(parsed[0].content).toBe('test content');
+    });
+
+    it('should handle legacy result field for backward compatibility', () => {
+      // Test backward compatibility with 'result' field
+      const legacyResponse = {
+        result: '[{"id":"test","title":"Test","content":"content","path":"/test","updatedAt":"2025-01-01T00:00:00.000Z"}]'
+      };
+      
+      const result = legacyResponse.value !== undefined ? legacyResponse.value : (legacyResponse.result !== undefined ? legacyResponse.result : legacyResponse);
+      const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+      
+      expect(Array.isArray(parsed)).toBe(true);
+      expect(parsed).toHaveLength(1);
+    });
+  });
 });
