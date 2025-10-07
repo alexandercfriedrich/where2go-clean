@@ -742,6 +742,8 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Kategorien-Dropdown ersetzt die immer sichtbare Kategorien-Sektion */}
+
             {showCategoryDropdown && (
               <div className="category-dropdown-panel" role="dialog" aria-label="Kategorien wählen">
                 <div className="categories-grid">
@@ -763,8 +765,6 @@ export default function Home() {
                 {categoryLimitError && <div className="cat-error">{categoryLimitError}</div>}
               </div>
             )}
-
-            {/* Kategorien-Dropdown ersetzt die immer sichtbare Kategorien-Sektion */}
 
             <button type="submit" className="btn-search">Events suchen</button>
           </form>
@@ -1448,18 +1448,21 @@ export default function Home() {
 
         /* Kategorien-Dropdown Panel */
         .category-dropdown-panel {
-          position: absolute;
-          z-index: 1000;
-          margin-top: 8px;
+          margin-top: 20px;
+          margin-bottom: 20px;
           background: #fff;
           border: 1px solid #e5e7eb;
           border-radius: 12px;
           box-shadow: 0 12px 28px rgba(0,0,0,0.12);
           padding: 16px;
-          width: min(920px, 100%);
+          width: 100%;
+          max-width: 920px;
         }
         @media (max-width: 640px) {
-          .category-dropdown-panel { position: fixed; left: 12px; right: 12px; top: 20%; }
+          .category-dropdown-panel { 
+            margin-top: 16px;
+            margin-bottom: 16px;
+          }
         }
 
         .calendar { width: 100%; }
