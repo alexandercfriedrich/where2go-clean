@@ -20,7 +20,7 @@ body, .container {
   gap: 32px;
 }
 
-.auto-today-title, .events-title {
+.auto-today-title, .events-title, .results-page-title {
   font-size: 2.2rem;
   font-weight: bold;
   text-align: left;

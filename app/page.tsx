@@ -784,7 +784,7 @@ export default function Home() {
         )}
 
         {searchSubmitted && displayedEvents.length > 0 && (
-          <h2 className="results-page-title" style={{ fontSize: '32px', fontWeight: 700, marginBottom: '24px', marginTop: '24px', letterSpacing: '-0.02em' }}>
+          <h2 className="results-page-title">
             {t('filter.todaysEventsIn')} {city}
           </h2>
         )}

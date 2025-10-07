@@ -189,13 +189,14 @@ html, body {
 }
 
 .results-page-title {
-  font-size: 32px;
+  font-size: 48px;
   font-weight: 700;
   color: var(--color-text);
   margin-top: 24px;
   margin-bottom: 24px;
   letter-spacing: -0.02em;
   line-height: 1.2;
+  text-align: left;
 }
 
 .events-grid {
