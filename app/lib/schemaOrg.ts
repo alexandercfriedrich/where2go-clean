@@ -164,8 +164,8 @@ export function generateJsonLdScript(schema: object): string {
  */
 export function generateEventMicrodata(event: EventData): Record<string, string> {
   const microdata: Record<string, string> = {
-    itemscope: '',
-    itemtype: 'https://schema.org/Event'
+    itemScope: '',
+    itemType: 'https://schema.org/Event'
   };
 
   return microdata;
