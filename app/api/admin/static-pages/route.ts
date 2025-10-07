@@ -22,19 +22,16 @@ function fileExists(p: string) {
     return false;
   }
 }
-
 function ensureDir(dir: string) {
   if (!fileExists(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
 }
-
 function pickReadableFile(): string {
   if (fileExists(DEFAULT_FILE)) return DEFAULT_FILE;
   if (fileExists(TMP_FILE)) return TMP_FILE;
   return DEFAULT_FILE;
 }
-
 function loadStaticPages(): StaticPage[] {
   const filePath = pickReadableFile();
   if (!fileExists(filePath)) return [];
@@ -47,7 +44,6 @@ function loadStaticPages(): StaticPage[] {
     return [];
   }
 }
-
 function tryWrite(filePath: string, content: string) {
   try {
     const dir = path.dirname(filePath);
@@ -69,13 +65,12 @@ function tryWrite(filePath: string, content: string) {
     throw error;
   }
 }
-
 function saveStaticPages(pages: StaticPage[]) {
   const json = JSON.stringify(pages, null, 2);
   tryWrite(DEFAULT_FILE, json);
 }
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   try {
     const pages = loadStaticPages();
     return NextResponse.json({ pages });
@@ -115,7 +110,6 @@ export async function POST(request: NextRequest) {
     else pages.push(normalized);
 
     saveStaticPages(pages);
-
     return NextResponse.json({ success: true, page: normalized });
   } catch (error: any) {
     console.error('Error in POST /api/admin/static-pages:', error);
@@ -140,7 +134,6 @@ export async function DELETE(request: NextRequest) {
     }
 
     saveStaticPages(filtered);
-
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error in DELETE /api/admin/static-pages:', error);
