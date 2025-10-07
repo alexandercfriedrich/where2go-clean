@@ -96,7 +96,7 @@ export default function Premium() {
                 Für Veranstalter, Venues und Event-Unternehmen bieten wir maßgeschneiderte Premium-Lösungen mit erweiterten Marketing-Tools und Analytics.
               </p>
               <p style={{ fontSize: '0.9rem', color: '#737373' }}>
-                Kontaktieren Sie uns für ein individuelles Angebot: <strong>business@where2go.example.com</strong>
+                Kontaktieren Sie uns für ein individuelles Angebot: <strong>business@www.where2go.at</strong>
               </p>
             </div>
 

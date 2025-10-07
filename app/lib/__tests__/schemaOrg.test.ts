@@ -35,7 +35,7 @@ describe('Schema.org Utilities', () => {
     it('should use default URL if not provided', () => {
       const schema = generateWebSiteSchema();
       
-      expect(schema.url).toBe('https://where2go.example.com');
+      expect(schema.url).toBe('https://www.where2go.at');
     });
   });
 
@@ -340,8 +340,8 @@ describe('Schema.org Utilities', () => {
 
       const microdata = generateEventMicrodata(event);
       
-      expect(microdata.itemscope).toBeDefined();
-      expect(microdata.itemtype).toBe('https://schema.org/Event');
+      expect(microdata.itemScope).toBeDefined();
+      expect(microdata.itemType).toBe('https://schema.org/Event');
     });
   });
 
@@ -412,7 +412,7 @@ describe('Schema.org Utilities', () => {
 
       const url = generateCanonicalUrl(event);
       
-      expect(url).toContain('where2go.example.com');
+      expect(url).toContain('www.where2go.at');
     });
   });
 

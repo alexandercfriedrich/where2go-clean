@@ -37,7 +37,7 @@ export default function Impressum() {
             <div style={{ marginBottom: '2rem' }}>
               <h3 style={{ marginBottom: '1rem', color: '#404040' }}>Kontakt</h3>
               <p style={{ marginBottom: '0.5rem' }}>Telefon: +49 (0) 123 456789</p>
-              <p style={{ marginBottom: '0.5rem' }}>E-Mail: kontakt@where2go.example.com</p>
+              <p style={{ marginBottom: '0.5rem' }}>E-Mail: kontakt@www.where2go.at</p>
             </div>
 
             <div style={{ marginBottom: '2rem' }}>
