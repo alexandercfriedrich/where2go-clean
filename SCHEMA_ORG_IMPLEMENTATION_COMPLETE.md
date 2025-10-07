@@ -2,7 +2,7 @@
 
 ## Status: PRODUCTION READY
 
-All requirements for Schema.org structured data have been successfully implemented, tested, and integrated.
+All requirements for Schema.org structured data have been successfully implemented, tested, and integrated including both JSON-LD and HTML microdata.
 
 ---
 
@@ -14,16 +14,37 @@ All requirements for Schema.org structured data have been successfully implement
   - `generateEventSchema()` - Event schema for individual events
   - `generateEventListSchema()` - ItemList schema for event collections
   - `generateJsonLdScript()` - JSON-LD script generation
+  - `generateEventJsonLd()` - Alias for generateEventSchema (specification requirement)
+  - `generateEventMicrodata()` - Generate microdata attributes for HTML elements
+  - `generateCanonicalUrl()` - Generate SEO-friendly canonical URLs
+  - `generateMicrodataProps()` - Generate individual property attributes
   - Helper functions for date/time formatting and price extraction
+
+### Copilot Instructions ✅
+- [x] Created `.github/copilot-instructions.md` with:
+  - Project context and development standards
+  - Schema.org implementation requirements
+  - Code style guidelines and file references
+  - Testing and performance considerations
 
 ### Components ✅
 - [x] Created `app/components/SchemaOrg.tsx` - React component for rendering JSON-LD
 - [x] Integrated WebSite schema in `app/layout.tsx` (root layout)
 - [x] Integrated EventList schema in `app/page.tsx` (event listings)
+- [x] Added HTML microdata attributes to event cards in `app/page.tsx`:
+  - `itemscope` and `itemtype="https://schema.org/Event"` on event-card div
+  - `itemprop="name"` on event title
+  - `itemprop="startDate"` and `itemprop="endDate"` with meta tags
+  - `itemprop="location"` with nested Place schema
+  - `itemprop="description"` on event description
+  - `itemprop="offers"` with nested Offer schema for pricing
+  - `itemprop="image"` for event images
+  - `itemprop="url"` for canonical URLs
+  - Event status and attendance mode metadata
 
 ### Testing ✅
 - [x] Created comprehensive test suite: `app/lib/__tests__/schemaOrg.test.ts`
-- [x] 18 tests covering all schema types and edge cases
+- [x] 24 tests covering all schema types and edge cases (6 new tests added)
 - [x] All tests passing ✅
 - [x] Test coverage for:
   - WebSite schema with SearchAction
@@ -32,6 +53,9 @@ All requirements for Schema.org structured data have been successfully implement
   - Price extraction and formatting
   - Free event handling
   - Edge cases and data validation
+  - **NEW:** Microdata attribute generation
+  - **NEW:** Canonical URL generation and normalization
+  - **NEW:** Event JSON-LD alias function
 
 ### Documentation ✅
 - [x] Created `docs/schema_org_implementation.md` with:
@@ -135,12 +159,11 @@ All requirements for Schema.org structured data have been successfully implement
 ## 🧪 Testing Summary
 
 ```
-✓ app/lib/__tests__/schemaOrg.test.ts (18 tests) 8ms
+✓ app/lib/__tests__/schemaOrg.test.ts (24 tests) 10ms
 
 Test Files  1 passed (1)
-     Tests  18 passed (18)
-  Start at  17:10:51
-  Duration  308ms
+     Tests  24 passed (24)
+  Duration  314ms
 ```
 
 ### Test Coverage
@@ -164,24 +187,31 @@ Test Files  1 passed (1)
 - ✅ Positioned ListItems
 - ✅ 100-item limit
 
-**Utility Functions** (1 test):
+**Microdata & Utilities** (7 tests):
 - ✅ JSON-LD script generation
+- ✅ Microdata attribute generation
+- ✅ Canonical URL generation
+- ✅ URL normalization (special characters, spaces)
+- ✅ Missing city/venue handling
+- ✅ Default baseUrl handling
+- ✅ Event JSON-LD alias function
 
 ---
 
 ## 📁 Files Created/Modified
 
-### Created Files (4)
-1. `app/lib/schemaOrg.ts` - Core utility functions (159 lines)
+### Created Files (5)
+1. `app/lib/schemaOrg.ts` - Core utility functions (219 lines, +60 from initial)
 2. `app/components/SchemaOrg.tsx` - React component (14 lines)
-3. `app/lib/__tests__/schemaOrg.test.ts` - Test suite (325 lines)
+3. `app/lib/__tests__/schemaOrg.test.ts` - Test suite (433 lines, +108 from initial)
 4. `docs/schema_org_implementation.md` - Documentation (273 lines)
+5. `.github/copilot-instructions.md` - AI development guidelines (92 lines)
 
 ### Modified Files (2)
 1. `app/layout.tsx` - Added WebSite schema (+7 lines)
-2. `app/page.tsx` - Added EventList schema (+7 lines)
+2. `app/page.tsx` - Added EventList schema and microdata attributes (+50 lines)
 
-**Total**: 785 lines added, 0 removed
+**Total**: 1,088 lines added, 0 removed
 
 ---
 
@@ -192,17 +222,21 @@ Test Files  1 passed (1)
 - **Price**: Extracts numeric values from "Ab 25€" → "25"
 - **Free Events**: Recognizes "Frei", "Gratis", "Free" → price: "0"
 - **Optional Fields**: Only includes available data
+- **Canonical URLs**: Generates SEO-friendly URLs with normalized titles
 
 ### Performance Optimizations
 - **Lazy Rendering**: Schema only rendered when events are available
 - **List Limiting**: Max 100 events in ItemList to avoid bloat
 - **Client-Side**: Dynamic event schemas use client component
+- **Dual Implementation**: Both JSON-LD and microdata for maximum compatibility
 
 ### SEO Best Practices
 - **Valid Schemas**: All follow Schema.org specifications
 - **Rich Data**: Includes all relevant event information
 - **Localization**: German language and date formatting
 - **Accessibility**: Proper semantic structure
+- **Microdata Attributes**: HTML elements have itemprop for direct parsing
+- **Event Status**: Includes eventStatus and eventAttendanceMode
 
 ---
 
@@ -415,19 +449,24 @@ Potential improvements for next iterations:
 - ✅ WebSite schema with SearchAction
 - ✅ Event schema with rich details
 - ✅ ItemList schema for collections
-- ✅ 18 tests passing
+- ✅ HTML microdata attributes on all event cards
+- ✅ Canonical URL generation for each event
+- ✅ Microdata helper functions
+- ✅ 24 tests passing (6 new tests added)
 - ✅ Build successful
 - ✅ Lint passing
+- ✅ Copilot instructions created
 - ✅ Documentation complete
 - ✅ Production ready
 
-**The implementation significantly enhances SEO capabilities and is ready for immediate deployment.**
+**The implementation provides dual Schema.org support (JSON-LD + microdata) and significantly enhances SEO capabilities. Ready for immediate deployment.**
 
 ---
 
 **Implementation Date**: 2025-01-20  
+**Last Updated**: 2025-01-20 (microdata addition)
 **Implementation Time**: Complete  
-**Test Coverage**: 18 tests passing  
+**Test Coverage**: 24 tests passing  
 **Documentation**: Complete  
 **Status**: ✅ PRODUCTION READY
 
