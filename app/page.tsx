@@ -37,6 +37,7 @@ export default function Home() {
   const [timePeriod, setTimePeriod] = useState('heute');
   const [customDate, setCustomDate] = useState('');
   const [showDateDropdown, setShowDateDropdown] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
 
   const [selectedSuperCategories, setSelectedSuperCategories] = useState<string[]>([]);
   const [categoryLimitError, setCategoryLimitError] = useState<string | null>(null);
@@ -321,7 +322,8 @@ export default function Home() {
           temperature: 0.2,
           max_tokens: 12000,
           expandedSubcategories: true,
-          debug: true
+          debug: true,
+          categoryConcurrency: 10
         }
       };
 
@@ -397,7 +399,8 @@ export default function Home() {
           timePeriod: timePeriod,
           customDate: customDate,
           debug: true,
-          fetchWienInfo: true
+          fetchWienInfo: true,
+          categoryConcurrency: 10
         }
       };
 
@@ -677,11 +680,19 @@ export default function Home() {
         </div>
       </header>
 
+      {loading && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ transform: 'scale(1.1)' }}>
+            <W2GLoader5 />
+          </div>
+        </div>
+      )}
+
       <section className="search-section">
         <div className="container">
           <form
             className="search-form"
-            onSubmit={e => { e.preventDefault(); progressiveSearchEvents(); }}
+            onSubmit={e => { e.preventDefault(); setShowCategoryDropdown(false); progressiveSearchEvents(); }}
           >
             <div className="form-row">
               <div className="form-group">
@@ -690,8 +701,9 @@ export default function Home() {
                   id="city"
                   className="form-input"
                   value={city}
-                  onChange={e=>setCity(e.target.value)}
-                  placeholder="z.B. Berlin, Hamburg ..."
+                  onFocus={() => setShowCategoryDropdown(true)}
+                  onChange={e => { setCity(e.target.value); if (e.target.value.trim().length > 0) setShowCategoryDropdown(true); }}
+                  placeholder="Wien, 1060 Wien, Mariahilf..."
                 />
               </div>
 
@@ -730,48 +742,29 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="categories-section">
-              <label className="categories-label">Kategorien</label>
-              <div className="categories-grid">
-                {ALL_SUPER_CATEGORIES.map(c => (
-                  <label key={c} className="category-checkbox">
-                    <input
-                      type="checkbox"
-                      checked={selectedSuperCategories.includes(c)}
-                      onChange={()=>toggleSuperCategory(c)}
-                      disabled={
-                        !selectedSuperCategories.includes(c) &&
-                        selectedSuperCategories.length >= MAX_CATEGORY_SELECTION
-                      }
-                    />
-                    <span className="category-name">{c}</span>
-                  </label>
-                ))}
+            {showCategoryDropdown && (
+              <div className="category-dropdown-panel" role="dialog" aria-label="Kategorien wählen">
+                <div className="categories-grid">
+                  {ALL_SUPER_CATEGORIES.map(c => {
+                    const active = selectedSuperCategories.includes(c);
+                    return (
+                      <label key={c} className="category-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={active}
+                          onChange={() => toggleSuperCategory(c)}
+                          disabled={!active && selectedSuperCategories.length >= MAX_CATEGORY_SELECTION}
+                        />
+                        <span className="category-name">{c}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {categoryLimitError && <div className="cat-error">{categoryLimitError}</div>}
               </div>
-              <div className="categories-actions">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => {
-                    setSelectedSuperCategories(ALL_SUPER_CATEGORIES.slice(0, MAX_CATEGORY_SELECTION));
-                    setCategoryLimitError(null);
-                  }}
-                >
-                  {`Max. ${MAX_CATEGORY_SELECTION} auswählen`}
-                </button>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => {
-                    setSelectedSuperCategories([]);
-                    setCategoryLimitError(null);
-                  }}
-                >
-                  Alle abwählen
-                </button>
-              </div>
-              {categoryLimitError && <div className="cat-error">{categoryLimitError}</div>}
-            </div>
+            )}
+
+            {/* Kategorien-Dropdown ersetzt die immer sichtbare Kategorien-Sektion */}
 
             <button type="submit" className="btn-search">Events suchen</button>
           </form>
@@ -783,10 +776,10 @@ export default function Home() {
           <div className="progress-note" style={{ marginBottom: '16px' }}>Lädt Kategorie: {stepLoading} ...</div>
         )}
 
-        {searchSubmitted && displayedEvents.length > 0 && (
-          <h2 className="results-page-title">
-            {t('filter.todaysEventsIn')} {city}
-          </h2>
+        {searchSubmitted && (
+          <h1 style={{ fontSize: '48px', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1, margin: '32px 0 8px' }}>
+            {`Today's Events in ${city}`}
+          </h1>
         )}
 
         <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
@@ -1451,6 +1444,22 @@ export default function Home() {
         }
         @media (max-width: 640px) {
           .date-dropdown { position: fixed; left: 12px; right: 12px; top: 20%; min-width: unset; }
+        }
+
+        /* Kategorien-Dropdown Panel */
+        .category-dropdown-panel {
+          position: absolute;
+          z-index: 1000;
+          margin-top: 8px;
+          background: #fff;
+          border: 1px solid #e5e7eb;
+          border-radius: 12px;
+          box-shadow: 0 12px 28px rgba(0,0,0,0.12);
+          padding: 16px;
+          width: min(920px, 100%);
+        }
+        @media (max-width: 640px) {
+          .category-dropdown-panel { position: fixed; left: 12px; right: 12px; top: 20%; }
         }
 
         .calendar { width: 100%; }

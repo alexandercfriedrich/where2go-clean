@@ -207,7 +207,7 @@ export async function POST(request: NextRequest) {
       additionalSources,
       debug: (options as any)?.debug === true || qDebug,
       debugVerbose: (options as any)?.debugVerbose === true || qVerbose,
-      categoryConcurrency: (options as any)?.categoryConcurrency ?? 3
+      categoryConcurrency: (options as any)?.categoryConcurrency ?? 10
     };
 
     // Important: debug must NOT disable cache
