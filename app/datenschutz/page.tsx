@@ -48,7 +48,7 @@ export default function Datenschutz() {
               <p style={{ marginBottom: '0.5rem' }}><strong>Where2Go</strong></p>
               <p style={{ marginBottom: '0.5rem' }}>Musterstraße 1</p>
               <p style={{ marginBottom: '0.5rem' }}>12345 Musterstadt</p>
-              <p style={{ marginBottom: '1rem' }}>E-Mail: datenschutz@www.where2go.at</p>
+              <p style={{ marginBottom: '1rem' }}>E-Mail: datenschutz@where2go.at</p>
             </div>
 
             <div style={{ marginBottom: '2rem' }}>
