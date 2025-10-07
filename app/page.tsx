@@ -659,7 +659,7 @@ export default function Home() {
       const isFree = p.toLowerCase().includes('frei') || p.toLowerCase().includes('gratis') || p.toLowerCase() === 'free';
       
       return (
-        <span className="price-chip" itemProp="offers" itemScope itemType="https://schema.org/Offer">
+        <span className="price-chip" itemProp="offers" itemScope={true} itemType="https://schema.org/Offer">
           <meta itemProp="price" content={isFree ? '0' : numericPrice} />
           <meta itemProp="priceCurrency" content="EUR" />
           <meta itemProp="availability" content="https://schema.org/InStock" />
