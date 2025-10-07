@@ -3,6 +3,8 @@ import { useEffect, useRef, useState, CSSProperties } from 'react';
 import { EVENT_CATEGORY_SUBCATEGORIES } from './lib/eventCategories';
 import { useTranslation } from './lib/useTranslation';
 import { startJobPolling, deduplicateEvents as dedupFront } from './lib/polling';
+import SchemaOrg from './components/SchemaOrg';
+import { generateEventListSchema, generateEventMicrodata, generateCanonicalUrl } from './lib/schemaOrg';
 
 interface EventData {
   title: string;
@@ -663,6 +665,24 @@ export default function Home() {
   const renderPrice = (ev: EventData) => {
     const p = ev.ticketPrice || ev.price;
     const text = p ? formatPriceDisplay(p) : 'Keine Preisinfos';
+    
+    // Add microdata for offers if price is available
+    if (p) {
+      // Extract numeric price for schema.org
+      const numericPrice = p.match(/(\d+(?:[.,]\d+)?)/)?.[1]?.replace(',', '.') || '0';
+      const isFree = p.toLowerCase().includes('frei') || p.toLowerCase().includes('gratis') || p.toLowerCase() === 'free';
+      
+      return (
+        <span className="price-chip" itemProp="offers" itemScope={true} itemType="https://schema.org/Offer">
+          <meta itemProp="price" content={isFree ? '0' : numericPrice} />
+          <meta itemProp="priceCurrency" content="EUR" />
+          <meta itemProp="availability" content="https://schema.org/InStock" />
+          {ev.bookingLink && <meta itemProp="url" content={ev.bookingLink} />}
+          {text}
+        </span>
+      );
+    }
+    
     return <span className="price-chip">{text}</span>;
   };
 
@@ -678,6 +698,11 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
+      {/* Schema.org structured data for SEO - only when events are available */}
+      {displayedEvents.length > 0 && (
+        <SchemaOrg schema={generateEventListSchema(displayedEvents, city, formatDateForAPI())} />
+      )}
+      
       <header className="header">
         <div className="container header-inner header-centered">
           <div className="header-logo-wrapper">
@@ -934,33 +959,50 @@ export default function Home() {
                 const { date: formattedDate, time: formattedTime } =
                   formatEventDateTime(ev.date, ev.time, ev.endTime);
 
+                // Generate microdata attributes for Schema.org
+                const microdataAttrs = generateEventMicrodata(ev);
+                const canonicalUrl = generateCanonicalUrl(ev);
+
                 return (
-                  <div key={key} className="event-card" style={{ position: 'relative', overflow: 'hidden' }}>
+                  <div 
+                    key={key} 
+                    className="event-card" 
+                    style={{ position: 'relative', overflow: 'hidden' }}
+                    {...microdataAttrs}
+                  >
+                    <link itemProp="url" href={canonicalUrl} />
+                    <meta itemProp="eventStatus" content="https://schema.org/EventScheduled" />
+                    <meta itemProp="eventAttendanceMode" content="https://schema.org/OfflineEventAttendanceMode" />
                     {ev.imageUrl && (
-                      <div 
-                        className="event-card-bg-image"
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          right: 0,
-                          bottom: 0,
-                          backgroundImage: `url(${ev.imageUrl})`,
-                          backgroundSize: 'cover',
-                          backgroundPosition: 'center',
-                          opacity: 0.2,
-                          zIndex: 0,
-                          pointerEvents: 'none'
-                        }}
-                      />
+                      <>
+                        <meta itemProp="image" content={ev.imageUrl} />
+                        <div 
+                          className="event-card-bg-image"
+                          style={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            backgroundImage: `url(${ev.imageUrl})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            opacity: 0.2,
+                            zIndex: 0,
+                            pointerEvents: 'none'
+                          }}
+                        />
+                      </>
                     )}
                     <div className="event-content">
-                    <h3 className="event-title">
+                    <h3 className="event-title" itemProp="name">
                       {ev.title}
                       {renderSourceBadge(ev.source)}
                     </h3>
 
                     <div className="event-meta-line">
+                      <meta itemProp="startDate" content={`${ev.date}T${ev.time || '00:00'}:00`} />
+                      {ev.endTime && <meta itemProp="endDate" content={`${ev.date}T${ev.endTime}:00`} />}
                       <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
                         <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
                         <line x1="16" y1="2" x2="16" y2="6"/>
@@ -978,7 +1020,7 @@ export default function Home() {
                       )}
                     </div>
 
-                    <div className="event-meta-line">
+                    <div className="event-meta-line" itemProp="location" itemScope itemType="https://schema.org/Place">
                       <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
                         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
                       </svg>
@@ -987,9 +1029,13 @@ export default function Home() {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="venue-link"
+                        itemProp="name"
                       >
                         {ev.venue}
                       </a>
+                      {ev.address && (
+                        <meta itemProp="address" content={ev.address} />
+                      )}
                     </div>
 
                     {superCat && (
@@ -1022,7 +1068,7 @@ export default function Home() {
                     )}
 
                     {ev.description && (
-                      <div className="event-description">{ev.description}</div>
+                      <div className="event-description" itemProp="description">{ev.description}</div>
                     )}
 
                     <div className="event-cta-row">

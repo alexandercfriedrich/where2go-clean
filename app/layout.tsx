@@ -5,6 +5,8 @@ import Script from 'next/script';
 // Der DesignCssLoader schaltet bei ?design=2 nachträglich auf design2.css um.
 import '../public/designs/design1.css';
 import DesignCssLoader from './components/DesignCssLoader';
+import SchemaOrg from './components/SchemaOrg';
+import { generateWebSiteSchema } from './lib/schemaOrg';
 
 export const metadata: Metadata = {
   title: 'Where2Go - Entdecke Events in deiner Stadt!',
@@ -28,9 +30,14 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  const websiteSchema = generateWebSiteSchema();
+  
   return (
     <html lang="de">
       <head>
+        {/* Schema.org structured data for SEO */}
+        <SchemaOrg schema={websiteSchema} />
+        
         {/* Google tag (gtag.js) */}
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-HEC3GGDFZD"
