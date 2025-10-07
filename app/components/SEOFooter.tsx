@@ -9,17 +9,20 @@ export default function SEOFooter() {
   useEffect(() => {
     const loadSEOFooter = async () => {
       try {
-        const response = await fetch('/api/admin/static-pages');
+        // Use absolute URL in case of SSR
+        const baseUrl = typeof window !== 'undefined' 
+          ? window.location.origin 
+          : 'http://localhost:3000';
+        const response = await fetch(`${baseUrl}/api/static-pages/seo-footer`);
         if (!response.ok) {
           setLoading(false);
           return;
         }
         
         const data = await response.json();
-        const seoFooterPage = data.pages?.find((p: any) => p.id === 'seo-footer');
         
-        if (seoFooterPage && seoFooterPage.content) {
-          setContent(seoFooterPage.content);
+        if (data.page && data.page.content) {
+          setContent(data.page.content);
         }
       } catch (error) {
         console.error('Error loading SEO footer:', error);
