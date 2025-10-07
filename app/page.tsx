@@ -55,6 +55,8 @@ export default function Home() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedVenues, setSelectedVenues] = useState<string[]>([]);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
+  // Mobile: Sidebar Toggle
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean; totalEvents: number; cachedEvents: number} | null>(null);
   const [toast, setToast] = useState<{show:boolean; message:string}>({show:false,message:''});
@@ -124,6 +126,15 @@ export default function Home() {
       document.removeEventListener('keydown', onKey);
     };
   }, [showDateDropdown]);
+
+  // Mobile filters: close on Escape
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setShowMobileFilters(false);
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
 
   const toggleSuperCategory = (cat: string) => {
     setCategoryLimitError(null);
@@ -521,9 +532,9 @@ export default function Home() {
     }
   }
 
-  // Initialize filters when events change
+  // Initialize filters when events change (also for preload, not tied to searchSubmitted)
   useEffect(() => {
-    if (events.length > 0 && searchSubmitted) {
+    if (events.length > 0) {
       const dateFiltered = events.filter(matchesSelectedDate);
       
       // Get unique main categories from events
