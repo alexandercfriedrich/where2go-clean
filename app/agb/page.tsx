@@ -41,7 +41,7 @@ export default function AGB() {
               <p style={{ marginBottom: '0.5rem' }}><strong>Where2Go</strong></p>
               <p style={{ marginBottom: '0.5rem' }}>Musterstraße 1</p>
               <p style={{ marginBottom: '0.5rem' }}>12345 Musterstadt</p>
-              <p style={{ marginBottom: '1rem' }}>E-Mail: kontakt@www.where2go.at</p>
+              <p style={{ marginBottom: '1rem' }}>E-Mail: kontakt@where2go.at</p>
             </div>
 
             <div style={{ marginBottom: '2rem' }}>
