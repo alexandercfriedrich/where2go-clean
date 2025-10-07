@@ -3,6 +3,8 @@ import { useEffect, useRef, useState, CSSProperties } from 'react';
 import { EVENT_CATEGORY_SUBCATEGORIES } from './lib/eventCategories';
 import { useTranslation } from './lib/useTranslation';
 import { startJobPolling, deduplicateEvents as dedupFront } from './lib/polling';
+import SchemaOrg from './components/SchemaOrg';
+import { generateEventListSchema } from './lib/schemaOrg';
 
 interface EventData {
   title: string;
@@ -664,6 +666,11 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
+      {/* Schema.org structured data for SEO - only when events are available */}
+      {displayedEvents.length > 0 && (
+        <SchemaOrg schema={generateEventListSchema(displayedEvents, city, formatDateForAPI())} />
+      )}
+      
       <header className="header">
         <div className="container header-inner header-centered">
           <div className="header-logo-wrapper">
