@@ -681,7 +681,7 @@ export default function Home() {
       </header>
 
       {loading && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(2px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 2000, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ transform: 'scale(1.1)' }}>
             <W2GLoader5 />
           </div>
