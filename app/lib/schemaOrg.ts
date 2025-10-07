@@ -4,7 +4,7 @@ import { EventData } from './types';
 /**
  * Generates Schema.org WebSite structured data
  */
-export function generateWebSiteSchema(url: string = 'https://where2go.example.com') {
+export function generateWebSiteSchema(url: string = 'https://www.where2go.at') {
   return {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
@@ -26,7 +26,7 @@ export function generateWebSiteSchema(url: string = 'https://where2go.example.co
 /**
  * Generates Schema.org Event structured data for a single event
  */
-export function generateEventSchema(event: EventData, baseUrl: string = 'https://where2go.example.com'): object {
+export function generateEventSchema(event: EventData, baseUrl: string = 'https://www.where2go.at'): object {
   const schema: any = {
     '@context': 'https://schema.org',
     '@type': 'Event',
@@ -94,7 +94,7 @@ export function generateEventListSchema(
   events: EventData[],
   city: string,
   date: string,
-  baseUrl: string = 'https://where2go.example.com'
+  baseUrl: string = 'https://www.where2go.at'
 ): object {
   return {
     '@context': 'https://schema.org',
@@ -188,7 +188,7 @@ export function generateMicrodataProps(property: string, content?: string): Reco
  * Generates a canonical URL for an event
  * Format: {baseUrl}/event/{city}/{date}/{normalized-title}
  */
-export function generateCanonicalUrl(event: EventData, baseUrl: string = 'https://where2go.example.com'): string {
+export function generateCanonicalUrl(event: EventData, baseUrl: string = 'https://www.where2go.at'): string {
   // Normalize title: lowercase, replace spaces with hyphens, remove special chars
   const normalizedTitle = event.title
     .toLowerCase()
