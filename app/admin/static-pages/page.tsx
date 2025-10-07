@@ -34,8 +34,12 @@ export default function StaticPagesAdmin() {
   const loadPages = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/static-pages');
-      if (!response.ok) throw new Error('Failed to load pages');
+      setError(null);
+      const response = await fetch('/api/admin/static-pages', { cache: 'no-store' });
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err?.error || 'Failed to load pages');
+      }
       const data = await response.json();
       setPages(data.pages || []);
     } catch (err: any) {
@@ -45,7 +49,7 @@ export default function StaticPagesAdmin() {
     }
   };
 
-  const handleEditPage = (pageInfo: any) => {
+  const handleEditPage = (pageInfo: { id: string; title: string; path: string }) => {
     const existingPage = pages.find(p => p.id === pageInfo.id);
     if (existingPage) {
       setEditingPage(existingPage);
@@ -63,17 +67,42 @@ export default function StaticPagesAdmin() {
 
   const handleSavePage = async () => {
     if (!editingPage) return;
-    
+
+    // Client-seitige Validierung mit klaren Hinweisen
+    if (!editingPage.id?.trim() || !editingPage.title?.trim()) {
+      setError('Bitte ID und Titel ausfüllen.');
+      return;
+    }
+    if (!editingPage.path?.startsWith('/')) {
+      setError('Pfad ist ungültig. Er muss mit / beginnen, z. B. /impressum');
+      return;
+    }
+    if (typeof editingPage.content !== 'string') {
+      setError('Inhalt ist ungültig.');
+      return;
+    }
+
     try {
       setSaving(true);
+      setError(null);
+
       const response = await fetch('/api/admin/static-pages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingPage)
+        // Schicke genau die Felder, die der Server erwartet
+        body: JSON.stringify({
+          id: editingPage.id,
+          title: editingPage.title,
+          content: editingPage.content,
+          path: editingPage.path
+        })
       });
-      
-      if (!response.ok) throw new Error('Failed to save page');
-      
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err?.error || 'Failed to save page');
+      }
+
       await loadPages();
       setEditingPage(null);
     } catch (err: any) {
@@ -88,7 +117,6 @@ export default function StaticPagesAdmin() {
   };
 
   if (loading) return <div className="admin-container"><p>Loading...</p></div>;
-  if (error) return <div className="admin-container"><p>Error: {error}</p></div>;
 
   return (
     <div className="admin-container">
@@ -107,7 +135,7 @@ export default function StaticPagesAdmin() {
           border-bottom: 2px solid #eee;
         }
         .admin-title {
-          font-size: 2.5rem;
+          font-size: 2.0rem;
           color: #333;
           margin: 0;
         }
@@ -168,6 +196,14 @@ export default function StaticPagesAdmin() {
           color: #28a745;
           font-weight: bold;
         }
+        .error {
+          background: #fdecea;
+          color: #b71c1c;
+          border: 1px solid #f5c6cb;
+          padding: 10px 12px;
+          border-radius: 6px;
+          margin-bottom: 16px;
+        }
         .modal-overlay {
           position: fixed;
           top: 0;
@@ -184,7 +220,7 @@ export default function StaticPagesAdmin() {
           background: white;
           border-radius: 8px;
           padding: 30px;
-          max-width: 800px;
+          max-width: 900px;
           width: 90%;
           max-height: 80vh;
           overflow-y: auto;
@@ -211,9 +247,10 @@ export default function StaticPagesAdmin() {
           padding: 10px;
           border: 1px solid #ddd;
           border-radius: 4px;
-          font-size: 14px;
-          font-family: monospace;
+          font-size: 13px;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
           resize: vertical;
+          white-space: pre-wrap;
         }
         .modal-actions {
           display: flex;
@@ -228,6 +265,8 @@ export default function StaticPagesAdmin() {
         <a href="/admin" className="btn btn-secondary">Back to Admin</a>
       </div>
 
+      {error && <div className="error">{error}</div>}
+
       <div className="pages-grid">
         {staticPages.map(pageInfo => {
           const existingPage = pages.find(p => p.id === pageInfo.id);
@@ -239,7 +278,7 @@ export default function StaticPagesAdmin() {
                   <div className="page-path">{pageInfo.path}</div>
                   {existingPage && (
                     <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '5px' }}>
-                      Last updated: {new Date(existingPage.updatedAt).toLocaleDateString()}
+                      Last updated: {new Date(existingPage.updatedAt).toLocaleString()}
                     </div>
                   )}
                 </div>
@@ -251,7 +290,7 @@ export default function StaticPagesAdmin() {
               </div>
 
               <div>
-                <button 
+                <button
                   className="btn btn-primary"
                   onClick={() => handleEditPage(pageInfo)}
                 >
@@ -264,20 +303,38 @@ export default function StaticPagesAdmin() {
       </div>
 
       {editingPage && (
-        <div className="modal-overlay">
-          <div className="modal">
+        <div className="modal-overlay" onClick={() => setEditingPage(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
             <h2>Edit {editingPage.title}</h2>
-            
+
             <div className="form-group">
               <label>Title</label>
               <input
                 type="text"
                 className="form-input"
                 value={editingPage.title}
-                onChange={(e) => setEditingPage({
-                  ...editingPage,
-                  title: e.target.value
-                })}
+                onChange={(e) =>
+                  setEditingPage({
+                    ...editingPage,
+                    title: e.target.value
+                  })
+                }
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Path</label>
+              <input
+                type="text"
+                className="form-input"
+                value={editingPage.path}
+                onChange={(e) =>
+                  setEditingPage({
+                    ...editingPage,
+                    path: e.target.value
+                  })
+                }
+                placeholder="/impressum"
               />
             </div>
 
@@ -286,23 +343,25 @@ export default function StaticPagesAdmin() {
               <textarea
                 className="form-textarea"
                 value={editingPage.content}
-                onChange={(e) => setEditingPage({
-                  ...editingPage,
-                  content: e.target.value
-                })}
+                onChange={(e) =>
+                  setEditingPage({
+                    ...editingPage,
+                    content: e.target.value
+                  })
+                }
                 placeholder="Enter HTML content for this page..."
               />
             </div>
 
             <div className="modal-actions">
-              <button 
+              <button
                 className="btn btn-secondary"
                 onClick={handleCancel}
                 disabled={saving}
               >
                 Cancel
               </button>
-              <button 
+              <button
                 className="btn btn-primary"
                 onClick={handleSavePage}
                 disabled={saving}
