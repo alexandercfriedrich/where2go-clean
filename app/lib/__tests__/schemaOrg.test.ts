@@ -3,7 +3,10 @@ import {
   generateWebSiteSchema,
   generateEventSchema,
   generateEventListSchema,
-  generateJsonLdScript
+  generateJsonLdScript,
+  generateEventMicrodata,
+  generateCanonicalUrl,
+  generateEventJsonLd
 } from '../schemaOrg';
 import { EventData } from '../types';
 
@@ -320,6 +323,115 @@ describe('Schema.org Utilities', () => {
       
       expect(parsed.location['@type']).toBe('Place');
       expect(parsed.location.name).toBe('Venue');
+    });
+  });
+
+  describe('generateEventMicrodata', () => {
+    it('should generate basic microdata attributes', () => {
+      const event: EventData = {
+        title: 'Test Event',
+        category: 'Music',
+        date: '2025-01-20',
+        time: '19:00',
+        venue: 'Test Venue',
+        price: '10€',
+        website: 'https://example.com'
+      };
+
+      const microdata = generateEventMicrodata(event);
+      
+      expect(microdata.itemscope).toBeDefined();
+      expect(microdata.itemtype).toBe('https://schema.org/Event');
+    });
+  });
+
+  describe('generateCanonicalUrl', () => {
+    it('should generate valid canonical URL', () => {
+      const event: EventData = {
+        title: 'Summer Festival 2025',
+        category: 'Music',
+        date: '2025-06-15',
+        time: '18:00',
+        venue: 'Central Park',
+        city: 'Berlin',
+        price: '25€',
+        website: 'https://example.com'
+      };
+
+      const url = generateCanonicalUrl(event, 'https://where2go.com');
+      
+      expect(url).toBe('https://where2go.com/event/berlin/2025-06-15/summer-festival-2025');
+    });
+
+    it('should normalize title correctly', () => {
+      const event: EventData = {
+        title: 'Rock & Roll Night!!!',
+        category: 'Music',
+        date: '2025-01-20',
+        time: '19:00',
+        venue: 'Music Hall',
+        city: 'Wien',
+        price: '10€',
+        website: 'https://example.com'
+      };
+
+      const url = generateCanonicalUrl(event);
+      
+      expect(url).toContain('rock-roll-night');
+      expect(url).not.toContain('&');
+      expect(url).not.toContain('!');
+    });
+
+    it('should handle missing city', () => {
+      const event: EventData = {
+        title: 'Test Event',
+        category: 'Music',
+        date: '2025-01-20',
+        time: '19:00',
+        venue: 'The Venue Name',
+        price: '10€',
+        website: 'https://example.com'
+      };
+
+      const url = generateCanonicalUrl(event);
+      
+      expect(url).toContain('/the-venue-name/');
+    });
+
+    it('should use default baseUrl if not provided', () => {
+      const event: EventData = {
+        title: 'Test Event',
+        category: 'Music',
+        date: '2025-01-20',
+        time: '19:00',
+        venue: 'Venue',
+        city: 'Wien',
+        price: '10€',
+        website: 'https://example.com'
+      };
+
+      const url = generateCanonicalUrl(event);
+      
+      expect(url).toContain('where2go.example.com');
+    });
+  });
+
+  describe('generateEventJsonLd', () => {
+    it('should be an alias for generateEventSchema', () => {
+      const event: EventData = {
+        title: 'Test Event',
+        category: 'Music',
+        date: '2025-01-20',
+        time: '19:00',
+        venue: 'Test Venue',
+        price: '10€',
+        website: 'https://example.com'
+      };
+
+      const jsonLd = generateEventJsonLd(event);
+      
+      expect(jsonLd['@type']).toBe('Event');
+      expect(jsonLd.name).toBe('Test Event');
     });
   });
 });

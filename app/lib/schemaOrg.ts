@@ -157,3 +157,62 @@ function formatGermanDate(date: string): string {
 export function generateJsonLdScript(schema: object): string {
   return JSON.stringify(schema);
 }
+
+/**
+ * Generates microdata attributes for HTML elements
+ * Returns a Record of attribute names to values that can be spread onto HTML elements
+ */
+export function generateEventMicrodata(event: EventData): Record<string, string> {
+  const microdata: Record<string, string> = {
+    itemscope: '',
+    itemtype: 'https://schema.org/Event'
+  };
+
+  return microdata;
+}
+
+/**
+ * Generates individual microdata property attributes
+ * Used for specific elements within an event card
+ */
+export function generateMicrodataProps(property: string, content?: string): Record<string, string> {
+  if (!content) return {};
+  
+  return {
+    itemprop: property,
+    content: content
+  };
+}
+
+/**
+ * Generates a canonical URL for an event
+ * Format: {baseUrl}/event/{city}/{date}/{normalized-title}
+ */
+export function generateCanonicalUrl(event: EventData, baseUrl: string = 'https://where2go.example.com'): string {
+  // Normalize title: lowercase, replace spaces with hyphens, remove special chars
+  const normalizedTitle = event.title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim();
+
+  // Use city from event or fallback to venue
+  const city = (event.city || event.venue || 'event')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .trim();
+
+  // Ensure date is in YYYY-MM-DD format
+  const date = event.date;
+
+  return `${baseUrl}/event/${city}/${date}/${normalizedTitle}`;
+}
+
+/**
+ * Alias for generateEventSchema for backwards compatibility with the specification
+ */
+export function generateEventJsonLd(event: EventData, baseUrl?: string): object {
+  return generateEventSchema(event, baseUrl);
+}
