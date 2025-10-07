@@ -137,7 +137,7 @@ const en: Translations = {
   
   'filter.all': 'All',
   'filter.filtersAndCategories': 'Filters & Categories',
-  'filter.todaysEventsIn': "Today's events in",
+  'filter.todaysEventsIn': "Today's Events in",
   
   'footer.impressum': 'Legal Notice',
   'footer.contact': 'Contact',
