@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     locale: 'de_DE',
-    url: 'https://where2go.example.com',
+    url: 'https://www.where2go.at',
     title: 'Where2Go - Alle Events. Weltweit. Eine Plattform.',
     description: 'Finde Events in deiner Stadt',
     siteName: 'Where2Go',
