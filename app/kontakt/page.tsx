@@ -40,7 +40,7 @@ export default function Kontakt() {
                   <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
                   <polyline points="22,6 12,13 2,6"/>
                 </svg>
-                <span>kontakt@where2go.example.com</span>
+                <span>kontakt@where2go.at</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -62,7 +62,7 @@ export default function Kontakt() {
               <p style={{ marginBottom: '1rem', lineHeight: '1.6' }}>
                 Sie sind Veranstalter oder betreiben eine Location? Sprechen Sie uns an, um Ihre Events prominent auf Where2Go zu präsentieren und neue Zielgruppen zu erreichen.
               </p>
-              <p style={{ marginBottom: '0.5rem' }}><strong>Partnership:</strong> partner@where2go.example.com</p>
+              <p style={{ marginBottom: '0.5rem' }}><strong>Partnership:</strong> partner@where2go.at</p>
             </div>
 
             <div style={{ marginBottom: '2rem' }}>
@@ -70,7 +70,7 @@ export default function Kontakt() {
               <p style={{ marginBottom: '1rem', lineHeight: '1.6' }}>
                 Haben Sie technische Probleme oder Verbesserungsvorschläge? Unser Support-Team hilft Ihnen gerne weiter.
               </p>
-              <p style={{ marginBottom: '0.5rem' }}><strong>Support:</strong> support@where2go.example.com</p>
+              <p style={{ marginBottom: '0.5rem' }}><strong>Support:</strong> support@where2go.at</p>
             </div>
 
             <div className="event-actions" style={{ justifyContent: 'center', marginTop: '2rem' }}>
