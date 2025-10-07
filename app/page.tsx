@@ -780,7 +780,7 @@ export default function Home() {
         )}
 
         {searchSubmitted && (
-          <h1 style={{ fontSize: '48px', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1, margin: '32px 0 8px' }}>
+          <h1 className="results-page-title">
             {`Today's Events in ${city}`}
           </h1>
         )}
