@@ -41,7 +41,9 @@ export default function StaticPagesAdmin() {
         throw new Error(err?.error || 'Failed to load pages');
       }
       const data = await res.json();
-      setPages(data.pages || []);
+      // Ensure pages is always an array
+      const pagesData = data.pages || [];
+      setPages(Array.isArray(pagesData) ? pagesData : []);
     } catch (e: any) {
       setError(e.message || 'Unknown error');
     } finally {

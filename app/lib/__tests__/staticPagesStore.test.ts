@@ -260,5 +260,15 @@ describe('Static Pages Store', () => {
       expect(saved.updatedAt).not.toBe('2020-01-01T00:00:00.000Z');
       expect(new Date(saved.updatedAt).getTime()).toBeGreaterThan(new Date('2020-01-01').getTime());
     });
+
+    it('should handle loadAllPages returning non-array gracefully', async () => {
+      const { loadAllPages } = await import('../staticPagesStore');
+      
+      // This test verifies that loadAllPages always returns an array
+      const pages = await loadAllPages();
+      
+      expect(Array.isArray(pages)).toBe(true);
+      expect(pages).toBeDefined();
+    });
   });
 });

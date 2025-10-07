@@ -59,7 +59,16 @@ async function kvGet(key: string): Promise<StaticPage[] | null> {
     }
 
     // Parse if it's a string, otherwise use as-is
-    return typeof result === 'string' ? JSON.parse(result) : result;
+    const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+    
+    // Ensure we always return an array or null
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
+    
+    // If parsed is not an array, return null (empty state)
+    console.warn('KV returned non-array value:', parsed);
+    return null;
   } catch (error) {
     console.error('KV GET error:', error);
     throw error;
