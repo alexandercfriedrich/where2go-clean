@@ -21,13 +21,11 @@ function fileExists(p: string) {
     return false;
   }
 }
-
 function pickReadableFile(): string {
   if (fileExists(DEFAULT_FILE)) return DEFAULT_FILE;
   if (fileExists(TMP_FILE)) return TMP_FILE;
   return DEFAULT_FILE;
 }
-
 function loadStaticPages(): StaticPage[] {
   const filePath = pickReadableFile();
   if (!fileExists(filePath)) return [];
