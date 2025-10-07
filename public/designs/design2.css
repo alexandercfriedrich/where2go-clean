@@ -295,7 +295,7 @@ html, body {
   align-items: center;
   gap: 10px;
   cursor: pointer;
-  fontSize: 14px;
+  font-size: 14px;
   color: var(--color-text-dim);
   transition: color var(--transition);
   padding: 6px 0;
