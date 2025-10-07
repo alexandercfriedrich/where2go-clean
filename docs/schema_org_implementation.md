@@ -27,14 +27,14 @@ Added to `app/layout.tsx` - Provides overall website information:
   "@context": "https://schema.org",
   "@type": "WebSite",
   "name": "Where2Go",
-  "url": "https://where2go.example.com",
+  "url": "https://www.where2go.at",
   "description": "Entdecke Events in deiner Stadt - Alle Events. Weltweit. Eine Plattform.",
   "inLanguage": "de",
   "potentialAction": {
     "@type": "SearchAction",
     "target": {
       "@type": "EntryPoint",
-      "urlTemplate": "https://where2go.example.com?city={city}&date={date}"
+      "urlTemplate": "https://www.where2go.at?city={city}&date={date}"
     },
     "query-input": "required name=city name=date"
   }
