@@ -84,7 +84,7 @@ All requirements for Schema.org structured data have been successfully implement
   "@context": "https://schema.org",
   "@type": "WebSite",
   "name": "Where2Go",
-  "url": "https://where2go.example.com",
+  "url": "https://wwww.where2go.at",
   "description": "Entdecke Events in deiner Stadt...",
   "inLanguage": "de",
   "potentialAction": {
