@@ -54,7 +54,6 @@ export default function StaticPagesAdmin() {
     if (existingPage) {
       setEditingPage(existingPage);
     } else {
-      // Create new page entry
       setEditingPage({
         id: pageInfo.id,
         title: pageInfo.title,
@@ -68,7 +67,6 @@ export default function StaticPagesAdmin() {
   const handleSavePage = async () => {
     if (!editingPage) return;
 
-    // Client-seitige Validierung mit klaren Hinweisen
     if (!editingPage.id?.trim() || !editingPage.title?.trim()) {
       setError('Bitte ID und Titel ausfüllen.');
       return;
@@ -89,7 +87,6 @@ export default function StaticPagesAdmin() {
       const response = await fetch('/api/admin/static-pages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // Schicke genau die Felder, die der Server erwartet
         body: JSON.stringify({
           id: editingPage.id,
           title: editingPage.title,
@@ -112,9 +109,7 @@ export default function StaticPagesAdmin() {
     }
   };
 
-  const handleCancel = () => {
-    setEditingPage(null);
-  };
+  const handleCancel = () => setEditingPage(null);
 
   if (loading) return <div className="admin-container"><p>Loading...</p></div>;
 
@@ -329,7 +324,7 @@ export default function StaticPagesAdmin() {
                 className="form-input"
                 value={editingPage.path}
                 onChange={(e) =>
-                  setEditingPage({
+                  setEditingPage={{
                     ...editingPage,
                     path: e.target.value
                   })
@@ -356,7 +351,7 @@ export default function StaticPagesAdmin() {
             <div className="modal-actions">
               <button
                 className="btn btn-secondary"
-                onClick={handleCancel}
+                onClick={() => setEditingPage(null)}
                 disabled={saving}
               >
                 Cancel
