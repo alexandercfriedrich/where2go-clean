@@ -30,6 +30,11 @@ OVERALL_TIMEOUT_MS=240000
 # Set these to enable Basic Auth protection for admin pages
 ADMIN_USER=alexander.c.friedrich
 ADMIN_PASS=Where2go?Lufthansa736.
+
+# Optional: Vercel KV for durable static pages storage (production)
+# If not set, uses filesystem (data/static-pages.json or /tmp/static-pages.json)
+KV_REST_API_URL=https://your-kv-url.upstash.io
+KV_REST_API_TOKEN=your_kv_token_here
 ```
 
 **Admin Area Configuration:**
@@ -49,6 +54,16 @@ ADMIN_PASS=Where2go?Lufthansa736.
 - **Production**: Always configure Upstash Redis environment variables - without them, the application will throw errors on startup
 - **Debug Mode**: Debug mode (`debug=1`) no longer disables caching. Only explicit `disableCache=true` option will disable cache.
 - **Wien.info Events**: Early events from Wien.info are now automatically cached per category for faster subsequent requests
+
+**Vercel KV for Static Pages (Optional):**
+- **Static Pages Storage**: Uses Vercel KV (Upstash REST API) for durable persistence in production
+- **Fallback Behavior**: If KV environment variables are not set, falls back to filesystem storage
+  - Local development: `data/static-pages.json`
+  - Read-only filesystems (Vercel): `/tmp/static-pages.json` (ephemeral, resets on deployment)
+- **Environment Variables**: `KV_REST_API_URL` and `KV_REST_API_TOKEN`
+- **Storage Key**: `where2go:static-pages:v1`
+- **Admin Interface**: `/admin/static-pages` for managing static content (SEO footer, legal pages, etc.)
+- **Recommendation**: Always configure KV in production for persistence across deployments
 
 **Preview Protection Configuration:**
 - Vercel Preview Deployments with Protection enabled block internal API calls by default
