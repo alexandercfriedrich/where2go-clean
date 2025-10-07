@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 interface StaticPage {
   id: string;
@@ -24,71 +24,106 @@ export default function StaticPagesAdmin() {
     { id: 'impressum', title: 'Impressum', path: '/impressum' },
     { id: 'ueber-uns', title: 'Über uns', path: '/ueber-uns' },
     { id: 'kontakt', title: 'Kontakt', path: '/kontakt' },
-    { id: 'premium', title: 'Premium', path: '/premium' }
+    { id: 'premium', title: 'Premium', path: '/premium' },
   ];
 
   useEffect(() => {
     loadPages();
   }, []);
 
-  const loadPages = async () => {
+  async function loadPages() {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/static-pages');
-      if (!response.ok) throw new Error('Failed to load pages');
-      const data = await response.json();
+      setError(null);
+      const res = await fetch('/api/admin/static-pages', { cache: 'no-store' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({} as any));
+        throw new Error(err?.error || 'Failed to load pages');
+      }
+      const data = await res.json();
       setPages(data.pages || []);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (e: any) {
+      setError(e.message || 'Unknown error');
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const handleEditPage = (pageInfo: any) => {
-    const existingPage = pages.find(p => p.id === pageInfo.id);
-    if (existingPage) {
-      setEditingPage(existingPage);
+  function handleEditPage(pageInfo: { id: string; title: string; path: string }) {
+    const existing = pages.find(p => p.id === pageInfo.id);
+    if (existing) {
+      setEditingPage(existing);
     } else {
-      // Create new page entry
       setEditingPage({
         id: pageInfo.id,
         title: pageInfo.title,
         content: '',
         path: pageInfo.path,
-        updatedAt: new Date().toISOString()
+        updatedAt: new Date().toISOString(),
       });
     }
-  };
+  }
 
-  const handleSavePage = async () => {
+  async function handleSavePage() {
     if (!editingPage) return;
-    
+
+    if (!editingPage.id?.trim() || !editingPage.title?.trim()) {
+      setError('Bitte ID und Titel ausfüllen.');
+      return;
+    }
+    if (!editingPage.path?.startsWith('/')) {
+      setError('Pfad ist ungültig. Er muss mit / beginnen, z. B. /impressum');
+      return;
+    }
+    if (typeof editingPage.content !== 'string') {
+      setError('Inhalt ist ungültig.');
+      return;
+    }
+
     try {
       setSaving(true);
-      const response = await fetch('/api/admin/static-pages', {
+      setError(null);
+      const res = await fetch('/api/admin/static-pages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingPage)
+        body: JSON.stringify({
+          id: editingPage.id,
+          title: editingPage.title,
+          content: editingPage.content,
+          path: editingPage.path,
+        }),
       });
-      
-      if (!response.ok) throw new Error('Failed to save page');
-      
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({} as any));
+        throw new Error(err?.error || 'Failed to save page');
+      }
       await loadPages();
       setEditingPage(null);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (e: any) {
+      setError(e.message || 'Unknown error');
     } finally {
       setSaving(false);
     }
-  };
+  }
 
-  const handleCancel = () => {
+  function handleCancel() {
     setEditingPage(null);
-  };
+  }
 
-  if (loading) return <div className="admin-container"><p>Loading...</p></div>;
-  if (error) return <div className="admin-container"><p>Error: {error}</p></div>;
+  if (loading) {
+    return (
+      <div className="admin-container">
+        <p>Loading...</p>
+        <style jsx>{`
+          .admin-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-container">
@@ -107,7 +142,7 @@ export default function StaticPagesAdmin() {
           border-bottom: 2px solid #eee;
         }
         .admin-title {
-          font-size: 2.5rem;
+          font-size: 2rem;
           color: #333;
           margin: 0;
         }
@@ -144,7 +179,7 @@ export default function StaticPagesAdmin() {
           border: 1px solid #ddd;
           border-radius: 8px;
           padding: 20px;
-          background: white;
+          background: #fff;
           box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .page-header {
@@ -168,12 +203,17 @@ export default function StaticPagesAdmin() {
           color: #28a745;
           font-weight: bold;
         }
+        .error {
+          background: #fdecea;
+          color: #b71c1c;
+          border: 1px solid #f5c6cb;
+          padding: 10px 12px;
+          border-radius: 6px;
+          margin-bottom: 16px;
+        }
         .modal-overlay {
           position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
+          inset: 0;
           background: rgba(0,0,0,0.5);
           display: flex;
           align-items: center;
@@ -184,7 +224,7 @@ export default function StaticPagesAdmin() {
           background: white;
           border-radius: 8px;
           padding: 30px;
-          max-width: 800px;
+          max-width: 900px;
           width: 90%;
           max-height: 80vh;
           overflow-y: auto;
@@ -211,9 +251,11 @@ export default function StaticPagesAdmin() {
           padding: 10px;
           border: 1px solid #ddd;
           border-radius: 4px;
-          font-size: 14px;
-          font-family: monospace;
+          font-size: 13px;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono',
+            'Courier New', monospace;
           resize: vertical;
+          white-space: pre-wrap;
         }
         .modal-actions {
           display: flex;
@@ -225,36 +267,32 @@ export default function StaticPagesAdmin() {
 
       <div className="admin-header">
         <h1 className="admin-title">Static Pages Management</h1>
-        <a href="/admin" className="btn btn-secondary">Back to Admin</a>
+        <a className="btn btn-secondary" href="/admin">
+          Back to Admin
+        </a>
       </div>
 
+      {error && <div className="error">{error}</div>}
+
       <div className="pages-grid">
-        {staticPages.map(pageInfo => {
-          const existingPage = pages.find(p => p.id === pageInfo.id);
+        {staticPages.map((pageInfo) => {
+          const existing = pages.find((p) => p.id === pageInfo.id);
           return (
             <div key={pageInfo.id} className="page-card">
               <div className="page-header">
                 <div>
                   <h3 className="page-title">{pageInfo.title}</h3>
                   <div className="page-path">{pageInfo.path}</div>
-                  {existingPage && (
-                    <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '5px' }}>
-                      Last updated: {new Date(existingPage.updatedAt).toLocaleDateString()}
+                  {existing && (
+                    <div style={{ fontSize: '0.8rem', color: '#666', marginTop: 5 }}>
+                      Last updated: {new Date(existing.updatedAt).toLocaleString()}
                     </div>
                   )}
                 </div>
-                <div>
-                  <div className="page-status">
-                    {existingPage ? 'Customized' : 'Default'}
-                  </div>
-                </div>
+                <div className="page-status">{existing ? 'Customized' : 'Default'}</div>
               </div>
-
               <div>
-                <button 
-                  className="btn btn-primary"
-                  onClick={() => handleEditPage(pageInfo)}
-                >
+                <button className="btn btn-primary" onClick={() => handleEditPage(pageInfo)}>
                   Edit Content
                 </button>
               </div>
@@ -264,20 +302,28 @@ export default function StaticPagesAdmin() {
       </div>
 
       {editingPage && (
-        <div className="modal-overlay">
-          <div className="modal">
+        <div className="modal-overlay" onClick={() => setEditingPage(null)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
             <h2>Edit {editingPage.title}</h2>
-            
+
             <div className="form-group">
               <label>Title</label>
               <input
                 type="text"
                 className="form-input"
                 value={editingPage.title}
-                onChange={(e) => setEditingPage({
-                  ...editingPage,
-                  title: e.target.value
-                })}
+                onChange={(e) => setEditingPage({ ...editingPage, title: e.target.value })}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Path</label>
+              <input
+                type="text"
+                className="form-input"
+                value={editingPage.path}
+                onChange={(e) => setEditingPage({ ...editingPage, path: e.target.value })}
+                placeholder="/impressum"
               />
             </div>
 
@@ -286,27 +332,16 @@ export default function StaticPagesAdmin() {
               <textarea
                 className="form-textarea"
                 value={editingPage.content}
-                onChange={(e) => setEditingPage({
-                  ...editingPage,
-                  content: e.target.value
-                })}
+                onChange={(e) => setEditingPage({ ...editingPage, content: e.target.value })}
                 placeholder="Enter HTML content for this page..."
               />
             </div>
 
             <div className="modal-actions">
-              <button 
-                className="btn btn-secondary"
-                onClick={handleCancel}
-                disabled={saving}
-              >
+              <button className="btn btn-secondary" onClick={handleCancel} disabled={saving}>
                 Cancel
               </button>
-              <button 
-                className="btn btn-primary"
-                onClick={handleSavePage}
-                disabled={saving}
-              >
+              <button className="btn btn-primary" onClick={handleSavePage} disabled={saving}>
                 {saving ? 'Saving...' : 'Save'}
               </button>
             </div>
