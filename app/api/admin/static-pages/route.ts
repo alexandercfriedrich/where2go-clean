@@ -3,10 +3,21 @@ import { loadAllPages, upsertPage, deletePage, StaticPage } from '@/lib/staticPa
 
 export async function GET() {
   try {
+    console.log('[Admin API GET] Starting to load pages...');
     const pages = await loadAllPages();
+    console.log('[Admin API GET] Loaded pages count:', pages.length);
+    if (pages.length > 0) {
+      console.log('[Admin API GET] First page:', {
+        id: pages[0].id,
+        title: pages[0].title,
+        contentLength: pages[0].content?.length || 0,
+        path: pages[0].path
+      });
+    }
+    console.log('[Admin API GET] Returning response with', pages.length, 'pages');
     return NextResponse.json({ pages });
   } catch (error) {
-    console.error('Error in GET /api/admin/static-pages:', error);
+    console.error('[Admin API GET] Error in GET /api/admin/static-pages:', error);
     return NextResponse.json({ error: 'Failed to load static pages' }, { status: 500 });
   }
 }
@@ -14,6 +25,12 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const pageData = (await request.json()) as Partial<StaticPage>;
+    console.log('[Admin API POST] Received page data:', {
+      id: pageData.id,
+      title: pageData.title,
+      contentLength: pageData.content?.length || 0,
+      path: pageData.path
+    });
 
     // Strict validation
     if (!pageData.id?.trim()) {
@@ -37,10 +54,15 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date().toISOString(),
     };
 
+    console.log('[Admin API POST] Saving page:', {
+      id: normalized.id,
+      contentLength: normalized.content.length
+    });
     const savedPage = await upsertPage(normalized);
+    console.log('[Admin API POST] Page saved successfully');
     return NextResponse.json({ success: true, page: savedPage });
   } catch (error: any) {
-    console.error('Error in POST /api/admin/static-pages:', error);
+    console.error('[Admin API POST] Error in POST /api/admin/static-pages:', error);
     return NextResponse.json({ error: error?.message || 'Failed to save static page' }, { status: 500 });
   }
 }
