@@ -51,28 +51,43 @@ async function kvGet(key: string): Promise<StaticPage[] | null> {
     }
 
     const data = await response.json();
-    console.log('[KV GET] Raw response data:', JSON.stringify(data).substring(0, 200));
+    console.log('[KV GET] Full raw response:', JSON.stringify(data));
+    console.log('[KV GET] Response keys:', Object.keys(data));
     
-    // Upstash KV REST API returns {"value": "..."} where value is a JSON string
-    // Check for both 'result' and 'value' keys for compatibility
+    // Upstash KV REST API returns {"result": "..."} or {"value": "..."}
+    // The actual key depends on the Upstash API version
     let result;
-    if (data.value !== undefined) {
-      result = data.value;
-    } else if (data.result !== undefined) {
+    if (data.result !== undefined) {
       result = data.result;
+      console.log('[KV GET] Found data.result');
+    } else if (data.value !== undefined) {
+      result = data.value;
+      console.log('[KV GET] Found data.value');
     } else {
       result = data;
+      console.log('[KV GET] Using data directly');
     }
-    console.log('[KV GET] Extracted result type:', typeof result, 'isString:', typeof result === 'string');
     
-    if (!result) {
-      console.log('[KV GET] No result found, returning null');
-      return null;
+    console.log('[KV GET] Result value:', result);
+    console.log('[KV GET] Result type:', typeof result);
+    
+    if (!result || result === null) {
+      console.log('[KV GET] No result found (null or empty), returning empty array');
+      return [];
     }
 
     // Parse if it's a string, otherwise use as-is
-    const parsed = typeof result === 'string' ? JSON.parse(result) : result;
-    console.log('[KV GET] Parsed data:', Array.isArray(parsed) ? `Array with ${parsed.length} items` : typeof parsed);
+    let parsed;
+    if (typeof result === 'string') {
+      console.log('[KV GET] Parsing string result');
+      parsed = JSON.parse(result);
+    } else {
+      console.log('[KV GET] Result is already parsed');
+      parsed = result;
+    }
+    
+    console.log('[KV GET] Parsed value:', parsed);
+    console.log('[KV GET] Parsed is array?:', Array.isArray(parsed));
     
     // Ensure we always return an array or null
     if (Array.isArray(parsed)) {
@@ -80,9 +95,9 @@ async function kvGet(key: string): Promise<StaticPage[] | null> {
       return parsed;
     }
     
-    // If parsed is not an array, return null (empty state)
-    console.warn('[KV GET] KV returned non-array value:', parsed);
-    return null;
+    // If parsed is not an array, return empty array
+    console.warn('[KV GET] KV returned non-array value, returning empty array. Parsed:', parsed);
+    return [];
   } catch (error) {
     console.error('KV GET error:', error);
     throw error;
