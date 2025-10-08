@@ -76,25 +76,58 @@ export default function StaticPagesAdmin() {
     }
   }
 
-  function handleEditPage(pageInfo: { id: string; title: string; path: string }) {
-    console.log('[Admin] handleEditPage called for:', pageInfo.id);
-    console.log('[Admin] Current pages in state:', pages.length);
-    const existing = pages.find(p => p.id === pageInfo.id);
-    console.log('[Admin] Found existing page:', existing ? 'YES' : 'NO');
-    if (existing) {
-      console.log('[Admin] Existing page data:', {
-        id: existing.id,
-        title: existing.title,
-        contentLength: existing.content?.length || 0,
-        hasContent: !!existing.content,
-        contentPreview: existing.content ? existing.content.substring(0, 50) : 'NO CONTENT',
-        path: existing.path
-      });
-      console.log('[Admin] Full existing object:', JSON.stringify(existing));
-      setEditingPage(existing);
-      console.log('[Admin] editingPage state set to:', JSON.stringify(existing));
-    } else {
-      console.log('[Admin] Creating new empty page for editing');
+  async function handleEditPage(pageInfo: { id: string; title: string; path: string }) {
+    try {
+      console.log('[Admin] handleEditPage called for:', pageInfo.id);
+      console.log('[Admin] Current pages in state:', pages.length);
+      
+      // First, check if page already exists in local state
+      const existing = pages.find(p => p.id === pageInfo.id);
+      console.log('[Admin] Found existing page:', existing ? 'YES' : 'NO');
+      
+      if (existing) {
+        console.log('[Admin] Existing page data:', {
+          id: existing.id,
+          title: existing.title,
+          contentLength: existing.content?.length || 0,
+          hasContent: !!existing.content,
+          contentPreview: existing.content ? existing.content.substring(0, 50) : 'NO CONTENT',
+          path: existing.path
+        });
+        setEditingPage(existing);
+        return;
+      }
+
+      // If not in state, fetch from public API which will seed defaults if needed
+      console.log('[Admin] Page not in state, fetching from public API to seed defaults...');
+      const res = await fetch(`/api/static-pages/${pageInfo.id}`, { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        const page = data.page as StaticPage;
+        console.log('[Admin] Loaded default content from public API:', {
+          id: page.id,
+          contentLength: page.content?.length || 0,
+          contentPreview: page.content ? page.content.substring(0, 50) : 'NO CONTENT'
+        });
+        // Pre-fill modal with default content
+        setEditingPage(page);
+        // Reload list so page appears in state
+        await loadPages();
+      } else {
+        console.log('[Admin] No default available, creating empty entry');
+        // Fallback: create empty entry
+        setEditingPage({
+          id: pageInfo.id,
+          title: pageInfo.title,
+          content: '',
+          path: pageInfo.path,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    } catch (e: any) {
+      console.error('[Admin] Error in handleEditPage:', e);
+      setError(e.message || 'Error loading page');
+      // Fallback: create empty entry
       setEditingPage({
         id: pageInfo.id,
         title: pageInfo.title,
