@@ -55,7 +55,14 @@ async function kvGet(key: string): Promise<StaticPage[] | null> {
     
     // Upstash KV REST API returns {"value": "..."} where value is a JSON string
     // Check for both 'result' and 'value' keys for compatibility
-    const result = data.value !== undefined ? data.value : (data.result !== undefined ? data.result : data);
+    let result;
+    if (data.value !== undefined) {
+      result = data.value;
+    } else if (data.result !== undefined) {
+      result = data.result;
+    } else {
+      result = data;
+    }
     console.log('[KV GET] Extracted result type:', typeof result, 'isString:', typeof result === 'string');
     
     if (!result) {
