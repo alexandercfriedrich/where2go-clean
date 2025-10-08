@@ -31,6 +31,18 @@ export default function StaticPagesAdmin() {
     loadPages();
   }, []);
 
+  useEffect(() => {
+    if (editingPage) {
+      console.log('[Admin] editingPage updated in state:', {
+        id: editingPage.id,
+        title: editingPage.title,
+        contentLength: editingPage.content?.length || 0,
+        contentPreview: editingPage.content ? editingPage.content.substring(0, 50) : 'EMPTY',
+        hasContent: !!editingPage.content
+      });
+    }
+  }, [editingPage]);
+
   async function loadPages() {
     try {
       setLoading(true);
@@ -75,9 +87,12 @@ export default function StaticPagesAdmin() {
         title: existing.title,
         contentLength: existing.content?.length || 0,
         hasContent: !!existing.content,
+        contentPreview: existing.content ? existing.content.substring(0, 50) : 'NO CONTENT',
         path: existing.path
       });
+      console.log('[Admin] Full existing object:', JSON.stringify(existing));
       setEditingPage(existing);
+      console.log('[Admin] editingPage state set to:', JSON.stringify(existing));
     } else {
       console.log('[Admin] Creating new empty page for editing');
       setEditingPage({
@@ -357,7 +372,7 @@ export default function StaticPagesAdmin() {
               <label>Content (HTML)</label>
               <textarea
                 className="form-textarea"
-                value={editingPage.content}
+                value={editingPage.content || ''}
                 onChange={(e) => setEditingPage({ ...editingPage, content: e.target.value })}
                 placeholder="Enter HTML content for this page..."
               />
