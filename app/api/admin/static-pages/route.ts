@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       id: pageData.id.trim(),
       title: pageData.title.trim(),
       content: pageData.content,
-      path: pageData.path,
+      path: typeof pageData.path === 'string' ? pageData.path.replace(/\s+$/, '') : pageData.path,
       updatedAt: new Date().toISOString(),
     };
 
