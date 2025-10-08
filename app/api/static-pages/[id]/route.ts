@@ -20,14 +20,16 @@ export async function GET(
     if (defaultPage) {
       // 3) Automatically seed the default into KV (one-time initialization)
       console.log(`[Public API] Seeding default content for page: ${id}`);
-      await upsertPage({
+      const pageWithTimestamp = {
         id: defaultPage.id,
         title: defaultPage.title,
         content: defaultPage.content,
-        path: defaultPage.path
-      });
+        path: defaultPage.path,
+        updatedAt: new Date().toISOString()
+      };
+      await upsertPage(pageWithTimestamp);
 
-      return NextResponse.json({ page: defaultPage });
+      return NextResponse.json({ page: pageWithTimestamp });
     }
 
     // 4) No page in storage and no default available
