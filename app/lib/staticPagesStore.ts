@@ -51,24 +51,30 @@ async function kvGet(key: string): Promise<StaticPage[] | null> {
     }
 
     const data = await response.json();
+    console.log('[KV GET] Raw response data:', JSON.stringify(data).substring(0, 200));
+    
     // Upstash KV REST API returns {"value": "..."} where value is a JSON string
     // Check for both 'result' and 'value' keys for compatibility
     const result = data.value !== undefined ? data.value : (data.result !== undefined ? data.result : data);
+    console.log('[KV GET] Extracted result type:', typeof result, 'isString:', typeof result === 'string');
     
     if (!result) {
+      console.log('[KV GET] No result found, returning null');
       return null;
     }
 
     // Parse if it's a string, otherwise use as-is
     const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+    console.log('[KV GET] Parsed data:', Array.isArray(parsed) ? `Array with ${parsed.length} items` : typeof parsed);
     
     // Ensure we always return an array or null
     if (Array.isArray(parsed)) {
+      console.log('[KV GET] Returning array with', parsed.length, 'pages');
       return parsed;
     }
     
     // If parsed is not an array, return null (empty state)
-    console.warn('KV returned non-array value:', parsed);
+    console.warn('[KV GET] KV returned non-array value:', parsed);
     return null;
   } catch (error) {
     console.error('KV GET error:', error);
@@ -174,10 +180,23 @@ function fsSave(pages: StaticPage[]): void {
 export async function loadAllPages(): Promise<StaticPage[]> {
   try {
     if (USE_KV) {
+      console.log('[StaticPagesStore] Loading from KV...');
       const pages = await kvGet(KV_KEY);
+      console.log('[StaticPagesStore] KV returned pages:', pages ? pages.length : 0, 'pages');
+      if (pages && pages.length > 0) {
+        console.log('[StaticPagesStore] First page sample:', {
+          id: pages[0].id,
+          title: pages[0].title,
+          contentLength: pages[0].content?.length || 0,
+          path: pages[0].path
+        });
+      }
       return pages || [];
     } else {
-      return fsLoad();
+      console.log('[StaticPagesStore] Loading from filesystem...');
+      const pages = fsLoad();
+      console.log('[StaticPagesStore] Filesystem returned pages:', pages.length);
+      return pages;
     }
   } catch (error) {
     console.error('Error loading all pages:', error);

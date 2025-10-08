@@ -35,16 +35,29 @@ export default function StaticPagesAdmin() {
     try {
       setLoading(true);
       setError(null);
+      console.log('[Admin] Fetching pages from API...');
       const res = await fetch('/api/admin/static-pages', { cache: 'no-store' });
       if (!res.ok) {
         const err = await res.json().catch(() => ({} as any));
         throw new Error(err?.error || 'Failed to load pages');
       }
       const data = await res.json();
+      console.log('[Admin] API response data:', data);
+      console.log('[Admin] Pages count:', data.pages?.length || 0);
+      if (data.pages && data.pages.length > 0) {
+        console.log('[Admin] First page:', {
+          id: data.pages[0].id,
+          title: data.pages[0].title,
+          contentLength: data.pages[0].content?.length || 0,
+          hasContent: !!data.pages[0].content
+        });
+      }
       // Ensure pages is always an array
       const pagesData = data.pages || [];
       setPages(Array.isArray(pagesData) ? pagesData : []);
+      console.log('[Admin] State updated with', pagesData.length, 'pages');
     } catch (e: any) {
+      console.error('[Admin] Error loading pages:', e);
       setError(e.message || 'Unknown error');
     } finally {
       setLoading(false);
@@ -52,10 +65,21 @@ export default function StaticPagesAdmin() {
   }
 
   function handleEditPage(pageInfo: { id: string; title: string; path: string }) {
+    console.log('[Admin] handleEditPage called for:', pageInfo.id);
+    console.log('[Admin] Current pages in state:', pages.length);
     const existing = pages.find(p => p.id === pageInfo.id);
+    console.log('[Admin] Found existing page:', existing ? 'YES' : 'NO');
     if (existing) {
+      console.log('[Admin] Existing page data:', {
+        id: existing.id,
+        title: existing.title,
+        contentLength: existing.content?.length || 0,
+        hasContent: !!existing.content,
+        path: existing.path
+      });
       setEditingPage(existing);
     } else {
+      console.log('[Admin] Creating new empty page for editing');
       setEditingPage({
         id: pageInfo.id,
         title: pageInfo.title,
