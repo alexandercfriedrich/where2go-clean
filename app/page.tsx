@@ -198,6 +198,32 @@ export default function Home() {
     return true;
   }
 
+  function getPageTitle(): string {
+    const cityName = city || 'Vienna';
+    
+    if (timePeriod === 'heute') {
+      return `Today's Events in ${cityName}`;
+    }
+    if (timePeriod === 'morgen') {
+      return `Tomorrow's Events in ${cityName}`;
+    }
+    if (timePeriod === 'kommendes-wochenende') {
+      return `Weekend Events in ${cityName}`;
+    }
+    if (customDate) {
+      const date = new Date(customDate);
+      const options: Intl.DateTimeFormatOptions = { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      };
+      const formattedDate = date.toLocaleDateString('en-US', options);
+      return `Events in ${cityName} on ${formattedDate}`;
+    }
+    return `Events in ${cityName}`;
+  }
+
   function formatEventDateTime(dateStr: string, startTime?: string, endTime?: string) {
     const dateObj = new Date(dateStr);
     if (isNaN(dateObj.getTime())) return { date: dateStr, time: startTime || '' };
@@ -809,7 +835,7 @@ export default function Home() {
 
         {searchSubmitted && (
           <h1 className="results-page-title">
-            {`Today's Events in ${city}`}
+            {getPageTitle()}
           </h1>
         )}
 
