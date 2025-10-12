@@ -198,6 +198,32 @@ export default function Home() {
     return true;
   }
 
+  function getPageTitle(): string {
+    const cityName = city || 'Vienna';
+    
+    if (timePeriod === 'heute') {
+      return `Today's Events in ${cityName}`;
+    }
+    if (timePeriod === 'morgen') {
+      return `Tomorrow's Events in ${cityName}`;
+    }
+    if (timePeriod === 'kommendes-wochenende') {
+      return `Weekend Events in ${cityName}`;
+    }
+    if (customDate) {
+      const date = new Date(customDate);
+      const options: Intl.DateTimeFormatOptions = { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      };
+      const formattedDate = date.toLocaleDateString('en-US', options);
+      return `Events in ${cityName} on ${formattedDate}`;
+    }
+    return `Events in ${cityName}`;
+  }
+
   function formatEventDateTime(dateStr: string, startTime?: string, endTime?: string) {
     const dateObj = new Date(dateStr);
     if (isNaN(dateObj.getTime())) return { date: dateStr, time: startTime || '' };
@@ -559,11 +585,13 @@ export default function Home() {
         }
       });
       
-      // Initialize all filters as selected and expand all categories
+      // Initialize all filters as selected and keep all categories expanded
       if (selectedCategories.length === 0) {
         setSelectedCategories(Array.from(categorySet));
-        setExpandedCategories(Array.from(categorySet));
       }
+      // Always keep all categories expanded
+      setExpandedCategories(Array.from(categorySet));
+      
       if (selectedVenues.length === 0) {
         setSelectedVenues(Array.from(venueSet));
       }
@@ -707,7 +735,7 @@ export default function Home() {
       <header className="header">
         <div className="container header-inner header-centered">
           <div className="header-logo-wrapper">
-            <img src="/where2go-full.png" alt="Where2Go" />
+            <h1 className="header-logo-text">Where2go - Entdecke alle Events in DEINER Stadt!</h1>
           </div>
           <div className="premium-box">
             <a href="#premium" className="premium-link">
@@ -721,7 +749,7 @@ export default function Home() {
         <div className="container">
           <form
             className="search-form"
-            onSubmit={e => { e.preventDefault(); setShowCategoryDropdown(false); progressiveSearchEvents(); }}
+            onSubmit={e => { e.preventDefault(); progressiveSearchEvents(); }}
           >
             <div className="form-row">
               <div className="form-group">
@@ -730,8 +758,7 @@ export default function Home() {
                   id="city"
                   className="form-input"
                   value={city}
-                  onFocus={() => setShowCategoryDropdown(true)}
-                  onChange={e => { setCity(e.target.value); if (e.target.value.trim().length > 0) setShowCategoryDropdown(true); }}
+                  onChange={e => setCity(e.target.value)}
                   placeholder="Wien, 1060 Wien, Mariahilf..."
                 />
               </div>
@@ -771,29 +798,27 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Kategorien-Dropdown ersetzt die immer sichtbare Kategorien-Sektion */}
-
-            {showCategoryDropdown && (
-              <div className="category-dropdown-panel" role="dialog" aria-label="Kategorien wählen">
-                <div className="categories-grid">
-                  {ALL_SUPER_CATEGORIES.map(c => {
-                    const active = selectedSuperCategories.includes(c);
-                    return (
-                      <label key={c} className="category-checkbox">
-                        <input
-                          type="checkbox"
-                          checked={active}
-                          onChange={() => toggleSuperCategory(c)}
-                          disabled={!active && selectedSuperCategories.length >= MAX_CATEGORY_SELECTION}
-                        />
-                        <span className="category-name">{c}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-                {categoryLimitError && <div className="cat-error">{categoryLimitError}</div>}
+            {/* Kategorien sind immer sichtbar und ausgeklappt */}
+            <div className="categories-section">
+              <label className="categories-label">{t('form.categories')}</label>
+              <div className="categories-grid">
+                {ALL_SUPER_CATEGORIES.map(c => {
+                  const active = selectedSuperCategories.includes(c);
+                  return (
+                    <label key={c} className="category-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={active}
+                        onChange={() => toggleSuperCategory(c)}
+                        disabled={!active && selectedSuperCategories.length >= MAX_CATEGORY_SELECTION}
+                      />
+                      <span className="category-name">{c}</span>
+                    </label>
+                  );
+                })}
               </div>
-            )}
+              {categoryLimitError && <div className="cat-error">{categoryLimitError}</div>}
+            </div>
 
             <button type="submit" className="btn-search">Events suchen</button>
           </form>
@@ -807,7 +832,7 @@ export default function Home() {
 
         {searchSubmitted && (
           <h1 className="results-page-title">
-            {`Today's Events in ${city}`}
+            {getPageTitle()}
           </h1>
         )}
 
@@ -834,17 +859,9 @@ export default function Home() {
                           alignItems: 'center', 
                           gap: '8px',
                           padding: '8px',
-                          background: isExpanded ? '#f5f5f5' : 'transparent',
+                          background: '#f5f5f5',
                           borderRadius: '6px',
-                          cursor: 'pointer',
                           transition: 'background 0.2s'
-                        }}
-                        onClick={() => {
-                          setExpandedCategories(prev =>
-                            prev.includes(category)
-                              ? prev.filter(c => c !== category)
-                              : [...prev, category]
-                          );
                         }}
                       >
                         <input
@@ -872,8 +889,7 @@ export default function Home() {
                           stroke="currentColor" 
                           strokeWidth="2"
                           style={{ 
-                            transition: 'transform 0.2s',
-                            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'
+                            transform: 'rotate(90deg)'
                           }}
                         >
                           <polyline points="9 18 15 12 9 6"></polyline>
@@ -882,34 +898,32 @@ export default function Home() {
                         <span style={{ fontSize: '12px', color: '#666' }}>({categoryCount})</span>
                       </div>
                       
-                      {isExpanded && (
-                        <div style={{ marginLeft: '32px', marginTop: '8px' }}>
-                          {Object.entries(venues)
-                            .sort((a, b) => b[1] - a[1])
-                            .map(([venue, count]) => (
-                              <div key={venue} style={{ marginBottom: '6px' }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', padding: '4px 0' }}>
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedVenues.includes(venue)}
-                                    onChange={(e) => {
-                                      setSelectedVenues(prev =>
-                                        e.target.checked
-                                          ? [...prev, venue]
-                                          : prev.filter(v => v !== venue)
-                                      );
-                                    }}
-                                    style={{ cursor: 'pointer' }}
-                                  />
-                                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {venue}
-                                  </span>
-                                  <span style={{ fontSize: '11px', color: '#999' }}>({count})</span>
-                                </label>
-                              </div>
-                            ))}
-                        </div>
-                      )}
+                      <div style={{ marginLeft: '32px', marginTop: '8px' }}>
+                        {Object.entries(venues)
+                          .sort((a, b) => b[1] - a[1])
+                          .map(([venue, count]) => (
+                            <div key={venue} style={{ marginBottom: '6px' }}>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', padding: '4px 0' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedVenues.includes(venue)}
+                                  onChange={(e) => {
+                                    setSelectedVenues(prev =>
+                                      e.target.checked
+                                        ? [...prev, venue]
+                                        : prev.filter(v => v !== venue)
+                                    );
+                                  }}
+                                  style={{ cursor: 'pointer' }}
+                                />
+                                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {venue}
+                                </span>
+                                <span style={{ fontSize: '11px', color: '#999' }}>({count})</span>
+                              </label>
+                            </div>
+                          ))}
+                      </div>
                     </div>
                   );
                 })}
@@ -968,7 +982,6 @@ export default function Home() {
                   <div 
                     key={key} 
                     className="event-card" 
-                    style={{ position: 'relative', overflow: 'hidden' }}
                     {...microdataAttrs}
                   >
                     <link itemProp="url" href={canonicalUrl} />
@@ -980,17 +993,7 @@ export default function Home() {
                         <div 
                           className="event-card-bg-image"
                           style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            backgroundImage: `url(${ev.imageUrl})`,
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center',
-                            opacity: 0.2,
-                            zIndex: 0,
-                            pointerEvents: 'none'
+                            backgroundImage: `url(${ev.imageUrl})`
                           }}
                         />
                       </>
@@ -1353,10 +1356,23 @@ export default function Home() {
           position: relative;
           display:flex;
           align-items:center;
-          justify-content:center;
+          justify-content:flex-start;
           min-height:64px;
         }
         .header-inner.header-centered .premium-box { position:absolute; right:0; }
+        .header-logo-text {
+          font-size: 28px;
+          font-weight: 700;
+          color: #111;
+          margin: 0;
+          line-height: 1.3;
+          text-align: left;
+        }
+        @media (max-width: 768px) {
+          .header-logo-text {
+            font-size: 20px;
+          }
+        }
 
         .results-filter-bar {
           display:flex; justify-content:space-between; align-items:center;
