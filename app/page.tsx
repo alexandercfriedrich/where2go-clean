@@ -735,7 +735,7 @@ export default function Home() {
       <header className="header">
         <div className="container header-inner header-centered">
           <div className="header-logo-wrapper">
-            <img src="/where2go-full.png" alt="Where2Go" />
+            <h1 className="header-logo-text">Where2go - Entdecke alle Events in DEINER Stadt!</h1>
           </div>
           <div className="premium-box">
             <a href="#premium" className="premium-link">
@@ -1359,10 +1359,23 @@ export default function Home() {
           position: relative;
           display:flex;
           align-items:center;
-          justify-content:center;
+          justify-content:flex-start;
           min-height:64px;
         }
         .header-inner.header-centered .premium-box { position:absolute; right:0; }
+        .header-logo-text {
+          font-size: 28px;
+          font-weight: 700;
+          color: #111;
+          margin: 0;
+          line-height: 1.3;
+          text-align: left;
+        }
+        @media (max-width: 768px) {
+          .header-logo-text {
+            font-size: 20px;
+          }
+        }
 
         .results-filter-bar {
           display:flex; justify-content:space-between; align-items:center;
