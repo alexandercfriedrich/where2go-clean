@@ -201,3 +201,95 @@
     --color-info-rgb: var(--color-gray-300-rgb);
   }
 }
+
+/* === GLOBAL LOADING ANIMATION === */
+/* Works across all designs */
+.w2g-loader-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-24) 0;
+}
+
+.w2g-loader {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+
+.w2g-loader svg {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.w2g-loader .ring {
+  animation: spin 3s linear infinite;
+  transform-origin: center;
+}
+
+.w2g-loader .ring--1 {
+  animation-duration: 2s;
+}
+
+.w2g-loader .ring--2 {
+  animation-duration: 2.5s;
+  animation-direction: reverse;
+}
+
+.w2g-loader .ring--3 {
+  animation-duration: 3s;
+}
+
+.w2g-loader circle {
+  fill: none;
+  stroke: var(--color-primary, #32b8c6);
+  stroke-width: 2;
+  stroke-dasharray: 10 5;
+  opacity: 0.6;
+}
+
+.w2g-loader .orb5 {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--color-primary, #32b8c6);
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  animation: orbit var(--speed, 1s) linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes orbit {
+  0% {
+    transform: translate(-50%, -50%) rotate(var(--angle, 0deg)) translateY(var(--radius, 20px));
+  }
+  100% {
+    transform: translate(-50%, -50%) rotate(calc(var(--angle, 0deg) + 360deg)) translateY(var(--radius, 20px));
+  }
+}
+
+/* Loading state styles */
+.loading {
+  text-align: center;
+  padding: var(--space-32, 32px) var(--space-20, 20px);
+  color: var(--color-text, #333);
+}
+
+.loading p {
+  margin-top: var(--space-16, 16px);
+  color: var(--color-text-secondary, #666);
+  font-size: var(--font-size-base, 14px);
+}

@@ -559,11 +559,13 @@ export default function Home() {
         }
       });
       
-      // Initialize all filters as selected and expand all categories
+      // Initialize all filters as selected and keep all categories expanded
       if (selectedCategories.length === 0) {
         setSelectedCategories(Array.from(categorySet));
-        setExpandedCategories(Array.from(categorySet));
       }
+      // Always keep all categories expanded
+      setExpandedCategories(Array.from(categorySet));
+      
       if (selectedVenues.length === 0) {
         setSelectedVenues(Array.from(venueSet));
       }
@@ -834,17 +836,9 @@ export default function Home() {
                           alignItems: 'center', 
                           gap: '8px',
                           padding: '8px',
-                          background: isExpanded ? '#f5f5f5' : 'transparent',
+                          background: '#f5f5f5',
                           borderRadius: '6px',
-                          cursor: 'pointer',
                           transition: 'background 0.2s'
-                        }}
-                        onClick={() => {
-                          setExpandedCategories(prev =>
-                            prev.includes(category)
-                              ? prev.filter(c => c !== category)
-                              : [...prev, category]
-                          );
                         }}
                       >
                         <input
@@ -872,8 +866,7 @@ export default function Home() {
                           stroke="currentColor" 
                           strokeWidth="2"
                           style={{ 
-                            transition: 'transform 0.2s',
-                            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)'
+                            transform: 'rotate(90deg)'
                           }}
                         >
                           <polyline points="9 18 15 12 9 6"></polyline>
@@ -882,34 +875,32 @@ export default function Home() {
                         <span style={{ fontSize: '12px', color: '#666' }}>({categoryCount})</span>
                       </div>
                       
-                      {isExpanded && (
-                        <div style={{ marginLeft: '32px', marginTop: '8px' }}>
-                          {Object.entries(venues)
-                            .sort((a, b) => b[1] - a[1])
-                            .map(([venue, count]) => (
-                              <div key={venue} style={{ marginBottom: '6px' }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', padding: '4px 0' }}>
-                                  <input
-                                    type="checkbox"
-                                    checked={selectedVenues.includes(venue)}
-                                    onChange={(e) => {
-                                      setSelectedVenues(prev =>
-                                        e.target.checked
-                                          ? [...prev, venue]
-                                          : prev.filter(v => v !== venue)
-                                      );
-                                    }}
-                                    style={{ cursor: 'pointer' }}
-                                  />
-                                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    {venue}
-                                  </span>
-                                  <span style={{ fontSize: '11px', color: '#999' }}>({count})</span>
-                                </label>
-                              </div>
-                            ))}
-                        </div>
-                      )}
+                      <div style={{ marginLeft: '32px', marginTop: '8px' }}>
+                        {Object.entries(venues)
+                          .sort((a, b) => b[1] - a[1])
+                          .map(([venue, count]) => (
+                            <div key={venue} style={{ marginBottom: '6px' }}>
+                              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', padding: '4px 0' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={selectedVenues.includes(venue)}
+                                  onChange={(e) => {
+                                    setSelectedVenues(prev =>
+                                      e.target.checked
+                                        ? [...prev, venue]
+                                        : prev.filter(v => v !== venue)
+                                    );
+                                  }}
+                                  style={{ cursor: 'pointer' }}
+                                />
+                                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {venue}
+                                </span>
+                                <span style={{ fontSize: '11px', color: '#999' }}>({count})</span>
+                              </label>
+                            </div>
+                          ))}
+                      </div>
                     </div>
                   );
                 })}
@@ -968,7 +959,6 @@ export default function Home() {
                   <div 
                     key={key} 
                     className="event-card" 
-                    style={{ position: 'relative', overflow: 'hidden' }}
                     {...microdataAttrs}
                   >
                     <link itemProp="url" href={canonicalUrl} />
@@ -980,17 +970,7 @@ export default function Home() {
                         <div 
                           className="event-card-bg-image"
                           style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
-                            backgroundImage: `url(${ev.imageUrl})`,
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center',
-                            opacity: 0.2,
-                            zIndex: 0,
-                            pointerEvents: 'none'
+                            backgroundImage: `url(${ev.imageUrl})`
                           }}
                         />
                       </>
