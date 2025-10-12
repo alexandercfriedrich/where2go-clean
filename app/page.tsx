@@ -749,7 +749,7 @@ export default function Home() {
         <div className="container">
           <form
             className="search-form"
-            onSubmit={e => { e.preventDefault(); setShowCategoryDropdown(false); progressiveSearchEvents(); }}
+            onSubmit={e => { e.preventDefault(); progressiveSearchEvents(); }}
           >
             <div className="form-row">
               <div className="form-group">
@@ -758,8 +758,7 @@ export default function Home() {
                   id="city"
                   className="form-input"
                   value={city}
-                  onFocus={() => setShowCategoryDropdown(true)}
-                  onChange={e => { setCity(e.target.value); if (e.target.value.trim().length > 0) setShowCategoryDropdown(true); }}
+                  onChange={e => setCity(e.target.value)}
                   placeholder="Wien, 1060 Wien, Mariahilf..."
                 />
               </div>
@@ -799,29 +798,27 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Kategorien-Dropdown ersetzt die immer sichtbare Kategorien-Sektion */}
-
-            {showCategoryDropdown && (
-              <div className="category-dropdown-panel" role="dialog" aria-label="Kategorien wählen">
-                <div className="categories-grid">
-                  {ALL_SUPER_CATEGORIES.map(c => {
-                    const active = selectedSuperCategories.includes(c);
-                    return (
-                      <label key={c} className="category-checkbox">
-                        <input
-                          type="checkbox"
-                          checked={active}
-                          onChange={() => toggleSuperCategory(c)}
-                          disabled={!active && selectedSuperCategories.length >= MAX_CATEGORY_SELECTION}
-                        />
-                        <span className="category-name">{c}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-                {categoryLimitError && <div className="cat-error">{categoryLimitError}</div>}
+            {/* Kategorien sind immer sichtbar und ausgeklappt */}
+            <div className="categories-section">
+              <label className="categories-label">{t('filter.categories')}</label>
+              <div className="categories-grid">
+                {ALL_SUPER_CATEGORIES.map(c => {
+                  const active = selectedSuperCategories.includes(c);
+                  return (
+                    <label key={c} className="category-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={active}
+                        onChange={() => toggleSuperCategory(c)}
+                        disabled={!active && selectedSuperCategories.length >= MAX_CATEGORY_SELECTION}
+                      />
+                      <span className="category-name">{c}</span>
+                    </label>
+                  );
+                })}
               </div>
-            )}
+              {categoryLimitError && <div className="cat-error">{categoryLimitError}</div>}
+            </div>
 
             <button type="submit" className="btn-search">Events suchen</button>
           </form>
