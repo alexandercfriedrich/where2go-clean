@@ -800,7 +800,7 @@ export default function Home() {
 
             {/* Kategorien sind immer sichtbar und ausgeklappt */}
             <div className="categories-section">
-              <label className="categories-label">{t('filter.categories')}</label>
+              <label className="categories-label">{t('form.categories')}</label>
               <div className="categories-grid">
                 {ALL_SUPER_CATEGORIES.map(c => {
                   const active = selectedSuperCategories.includes(c);
