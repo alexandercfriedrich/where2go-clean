@@ -440,7 +440,7 @@ html, body {
   height: 200px;
   background-size: cover;
   background-position: center;
-  border-radius: 12px 12px 0 0;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
 @media (max-width: 768px) {
