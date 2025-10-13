@@ -307,7 +307,7 @@ html, body {
   align-items: stretch;
   margin-top: auto;
   padding-top: 16px;
-  border-top: 1px solid #999;
+  border-top: 1px solid var(--color-border);
 }
 
 .price-chip {
@@ -443,9 +443,13 @@ html, body {
   border-radius: var(--radius-lg) var(--radius-lg) 0 0;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .venue-filter-sidebar {
-    display: none;
+    position: static;
+    width: 100%;
+    max-width: 100%;
+    max-height: none;
+    margin-top: 24px;
   }
 }
 
