@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import { headers } from 'next/headers';
 import Link from 'next/link';
 import SchemaOrg from '@/components/SchemaOrg';
 import { generateEventListSchema, generateEventMicrodata, generateCanonicalUrl } from '@/lib/schemaOrg';
@@ -13,11 +14,17 @@ export const dynamic = 'force-dynamic';
 
 async function fetchEvents(city: string, dateISO: string, category: string | null, revalidateTime: number): Promise<EventData[]> {
   try {
-    // Use relative URL for server-side fetching to avoid deployment protection issues
-    const categoryParam = category ? `&category=${encodeURIComponent(category)}` : '';
-    const url = `/api/events/cache-day?city=${encodeURIComponent(city)}&date=${encodeURIComponent(dateISO)}${categoryParam}`;
+    // Construct absolute URL for server-side fetch
+    // Use headers to get the host, or fallback to localhost for development
+    const headersList = headers();
+    const host = headersList.get('host') || 'localhost:3000';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
     
-    console.log(`[fetchEvents] Fetching (relative): ${url}, city: ${city}, date: ${dateISO}, category: ${category}`);
+    const categoryParam = category ? `&category=${encodeURIComponent(category)}` : '';
+    const url = `${baseUrl}/api/events/cache-day?city=${encodeURIComponent(city)}&date=${encodeURIComponent(dateISO)}${categoryParam}`;
+    
+    console.log(`[fetchEvents] Fetching: ${url}, city: ${city}, date: ${dateISO}, category: ${category}`);
     
     const res = await fetch(url, { 
       cache: 'no-store',
