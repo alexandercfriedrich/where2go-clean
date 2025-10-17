@@ -8,6 +8,7 @@ import { getHotCity, getHotCityBySlug } from '@/lib/hotCityStore';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
+export const dynamic = 'force-dynamic'; // API route must be dynamic due to request.url usage
 
 /**
  * GET /api/events/cache-day
