@@ -1,0 +1,166 @@
+/**
+ * Base Structural Stylesheet (Variant A)
+ * 
+ * This file contains ONLY structural CSS rules for categories and filters.
+ * It ensures these UI elements remain visible and properly laid out across all themes.
+ * 
+ * Rules:
+ * - NO colors, typography, or decorative styles
+ * - ONLY display, position, layout, and visibility properties
+ * - Loaded AFTER theme CSS to override problematic structural decisions
+ * - Neutralizes off-canvas patterns from theme files
+ */
+
+/* ============================================
+   CATEGORIES SECTION - Always visible structure
+   ============================================ */
+
+.categories-section {
+  display: block;
+  visibility: visible;
+  opacity: 1;
+}
+
+.categories-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  visibility: visible;
+}
+
+.category-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  visibility: visible;
+  opacity: 1;
+}
+
+.category-checkbox input[type="checkbox"] {
+  display: inline-block;
+  visibility: visible;
+}
+
+.category-name {
+  display: inline-block;
+  visibility: visible;
+}
+
+/* ============================================
+   FILTER SIDEBAR - Neutralize off-canvas patterns
+   ============================================ */
+
+.filter-sidebar {
+  /* Override any off-canvas positioning */
+  position: sticky !important;
+  top: 80px !important;
+  right: auto !important;
+  left: auto !important;
+  transform: none !important;
+  
+  /* Ensure visibility */
+  display: block;
+  visibility: visible;
+  opacity: 1;
+  
+  /* Basic layout */
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+
+.filter-sidebar.open {
+  /* When toggled, keep visible */
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* ============================================
+   VENUE FILTER SIDEBAR - Always visible
+   ============================================ */
+
+.venue-filter-sidebar {
+  display: block;
+  visibility: visible;
+  opacity: 1;
+  
+  /* Sticky positioning for better UX */
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+
+.venue-filter-sidebar h3 {
+  display: block;
+  visibility: visible;
+}
+
+/* ============================================
+   RESULTS FILTER BAR - Always visible
+   ============================================ */
+
+.results-filter-bar {
+  display: flex;
+  visibility: visible;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* ============================================
+   CATEGORY DROPDOWN PANEL - Properly positioned
+   ============================================ */
+
+.category-dropdown-panel {
+  display: block;
+  visibility: visible;
+  position: absolute;
+  z-index: 100;
+}
+
+/* ============================================
+   MOBILE RESPONSIVENESS - Keep structure
+   ============================================ */
+
+@media (max-width: 768px) {
+  .categories-grid {
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 8px;
+  }
+  
+  .venue-filter-sidebar {
+    position: relative;
+    top: auto;
+    max-height: none;
+  }
+  
+  .filter-sidebar {
+    position: relative !important;
+    top: auto !important;
+    max-height: none;
+  }
+}
+
+/* ============================================
+   GENERAL VISIBILITY GUARANTEES
+   ============================================ */
+
+/* Ensure no theme can accidentally hide these critical UI elements */
+.categories-section,
+.categories-grid,
+.category-checkbox,
+.venue-filter-sidebar,
+.filter-sidebar,
+.results-filter-bar {
+  /* Prevent display:none from themes */
+  display: block;
+}
+
+.categories-grid {
+  display: grid;
+}
+
+.results-filter-bar {
+  display: flex;
+}

@@ -7,6 +7,7 @@ import { useEffect } from 'react';
  * - Default: design1.css
  * - Bei ?design=2 wird /designs/design2.css geladen.
  * - Erzwingt das Ziel-CSS auch dann, wenn einzelne Pages vorher design1.css gesetzt haben.
+ * - Lädt immer base.css NACH dem Theme, um strukturelle Sichtbarkeit zu garantieren.
  */
 export default function DesignCssLoader() {
   useEffect(() => {
@@ -15,19 +16,40 @@ export default function DesignCssLoader() {
         const params = new URLSearchParams(window.location.search);
         const designParam = params.get('design') || '1';
         const normalized = ['1', '2', '3', '4', '5', '6', '7', '8', '9'].includes(designParam) ? designParam : '1';
-        const targetHref = `/designs/design${normalized}.css`;
+        const themeHref = `/designs/design${normalized}.css`;
+        const baseHref = '/designs/base.css';
 
-        const id = 'w2g-design-css';
-        let link = document.getElementById(id) as HTMLLinkElement | null;
+        // 1. Load theme CSS (design1-9)
+        const themeId = 'w2g-theme-css';
+        let themeLink = document.getElementById(themeId) as HTMLLinkElement | null;
 
-        if (!link) {
-          link = document.createElement('link');
-          link.id = id;
-          link.rel = 'stylesheet';
-          document.head.appendChild(link);
+        if (!themeLink) {
+          themeLink = document.createElement('link');
+          themeLink.id = themeId;
+          themeLink.rel = 'stylesheet';
+          document.head.appendChild(themeLink);
         }
-        if (link.getAttribute('href') !== targetHref) {
-          link.setAttribute('href', targetHref);
+        if (themeLink.getAttribute('href') !== themeHref) {
+          themeLink.setAttribute('href', themeHref);
+        }
+
+        // 2. Load base CSS AFTER theme to ensure structural overrides
+        const baseId = 'w2g-base-css';
+        let baseLink = document.getElementById(baseId) as HTMLLinkElement | null;
+
+        if (!baseLink) {
+          baseLink = document.createElement('link');
+          baseLink.id = baseId;
+          baseLink.rel = 'stylesheet';
+          document.head.appendChild(baseLink);
+        }
+        if (baseLink.getAttribute('href') !== baseHref) {
+          baseLink.setAttribute('href', baseHref);
+        }
+
+        // Ensure base.css comes after theme CSS in the DOM
+        if (themeLink.nextSibling !== baseLink) {
+          document.head.insertBefore(baseLink, themeLink.nextSibling);
         }
       } catch {
         // no-op
