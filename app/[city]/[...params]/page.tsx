@@ -5,48 +5,67 @@ import { generateEventListSchema, generateEventMicrodata, generateCanonicalUrl }
 import { resolveCityFromParam, dateTokenToISO, formatGermanDate, KNOWN_DATE_TOKENS } from '@/lib/city';
 import { getRevalidateFor } from '@/lib/isr';
 import { getActiveHotCities, slugify as slugifyCity } from '@/lib/hotCityStore';
-import { EVENT_CATEGORY_SUBCATEGORIES } from '@/lib/eventCategories';
+import { EVENT_CATEGORY_SUBCATEGORIES, EVENT_CATEGORIES, normalizeCategory } from '@/lib/eventCategories';
+import { getDayEvents, isEventValidNow } from '@/lib/dayCache';
+import { eventsCache } from '@/lib/cache';
+import { eventAggregator } from '@/lib/aggregator';
 import type { EventData } from '@/lib/types';
 
 // Mark as dynamic since we use Redis for HotCities
 export const dynamic = 'force-dynamic';
 
-async function fetchEvents(city: string, dateISO: string, category: string | null, revalidateTime: number): Promise<EventData[]> {
+async function fetchEvents(city: string, dateISO: string, category: string | null): Promise<EventData[]> {
   try {
-    // For server-side internal calls, use localhost to bypass deployment protection
-    // The API routes are in the same Next.js process, so we can use localhost
-    const baseUrl = process.env.NODE_ENV === 'production' 
-      ? 'http://localhost:3000'  // Internal call in production
-      : 'http://localhost:3000';  // Development
+    console.log(`[fetchEvents] Direct call: city=${city}, date=${dateISO}, category=${category}`);
     
-    const categoryParam = category ? `&category=${encodeURIComponent(category)}` : '';
-    const url = `${baseUrl}/api/events/cache-day?city=${encodeURIComponent(city)}&date=${encodeURIComponent(dateISO)}${categoryParam}`;
+    // Direct call to cache logic (no HTTP request needed)
+    const requestedCategories = category
+      ? Array.from(new Set(
+          category.split(',')
+            .map(c => c.trim())
+            .filter(Boolean)
+            .map(c => normalizeCategory(c))
+        ))
+      : null;
+
+    let allEvents: EventData[] = [];
+
+    // Try to load from day-bucket first
+    const dayBucket = await getDayEvents(city, dateISO);
     
-    console.log(`[fetchEvents] Fetching (internal): ${url}, city: ${city}, date: ${dateISO}, category: ${category}`);
-    
-    const res = await fetch(url, { 
-      cache: 'no-store',
-      headers: {
-        'Accept': 'application/json',
+    if (dayBucket && dayBucket.events.length > 0) {
+      allEvents = dayBucket.events;
+    } else {
+      // Fallback: Load from per-category shards
+      const categoriesToLoad = requestedCategories || EVENT_CATEGORIES;
+      const cacheResult = await eventsCache.getEventsByCategories(city, dateISO, categoriesToLoad);
+      
+      const cachedEventsList: EventData[] = [];
+      for (const cat in cacheResult.cachedEvents) {
+        cachedEventsList.push(...cacheResult.cachedEvents[cat]);
       }
-    });
-    
-    console.log(`[fetchEvents] Status: ${res.status}, OK: ${res.ok}`);
-    
-    if (!res.ok) {
-      const text = await res.text();
-      console.error(`[fetchEvents] Error response (first 200 chars): ${text.substring(0, 200)}`);
-      return [];
+      
+      // Deduplicate events from different category shards
+      allEvents = eventAggregator.deduplicateEvents(cachedEventsList);
     }
+
+    // Filter: Only return valid (non-expired) events
+    const now = new Date();
+    const validEvents = allEvents.filter(event => isEventValidNow(event, now));
+
+    // Filter by requested categories if specified
+    let filteredEvents = validEvents;
+    if (requestedCategories && requestedCategories.length > 0) {
+      filteredEvents = validEvents.filter(event => {
+        if (!event.category) return false;
+        const normalizedEventCategory = normalizeCategory(event.category);
+        return requestedCategories.includes(normalizedEventCategory);
+      });
+    }
+
+    console.log(`[fetchEvents] Events count: ${filteredEvents.length}`);
     
-    const json = await res.json();
-    console.log(`[fetchEvents] JSON response keys: ${Object.keys(json).join(', ')}`);
-    
-    const events = Array.isArray(json?.events) ? json.events : [];
-    
-    console.log(`[fetchEvents] Events count: ${events.length}`);
-    
-    return events;
+    return filteredEvents;
   } catch (error) {
     console.error(`[fetchEvents] Exception:`, error);
     return [];
@@ -198,8 +217,7 @@ export default async function CityParamsPage({ params }: { params: { city: strin
   }
 
   const dateISO = dateTokenToISO(dateParam);
-  const revalidate = await getRevalidateFor(resolved.name, dateParam.toLowerCase());
-  const events = await fetchEvents(resolved.name, dateISO, category, revalidate);
+  const events = await fetchEvents(resolved.name, dateISO, category);
   const listSchema = generateEventListSchema(events, resolved.name, dateISO, 'https://www.where2go.at');
 
   const categoryPart = category ? `${category} ` : '';
