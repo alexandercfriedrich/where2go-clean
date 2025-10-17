@@ -8,6 +8,10 @@ import { getActiveHotCities, slugify as slugifyCity } from '@/lib/hotCityStore';
 import { EVENT_CATEGORY_SUBCATEGORIES } from '@/lib/eventCategories';
 import type { EventData } from '@/lib/types';
 
+// Mark as dynamic since we use Redis for HotCities
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 async function fetchEvents(city: string, dateISO: string, category: string | null, revalidate: number): Promise<EventData[]> {
   // For server-side rendering, use relative URL or construct based on runtime environment
   const baseUrl = process.env.VERCEL_URL 

@@ -5,6 +5,10 @@ import { resolveCityFromParam, dateTokenToISO, formatGermanDate } from '@/lib/ci
 import { getRevalidateFor } from '@/lib/isr';
 import type { EventData } from '@/lib/types';
 
+// Mark as dynamic since we use Redis for HotCities
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 async function fetchEvents(city: string, dateISO: string, revalidate: number): Promise<EventData[]> {
   // For server-side rendering, use relative URL or construct based on runtime environment
   const baseUrl = process.env.VERCEL_URL 
