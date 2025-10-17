@@ -252,6 +252,30 @@ export default function HotCitiesDetailPage() {
     }
   };
 
+  const handleExportBackup = async () => {
+    try {
+      const response = await fetch('/api/admin/hot-cities/export');
+      if (!response.ok) {
+        throw new Error('Failed to export backup');
+      }
+      
+      // Trigger download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `hot-cities-backup-${new Date().toISOString().split('T')[0]}.xml`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      alert('Backup exported successfully!');
+    } catch (err: any) {
+      alert(`Error: ${err.message}`);
+    }
+  };
+
   if (loading) return <div className="admin-container"><p>Loading...</p></div>;
   if (error) return <div className="admin-container"><p>Error: {error}</p></div>;
 
@@ -510,9 +534,12 @@ export default function HotCitiesDetailPage() {
       
       <div className="admin-header">
         <h1 className="admin-title">Hot Cities Management</h1>
-        <div>
+        <div style={{ display: 'flex', gap: '10px' }}>
           <button className="btn btn-success" onClick={handleSeedCities}>
             Seed Sample Cities
+          </button>
+          <button className="btn btn-primary" onClick={handleExportBackup}>
+            📥 Export Backup (XML)
           </button>
           <a href="/admin" className="btn btn-secondary">
             Back to Dashboard
