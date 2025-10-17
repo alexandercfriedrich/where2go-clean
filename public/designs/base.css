@@ -1,0 +1,152 @@
+/**
+ * base.css - Structural CSS layer for Where2Go
+ * 
+ * Purpose: Ensure categories and filters are always visible regardless of selected design.
+ * This file contains ONLY structural/layout CSS - no colors or typography.
+ * It is loaded AFTER theme stylesheets to override any off-canvas or hidden filter patterns.
+ */
+
+/* === CATEGORIES SECTION === */
+.categories-section {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: relative !important;
+  margin-top: 20px;
+  padding: 18px;
+  border-radius: 10px;
+}
+
+.categories-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)) !important;
+  gap: 10px;
+  margin-bottom: 14px;
+  visibility: visible !important;
+}
+
+.category-checkbox {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  visibility: visible !important;
+}
+
+/* === FILTER SIDEBAR === */
+/* Ensure filter sidebar is always visible and properly positioned (not off-canvas) */
+.filter-sidebar {
+  position: sticky !important;
+  top: 80px !important;
+  right: auto !important;
+  left: auto !important;
+  width: auto !important;
+  min-width: 250px;
+  max-width: 300px;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  transform: none !important;
+  transition: none !important;
+  overflow-y: auto;
+  max-height: calc(100vh - 100px);
+}
+
+/* Ensure open state doesn't conflict */
+.filter-sidebar.open {
+  right: auto !important;
+  left: auto !important;
+  transform: none !important;
+}
+
+/* === VENUE FILTER SIDEBAR === */
+.venue-filter-sidebar {
+  position: sticky !important;
+  top: 80px !important;
+  min-width: 250px;
+  max-width: 300px;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  overflow-y: auto;
+  max-height: calc(100vh - 100px);
+}
+
+/* === RESULTS FILTER BAR === */
+.results-filter-bar {
+  display: flex !important;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0 18px;
+  visibility: visible !important;
+}
+
+/* === CATEGORY DROPDOWN PANEL === */
+.category-dropdown-panel {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: relative !important;
+  margin-top: 20px;
+  margin-bottom: 20px;
+  border-radius: 12px;
+  padding: 16px;
+  width: 100%;
+  max-width: 920px;
+}
+
+/* === FILTER CHIPS === */
+.filter-chips-inline {
+  display: flex !important;
+  flex-wrap: wrap;
+  gap: 10px;
+  visibility: visible !important;
+}
+
+.filter-chip {
+  display: flex !important;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  visibility: visible !important;
+}
+
+/* === RESPONSIVE BEHAVIOR === */
+@media (max-width: 768px) {
+  /* On mobile, keep filters accessible - don't hide them completely */
+  .filter-sidebar,
+  .venue-filter-sidebar {
+    position: relative !important;
+    top: auto !important;
+    max-width: 100%;
+    min-width: 100%;
+    max-height: none;
+  }
+  
+  .results-filter-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .categories-section {
+    gap: 10px;
+  }
+}
+
+@media (max-width: 640px) {
+  .category-dropdown-panel {
+    margin-top: 16px;
+    margin-bottom: 16px;
+  }
+  
+  .categories-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
+  }
+}

@@ -1,24 +1,6 @@
 'use client';
-import { useEffect } from 'react';
 
 export default function UeberUns() {
-  // Apply design1.css by default
-  useEffect(() => {
-    const id = 'w2g-design-css';
-    const existing = document.getElementById(id) as HTMLLinkElement | null;
-    const href = `/designs/design1.css`;
-    
-    if (existing) {
-      if (existing.getAttribute('href') !== href) existing.setAttribute('href', href);
-    } else {
-      const link = document.createElement('link');
-      link.id = id;
-      link.rel = 'stylesheet';
-      link.href = href;
-      document.head.appendChild(link);
-    }
-  }, []);
-
   return (
     <div className="container" style={{ minHeight: '100vh', padding: '2rem 0' }}>
       <div className="events-grid" style={{ maxWidth: '800px', margin: '0 auto' }}>
