@@ -6,68 +6,36 @@ import { generateEventListSchema, generateEventMicrodata, generateCanonicalUrl }
 import { resolveCityFromParam, dateTokenToISO, formatGermanDate, KNOWN_DATE_TOKENS } from '@/lib/city';
 import { getRevalidateFor } from '@/lib/isr';
 import { getActiveHotCities, slugify as slugifyCity } from '@/lib/hotCityStore';
-import { EVENT_CATEGORY_SUBCATEGORIES, EVENT_CATEGORIES, normalizeCategory } from '@/lib/eventCategories';
-import { getDayEvents, isEventValidNow } from '@/lib/dayCache';
-import { eventsCache } from '@/lib/cache';
-import { eventAggregator } from '@/lib/aggregator';
+import { EVENT_CATEGORY_SUBCATEGORIES } from '@/lib/eventCategories';
 import { generateCitySEO } from '@/lib/seoContent';
 import type { EventData } from '@/lib/types';
 
-// Mark as dynamic since we use Redis for HotCities
-export const dynamic = 'force-dynamic';
-
-async function fetchEvents(city: string, dateISO: string, category: string | null): Promise<EventData[]> {
+async function fetchEvents(city: string, dateISO: string, category: string | null, dateToken: string = 'heute'): Promise<EventData[]> {
   try {
-    console.log(`[fetchEvents] Direct call: city=${city}, date=${dateISO}, category=${category}`);
-    
-    // Direct call to cache logic (no HTTP request needed)
-    const requestedCategories = category
-      ? Array.from(new Set(
-          category.split(',')
-            .map(c => c.trim())
-            .filter(Boolean)
-            .map(c => normalizeCategory(c))
-        ))
-      : null;
-
-    let allEvents: EventData[] = [];
-
-    // Try to load from day-bucket first
-    const dayBucket = await getDayEvents(city, dateISO);
-    
-    if (dayBucket && dayBucket.events.length > 0) {
-      allEvents = dayBucket.events;
-    } else {
-      // Fallback: Load from per-category shards
-      const categoriesToLoad = requestedCategories || EVENT_CATEGORIES;
-      const cacheResult = await eventsCache.getEventsByCategories(city, dateISO, categoriesToLoad);
-      
-      const cachedEventsList: EventData[] = [];
-      for (const cat in cacheResult.cachedEvents) {
-        cachedEventsList.push(...cacheResult.cachedEvents[cat]);
-      }
-      
-      // Deduplicate events from different category shards
-      allEvents = eventAggregator.deduplicateEvents(cachedEventsList);
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const params = new URLSearchParams({
+      city,
+      date: dateISO
+    });
+    if (category) {
+      params.set('category', category);
     }
-
-    // Filter: Only return valid (non-expired) events
-    const now = new Date();
-    const validEvents = allEvents.filter(event => isEventValidNow(event, now));
-
-    // Filter by requested categories if specified
-    let filteredEvents = validEvents;
-    if (requestedCategories && requestedCategories.length > 0) {
-      filteredEvents = validEvents.filter(event => {
-        if (!event.category) return false;
-        const normalizedEventCategory = normalizeCategory(event.category);
-        return requestedCategories.includes(normalizedEventCategory);
-      });
-    }
-
-    console.log(`[fetchEvents] Events count: ${filteredEvents.length}`);
     
-    return filteredEvents;
+    const revalidate = await getRevalidateFor(city, dateToken);
+    
+    console.log(`[fetchEvents] Fetching via API: city=${city}, date=${dateISO}, category=${category}`);
+    
+    const response = await fetch(`${baseUrl}/api/events/cache-day?${params.toString()}`, {
+      next: { revalidate }
+    });
+    
+    if (!response.ok) {
+      console.error(`[fetchEvents] API error: ${response.status}`);
+      return [];
+    }
+    
+    const data = await response.json();
+    return data.events || [];
   } catch (error) {
     console.error(`[fetchEvents] Exception:`, error);
     return [];
@@ -97,10 +65,9 @@ function isDateToken(param: string): boolean {
   return KNOWN_DATE_TOKENS.includes(param.toLowerCase()) || /^\d{4}-\d{2}-\d{2}$/.test(param);
 }
 
-// SSG: Generate static params for all combinations
-export async function generateStaticParams({ params }: { params: { city: string } }) {
+// SSG: Generate static params for all city/params combinations
+export async function generateStaticParams() {
   const cities = await getActiveHotCities();
-  const slugs = cities.map(c => slugifyCity(c.name));
   
   const today = new Date();
   const nextDays = Array.from({ length: 7 }, (_, i) => {
@@ -121,22 +88,27 @@ export async function generateStaticParams({ params }: { params: { city: string 
   
   const catSlugs = superCats.map(c => slugify(c));
   
-  const paths: { params: string[] }[] = [];
+  const paths: { city: string; params: string[] }[] = [];
   
-  // Pattern: [date] only
-  allDates.forEach(date => {
-    paths.push({ params: [date] });
-  });
-  
-  // Pattern: [category] only
-  catSlugs.forEach(cat => {
-    paths.push({ params: [cat] });
-  });
-  
-  // Pattern: [category, date]
-  catSlugs.forEach(cat => {
-    coreDates.forEach(date => {
-      paths.push({ params: [cat, date] });
+  // Generate paths for each city
+  cities.forEach(cityObj => {
+    const citySlug = slugifyCity(cityObj.name);
+    
+    // Pattern: [date] only
+    allDates.forEach(date => {
+      paths.push({ city: citySlug, params: [date] });
+    });
+    
+    // Pattern: [category] only
+    catSlugs.forEach(cat => {
+      paths.push({ city: citySlug, params: [cat] });
+    });
+    
+    // Pattern: [category, date]
+    catSlugs.forEach(cat => {
+      coreDates.forEach(date => {
+        paths.push({ city: citySlug, params: [cat, date] });
+      });
     });
   });
   
@@ -219,7 +191,7 @@ export default async function CityParamsPage({ params }: { params: { city: strin
   }
 
   const dateISO = dateTokenToISO(dateParam);
-  const events = await fetchEvents(resolved.name, dateISO, category);
+  const events = await fetchEvents(resolved.name, dateISO, category, dateParam);
   const listSchema = generateEventListSchema(events, resolved.name, dateISO, 'https://www.where2go.at');
   const seoContent = generateCitySEO(resolved.name, dateParam, category || undefined);
 

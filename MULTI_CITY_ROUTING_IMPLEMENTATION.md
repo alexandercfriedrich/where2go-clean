@@ -31,7 +31,6 @@ This document summarizes the implementation of multi-city dynamic routing with I
     - Uses active Hot Cities from store
     - Includes core date tokens + next 14 days
     - Includes all event super-categories
-    - Generates longtail variants (kostenlose-events, events-heute-abend, was-ist-los)
 
 ### 2. Dynamic Routes
 
@@ -44,7 +43,8 @@ This document summarizes the implementation of multi-city dynamic routing with I
 - **Route**: `/:city` (e.g., `/wien`)
 - Displays today's events for a city
 - Includes navigation to heute/morgen/wochenende
-- Server-side rendered with ISR
+- Uses ISR (Incremental Static Regeneration) with fetch and revalidate
+- Includes generateStaticParams for pre-rendering all Hot Cities
 - Includes Schema.org JSON-LD and microdata
 
 #### `app/[city]/[...params]/page.tsx`
@@ -54,7 +54,8 @@ This document summarizes the implementation of multi-city dynamic routing with I
   - `/:city/:category/:date` (e.g., `/wien/live-konzerte/heute`)
 - Flexible catch-all route that handles all parameter combinations
 - Auto-detects whether params are dates or categories
-- Pre-generates static pages for Hot Cities + core dates
+- Uses ISR with fetch and revalidate (no force-dynamic)
+- generateStaticParams returns both city and params for pre-rendering
 - On-demand generation for other valid paths
 
 ### 3. SEO Routes
@@ -125,11 +126,6 @@ This document summarizes the implementation of multi-city dynamic routing with I
 /wien/live-konzerte/heute
 /wien/clubs-discos/wochenende
 /berlin/live-konzerte/2025-11-15
-
-# Longtail variants
-/wien/kostenlose-events
-/wien/events-heute-abend
-/wien/was-ist-los
 ```
 
 ## Testing the Implementation

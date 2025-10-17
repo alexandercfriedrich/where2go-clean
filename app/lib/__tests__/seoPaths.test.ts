@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { generateSeoPaths } from '../seoPaths';
 
 // Mock the dependencies
-vi.mock('../hotCityStore', () => ({
+vi.mock('@/lib/hotCityStore', () => ({
   getActiveHotCities: vi.fn(() => {
     return Promise.resolve([
       {
@@ -67,15 +67,6 @@ describe('SEO Paths Generator', () => {
       
       // Should have some ISO date paths
       expect(paths.some(p => p.match(/\/wien\/\d{4}-\d{2}-\d{2}$/))).toBe(true);
-    });
-
-    it('should include longtail variant paths', async () => {
-      const paths = await generateSeoPaths();
-      
-      // Should include special longtail paths
-      expect(paths).toContain('/wien/kostenlose-events');
-      expect(paths).toContain('/wien/events-heute-abend');
-      expect(paths).toContain('/wien/was-ist-los');
     });
 
     it('should respect limit parameter', async () => {

@@ -4,72 +4,48 @@ import Breadcrumb from '@/components/Breadcrumb';
 import { generateEventListSchema, generateEventMicrodata, generateCanonicalUrl } from '@/lib/schemaOrg';
 import { resolveCityFromParam, dateTokenToISO, formatGermanDate } from '@/lib/city';
 import { getRevalidateFor } from '@/lib/isr';
-import { getDayEvents, isEventValidNow } from '@/lib/dayCache';
-import { eventsCache } from '@/lib/cache';
-import { eventAggregator } from '@/lib/aggregator';
-import { EVENT_CATEGORIES, normalizeCategory } from '@/lib/eventCategories';
+import { getActiveHotCities, slugify as slugifyCity } from '@/lib/hotCityStore';
 import { generateCitySEO } from '@/lib/seoContent';
 import type { EventData } from '@/lib/types';
 
-// Mark as dynamic since we use Redis for HotCities
-export const dynamic = 'force-dynamic';
-
 async function fetchEvents(city: string, dateISO: string, category: string | null = null): Promise<EventData[]> {
   try {
-    console.log(`[fetchEvents] Direct call: city=${city}, date=${dateISO}, category=${category}`);
-    
-    // Direct call to cache logic (no HTTP request needed)
-    const requestedCategories = category
-      ? Array.from(new Set(
-          category.split(',')
-            .map(c => c.trim())
-            .filter(Boolean)
-            .map(c => normalizeCategory(c))
-        ))
-      : null;
-
-    let allEvents: EventData[] = [];
-
-    // Try to load from day-bucket first
-    const dayBucket = await getDayEvents(city, dateISO);
-    
-    if (dayBucket && dayBucket.events.length > 0) {
-      allEvents = dayBucket.events;
-    } else {
-      // Fallback: Load from per-category shards
-      const categoriesToLoad = requestedCategories || EVENT_CATEGORIES;
-      const cacheResult = await eventsCache.getEventsByCategories(city, dateISO, categoriesToLoad);
-      
-      const cachedEventsList: EventData[] = [];
-      for (const cat in cacheResult.cachedEvents) {
-        cachedEventsList.push(...cacheResult.cachedEvents[cat]);
-      }
-      
-      // Deduplicate events from different category shards
-      allEvents = eventAggregator.deduplicateEvents(cachedEventsList);
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const params = new URLSearchParams({
+      city,
+      date: dateISO
+    });
+    if (category) {
+      params.set('category', category);
     }
-
-    // Filter: Only return valid (non-expired) events
-    const now = new Date();
-    const validEvents = allEvents.filter(event => isEventValidNow(event, now));
-
-    // Filter by requested categories if specified
-    let filteredEvents = validEvents;
-    if (requestedCategories && requestedCategories.length > 0) {
-      filteredEvents = validEvents.filter(event => {
-        if (!event.category) return false;
-        const normalizedEventCategory = normalizeCategory(event.category);
-        return requestedCategories.includes(normalizedEventCategory);
-      });
-    }
-
-    console.log(`[fetchEvents] Events count: ${filteredEvents.length}`);
     
-    return filteredEvents;
+    const revalidate = await getRevalidateFor(city, 'heute');
+    
+    console.log(`[fetchEvents] Fetching via API: city=${city}, date=${dateISO}, category=${category}`);
+    
+    const response = await fetch(`${baseUrl}/api/events/cache-day?${params.toString()}`, {
+      next: { revalidate }
+    });
+    
+    if (!response.ok) {
+      console.error(`[fetchEvents] API error: ${response.status}`);
+      return [];
+    }
+    
+    const data = await response.json();
+    return data.events || [];
   } catch (error) {
     console.error(`[fetchEvents] Exception:`, error);
     return [];
   }
+}
+
+// SSG: Generate static params for all cities
+export async function generateStaticParams() {
+  const cities = await getActiveHotCities();
+  return cities.map(city => ({
+    city: slugifyCity(city.name)
+  }));
 }
 
 export default async function CityPage({ params }: { params: { city: string } }) {

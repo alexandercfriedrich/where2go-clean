@@ -42,13 +42,6 @@ export async function generateSeoPaths(limit?: number): Promise<string[]> {
     });
   });
 
-  // Ein paar Longtail-Varianten pro Stadt (begrenzt)
-  slugs.forEach(city => {
-    urls.add(`/${city}/kostenlose-events`);
-    urls.add(`/${city}/events-heute-abend`);
-    urls.add(`/${city}/was-ist-los`);
-  });
-
   const out = Array.from(urls);
   return typeof limit === 'number' ? out.slice(0, limit) : out;
 }

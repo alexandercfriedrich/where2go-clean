@@ -17,6 +17,22 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const searchParams = request.nextUrl.searchParams;
 
+  // Skip normalization for special routes
+  if (
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/api') ||
+    pathname.startsWith('/_next') ||
+    pathname === '/sitemap.xml' ||
+    pathname === '/robots.txt'
+  ) {
+    // Continue to existing admin auth check below
+    if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
+      // Admin auth logic handled below
+    } else {
+      return NextResponse.next();
+    }
+  }
+
   // Legacy: /?city=...&date=...
   if (pathname === '/' && searchParams.has('city')) {
     const cityParam = searchParams.get('city') || '';
@@ -33,8 +49,14 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(newUrl, 301);
   }
 
-  // Kleinbuchstaben-Normalisierung (SEO) - only for city routes
-  if (pathname.match(/^\/[^\/]+/) && pathname !== pathname.toLowerCase()) {
+  // Lowercase normalization (SEO) - only for city routes (skip special routes)
+  if (!pathname.startsWith('/admin') && 
+      !pathname.startsWith('/api') && 
+      !pathname.startsWith('/_next') &&
+      pathname !== '/sitemap.xml' &&
+      pathname !== '/robots.txt' &&
+      pathname.match(/^\/[^\/]+/) && 
+      pathname !== pathname.toLowerCase()) {
     return NextResponse.redirect(new URL(pathname.toLowerCase() + request.nextUrl.search, request.url), 301);
   }
 

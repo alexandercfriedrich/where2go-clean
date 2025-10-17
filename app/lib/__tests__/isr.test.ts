@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { getRevalidateFor } from '../isr';
 
 // Mock the hotCityStore module
-vi.mock('../hotCityStore', () => ({
+vi.mock('@/lib/hotCityStore', () => ({
   getHotCity: vi.fn((name: string) => {
     // Return a mock hot city for Wien, null for others
     if (name.toLowerCase() === 'wien') {

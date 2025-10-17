@@ -112,7 +112,7 @@ function generateFAQ(city: string, date?: string, category?: string): Array<{ qu
     },
     {
       question: `Welche sind die beliebtesten Event-Locations in ${city}?`,
-      answer: `${city} verfügt über eine Vielzahl erstklassiger Event-Locations. Von historischen Veranstaltungssälen über moderne Konzerthallen bis zu angesagten Clubs – die Stadt bietet für jeden Anlass die passende Location. Eine detaillierte Übersicht finden Sie auf unserer Platform.`
+      answer: `${city} verfügt über eine Vielzahl erstklassiger Event-Locations. Von historischen Veranstaltungssälen über moderne Konzerthallen bis zu angesagten Clubs – die Stadt bietet für jeden Anlass die passende Location. Eine detaillierte Übersicht finden Sie auf unserer Plattform.`
     }
   ];
   

@@ -1,7 +1,7 @@
 import { generateSeoPaths } from '@/lib/seoPaths';
 
 export async function GET() {
-  const baseUrl = (process.env.SITE_URL || 'https://www.where2go.at').replace(/\/$/, '');
+  const baseUrl = (process.env.NEXT_PUBLIC_BASE_URL || process.env.SITE_URL || 'https://www.where2go.at').replace(/\/$/, '');
 
   try {
     const paths = await generateSeoPaths(10000);
@@ -24,8 +24,10 @@ export async function GET() {
       }
     });
   } catch (e) {
+    console.error('[sitemap.xml] Error generating sitemap:', e);
     const fallbackXml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n  <url>\n    <loc>${baseUrl}/</loc>\n    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>\n    <changefreq>daily</changefreq>\n    <priority>1.0</priority>\n  </url>\n</urlset>`;
     return new Response(fallbackXml, {
+      status: 500,
       headers: {
         'Content-Type': 'application/xml; charset=utf-8'
       }
