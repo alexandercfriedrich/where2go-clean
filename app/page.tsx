@@ -600,11 +600,10 @@ export default function Home() {
 
   const displayedEvents = (() => {
     const dateFiltered = events.filter(matchesSelectedDate);
-    if (!searchSubmitted) return dateFiltered;
     
-    // Apply category filter
+    // Apply category filter (only if search was submitted)
     let filtered = dateFiltered;
-    if (selectedCategories.length > 0) {
+    if (searchSubmitted && selectedCategories.length > 0) {
       filtered = filtered.filter(e => {
         for (const mainCat of selectedCategories) {
           const subs = EVENT_CATEGORY_SUBCATEGORIES[mainCat] || [];
@@ -614,7 +613,8 @@ export default function Home() {
       });
     }
     
-    // Apply venue filter
+    // FIXED: Apply venue filter ALWAYS (not just when searchSubmitted)
+    // This allows filtering of cached/preloaded events
     if (selectedVenues.length > 0) {
       filtered = filtered.filter(e => selectedVenues.includes(e.venue));
     }
@@ -838,9 +838,27 @@ export default function Home() {
 
         <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
           {/* Left sidebar: Category-Venue hierarchy */}
-          {searchSubmitted && events.length > 0 && (
+          {/* FIXED: Show sidebar when events exist (from cache OR search), not just after search */}
+          {events.length > 0 && (
             <aside className="venue-filter-sidebar">
-              <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>{t('filter.filtersAndCategories')}</h3>
+              <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>
+                {t('filter.filtersAndCategories')}
+              </h3>
+              
+              {/* Show filtering status */}
+              {displayedEvents.length !== events.filter(matchesSelectedDate).length && (
+                <div style={{ 
+                  fontSize: '13px', 
+                  color: '#e74c3c', 
+                  background: '#fff5f5', 
+                  padding: '8px 12px', 
+                  borderRadius: '6px',
+                  marginBottom: '12px',
+                  fontWeight: 500
+                }}>
+                  {displayedEvents.length} von {events.filter(matchesSelectedDate).length} Events gefiltert
+                </div>
+              )}
               
               {Object.entries(getCategoryCounts()).length === 0 && (
                 <p style={{ fontSize: '14px', color: '#666', padding: '12px 0' }}>
