@@ -2,12 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 
 // Helper function to slugify city names (matching hotCityStore.ts)
 function slugify(text: string): string {
-  return text
+  // Limit input length to prevent ReDoS
+  const safe = text.substring(0, 200);
+  return safe
     .toLowerCase()
     .trim()
     .replace(/[^\w\s-]/g, '') // Remove special chars
-    .replace(/[\s_-]+/g, '-') // Replace spaces and underscores with hyphens
-    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+    .replace(/[\s_]+/g, '-') // Replace spaces and underscores with hyphens
+    .replace(/--+/g, '-') // Replace multiple hyphens with single hyphen
+    .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
 }
 
 export function middleware(request: NextRequest) {
