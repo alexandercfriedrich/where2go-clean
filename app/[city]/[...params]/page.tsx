@@ -236,7 +236,7 @@ export default async function CityParamsPage({ params }: { params: { city: strin
   }
   
   if (dateParam !== 'heute') {
-    breadcrumbItems.push({ label: formatGermanDate(dateISO) });
+    breadcrumbItems.push({ label: formatGermanDate(dateISO), href: `/${resolved.slug}${categorySlug ? `/${categorySlug}` : ''}/${dateParam}` });
   }
 
   return (
