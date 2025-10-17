@@ -26,6 +26,7 @@ function categorySlugToName(slug: string): string | null {
   for (const cat of Object.keys(EVENT_CATEGORY_SUBCATEGORIES)) {
     const catSlug = cat.toLowerCase()
       .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/\//g, '-')  // Replace slashes with hyphens
       .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-').replace(/-+/g, '-');
     

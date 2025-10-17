@@ -20,6 +20,7 @@ export async function generateSeoPaths(limit?: number): Promise<string[]> {
   const slugify = (s: string) =>
     s.toLowerCase().trim()
       .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/\//g, '-')  // Replace slashes with hyphens
       .replace(/[^a-z0-9\s-]/g, '')
       .replace(/\s+/g, '-').replace(/-+/g, '-');
 

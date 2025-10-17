@@ -4,6 +4,7 @@ import { eventsCache } from '@/lib/cache';
 import { EventData } from '@/lib/types';
 import { eventAggregator } from '@/lib/aggregator';
 import { EVENT_CATEGORIES, normalizeCategory } from '@/lib/eventCategories';
+import { getHotCity, getHotCityBySlug } from '@/lib/hotCityStore';
 
 export const runtime = 'nodejs';
 export const maxDuration = 60;
@@ -24,16 +25,28 @@ export const maxDuration = 60;
 export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const city = url.searchParams.get('city');
+    const cityParam = url.searchParams.get('city');
     const date = url.searchParams.get('date');
     const categoryParam = url.searchParams.get('category');
 
     // Validate required parameters
-    if (!city || !date) {
+    if (!cityParam || !date) {
       return NextResponse.json(
         { error: 'Missing required parameters: city and date' },
         { status: 400 }
       );
+    }
+
+    // Map city parameter to canonical Hot City name (case-insensitive)
+    let city = cityParam;
+    const hotCityByName = await getHotCity(cityParam);
+    if (hotCityByName) {
+      city = hotCityByName.name;
+    } else {
+      const hotCityBySlug = await getHotCityBySlug(cityParam.toLowerCase());
+      if (hotCityBySlug) {
+        city = hotCityBySlug.name;
+      }
     }
 
     // Parse category filter (optional) and normalize
