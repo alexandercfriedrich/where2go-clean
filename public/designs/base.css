@@ -81,9 +81,9 @@
    ============================================ */
 
 .venue-filter-sidebar {
-  display: block;
-  visibility: visible;
-  opacity: 1;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
   
   /* Sticky positioning for better UX */
   position: sticky;
@@ -130,9 +130,12 @@
   }
   
   .venue-filter-sidebar {
+    /* Still display on mobile, but adjust positioning */
+    display: block !important;
     position: relative;
     top: auto;
     max-height: none;
+    margin-bottom: 20px;
   }
   
   .filter-sidebar {
@@ -148,19 +151,21 @@
 
 /* Ensure no theme can accidentally hide these critical UI elements */
 .categories-section,
-.categories-grid,
 .category-checkbox,
-.venue-filter-sidebar,
-.filter-sidebar,
-.results-filter-bar {
+.filter-sidebar {
   /* Prevent display:none from themes */
-  display: block;
+  display: block !important;
+}
+
+.venue-filter-sidebar {
+  /* Override any inline or theme styles that hide the sidebar */
+  display: block !important;
 }
 
 .categories-grid {
-  display: grid;
+  display: grid !important;
 }
 
 .results-filter-bar {
-  display: flex;
+  display: flex !important;
 }

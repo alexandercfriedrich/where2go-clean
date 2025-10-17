@@ -838,9 +838,15 @@ export default function Home() {
 
         <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
           {/* Left sidebar: Category-Venue hierarchy */}
-          {searchSubmitted && Object.keys(getCategoryCounts()).length > 0 && (
+          {searchSubmitted && events.length > 0 && (
             <aside className="venue-filter-sidebar">
               <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>{t('filter.filtersAndCategories')}</h3>
+              
+              {Object.entries(getCategoryCounts()).length === 0 && (
+                <p style={{ fontSize: '14px', color: '#666', padding: '12px 0' }}>
+                  Keine filterbaren Kategorien für die geladenen Events verfügbar.
+                </p>
+              )}
               
               {Object.entries(getCategoryCounts())
                 .sort((a, b) => b[1] - a[1])
