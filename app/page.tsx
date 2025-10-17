@@ -1406,11 +1406,7 @@ export default function Home() {
           cursor: pointer;
         }
         
-        @media (max-width: 768px) {
-          .venue-filter-sidebar {
-            display: none;
-          }
-        }
+        /* Mobile media query removed - now handled by base.css */
         
         .filter-chip {
           display:flex; justify-content:space-between; align-items:center; gap:8px;

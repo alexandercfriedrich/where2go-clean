@@ -85,9 +85,9 @@
   visibility: visible !important;
   opacity: 1 !important;
   
-  /* Sticky positioning for better UX */
-  position: sticky;
-  top: 80px;
+  /* Sticky positioning for better UX - force on all screen sizes */
+  position: sticky !important;
+  top: 80px !important;
   max-height: calc(100vh - 100px);
   overflow-y: auto;
 }
@@ -123,19 +123,41 @@
    MOBILE RESPONSIVENESS - Keep structure
    ============================================ */
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .categories-grid {
     grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
     gap: 8px;
   }
   
   .venue-filter-sidebar {
-    /* Still display on mobile, but adjust positioning */
+    /* Keep visible on tablet/mobile - override design1.css position:static */
     display: block !important;
-    position: relative;
-    top: auto;
+    position: sticky !important;
+    top: 80px !important;
+    max-height: calc(100vh - 100px);
+    /* Prevent it from being pushed below content */
+    margin-top: 0 !important;
+  }
+  
+  .filter-sidebar {
+    position: sticky !important;
+    top: 80px !important;
+    max-height: calc(100vh - 100px);
+  }
+}
+
+@media (max-width: 768px) {
+  .venue-filter-sidebar {
+    /* On mobile, still keep it visible but allow it to stack */
+    display: block !important;
+    position: relative !important;
+    top: auto !important;
     max-height: none;
     margin-bottom: 20px;
+    /* Override any width constraints */
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
   }
   
   .filter-sidebar {
