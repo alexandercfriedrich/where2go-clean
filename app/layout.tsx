@@ -1,9 +1,9 @@
 import './globals.css';
 import type { Metadata } from 'next';
 import Script from 'next/script';
-// Basis-Design 1 früh laden, damit kein FOUC auftritt.
-// Der DesignCssLoader schaltet bei ?design=2 nachträglich auf design2.css um.
-import '../public/designs/design1.css';
+// RADICAL FIX: Use minimal design to avoid CSS conflicts
+// Temporarily using design1-minimal.css instead of design1.css
+import '../public/designs/design1-minimal.css';
 import DesignCssLoader from './components/DesignCssLoader';
 import SchemaOrg from './components/SchemaOrg';
 import MainFooter from './components/MainFooter';

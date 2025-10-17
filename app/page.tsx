@@ -1386,18 +1386,8 @@ export default function Home() {
         }
         .filter-chips-inline { display:flex; flex-wrap:wrap; gap:10px; }
         
-        .venue-filter-sidebar {
-          min-width: 250px;
-          max-width: 300px;
-          background: #fff;
-          border-radius: 12px;
-          padding: 20px;
-          box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-          position: sticky;
-          top: 80px;
-          max-height: calc(100vh - 100px);
-          overflow-y: auto;
-        }
+        /* RADICAL FIX: All .venue-filter-sidebar styles removed */
+        /* Now handled entirely by base.css with !important rules */
         
         .venue-filter-item input[type="checkbox"] {
           accent-color: #404040;
@@ -1405,8 +1395,6 @@ export default function Home() {
           height: 16px;
           cursor: pointer;
         }
-        
-        /* Mobile media query removed - now handled by base.css */
         
         .filter-chip {
           display:flex; justify-content:space-between; align-items:center; gap:8px;

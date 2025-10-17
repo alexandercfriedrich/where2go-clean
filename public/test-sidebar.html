@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Filter Sidebar Test - Radical Fix</title>
+    <link rel="stylesheet" href="/designs/base.css">
+    <link rel="stylesheet" href="/designs/design1-minimal.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .test-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .results-layout {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            margin-top: 30px;
+        }
+        .main-content {
+            flex: 1;
+        }
+        .demo-card {
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+        .test-header {
+            background: #404040;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        .test-header h1 {
+            margin: 0 0 10px 0;
+        }
+        .test-header p {
+            margin: 0;
+            opacity: 0.9;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="test-header">
+            <h1>🔧 Radical Fix Test Page</h1>
+            <p>This page demonstrates that the .venue-filter-sidebar is NOW VISIBLE with red border for debugging</p>
+        </div>
+
+        <div class="results-layout">
+            <!-- THE SIDEBAR - This should now be visible with RED BORDER -->
+            <aside class="venue-filter-sidebar">
+                <h3>Filters & Categories</h3>
+                <p style="color: #e74c3c; font-weight: bold;">✅ If you see this sidebar with a RED BORDER, the radical fix is working!</p>
+                
+                <div style="margin-top: 20px;">
+                    <div style="margin-bottom: 15px;">
+                        <strong>Museen</strong> (5)
+                        <div style="margin-left: 20px; margin-top: 8px;">
+                            <label style="display: block; margin-bottom: 5px;">
+                                <input type="checkbox"> Kunsthistorisches Museum (2)
+                            </label>
+                            <label style="display: block; margin-bottom: 5px;">
+                                <input type="checkbox"> Naturhistorisches Museum (3)
+                            </label>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 15px;">
+                        <strong>Theater/Performance</strong> (3)
+                        <div style="margin-left: 20px; margin-top: 8px;">
+                            <label style="display: block; margin-bottom: 5px;">
+                                <input type="checkbox"> Burgtheater (2)
+                            </label>
+                            <label style="display: block; margin-bottom: 5px;">
+                                <input type="checkbox"> Volkstheater (1)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- MAIN CONTENT AREA -->
+            <div class="main-content">
+                <h2>Search Results (8 Events)</h2>
+                <div class="demo-card">
+                    <h3>Event 1: Museum Night</h3>
+                    <p>Kunsthistorisches Museum • Today • 19:00</p>
+                </div>
+                <div class="demo-card">
+                    <h3>Event 2: Theater Performance</h3>
+                    <p>Burgtheater • Today • 20:00</p>
+                </div>
+                <div class="demo-card">
+                    <h3>Event 3: Science Exhibition</h3>
+                    <p>Naturhistorisches Museum • Tomorrow • 10:00</p>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top: 40px; padding: 20px; background: #f0f0f0; border-radius: 8px;">
+            <h3>What Changed in the Radical Fix:</h3>
+            <ul>
+                <li><strong>base.css</strong>: Now uses aggressive <code>!important</code> rules with explicit widths</li>
+                <li><strong>RED BORDER</strong>: Added <code>border: 2px solid #e74c3c !important</code> for visual debugging</li>
+                <li><strong>design1-minimal.css</strong>: Created minimal CSS with only event card styles</li>
+                <li><strong>app/layout.tsx</strong>: Now imports design1-minimal.css instead of design1.css</li>
+                <li><strong>app/page.tsx</strong>: Removed ALL inline .venue-filter-sidebar styles</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
