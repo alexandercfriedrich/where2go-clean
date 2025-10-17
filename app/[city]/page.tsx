@@ -9,32 +9,43 @@ import type { EventData } from '@/lib/types';
 export const dynamic = 'force-dynamic';
 
 async function fetchEvents(city: string, dateISO: string, revalidateTime: number): Promise<EventData[]> {
-  // For server-side rendering, use relative URL or construct based on runtime environment
-  const baseUrl = process.env.VERCEL_URL 
-    ? `https://${process.env.VERCEL_URL}`
-    : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-  
-  const url = `${baseUrl}/api/events/cache-day?city=${encodeURIComponent(city)}&date=${encodeURIComponent(dateISO)}`;
-  
-  console.log(`[fetchEvents] Fetching: ${url}`);
-  
-  const res = await fetch(url, {
-    cache: 'no-store' // Force fresh data since this is dynamic
-  });
-  
-  console.log(`[fetchEvents] Response status: ${res.status}`);
-  
-  if (!res.ok) {
-    console.error(`[fetchEvents] Failed to fetch events: ${res.status} ${res.statusText}`);
+  try {
+    // For server-side rendering, use relative URL or construct based on runtime environment
+    const baseUrl = process.env.VERCEL_URL 
+      ? `https://${process.env.VERCEL_URL}`
+      : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    
+    const url = `${baseUrl}/api/events/cache-day?city=${encodeURIComponent(city)}&date=${encodeURIComponent(dateISO)}`;
+    
+    console.log(`[fetchEvents] URL: ${url}, city: ${city}, date: ${dateISO}`);
+    
+    const res = await fetch(url, {
+      cache: 'no-store',
+      headers: {
+        'Accept': 'application/json',
+      }
+    });
+    
+    console.log(`[fetchEvents] Status: ${res.status}, OK: ${res.ok}`);
+    
+    if (!res.ok) {
+      const text = await res.text();
+      console.error(`[fetchEvents] Error response: ${text}`);
+      return [];
+    }
+    
+    const json = await res.json();
+    console.log(`[fetchEvents] JSON response keys: ${Object.keys(json).join(', ')}`);
+    
+    const events = Array.isArray(json?.events) ? json.events : [];
+    
+    console.log(`[fetchEvents] Events count: ${events.length}`);
+    
+    return events;
+  } catch (error) {
+    console.error(`[fetchEvents] Exception:`, error);
     return [];
   }
-  
-  const json = await res.json();
-  const events = Array.isArray(json?.events) ? json.events : [];
-  
-  console.log(`[fetchEvents] Retrieved ${events.length} events`);
-  
-  return events;
 }
 
 export default async function CityPage({ params }: { params: { city: string } }) {
