@@ -151,8 +151,11 @@ export default function Home() {
     });
   };
 
-  const getSelectedSubcategories = (superCats: string[]): string[] =>
-    superCats.flatMap(superCat => EVENT_CATEGORY_SUBCATEGORIES[superCat]);
+  const getSelectedSubcategories = (superCats: string[]): string[] => {
+    // Return main categories, not subcategories, for proper filtering
+    // The backend will handle subcategory expansion
+    return superCats;
+  };
 
   // Date helpers
   function toISODate(d: Date): string {
@@ -490,16 +493,20 @@ export default function Home() {
         if (data.jobId) fetchDebugInfo(data.jobId);
       };
 
-      const cleanup = startJobPolling(data.jobId, onEvents, getCurrent, onDone, POLL_INTERVAL_MS, MAX_POLLS);
-      const nextInstance = ++pollInstanceRef.current;
-      setActivePolling({ jobId: data.jobId, cleanup, pollInstanceId: nextInstance });
-
-      const superCats =
-        selectedSuperCategories.length > 0 ? [...selectedSuperCategories] : [...ALL_SUPER_CATEGORIES];
-      for (const sc of superCats) {
-        if (cancelRef.current.cancel) return;
-        await fetchForSuperCategory(sc);
+      // Only start polling if we have a jobId (not all-cached response)
+      if (data.jobId) {
+        const cleanup = startJobPolling(data.jobId, onEvents, getCurrent, onDone, POLL_INTERVAL_MS, MAX_POLLS);
+        const nextInstance = ++pollInstanceRef.current;
+        setActivePolling({ jobId: data.jobId, cleanup, pollInstanceId: nextInstance });
+      } else {
+        // All cached, mark as done immediately
+        setStepLoading(null);
+        setLoading(false);
+        if (resultsAnchorRef.current) {
+          resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
       }
+
     } catch(e:any){
       setError(e.message || 'Fehler bei der Suche');
       setLoading(false);

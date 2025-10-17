@@ -1,7 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Helper function to slugify city names (matching hotCityStore.ts)
+function slugify(text: string): string {
+  // Limit input length to prevent ReDoS
+  const safe = text.substring(0, 200);
+  return safe
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '') // Remove special chars
+    .replace(/[\s_]+/g, '-') // Replace spaces and underscores with hyphens
+    .replace(/--+/g, '-') // Replace multiple hyphens with single hyphen
+    .replace(/^-|-$/g, ''); // Remove leading/trailing hyphens
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const searchParams = request.nextUrl.searchParams;
+
+  // Legacy: /?city=...&date=...
+  if (pathname === '/' && searchParams.has('city')) {
+    const cityParam = searchParams.get('city') || '';
+    const dateParam = (searchParams.get('date') || 'heute').toLowerCase();
+    const citySlug = slugify(cityParam);
+
+    const newUrl = new URL(`/${citySlug}/${dateParam}`, request.url);
+
+    ['filter', 'sort'].forEach((k) => {
+      const v = searchParams.get(k);
+      if (v) newUrl.searchParams.set(k, v);
+    });
+
+    return NextResponse.redirect(newUrl, 301);
+  }
+
+  // Kleinbuchstaben-Normalisierung (SEO) - only for city routes
+  if (pathname.match(/^\/[^\/]+/) && pathname !== pathname.toLowerCase()) {
+    return NextResponse.redirect(new URL(pathname.toLowerCase() + request.nextUrl.search, request.url), 301);
+  }
 
   // Protect /admin and /api/admin paths with Basic Auth
   if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
@@ -50,5 +85,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/api/admin/:path*'],
+  matcher: ['/', '/:city*', '/admin/:path*', '/api/admin/:path*'],
 };

@@ -37,6 +37,16 @@ export async function POST(request: NextRequest) {
 
     const missingCategories = cacheResult.missingCategories;
     if (missingCategories.length === 0) {
+      // Even when all data is from cache, opportunistically fill day-bucket if it doesn't exist
+      if (dedupCached.length > 0) {
+        try {
+          await upsertDayEvents(city, date, dedupCached);
+        } catch (error) {
+          console.error('Failed to upsert day events from cache:', error);
+          // Don't fail the request if day-bucket update fails
+        }
+      }
+      
       return NextResponse.json({
         events: dedupCached,
         cached: true,
@@ -84,8 +94,15 @@ export async function POST(request: NextRequest) {
         await eventsCache.setEventsByCategory(city, date, cat, grouped[cat], ttlSeconds);
       }
       
-      // Also upsert into day-bucket cache
-      await upsertDayEvents(city, date, newEvents);
+      // Also upsert into day-bucket cache (combined events, not just new ones)
+      await upsertDayEvents(city, date, combined);
+    } else if (!disableCache && combined.length > 0) {
+      // If no new events but we have combined events, still update day-bucket
+      try {
+        await upsertDayEvents(city, date, combined);
+      } catch (error) {
+        console.error('Failed to upsert combined events to day-bucket:', error);
+      }
     }
 
     const cacheBreakdown = { ...cacheResult.cacheInfo };

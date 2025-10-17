@@ -460,6 +460,215 @@ body {
   100% { box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); }
 }
 
+/* Dark Theme Event Cards - City Pages */
+.dark-event-card {
+  background: #2A2A2A;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.dark-event-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+.dark-event-category {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #4A90E2;
+  margin-bottom: 12px;
+  font-weight: 600;
+}
+
+.dark-event-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin-bottom: 16px;
+  line-height: 1.4;
+}
+
+.dark-event-details {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.dark-event-detail {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #CCCCCC;
+}
+
+.dark-event-icon {
+  width: 18px;
+  height: 18px;
+  color: #8A8A8A;
+  flex-shrink: 0;
+}
+
+.dark-event-description {
+  font-size: 14px;
+  color: #AAAAAA;
+  line-height: 1.6;
+  margin-top: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dark-event-price {
+  display: inline-block;
+  background: rgba(74, 144, 226, 0.1);
+  color: #4A90E2;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 12px;
+}
+
+.dark-event-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #4A90E2;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 16px;
+  transition: color 0.2s ease;
+}
+
+.dark-event-link:hover {
+  color: #5BA0F2;
+}
+
+/* Breadcrumb Styles */
+.breadcrumb-nav {
+  margin-bottom: 24px;
+  padding: 12px 0;
+}
+
+.breadcrumb-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.breadcrumb-item a {
+  color: #4A90E2;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.breadcrumb-item a:hover {
+  color: #5BA0F2;
+  text-decoration: underline;
+}
+
+.breadcrumb-separator {
+  color: #666;
+  user-select: none;
+}
+
+.breadcrumb-current {
+  color: #999;
+}
+
+/* SEO Content Section */
+.seo-content-section {
+  background: #2A2A2A;
+  border-radius: 12px;
+  padding: 40px;
+  margin-top: 60px;
+  margin-bottom: 40px;
+}
+
+.seo-content-section h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: #FFFFFF;
+  margin-bottom: 20px;
+}
+
+.seo-content-section h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: #FFFFFF;
+  margin-top: 32px;
+  margin-bottom: 16px;
+}
+
+.seo-content-section p {
+  font-size: 15px;
+  line-height: 1.8;
+  color: #CCCCCC;
+  margin-bottom: 16px;
+}
+
+.seo-content-section ul {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0;
+}
+
+.seo-content-section li {
+  font-size: 15px;
+  color: #CCCCCC;
+  padding: 8px 0;
+  padding-left: 24px;
+  position: relative;
+}
+
+.seo-content-section li::before {
+  content: "•";
+  color: #4A90E2;
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+}
+
+.seo-faq-item {
+  margin-bottom: 24px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+}
+
+.seo-faq-question {
+  font-size: 16px;
+  font-weight: 600;
+  color: #FFFFFF;
+  margin-bottom: 12px;
+}
+
+.seo-faq-answer {
+  font-size: 14px;
+  color: #AAAAAA;
+  line-height: 1.7;
+}
+
 /* Enhanced Event Card Styles */
 .event-type {
   color: #8b5cf6;

@@ -8,6 +8,10 @@ node_modules/
 out/
 dist/
 
+# Generated sitemaps (next-sitemap generates these)
+public/sitemap*.xml
+public/robots.txt
+
 # Runtime files
 *.log
 npm-debug.log*
