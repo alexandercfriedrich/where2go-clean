@@ -10,14 +10,10 @@ export const dynamic = 'force-dynamic';
 
 async function fetchEvents(city: string, dateISO: string, revalidateTime: number): Promise<EventData[]> {
   try {
-    // For server-side rendering, use relative URL or construct based on runtime environment
-    const baseUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}`
-      : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    // Use relative URL for server-side fetching to avoid deployment protection issues
+    const url = `/api/events/cache-day?city=${encodeURIComponent(city)}&date=${encodeURIComponent(dateISO)}`;
     
-    const url = `${baseUrl}/api/events/cache-day?city=${encodeURIComponent(city)}&date=${encodeURIComponent(dateISO)}`;
-    
-    console.log(`[fetchEvents] URL: ${url}, city: ${city}, date: ${dateISO}`);
+    console.log(`[fetchEvents] Fetching (relative): ${url}, city: ${city}, date: ${dateISO}`);
     
     const res = await fetch(url, {
       cache: 'no-store',
@@ -30,7 +26,7 @@ async function fetchEvents(city: string, dateISO: string, revalidateTime: number
     
     if (!res.ok) {
       const text = await res.text();
-      console.error(`[fetchEvents] Error response: ${text}`);
+      console.error(`[fetchEvents] Error response (first 200 chars): ${text.substring(0, 200)}`);
       return [];
     }
     
