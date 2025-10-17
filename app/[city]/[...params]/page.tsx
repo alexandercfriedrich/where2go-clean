@@ -9,7 +9,11 @@ import { EVENT_CATEGORY_SUBCATEGORIES } from '@/lib/eventCategories';
 import type { EventData } from '@/lib/types';
 
 async function fetchEvents(city: string, dateISO: string, category: string | null, revalidate: number): Promise<EventData[]> {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  // For server-side rendering, use relative URL or construct based on runtime environment
+  const baseUrl = process.env.VERCEL_URL 
+    ? `https://${process.env.VERCEL_URL}`
+    : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  
   const categoryParam = category ? `&category=${encodeURIComponent(category)}` : '';
   const res = await fetch(
     `${baseUrl}/api/events/cache-day?city=${encodeURIComponent(city)}&date=${encodeURIComponent(dateISO)}${categoryParam}`,
