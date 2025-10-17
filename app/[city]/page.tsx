@@ -7,21 +7,34 @@ import type { EventData } from '@/lib/types';
 
 // Mark as dynamic since we use Redis for HotCities
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
 
-async function fetchEvents(city: string, dateISO: string, revalidate: number): Promise<EventData[]> {
+async function fetchEvents(city: string, dateISO: string, revalidateTime: number): Promise<EventData[]> {
   // For server-side rendering, use relative URL or construct based on runtime environment
   const baseUrl = process.env.VERCEL_URL 
     ? `https://${process.env.VERCEL_URL}`
     : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
   
-  const res = await fetch(
-    `${baseUrl}/api/events/cache-day?city=${encodeURIComponent(city)}&date=${encodeURIComponent(dateISO)}`,
-    { next: { revalidate } }
-  );
-  if (!res.ok) return [];
+  const url = `${baseUrl}/api/events/cache-day?city=${encodeURIComponent(city)}&date=${encodeURIComponent(dateISO)}`;
+  
+  console.log(`[fetchEvents] Fetching: ${url}`);
+  
+  const res = await fetch(url, {
+    cache: 'no-store' // Force fresh data since this is dynamic
+  });
+  
+  console.log(`[fetchEvents] Response status: ${res.status}`);
+  
+  if (!res.ok) {
+    console.error(`[fetchEvents] Failed to fetch events: ${res.status} ${res.statusText}`);
+    return [];
+  }
+  
   const json = await res.json();
-  return Array.isArray(json?.events) ? json.events : [];
+  const events = Array.isArray(json?.events) ? json.events : [];
+  
+  console.log(`[fetchEvents] Retrieved ${events.length} events`);
+  
+  return events;
 }
 
 export default async function CityPage({ params }: { params: { city: string } }) {
