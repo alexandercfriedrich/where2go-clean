@@ -6,36 +6,65 @@ import { generateEventListSchema, generateEventMicrodata, generateCanonicalUrl }
 import { resolveCityFromParam, dateTokenToISO, formatGermanDate, KNOWN_DATE_TOKENS } from '@/lib/city';
 import { getRevalidateFor } from '@/lib/isr';
 import { getActiveHotCities, slugify as slugifyCity } from '@/lib/hotCityStore';
-import { EVENT_CATEGORY_SUBCATEGORIES } from '@/lib/eventCategories';
+import { EVENT_CATEGORY_SUBCATEGORIES, EVENT_CATEGORIES, normalizeCategory } from '@/lib/eventCategories';
+import { getDayEvents, isEventValidNow } from '@/lib/dayCache';
+import { eventsCache } from '@/lib/cache';
+import { eventAggregator } from '@/lib/aggregator';
 import { generateCitySEO } from '@/lib/seoContent';
 import type { EventData } from '@/lib/types';
 
-async function fetchEvents(city: string, dateISO: string, category: string | null, dateToken: string = 'heute'): Promise<EventData[]> {
+async function fetchEvents(city: string, dateISO: string, category: string | null): Promise<EventData[]> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    const params = new URLSearchParams({
-      city,
-      date: dateISO
-    });
-    if (category) {
-      params.set('category', category);
+    console.log(`[fetchEvents] Direct call: city=${city}, date=${dateISO}, category=${category}`);
+    
+    // Direct call to cache logic (no HTTP request needed for SSG)
+    const requestedCategories = category
+      ? Array.from(new Set(
+          category.split(',')
+            .map(c => c.trim())
+            .filter(Boolean)
+            .map(c => normalizeCategory(c))
+        ))
+      : null;
+
+    let allEvents: EventData[] = [];
+
+    // Try to load from day-bucket first
+    const dayBucket = await getDayEvents(city, dateISO);
+    
+    if (dayBucket && dayBucket.events.length > 0) {
+      allEvents = dayBucket.events;
+    } else {
+      // Fallback: Load from per-category shards
+      const categoriesToLoad = requestedCategories || EVENT_CATEGORIES;
+      const cacheResult = await eventsCache.getEventsByCategories(city, dateISO, categoriesToLoad);
+      
+      const cachedEventsList: EventData[] = [];
+      for (const cat in cacheResult.cachedEvents) {
+        cachedEventsList.push(...cacheResult.cachedEvents[cat]);
+      }
+      
+      // Deduplicate events from different category shards
+      allEvents = eventAggregator.deduplicateEvents(cachedEventsList);
     }
-    
-    const revalidate = await getRevalidateFor(city, dateToken);
-    
-    console.log(`[fetchEvents] Fetching via API: city=${city}, date=${dateISO}, category=${category}`);
-    
-    const response = await fetch(`${baseUrl}/api/events/cache-day?${params.toString()}`, {
-      next: { revalidate }
-    });
-    
-    if (!response.ok) {
-      console.error(`[fetchEvents] API error: ${response.status}`);
-      return [];
+
+    // Filter: Only return valid (non-expired) events
+    const now = new Date();
+    const validEvents = allEvents.filter(event => isEventValidNow(event, now));
+
+    // Filter by requested categories if specified
+    let filteredEvents = validEvents;
+    if (requestedCategories && requestedCategories.length > 0) {
+      filteredEvents = validEvents.filter(event => {
+        if (!event.category) return false;
+        const normalizedEventCategory = normalizeCategory(event.category);
+        return requestedCategories.includes(normalizedEventCategory);
+      });
     }
+
+    console.log(`[fetchEvents] Events count: ${filteredEvents.length}`);
     
-    const data = await response.json();
-    return data.events || [];
+    return filteredEvents;
   } catch (error) {
     console.error(`[fetchEvents] Exception:`, error);
     return [];
@@ -161,6 +190,9 @@ export async function generateMetadata({ params }: { params: { city: string; par
   };
 }
 
+// Enable ISR with revalidation
+export const revalidate = 900; // Revalidate every 15 minutes
+
 export default async function CityParamsPage({ params }: { params: { city: string; params: string[] } }) {
   const resolved = await resolveCityFromParam(params.city);
   if (!resolved) notFound();
@@ -191,7 +223,7 @@ export default async function CityParamsPage({ params }: { params: { city: strin
   }
 
   const dateISO = dateTokenToISO(dateParam);
-  const events = await fetchEvents(resolved.name, dateISO, category, dateParam);
+  const events = await fetchEvents(resolved.name, dateISO, category);
   const listSchema = generateEventListSchema(events, resolved.name, dateISO, 'https://www.where2go.at');
   const seoContent = generateCitySEO(resolved.name, dateParam, category || undefined);
 
