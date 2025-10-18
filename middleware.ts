@@ -17,6 +17,11 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const searchParams = request.nextUrl.searchParams;
 
+  // IMPORTANT: Allow sitemap.xml and robots.txt access
+  if (pathname === '/sitemap.xml' || pathname === '/robots.txt') {
+    return NextResponse.next();
+  }
+
   // Legacy: /?city=...&date=...
   if (pathname === '/' && searchParams.has('city')) {
     const cityParam = searchParams.get('city') || '';
@@ -85,5 +90,15 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/:city*', '/admin/:path*', '/api/admin/:path*'],
+  matcher: [
+    /*
+     * Match all request paths except:
+     * - sitemap.xml
+     * - robots.txt
+     * - _next/static (static files)
+     * - _next/image (image optimization)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!sitemap.xml|robots.txt|_next/static|_next/image|favicon.ico).*)',
+  ],
 };

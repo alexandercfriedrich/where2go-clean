@@ -8,8 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "test": "vitest",
-    "test:ui": "vitest --ui",
-    "postbuild": "next-sitemap"
+    "test:ui": "vitest --ui"
   },
   "dependencies": {
     "@upstash/redis": "^1.34.0",
