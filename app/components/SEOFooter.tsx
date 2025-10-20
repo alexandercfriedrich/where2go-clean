@@ -1,9 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
+
+interface City {
+  name: string;
+  slug: string;
+}
 
 export default function SEOFooter() {
   const [content, setContent] = useState<string>('');
+  const [cities, setCities] = useState<City[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -13,16 +20,27 @@ export default function SEOFooter() {
         const baseUrl = typeof window !== 'undefined' 
           ? window.location.origin 
           : 'http://localhost:3000';
+        
+        // Load SEO footer content
         const response = await fetch(`${baseUrl}/api/static-pages/seo-footer`);
-        if (!response.ok) {
-          setLoading(false);
-          return;
+        if (response.ok) {
+          const data = await response.json();
+          if (data.page && data.page.content) {
+            setContent(data.page.content);
+          }
         }
         
-        const data = await response.json();
-        
-        if (data.page && data.page.content) {
-          setContent(data.page.content);
+        // Load cities from hot-cities API
+        const citiesResponse = await fetch(`${baseUrl}/api/hot-cities`);
+        if (citiesResponse.ok) {
+          const citiesData = await citiesResponse.json();
+          if (citiesData.cities && Array.isArray(citiesData.cities)) {
+            const cityList = citiesData.cities.map((city: any) => ({
+              name: city.name,
+              slug: slugify(city.name)
+            }));
+            setCities(cityList);
+          }
         }
       } catch (error) {
         console.error('Error loading SEO footer:', error);
@@ -33,18 +51,61 @@ export default function SEOFooter() {
 
     loadSEOFooter();
   }, []);
+  
+  // Helper function to create URL-friendly slugs
+  const slugify = (text: string): string => {
+    return text
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/[\s_-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  };
 
-  if (loading || !content) {
+  if (loading) {
     return null;
   }
 
   return (
     <section className="seo-footer">
       <div className="container">
-        <div 
-          className="seo-footer-content"
-          dangerouslySetInnerHTML={{ __html: content }}
-        />
+        {content && (
+          <div 
+            className="seo-footer-content"
+            dangerouslySetInnerHTML={{ __html: content }}
+          />
+        )}
+        
+        {/* City Links Section */}
+        {cities.length > 0 && (
+          <div className="city-links-section">
+            <h3>Events in deiner Stadt entdecken</h3>
+            <div className="city-links-grid">
+              {cities.map((city) => (
+                <div key={city.slug} className="city-links-group">
+                  <h4>{city.name}</h4>
+                  <ul>
+                    <li>
+                      <Link href={`/${city.slug}/heute`}>
+                        Events heute in {city.name}
+                      </Link>
+                    </li>
+                    <li>
+                      <Link href={`/${city.slug}/morgen`}>
+                        Events morgen in {city.name}
+                      </Link>
+                    </li>
+                    <li>
+                      <Link href={`/${city.slug}/wochenende`}>
+                        Events am Wochenende in {city.name}
+                      </Link>
+                    </li>
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       <style jsx>{`
@@ -108,6 +169,56 @@ export default function SEOFooter() {
           font-weight: 600;
           color: #2d3748;
         }
+        
+        .city-links-section {
+          margin-top: 60px;
+          padding-top: 40px;
+          border-top: 1px solid #e5e7eb;
+        }
+        
+        .city-links-section h3 {
+          font-size: 24px;
+          font-weight: 600;
+          color: #333;
+          margin-bottom: 32px;
+          letter-spacing: -0.01em;
+        }
+        
+        .city-links-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          gap: 32px;
+        }
+        
+        .city-links-group h4 {
+          font-size: 18px;
+          font-weight: 600;
+          color: #1a1a1a;
+          margin-bottom: 12px;
+        }
+        
+        .city-links-group ul {
+          list-style: none;
+          padding: 0;
+          margin: 0;
+        }
+        
+        .city-links-group li {
+          margin-bottom: 8px;
+        }
+        
+        .city-links-group a {
+          color: #5b8cff;
+          text-decoration: none;
+          font-size: 15px;
+          line-height: 1.6;
+          transition: color 0.2s ease;
+        }
+        
+        .city-links-group a:hover {
+          color: #4a7de8;
+          text-decoration: underline;
+        }
 
         @media (max-width: 768px) {
           .seo-footer {
@@ -129,6 +240,29 @@ export default function SEOFooter() {
           .seo-footer :global(p),
           .seo-footer :global(li) {
             font-size: 15px;
+          }
+          
+          .city-links-section {
+            margin-top: 40px;
+            padding-top: 32px;
+          }
+          
+          .city-links-section h3 {
+            font-size: 20px;
+            margin-bottom: 24px;
+          }
+          
+          .city-links-grid {
+            grid-template-columns: 1fr;
+            gap: 24px;
+          }
+          
+          .city-links-group h4 {
+            font-size: 16px;
+          }
+          
+          .city-links-group a {
+            font-size: 14px;
           }
         }
       `}</style>

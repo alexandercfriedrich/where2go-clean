@@ -48,14 +48,32 @@ interface WienInfoEvent {
   id: string;
   title: string;
   subtitle?: string;
+  teaserText?: string;
+  description?: string;
   category: string;
   location: string;
-  dates?: string[];   // ISO date-times
   startDate?: string; // ISO
   endDate?: string;   // ISO
-  url: string;        // Relative or absolute
+  start_time?: string;
+  end_time?: string;
+  dates?: string[];   // ISO date-times
+  url: string;        // Absolute URL
   imageUrl?: string;
+  image_url?: string;
   tags: number[];     // F1 tag IDs
+  address?: string;
+  zipcode?: string;
+  district?: string;
+  latitude?: number;
+  longitude?: number;
+  price?: string;
+  ticket_url?: string;
+  organizer?: string;
+  event_type?: string;
+  accessibility_information?: string;
+  language?: string;
+  last_updated?: string; // ISO date-time
+  source?: string;
 }
 
 export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<WienInfoResult> {
@@ -328,25 +346,44 @@ function normalizeWienInfoEvent(
     ? wienInfoEvent.url
     : `https://www.wien.info${wienInfoEvent.url}`;
 
-  const imageUrl = wienInfoEvent.imageUrl?.startsWith('http')
-    ? wienInfoEvent.imageUrl
-    : wienInfoEvent.imageUrl
-    ? `https://www.wien.info${wienInfoEvent.imageUrl}`
+  // Handle both imageUrl and image_url fields
+  const rawImageUrl = wienInfoEvent.imageUrl || wienInfoEvent.image_url;
+  const imageUrl = rawImageUrl?.startsWith('http')
+    ? rawImageUrl
+    : rawImageUrl
+    ? `https://www.wien.info${rawImageUrl}`
     : undefined;
+
+  // Use subtitle as description per user request
+  // Wien.info typically provides event descriptions in the subtitle field
+  const description = wienInfoEvent.subtitle 
+    || wienInfoEvent.description 
+    || wienInfoEvent.teaserText 
+    || '';
+  
+  // Handle ticket URL
+  const bookingLink = wienInfoEvent.ticket_url || undefined;
+  
+  // Handle price
+  const price = wienInfoEvent.price || '';
+  
+  // Handle address
+  const address = wienInfoEvent.address || wienInfoEvent.location || 'Wien, Austria';
 
   return {
     title: wienInfoEvent.title,
     category,
     date: primaryDate,
-    time, // "HH:mm" or "ganztags"
+    time: wienInfoEvent.start_time || time, // Use start_time if available, otherwise use calculated time
     venue: wienInfoEvent.location || 'Wien',
-    price: '',
+    price,
     website: fullUrl,
-    source: 'wien.info',
+    source: wienInfoEvent.source || 'wien.info',
     city: 'Wien',
-    description: wienInfoEvent.subtitle || '',
-    address: wienInfoEvent.location || 'Wien, Austria',
-    ...(endTime ? { endTime } : {}),
-    ...(imageUrl ? { imageUrl } : {})
+    description,
+    address,
+    ...(endTime || wienInfoEvent.end_time ? { endTime: wienInfoEvent.end_time || endTime } : {}),
+    ...(imageUrl ? { imageUrl } : {}),
+    ...(bookingLink ? { bookingLink } : {})
   } as unknown as EventData;
 }

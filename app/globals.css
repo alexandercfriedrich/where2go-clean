@@ -464,16 +464,46 @@ body {
 .dark-event-card {
   background: #2A2A2A;
   border-radius: 12px;
-  padding: 24px;
+  padding: 0;
   margin-bottom: 20px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1), 
+              0 8px 16px rgba(0,0,0,0.2), 
+              0 16px 32px rgba(0,0,0,0.15);
   transition: all 0.3s ease;
   position: relative;
+  overflow: hidden;
 }
 
 .dark-event-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+.dark-event-card-image {
+  width: 100%;
+  padding-top: 56.25%; /* 16:9 aspect ratio */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.dark-event-source-badge {
+  position: absolute;
+  top: 0;
+  right: 0;
+  background: #1e3a8a;
+  color: #CCCCCC;
+  padding: 4px 8px;
+  border-radius: 0 0 0 6px;
+  font-size: 8px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  z-index: 10;
+}
+
+.dark-event-content {
+  padding: 24px;
 }
 
 .dark-event-category {
@@ -483,6 +513,17 @@ body {
   color: #4A90E2;
   margin-bottom: 12px;
   font-weight: 600;
+  display: inline-block;
+}
+
+.dark-event-category-link {
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.dark-event-category-link:hover {
+  color: #5BA0F2;
+  text-decoration: underline;
 }
 
 .dark-event-title {
@@ -506,6 +547,20 @@ body {
   gap: 10px;
   font-size: 14px;
   color: #CCCCCC;
+}
+
+.dark-event-venue-link {
+  color: #CCCCCC;
+  text-decoration: none;
+  transition: color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.dark-event-venue-link:hover {
+  color: #4A90E2;
+  text-decoration: underline;
 }
 
 .dark-event-icon {

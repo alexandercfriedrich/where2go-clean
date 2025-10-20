@@ -249,63 +249,129 @@ export default async function CityParamsPage({ params }: { params: { city: strin
           {categoryPart}Events in {resolved.name} – {formatGermanDate(dateISO)}
         </h1>
 
-        {category && (
-          <nav className="mb-6" aria-label="Zeitraum">
-            <ul style={{ display: 'flex', gap: 12, listStyle: 'none', padding: 0, margin: '0 0 24px 0', flexWrap: 'wrap' }}>
-              <li>
-                <Link 
-                  href={`/${resolved.slug}/${categorySlug}/heute`}
-                  style={{ 
-                    display: 'inline-block',
-                    padding: '10px 20px',
-                    background: dateParam === 'heute' ? '#4A90E2' : 'rgba(255, 255, 255, 0.1)',
-                    color: '#FFFFFF',
+        {/* Date Navigation - Always show */}
+        <nav className="mb-6" aria-label="Zeitraum">
+          <ul style={{ display: 'flex', gap: 12, listStyle: 'none', padding: 0, margin: '0 0 24px 0', flexWrap: 'wrap' }}>
+            <li>
+              <Link 
+                href={category ? `/${resolved.slug}/${categorySlug}/heute` : `/${resolved.slug}/heute`}
+                style={{ 
+                  display: 'inline-block',
+                  padding: '10px 20px',
+                  background: dateParam === 'heute' ? '#4A90E2' : 'rgba(255, 255, 255, 0.1)',
+                  color: '#FFFFFF',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  fontWeight: 600,
+                  fontSize: '14px'
+                }}
+              >
+                Heute
+              </Link>
+            </li>
+            <li>
+              <Link 
+                href={category ? `/${resolved.slug}/${categorySlug}/morgen` : `/${resolved.slug}/morgen`}
+                style={{ 
+                  display: 'inline-block',
+                  padding: '10px 20px',
+                  background: dateParam === 'morgen' ? '#4A90E2' : 'rgba(255, 255, 255, 0.1)',
+                  color: '#FFFFFF',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  fontWeight: 600,
+                  fontSize: '14px'
+                }}
+              >
+                Morgen
+              </Link>
+            </li>
+            <li>
+              <Link 
+                href={category ? `/${resolved.slug}/${categorySlug}/wochenende` : `/${resolved.slug}/wochenende`}
+                style={{ 
+                  display: 'inline-block',
+                  padding: '10px 20px',
+                  background: dateParam === 'wochenende' ? '#4A90E2' : 'rgba(255, 255, 255, 0.1)',
+                  color: '#FFFFFF',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  fontWeight: 600,
+                  fontSize: '14px'
+                }}
+              >
+                Wochenende
+              </Link>
+            </li>
+          </ul>
+        </nav>
+
+        {/* Category Filter Row */}
+        <div style={{ marginBottom: '24px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <div style={{ display: 'flex', gap: '10px', paddingBottom: '8px', minWidth: 'min-content' }}>
+            {/* "Alle Events anzeigen" button */}
+            <Link
+              href={`/${resolved.slug}/${dateParam}`}
+              style={{
+                padding: '8px 16px',
+                background: !category ? '#404040' : '#f5f5f5',
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                color: !category ? '#ffffff' : '#374151',
+                fontWeight: 500,
+                fontSize: '13px',
+                whiteSpace: 'nowrap',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                textDecoration: 'none',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Alle Events anzeigen
+              <span style={{ fontSize: '11px', opacity: 0.8 }}>({events.length})</span>
+            </Link>
+            
+            {Object.keys(EVENT_CATEGORY_SUBCATEGORIES).map(cat => {
+              const catSlug = cat.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
+              const count = events.filter(e => {
+                // Check if event's normalized category matches this main category
+                return normalizeCategory(e.category) === cat;
+              }).length;
+              
+              const isActive = category === cat;
+              const isDisabled = count === 0;
+              
+              return (
+                <Link
+                  key={cat}
+                  href={isDisabled ? '#' : `/${resolved.slug}/${catSlug}/${dateParam}`}
+                  style={{
+                    padding: '8px 16px',
+                    background: isActive ? '#404040' : '#f5f5f5',
+                    border: '1px solid #e5e7eb',
                     borderRadius: '8px',
+                    color: isDisabled ? '#9ca3af' : (isActive ? '#ffffff' : '#374151'),
+                    fontWeight: 500,
+                    fontSize: '13px',
+                    whiteSpace: 'nowrap',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
                     textDecoration: 'none',
-                    fontWeight: 600,
-                    fontSize: '14px'
+                    transition: 'all 0.2s ease',
+                    opacity: isDisabled ? 0.5 : 1,
+                    cursor: isDisabled ? 'not-allowed' : 'pointer',
+                    pointerEvents: isDisabled ? 'none' : 'auto'
                   }}
                 >
-                  Heute
+                  {cat}
+                  <span style={{ fontSize: '11px', opacity: 0.8 }}>({count})</span>
                 </Link>
-              </li>
-              <li>
-                <Link 
-                  href={`/${resolved.slug}/${categorySlug}/morgen`}
-                  style={{ 
-                    display: 'inline-block',
-                    padding: '10px 20px',
-                    background: dateParam === 'morgen' ? '#4A90E2' : 'rgba(255, 255, 255, 0.1)',
-                    color: '#FFFFFF',
-                    borderRadius: '8px',
-                    textDecoration: 'none',
-                    fontWeight: 600,
-                    fontSize: '14px'
-                  }}
-                >
-                  Morgen
-                </Link>
-              </li>
-              <li>
-                <Link 
-                  href={`/${resolved.slug}/${categorySlug}/wochenende`}
-                  style={{ 
-                    display: 'inline-block',
-                    padding: '10px 20px',
-                    background: dateParam === 'wochenende' ? '#4A90E2' : 'rgba(255, 255, 255, 0.1)',
-                    color: '#FFFFFF',
-                    borderRadius: '8px',
-                    textDecoration: 'none',
-                    fontWeight: 600,
-                    fontSize: '14px'
-                  }}
-                >
-                  Wochenende
-                </Link>
-              </li>
-            </ul>
-          </nav>
-        )}
+              );
+            })}
+          </div>
+        </div>
 
         <p style={{ color: '#AAAAAA', marginBottom: '32px', fontSize: '15px' }}>
           {events.length} Events gefunden
@@ -328,10 +394,26 @@ export default async function CityParamsPage({ params }: { params: { city: strin
                 <link itemProp="url" href={canonicalUrl} />
                 <meta itemProp="eventStatus" content="https://schema.org/EventScheduled" />
                 <meta itemProp="eventAttendanceMode" content="https://schema.org/OfflineEventAttendanceMode" />
-                {ev.imageUrl && <meta itemProp="image" content={ev.imageUrl} />}
+                {ev.imageUrl && (
+                  <>
+                    <meta itemProp="image" content={ev.imageUrl} />
+                    <div 
+                      className="dark-event-card-image"
+                      style={{
+                        backgroundImage: `url(${ev.imageUrl})`
+                      }}
+                    />
+                  </>
+                )}
 
+                <div className="dark-event-content">
                 {ev.category && (
-                  <div className="dark-event-category">{ev.category}</div>
+                  <a 
+                    href={`/${resolved.slug}/${ev.category.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')}/${dateParam}`}
+                    className="dark-event-category dark-event-category-link"
+                  >
+                    {ev.category}
+                  </a>
                 )}
 
                 <h3 className="dark-event-title" itemProp="name">{ev.title}</h3>
@@ -360,7 +442,20 @@ export default async function CityParamsPage({ params }: { params: { city: strin
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                    <span itemProp="name">{ev.venue}</span>
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((ev.venue || '') + (ev.address ? ', ' + ev.address : ''))}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="dark-event-venue-link"
+                      itemProp="name"
+                    >
+                      {ev.venue}
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: '4px', opacity: 0.6, display: 'inline' }}>
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                        <polyline points="15 3 21 3 21 9"></polyline>
+                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                      </svg>
+                    </a>
                     {ev.address && <meta itemProp="address" content={ev.address} />}
                   </div>
                 </div>
@@ -371,6 +466,18 @@ export default async function CityParamsPage({ params }: { params: { city: strin
 
                 {ev.price && (
                   <div className="dark-event-price">{ev.price}</div>
+                )}
+                </div>
+                
+                {/* Source Badge - bottom-right corner */}
+                {ev.source && (
+                  <div className="dark-event-source-badge">
+                    {ev.source === 'rss' ? 'RSS' :
+                     ev.source === 'ai' ? 'KI' :
+                     ev.source === 'ra' ? 'API' :
+                     ev.source === 'cache' ? 'Cache' :
+                     ev.source}
+                  </div>
                 )}
               </div>
             );

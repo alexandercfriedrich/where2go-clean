@@ -1,10 +1,11 @@
 'use client';
 import { useEffect, useRef, useState, CSSProperties } from 'react';
-import { EVENT_CATEGORY_SUBCATEGORIES } from './lib/eventCategories';
+import { EVENT_CATEGORY_SUBCATEGORIES, normalizeCategory } from './lib/eventCategories';
 import { useTranslation } from './lib/useTranslation';
 import { startJobPolling, deduplicateEvents as dedupFront } from './lib/polling';
 import SchemaOrg from './components/SchemaOrg';
 import SEOFooter from './components/SEOFooter';
+import EventCardSkeleton from './components/EventCardSkeleton';
 import { generateEventListSchema, generateEventMicrodata, generateCanonicalUrl } from './lib/schemaOrg';
 
 interface EventData {
@@ -60,6 +61,9 @@ export default function Home() {
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   // Mobile: Sidebar Toggle
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  
+  // Category filter for results page
+  const [resultsPageCategoryFilter, setResultsPageCategoryFilter] = useState<string[]>([]);
 
   const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean; totalEvents: number; cachedEvents: number} | null>(null);
   const [toast, setToast] = useState<{show:boolean; message:string}>({show:false,message:''});
@@ -576,11 +580,9 @@ export default function Home() {
       // Get unique main categories from events
       const categorySet = new Set<string>();
       dateFiltered.forEach(ev => {
-        for (const [mainCat, subs] of Object.entries(EVENT_CATEGORY_SUBCATEGORIES)) {
-          if (subs.includes(ev.category)) {
-            categorySet.add(mainCat);
-            break;
-          }
+        const normalizedCategory = normalizeCategory(ev.category);
+        if (normalizedCategory) {
+          categorySet.add(normalizedCategory);
         }
       });
       
@@ -609,15 +611,20 @@ export default function Home() {
     const dateFiltered = events.filter(matchesSelectedDate);
     if (!searchSubmitted) return dateFiltered;
     
-    // Apply category filter
+    // Apply category filter (from sidebar)
     let filtered = dateFiltered;
     if (selectedCategories.length > 0) {
       filtered = filtered.filter(e => {
-        for (const mainCat of selectedCategories) {
-          const subs = EVENT_CATEGORY_SUBCATEGORIES[mainCat] || [];
-          if (subs.includes(e.category)) return true;
-        }
-        return false;
+        const normalizedCategory = normalizeCategory(e.category);
+        return selectedCategories.includes(normalizedCategory);
+      });
+    }
+    
+    // Apply results page category filter (horizontal filter row)
+    if (resultsPageCategoryFilter.length > 0) {
+      filtered = filtered.filter(e => {
+        const normalizedCategory = normalizeCategory(e.category);
+        return resultsPageCategoryFilter.includes(normalizedCategory);
       });
     }
     
@@ -634,7 +641,7 @@ export default function Home() {
     const counts: Record<string, number> = {};
     
     for (const [mainCat, subs] of Object.entries(EVENT_CATEGORY_SUBCATEGORIES)) {
-      const count = dateFiltered.filter(e => subs.includes(e.category)).length;
+      const count = dateFiltered.filter(e => normalizeCategory(e.category) === mainCat).length;
       if (count > 0) {
         counts[mainCat] = count;
       }
@@ -658,11 +665,10 @@ export default function Home() {
   
   const getVenuesByCategory = (category: string) => {
     const dateFiltered = events.filter(matchesSelectedDate);
-    const subs = EVENT_CATEGORY_SUBCATEGORIES[category] || [];
     const venues: Record<string, number> = {};
     
     dateFiltered
-      .filter(e => subs.includes(e.category))
+      .filter(e => normalizeCategory(e.category) === category)
       .forEach(e => {
         if (e.venue && e.venue.trim()) {
           venues[e.venue] = (venues[e.venue] || 0) + 1;
@@ -786,6 +792,12 @@ export default function Home() {
                       setShowDateDropdown(false);
                     }
                   }}
+                  onClick={(e) => {
+                    // If already on benutzerdefiniert and user clicks again, open dropdown
+                    if (timePeriod === 'benutzerdefiniert') {
+                      setShowDateDropdown(true);
+                    }
+                  }}
                 >
                   <option value="heute">Heute</option>
                   <option value="morgen">Morgen</option>
@@ -838,9 +850,77 @@ export default function Home() {
         )}
 
         {searchSubmitted && (
-          <h1 className="results-page-title">
-            {getPageTitle()}
-          </h1>
+          <>
+            <h1 className="results-page-title">
+              {getPageTitle()}
+            </h1>
+            
+            {/* Date Navigation Buttons - Feature 6 */}
+            <nav className="date-nav-row" aria-label="Zeitraum wählen">
+              <button 
+                className={`date-nav-btn ${timePeriod === 'heute' ? 'active' : ''}`}
+                onClick={() => setTimePeriod('heute')}
+              >
+                Heute
+              </button>
+              <button 
+                className={`date-nav-btn ${timePeriod === 'morgen' ? 'active' : ''}`}
+                onClick={() => setTimePeriod('morgen')}
+              >
+                Morgen
+              </button>
+              <button 
+                className={`date-nav-btn ${timePeriod === 'kommendes-wochenende' ? 'active' : ''}`}
+                onClick={() => setTimePeriod('kommendes-wochenende')}
+              >
+                Wochenende
+              </button>
+            </nav>
+            
+            {/* Category Filter Row - Feature 7 */}
+            <div className="category-filter-row-container">
+              <div className="category-filter-row">
+                {/* Show All Events button */}
+                <button
+                  className={`category-filter-btn ${resultsPageCategoryFilter.length === 0 ? 'active' : ''}`}
+                  onClick={() => setResultsPageCategoryFilter([])}
+                >
+                  Alle Events anzeigen
+                  <span className="category-count">({events.filter(matchesSelectedDate).length})</span>
+                </button>
+                
+                {ALL_SUPER_CATEGORIES.map(cat => {
+                  const isSelected = resultsPageCategoryFilter.includes(cat);
+                  const count = getCategoryCounts()[cat] || 0;
+                  const isDisabled = count === 0;
+                  
+                  return (
+                    <button
+                      key={cat}
+                      className={`category-filter-btn ${isSelected ? 'active' : ''} ${isDisabled ? 'disabled' : ''}`}
+                      onClick={() => {
+                        if (isDisabled) return;
+                        if (isSelected) {
+                          setResultsPageCategoryFilter(resultsPageCategoryFilter.filter(c => c !== cat));
+                        } else {
+                          setResultsPageCategoryFilter([...resultsPageCategoryFilter, cat]);
+                        }
+                      }}
+                      disabled={isDisabled}
+                    >
+                      {cat}
+                      <span className="category-count">({count})</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            
+            {/* Event count */}
+            <p className="event-count-text">
+              {displayedEvents.length} {displayedEvents.length === 1 ? 'Event' : 'Events'} gefunden
+            </p>
+          </>
         )}
 
         <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
@@ -941,9 +1021,10 @@ export default function Home() {
           {error && <div className="error">{error}</div>}
 
           {loading && events.length === 0 && (
-            <div className="loading">
-              <W2GLoader5 />
-              <p>Suche läuft...</p>
+            <div className="events-grid">
+              {Array.from({ length: 9 }).map((_, i) => (
+                <EventCardSkeleton key={i} />
+              ))}
             </div>
           )}
 
@@ -988,7 +1069,7 @@ export default function Home() {
                 return (
                   <div 
                     key={key} 
-                    className="event-card" 
+                    className={`event-card ${ev.imageUrl ? 'event-card-with-image' : ''}`}
                     {...microdataAttrs}
                   >
                     <link itemProp="url" href={canonicalUrl} />
@@ -998,7 +1079,7 @@ export default function Home() {
                       <>
                         <meta itemProp="image" content={ev.imageUrl} />
                         <div 
-                          className="event-card-bg-image"
+                          className="event-card-image"
                           style={{
                             backgroundImage: `url(${ev.imageUrl})`
                           }}
@@ -1006,9 +1087,17 @@ export default function Home() {
                       </>
                     )}
                     <div className="event-content">
+                    {superCat && (
+                      <a 
+                        href={`/wien/${superCat.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')}/${timePeriod === 'heute' ? 'heute' : timePeriod === 'morgen' ? 'morgen' : timePeriod === 'kommendes-wochenende' ? 'wochenende' : formatDateForAPI()}`}
+                        className="event-category-badge"
+                      >
+                        {superCat}
+                      </a>
+                    )}
+                    
                     <h3 className="event-title" itemProp="name">
                       {ev.title}
-                      {renderSourceBadge(ev.source)}
                     </h3>
 
                     <div className="event-meta-line">
@@ -1036,25 +1125,23 @@ export default function Home() {
                         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
                       </svg>
                       <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.address || ev.venue)}`}
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((ev.venue || '') + (ev.address ? ', ' + ev.address : ''))}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="venue-link"
                         itemProp="name"
                       >
                         {ev.venue}
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: '4px', opacity: 0.6 }}>
+                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                          <polyline points="15 3 21 3 21 9"></polyline>
+                          <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
                       </a>
                       {ev.address && (
                         <meta itemProp="address" content={ev.address} />
                       )}
                     </div>
-
-                    {superCat && (
-                      <div className="event-meta-line">
-                        {eventIcon(superCat)}
-                        <span>{superCat}</span>
-                      </div>
-                    )}
 
                     {ev.eventType && (
                       <div className="event-meta-line">
@@ -1112,6 +1199,17 @@ export default function Home() {
                         </a>
                       ) : <span />}
                     </div>
+                    
+                    {/* Source Badge - bottom-right corner */}
+                    {ev.source && (
+                      <div className="event-source-badge">
+                        {ev.source === 'rss' ? 'RSS' :
+                         ev.source === 'ai' ? 'KI' :
+                         ev.source === 'ra' ? 'API' :
+                         ev.source === 'cache' ? 'Cache' :
+                         ev.source}
+                      </div>
+                    )}
                     </div>
                   </div>
                 );
@@ -1379,6 +1477,183 @@ export default function Home() {
           .header-logo-text {
             font-size: 20px;
           }
+        }
+
+        /* Event Card Image Styles - Feature 1 */
+        .event-card {
+          height: auto;
+          min-height: 300px;
+        }
+        .event-card-image {
+          width: 100%;
+          padding-top: 56.25%; /* 16:9 aspect ratio */
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
+        }
+        
+        /* Enhanced 3D Shadow - Feature 4 */
+        .event-card {
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1), 
+                      0 8px 16px rgba(0,0,0,0.2), 
+                      0 16px 32px rgba(0,0,0,0.15);
+        }
+        .event-card:hover {
+          /* No hover effect per requirements */
+          transform: none;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1), 
+                      0 8px 16px rgba(0,0,0,0.2), 
+                      0 16px 32px rgba(0,0,0,0.15);
+        }
+        
+        /* Source Badge - Feature 5 */
+        .event-source-badge {
+          position: absolute;
+          top: 0;
+          right: 0;
+          background: #1e3a8a;
+          color: #CCCCCC;
+          padding: 4px 8px;
+          border-radius: 0 0 0 6px;
+          font-size: 8px;
+          font-weight: 500;
+          text-transform: uppercase;
+          letter-spacing: 0.3px;
+          z-index: 10;
+        }
+        
+        /* Venue Link with External Icon - Feature 3 */
+        .venue-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 2px;
+        }
+        
+        /* Ticket Button Icon - Feature 2 */
+        .btn-outline.tickets {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+        
+        /* Category Badge Link - Feature 8 */
+        .event-category-badge {
+          display: inline-block;
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          color: #4A90E2;
+          margin-bottom: 12px;
+          font-weight: 600;
+          text-decoration: none;
+          transition: color 0.2s ease;
+        }
+        .event-category-badge:hover {
+          color: #5BA0F2;
+          text-decoration: underline;
+        }
+        
+        /* Date Navigation Row - Feature 6 */
+        .date-nav-row {
+          display: flex;
+          gap: 12px;
+          margin: 20px 0;
+          flex-wrap: wrap;
+        }
+        .date-nav-btn {
+          padding: 10px 20px;
+          background: rgba(255, 255, 255, 0.1);
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          color: #374151;
+          font-weight: 600;
+          font-size: 14px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        .date-nav-btn:hover {
+          background: #f3f4f6;
+          border-color: #d1d5db;
+        }
+        .date-nav-btn.active {
+          background: #4A90E2;
+          color: #FFFFFF;
+          border-color: #4A90E2;
+        }
+        
+        /* Category Filter Row - Feature 7 */
+        .category-filter-row-container {
+          margin: 16px 0;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: thin;
+        }
+        .category-filter-row-container::-webkit-scrollbar {
+          height: 6px;
+        }
+        .category-filter-row-container::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 3px;
+        }
+        .category-filter-row {
+          display: flex;
+          gap: 10px;
+          padding-bottom: 8px;
+          min-width: min-content;
+        }
+        .category-filter-btn {
+          padding: 8px 16px;
+          background: #f5f5f5;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          color: #374151;
+          font-weight: 500;
+          font-size: 13px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          white-space: nowrap;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .category-filter-btn:hover {
+          background: #e5e7eb;
+          border-color: #d1d5db;
+        }
+        .category-filter-btn.active {
+          background: #404040;
+          color: #ffffff;
+          border-color: #404040;
+        }
+        .category-filter-btn.disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+          background: #f5f5f5;
+          color: #9ca3af;
+        }
+        .category-filter-btn.disabled:hover {
+          background: #f5f5f5;
+          border-color: #e5e7eb;
+        }
+        .category-count {
+          font-size: 11px;
+          opacity: 0.8;
+        }
+        
+        /* Event Count Text */
+        .event-count-text {
+          margin: 12px 0 24px 0;
+          color: #6b7280;
+          font-size: 14px;
+          font-weight: 500;
+        }
+        
+        /* Results Page Title */
+        .results-page-title {
+          font-size: 28px;
+          font-weight: 700;
+          color: #111827;
+          margin: 24px 0 0 0;
         }
 
         .results-filter-bar {
