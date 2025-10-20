@@ -56,11 +56,15 @@ export async function POST(request: NextRequest) {
     console.log(`[CRON:WIEN-INFO] Fetching events from ${fromISO} to ${toISO}`);
 
     // Fetch ALL categories from Wien.info (empty categories array = all categories)
+    const eventLimit = process.env.WIEN_INFO_EVENT_LIMIT
+      ? parseInt(process.env.WIEN_INFO_EVENT_LIMIT, 10)
+      : 1000;
+    // TODO: If result.events.length === eventLimit, consider implementing pagination to fetch all events.
     const result = await fetchWienInfoEvents({
       fromISO,
       toISO,
       categories: [], // Empty array fetches all categories
-      limit: 1000, // High limit to get all events
+      limit: eventLimit, // Configurable limit to get all events
       debug: true,
       debugVerbose: false
     });
