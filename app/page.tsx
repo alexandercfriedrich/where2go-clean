@@ -988,7 +988,7 @@ export default function Home() {
                 return (
                   <div 
                     key={key} 
-                    className="event-card" 
+                    className={`event-card ${ev.imageUrl ? 'event-card-with-image' : ''}`}
                     {...microdataAttrs}
                   >
                     <link itemProp="url" href={canonicalUrl} />
@@ -998,9 +998,9 @@ export default function Home() {
                       <>
                         <meta itemProp="image" content={ev.imageUrl} />
                         <div 
-                          className="event-card-bg-image"
+                          className="event-card-image"
                           style={{
-                            backgroundImage: `url(${ev.imageUrl})`
+                            backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), url(${ev.imageUrl})`
                           }}
                         />
                       </>
@@ -1008,7 +1008,6 @@ export default function Home() {
                     <div className="event-content">
                     <h3 className="event-title" itemProp="name">
                       {ev.title}
-                      {renderSourceBadge(ev.source)}
                     </h3>
 
                     <div className="event-meta-line">
@@ -1036,13 +1035,18 @@ export default function Home() {
                         <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
                       </svg>
                       <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.address || ev.venue)}`}
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((ev.venue || '') + (ev.address ? ', ' + ev.address : ''))}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="venue-link"
                         itemProp="name"
                       >
                         {ev.venue}
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: '4px', opacity: 0.6 }}>
+                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                          <polyline points="15 3 21 3 21 9"></polyline>
+                          <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
                       </a>
                       {ev.address && (
                         <meta itemProp="address" content={ev.address} />
@@ -1104,14 +1108,22 @@ export default function Home() {
                           rel="noopener noreferrer"
                           className="btn-outline tickets with-icon"
                         >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/>
-                            <path d="M13 7v2M13 11v2M13 15v2"/>
-                          </svg>
+                          🎫
                           Tickets
                         </a>
                       ) : <span />}
                     </div>
+                    
+                    {/* Source Badge - bottom-right corner */}
+                    {ev.source && (
+                      <div className="event-source-badge">
+                        {ev.source === 'rss' ? 'RSS' :
+                         ev.source === 'ai' ? 'KI' :
+                         ev.source === 'ra' ? 'API' :
+                         ev.source === 'cache' ? 'Cache' :
+                         ev.source}
+                      </div>
+                    )}
                     </div>
                   </div>
                 );
@@ -1379,6 +1391,65 @@ export default function Home() {
           .header-logo-text {
             font-size: 20px;
           }
+        }
+
+        /* Event Card Image Styles - Feature 1 */
+        .event-card-with-image {
+          height: 400px;
+        }
+        .event-card:not(.event-card-with-image) {
+          height: 300px;
+        }
+        .event-card-image {
+          height: 133px;
+          width: 100%;
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
+        }
+        
+        /* Enhanced 3D Shadow - Feature 4 */
+        .event-card {
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1), 
+                      0 8px 16px rgba(0,0,0,0.2), 
+                      0 16px 32px rgba(0,0,0,0.15);
+        }
+        .event-card:hover {
+          /* No hover effect per requirements */
+          transform: none;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.1), 
+                      0 8px 16px rgba(0,0,0,0.2), 
+                      0 16px 32px rgba(0,0,0,0.15);
+        }
+        
+        /* Source Badge - Feature 5 */
+        .event-source-badge {
+          position: absolute;
+          bottom: 12px;
+          right: 12px;
+          background: #1e3a8a;
+          color: #CCCCCC;
+          padding: 4px 10px;
+          border-radius: 4px;
+          font-size: 11px;
+          font-weight: 500;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          z-index: 10;
+        }
+        
+        /* Venue Link with External Icon - Feature 3 */
+        .venue-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 2px;
+        }
+        
+        /* Ticket Button Icon - Feature 2 */
+        .btn-outline.tickets {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
         }
 
         .results-filter-bar {
