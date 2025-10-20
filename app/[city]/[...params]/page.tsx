@@ -249,63 +249,62 @@ export default async function CityParamsPage({ params }: { params: { city: strin
           {categoryPart}Events in {resolved.name} – {formatGermanDate(dateISO)}
         </h1>
 
-        {category && (
-          <nav className="mb-6" aria-label="Zeitraum">
-            <ul style={{ display: 'flex', gap: 12, listStyle: 'none', padding: 0, margin: '0 0 24px 0', flexWrap: 'wrap' }}>
-              <li>
-                <Link 
-                  href={`/${resolved.slug}/${categorySlug}/heute`}
-                  style={{ 
-                    display: 'inline-block',
-                    padding: '10px 20px',
-                    background: dateParam === 'heute' ? '#4A90E2' : 'rgba(255, 255, 255, 0.1)',
-                    color: '#FFFFFF',
-                    borderRadius: '8px',
-                    textDecoration: 'none',
-                    fontWeight: 600,
-                    fontSize: '14px'
-                  }}
-                >
-                  Heute
-                </Link>
-              </li>
-              <li>
-                <Link 
-                  href={`/${resolved.slug}/${categorySlug}/morgen`}
-                  style={{ 
-                    display: 'inline-block',
-                    padding: '10px 20px',
-                    background: dateParam === 'morgen' ? '#4A90E2' : 'rgba(255, 255, 255, 0.1)',
-                    color: '#FFFFFF',
-                    borderRadius: '8px',
-                    textDecoration: 'none',
-                    fontWeight: 600,
-                    fontSize: '14px'
-                  }}
-                >
-                  Morgen
-                </Link>
-              </li>
-              <li>
-                <Link 
-                  href={`/${resolved.slug}/${categorySlug}/wochenende`}
-                  style={{ 
-                    display: 'inline-block',
-                    padding: '10px 20px',
-                    background: dateParam === 'wochenende' ? '#4A90E2' : 'rgba(255, 255, 255, 0.1)',
-                    color: '#FFFFFF',
-                    borderRadius: '8px',
-                    textDecoration: 'none',
-                    fontWeight: 600,
-                    fontSize: '14px'
-                  }}
-                >
-                  Wochenende
-                </Link>
-              </li>
-            </ul>
-          </nav>
-        )}
+        {/* Date Navigation - Always show */}
+        <nav className="mb-6" aria-label="Zeitraum">
+          <ul style={{ display: 'flex', gap: 12, listStyle: 'none', padding: 0, margin: '0 0 24px 0', flexWrap: 'wrap' }}>
+            <li>
+              <Link 
+                href={category ? `/${resolved.slug}/${categorySlug}/heute` : `/${resolved.slug}/heute`}
+                style={{ 
+                  display: 'inline-block',
+                  padding: '10px 20px',
+                  background: dateParam === 'heute' ? '#4A90E2' : 'rgba(255, 255, 255, 0.1)',
+                  color: '#FFFFFF',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  fontWeight: 600,
+                  fontSize: '14px'
+                }}
+              >
+                Heute
+              </Link>
+            </li>
+            <li>
+              <Link 
+                href={category ? `/${resolved.slug}/${categorySlug}/morgen` : `/${resolved.slug}/morgen`}
+                style={{ 
+                  display: 'inline-block',
+                  padding: '10px 20px',
+                  background: dateParam === 'morgen' ? '#4A90E2' : 'rgba(255, 255, 255, 0.1)',
+                  color: '#FFFFFF',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  fontWeight: 600,
+                  fontSize: '14px'
+                }}
+              >
+                Morgen
+              </Link>
+            </li>
+            <li>
+              <Link 
+                href={category ? `/${resolved.slug}/${categorySlug}/wochenende` : `/${resolved.slug}/wochenende`}
+                style={{ 
+                  display: 'inline-block',
+                  padding: '10px 20px',
+                  background: dateParam === 'wochenende' ? '#4A90E2' : 'rgba(255, 255, 255, 0.1)',
+                  color: '#FFFFFF',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  fontWeight: 600,
+                  fontSize: '14px'
+                }}
+              >
+                Wochenende
+              </Link>
+            </li>
+          </ul>
+        </nav>
 
         {/* Category Filter Row */}
         <div style={{ marginBottom: '24px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
