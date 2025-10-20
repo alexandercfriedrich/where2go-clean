@@ -1052,7 +1052,7 @@ export default function Home() {
                         <div 
                           className="event-card-image"
                           style={{
-                            backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)), url(${ev.imageUrl})`
+                            backgroundImage: `url(${ev.imageUrl})`
                           }}
                         />
                       </>
@@ -1168,7 +1168,10 @@ export default function Home() {
                           rel="noopener noreferrer"
                           className="btn-outline tickets with-icon"
                         >
-                          🎫
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/>
+                            <path d="M13 7v2M13 11v2M13 15v2"/>
+                          </svg>
                           Tickets
                         </a>
                       ) : <span />}
@@ -1454,15 +1457,13 @@ export default function Home() {
         }
 
         /* Event Card Image Styles - Feature 1 */
-        .event-card-with-image {
-          height: 400px;
-        }
-        .event-card:not(.event-card-with-image) {
-          height: 300px;
+        .event-card {
+          height: auto;
+          min-height: 300px;
         }
         .event-card-image {
-          height: 133px;
           width: 100%;
+          padding-top: 56.25%; /* 16:9 aspect ratio */
           background-size: cover;
           background-position: center;
           background-repeat: no-repeat;
@@ -1489,12 +1490,12 @@ export default function Home() {
           right: 12px;
           background: #1e3a8a;
           color: #CCCCCC;
-          padding: 4px 10px;
-          border-radius: 4px;
-          font-size: 11px;
+          padding: 2px 6px;
+          border-radius: 3px;
+          font-size: 8px;
           font-weight: 500;
           text-transform: uppercase;
-          letter-spacing: 0.5px;
+          letter-spacing: 0.3px;
           z-index: 10;
         }
         

@@ -219,10 +219,8 @@ html, body {
   display: flex;
   flex-direction: column;
   position: relative;
-  height: 300px;
-}
-.event-card.event-card-with-image {
-  height: 400px;
+  height: auto;
+  min-height: 300px;
 }
 .event-card:hover {
   /* No hover effect as per requirements */
@@ -232,8 +230,8 @@ html, body {
               0 16px 32px rgba(0,0,0,0.15);
 }
 .event-card-image {
-  height: 133px;
   width: 100%;
+  padding-top: 56.25%; /* 16:9 aspect ratio */
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -245,12 +243,12 @@ html, body {
   right: 12px;
   background: #1e3a8a;
   color: #CCCCCC;
-  padding: 4px 10px;
-  border-radius: 4px;
-  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 8px;
   font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
   z-index: 10;
 }
 

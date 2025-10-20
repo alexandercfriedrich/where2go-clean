@@ -177,8 +177,19 @@ export default async function CityPage({ params }: { params: { city: string } })
                 <link itemProp="url" href={canonicalUrl} />
                 <meta itemProp="eventStatus" content="https://schema.org/EventScheduled" />
                 <meta itemProp="eventAttendanceMode" content="https://schema.org/OfflineEventAttendanceMode" />
-                {ev.imageUrl && <meta itemProp="image" content={ev.imageUrl} />}
+                {ev.imageUrl && (
+                  <>
+                    <meta itemProp="image" content={ev.imageUrl} />
+                    <div 
+                      className="dark-event-card-image"
+                      style={{
+                        backgroundImage: `url(${ev.imageUrl})`
+                      }}
+                    />
+                  </>
+                )}
 
+                <div className="dark-event-content">
                 {ev.category && (
                   <a 
                     href={`/${resolved.slug}/${ev.category.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')}/heute`}
@@ -238,6 +249,18 @@ export default async function CityPage({ params }: { params: { city: string } })
 
                 {ev.price && (
                   <div className="dark-event-price">{ev.price}</div>
+                )}
+                </div>
+                
+                {/* Source Badge - bottom-right corner */}
+                {ev.source && (
+                  <div className="dark-event-source-badge">
+                    {ev.source === 'rss' ? 'RSS' :
+                     ev.source === 'ai' ? 'KI' :
+                     ev.source === 'ra' ? 'API' :
+                     ev.source === 'cache' ? 'Cache' :
+                     ev.source}
+                  </div>
                 )}
               </div>
             );
