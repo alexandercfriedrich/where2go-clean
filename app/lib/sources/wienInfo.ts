@@ -354,11 +354,11 @@ function normalizeWienInfoEvent(
     ? `https://www.wien.info${rawImageUrl}`
     : undefined;
 
-  // Try multiple description fields from wien.info API
-  // Note: Wien.info API may return description in different fields
-  const description = wienInfoEvent.description 
+  // Use subtitle as description per user request
+  // Wien.info typically provides event descriptions in the subtitle field
+  const description = wienInfoEvent.subtitle 
+    || wienInfoEvent.description 
     || wienInfoEvent.teaserText 
-    || wienInfoEvent.subtitle 
     || '';
   
   // Handle ticket URL
