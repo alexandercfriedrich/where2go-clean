@@ -355,7 +355,11 @@ function normalizeWienInfoEvent(
     : undefined;
 
   // Try multiple description fields from wien.info API
-  const description = wienInfoEvent.description || wienInfoEvent.teaserText || wienInfoEvent.subtitle || '';
+  // Note: Wien.info API may return description in different fields
+  const description = wienInfoEvent.description 
+    || wienInfoEvent.teaserText 
+    || wienInfoEvent.subtitle 
+    || '';
   
   // Handle ticket URL
   const bookingLink = wienInfoEvent.ticket_url || undefined;
