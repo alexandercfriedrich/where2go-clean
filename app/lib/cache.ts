@@ -98,7 +98,9 @@ class InMemoryCache {
     for (const category of categories) {
       const key = InMemoryCache.createKeyForCategory(city, date, category);
       const events = await this.get<any[]>(key);
-      if (Array.isArray(events) && events.length > 0) {
+      // Changed: Accept empty arrays as valid cached results (not just arrays with length > 0)
+      // This prevents redundant searches for categories known to have no events
+      if (Array.isArray(events)) {
         cachedEvents[category] = events;
         cacheInfo[category] = { fromCache: true, eventCount: events.length };
       } else {

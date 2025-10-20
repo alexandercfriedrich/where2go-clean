@@ -83,19 +83,28 @@ export async function POST(request: NextRequest) {
     const combined = eventAggregator.deduplicateEvents([...dedupCached, ...newEvents]);
 
     const disableCache = (options?.disableCache === true);
-    if (!disableCache && newEvents.length > 0) {
-      const ttlSeconds = computeTTLSecondsForEvents(newEvents);
+    if (!disableCache && missingCategories.length > 0) {
+      // Cache all searched categories, including those with no events (empty arrays)
+      // This prevents redundant searches for categories known to have no events
+      const ttlSeconds = newEvents.length > 0 ? computeTTLSecondsForEvents(newEvents) : 300;
       const grouped: Record<string, EventData[]> = {};
+      
+      // Group new events by category
       for (const ev of newEvents) {
         if (!ev.category) continue;
         (grouped[ev.category] ||= []).push(ev);
       }
-      for (const cat of Object.keys(grouped)) {
-        await eventsCache.setEventsByCategory(city, date, cat, grouped[cat], ttlSeconds);
+      
+      // Cache ALL missing categories (including those with no events)
+      for (const cat of missingCategories) {
+        const eventsForCategory = grouped[cat] || [];
+        await eventsCache.setEventsByCategory(city, date, cat, eventsForCategory, ttlSeconds);
       }
       
       // Also upsert into day-bucket cache (combined events, not just new ones)
-      await upsertDayEvents(city, date, combined);
+      if (combined.length > 0) {
+        await upsertDayEvents(city, date, combined);
+      }
     } else if (!disableCache && combined.length > 0) {
       // If no new events but we have combined events, still update day-bucket
       try {
