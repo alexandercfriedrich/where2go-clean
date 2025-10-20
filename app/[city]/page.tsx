@@ -7,7 +7,7 @@ import { getRevalidateFor } from '@/lib/isr';
 import { getDayEvents, isEventValidNow } from '@/lib/dayCache';
 import { eventsCache } from '@/lib/cache';
 import { eventAggregator } from '@/lib/aggregator';
-import { EVENT_CATEGORIES, normalizeCategory } from '@/lib/eventCategories';
+import { EVENT_CATEGORIES, normalizeCategory, EVENT_CATEGORY_SUBCATEGORIES } from '@/lib/eventCategories';
 import { generateCitySEO } from '@/lib/seoContent';
 import type { EventData } from '@/lib/types';
 
@@ -155,6 +155,46 @@ export default async function CityPage({ params }: { params: { city: string } })
             </li>
           </ul>
         </nav>
+
+        {/* Category Filter Row */}
+        <div style={{ marginBottom: '24px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <div style={{ display: 'flex', gap: '10px', paddingBottom: '8px', minWidth: 'min-content' }}>
+            {Object.keys(EVENT_CATEGORY_SUBCATEGORIES).map(cat => {
+              const catSlug = cat.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
+              const count = events.filter(e => {
+                const subs = EVENT_CATEGORY_SUBCATEGORIES[cat] || [];
+                return subs.includes(e.category);
+              }).length;
+              
+              if (count === 0) return null;
+              
+              return (
+                <Link
+                  key={cat}
+                  href={`/${resolved.slug}/${catSlug}/heute`}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#f5f5f5',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    color: '#374151',
+                    fontWeight: 500,
+                    fontSize: '13px',
+                    whiteSpace: 'nowrap',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    textDecoration: 'none',
+                    transition: 'all 0.2s ease'
+                  }}
+                >
+                  {cat}
+                  <span style={{ fontSize: '11px', opacity: 0.8 }}>({count})</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
 
         <p style={{ color: '#AAAAAA', marginBottom: '32px', fontSize: '15px' }}>
           {formatGermanDate(dateISO)} • {events.length} Events gefunden

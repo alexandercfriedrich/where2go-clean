@@ -5,6 +5,7 @@ import { useTranslation } from './lib/useTranslation';
 import { startJobPolling, deduplicateEvents as dedupFront } from './lib/polling';
 import SchemaOrg from './components/SchemaOrg';
 import SEOFooter from './components/SEOFooter';
+import EventCardSkeleton from './components/EventCardSkeleton';
 import { generateEventListSchema, generateEventMicrodata, generateCanonicalUrl } from './lib/schemaOrg';
 
 interface EventData {
@@ -993,9 +994,10 @@ export default function Home() {
           {error && <div className="error">{error}</div>}
 
           {loading && events.length === 0 && (
-            <div className="loading">
-              <W2GLoader5 />
-              <p>Suche läuft...</p>
+            <div className="events-grid">
+              {Array.from({ length: 9 }).map((_, i) => (
+                <EventCardSkeleton key={i} />
+              ))}
             </div>
           )}
 
@@ -1058,6 +1060,15 @@ export default function Home() {
                       </>
                     )}
                     <div className="event-content">
+                    {superCat && (
+                      <a 
+                        href={`/wien/${superCat.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')}/${timePeriod === 'heute' ? 'heute' : timePeriod === 'morgen' ? 'morgen' : timePeriod === 'kommendes-wochenende' ? 'wochenende' : formatDateForAPI()}`}
+                        className="event-category-badge"
+                      >
+                        {superCat}
+                      </a>
+                    )}
+                    
                     <h3 className="event-title" itemProp="name">
                       {ev.title}
                     </h3>
@@ -1104,21 +1115,6 @@ export default function Home() {
                         <meta itemProp="address" content={ev.address} />
                       )}
                     </div>
-
-                    {superCat && (
-                      <div className="event-meta-line">
-                        {eventIcon(superCat)}
-                        <a 
-                          href={`/wien/${superCat.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')}/${timePeriod === 'heute' ? 'heute' : timePeriod === 'morgen' ? 'morgen' : timePeriod === 'kommendes-wochenende' ? 'wochenende' : formatDateForAPI()}`}
-                          className="category-badge-link"
-                          onClick={(e) => {
-                            // Allow default link behavior to navigate
-                          }}
-                        >
-                          {superCat}
-                        </a>
-                      </div>
-                    )}
 
                     {ev.eventType && (
                       <div className="event-meta-line">
@@ -1486,12 +1482,12 @@ export default function Home() {
         /* Source Badge - Feature 5 */
         .event-source-badge {
           position: absolute;
-          bottom: 12px;
-          right: 12px;
+          top: 0;
+          right: 0;
           background: #1e3a8a;
           color: #CCCCCC;
-          padding: 2px 6px;
-          border-radius: 3px;
+          padding: 4px 8px;
+          border-radius: 0 0 0 6px;
           font-size: 8px;
           font-weight: 500;
           text-transform: uppercase;
@@ -1514,13 +1510,19 @@ export default function Home() {
         }
         
         /* Category Badge Link - Feature 8 */
-        .category-badge-link {
-          color: inherit;
+        .event-category-badge {
+          display: inline-block;
+          font-size: 12px;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          color: #4A90E2;
+          margin-bottom: 12px;
+          font-weight: 600;
           text-decoration: none;
           transition: color 0.2s ease;
         }
-        .category-badge-link:hover {
-          color: var(--color-accent-alt, #5b8cff);
+        .event-category-badge:hover {
+          color: #5BA0F2;
           text-decoration: underline;
         }
         
