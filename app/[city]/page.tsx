@@ -180,7 +180,12 @@ export default async function CityPage({ params }: { params: { city: string } })
                 {ev.imageUrl && <meta itemProp="image" content={ev.imageUrl} />}
 
                 {ev.category && (
-                  <div className="dark-event-category">{ev.category}</div>
+                  <a 
+                    href={`/${resolved.slug}/${ev.category.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')}/heute`}
+                    className="dark-event-category dark-event-category-link"
+                  >
+                    {ev.category}
+                  </a>
                 )}
 
                 <h3 className="dark-event-title" itemProp="name">{ev.title}</h3>
@@ -209,7 +214,20 @@ export default async function CityPage({ params }: { params: { city: string } })
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                    <span itemProp="name">{ev.venue}</span>
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((ev.venue || '') + (ev.address ? ', ' + ev.address : ''))}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="dark-event-venue-link"
+                      itemProp="name"
+                    >
+                      {ev.venue}
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: '4px', opacity: 0.6, display: 'inline' }}>
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                        <polyline points="15 3 21 3 21 9"></polyline>
+                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                      </svg>
+                    </a>
                     {ev.address && <meta itemProp="address" content={ev.address} />}
                   </div>
                 </div>

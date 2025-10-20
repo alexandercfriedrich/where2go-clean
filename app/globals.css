@@ -483,6 +483,17 @@ body {
   color: #4A90E2;
   margin-bottom: 12px;
   font-weight: 600;
+  display: inline-block;
+}
+
+.dark-event-category-link {
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.dark-event-category-link:hover {
+  color: #5BA0F2;
+  text-decoration: underline;
 }
 
 .dark-event-title {
@@ -506,6 +517,20 @@ body {
   gap: 10px;
   font-size: 14px;
   color: #CCCCCC;
+}
+
+.dark-event-venue-link {
+  color: #CCCCCC;
+  text-decoration: none;
+  transition: color 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.dark-event-venue-link:hover {
+  color: #4A90E2;
+  text-decoration: underline;
 }
 
 .dark-event-icon {

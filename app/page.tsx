@@ -838,9 +838,61 @@ export default function Home() {
         )}
 
         {searchSubmitted && (
-          <h1 className="results-page-title">
-            {getPageTitle()}
-          </h1>
+          <>
+            <h1 className="results-page-title">
+              {getPageTitle()}
+            </h1>
+            
+            {/* Date Navigation Buttons - Feature 6 */}
+            <nav className="date-nav-row" aria-label="Zeitraum wählen">
+              <button 
+                className={`date-nav-btn ${timePeriod === 'heute' ? 'active' : ''}`}
+                onClick={() => setTimePeriod('heute')}
+              >
+                Heute
+              </button>
+              <button 
+                className={`date-nav-btn ${timePeriod === 'morgen' ? 'active' : ''}`}
+                onClick={() => setTimePeriod('morgen')}
+              >
+                Morgen
+              </button>
+              <button 
+                className={`date-nav-btn ${timePeriod === 'kommendes-wochenende' ? 'active' : ''}`}
+                onClick={() => setTimePeriod('kommendes-wochenende')}
+              >
+                Wochenende
+              </button>
+            </nav>
+            
+            {/* Category Filter Row - Feature 7 */}
+            <div className="category-filter-row-container">
+              <div className="category-filter-row">
+                {ALL_SUPER_CATEGORIES.map(cat => {
+                  const isSelected = selectedSuperCategories.includes(cat);
+                  const count = getCategoryCounts()[cat] || 0;
+                  
+                  if (count === 0 && !isSelected) return null;
+                  
+                  return (
+                    <button
+                      key={cat}
+                      className={`category-filter-btn ${isSelected ? 'active' : ''}`}
+                      onClick={() => toggleSuperCategory(cat)}
+                    >
+                      {cat}
+                      {count > 0 && <span className="category-count">({count})</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            
+            {/* Event count */}
+            <p className="event-count-text">
+              {displayedEvents.length} {displayedEvents.length === 1 ? 'Event' : 'Events'} gefunden
+            </p>
+          </>
         )}
 
         <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
@@ -1056,7 +1108,15 @@ export default function Home() {
                     {superCat && (
                       <div className="event-meta-line">
                         {eventIcon(superCat)}
-                        <span>{superCat}</span>
+                        <a 
+                          href={`/wien/${superCat.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')}/${timePeriod === 'heute' ? 'heute' : timePeriod === 'morgen' ? 'morgen' : timePeriod === 'kommendes-wochenende' ? 'wochenende' : formatDateForAPI()}`}
+                          className="category-badge-link"
+                          onClick={(e) => {
+                            // Allow default link behavior to navigate
+                          }}
+                        >
+                          {superCat}
+                        </a>
                       </div>
                     )}
 
@@ -1450,6 +1510,110 @@ export default function Home() {
           display: inline-flex;
           align-items: center;
           gap: 6px;
+        }
+        
+        /* Category Badge Link - Feature 8 */
+        .category-badge-link {
+          color: inherit;
+          text-decoration: none;
+          transition: color 0.2s ease;
+        }
+        .category-badge-link:hover {
+          color: var(--color-accent-alt, #5b8cff);
+          text-decoration: underline;
+        }
+        
+        /* Date Navigation Row - Feature 6 */
+        .date-nav-row {
+          display: flex;
+          gap: 12px;
+          margin: 20px 0;
+          flex-wrap: wrap;
+        }
+        .date-nav-btn {
+          padding: 10px 20px;
+          background: rgba(255, 255, 255, 0.1);
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          color: #374151;
+          font-weight: 600;
+          font-size: 14px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        .date-nav-btn:hover {
+          background: #f3f4f6;
+          border-color: #d1d5db;
+        }
+        .date-nav-btn.active {
+          background: #4A90E2;
+          color: #FFFFFF;
+          border-color: #4A90E2;
+        }
+        
+        /* Category Filter Row - Feature 7 */
+        .category-filter-row-container {
+          margin: 16px 0;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
+          scrollbar-width: thin;
+        }
+        .category-filter-row-container::-webkit-scrollbar {
+          height: 6px;
+        }
+        .category-filter-row-container::-webkit-scrollbar-thumb {
+          background: #cbd5e1;
+          border-radius: 3px;
+        }
+        .category-filter-row {
+          display: flex;
+          gap: 10px;
+          padding-bottom: 8px;
+          min-width: min-content;
+        }
+        .category-filter-btn {
+          padding: 8px 16px;
+          background: #f5f5f5;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+          color: #374151;
+          font-weight: 500;
+          font-size: 13px;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          white-space: nowrap;
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+        .category-filter-btn:hover {
+          background: #e5e7eb;
+          border-color: #d1d5db;
+        }
+        .category-filter-btn.active {
+          background: #404040;
+          color: #ffffff;
+          border-color: #404040;
+        }
+        .category-count {
+          font-size: 11px;
+          opacity: 0.8;
+        }
+        
+        /* Event Count Text */
+        .event-count-text {
+          margin: 12px 0 24px 0;
+          color: #6b7280;
+          font-size: 14px;
+          font-weight: 500;
+        }
+        
+        /* Results Page Title */
+        .results-page-title {
+          font-size: 28px;
+          font-weight: 700;
+          color: #111827;
+          margin: 24px 0 0 0;
         }
 
         .results-filter-bar {
