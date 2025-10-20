@@ -61,6 +61,9 @@ export default function Home() {
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   // Mobile: Sidebar Toggle
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  
+  // Category filter for results page
+  const [resultsPageCategoryFilter, setResultsPageCategoryFilter] = useState<string[]>([]);
 
   const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean; totalEvents: number; cachedEvents: number} | null>(null);
   const [toast, setToast] = useState<{show:boolean; message:string}>({show:false,message:''});
@@ -610,11 +613,22 @@ export default function Home() {
     const dateFiltered = events.filter(matchesSelectedDate);
     if (!searchSubmitted) return dateFiltered;
     
-    // Apply category filter
+    // Apply category filter (from sidebar)
     let filtered = dateFiltered;
     if (selectedCategories.length > 0) {
       filtered = filtered.filter(e => {
         for (const mainCat of selectedCategories) {
+          const subs = EVENT_CATEGORY_SUBCATEGORIES[mainCat] || [];
+          if (subs.includes(e.category)) return true;
+        }
+        return false;
+      });
+    }
+    
+    // Apply results page category filter (horizontal filter row)
+    if (resultsPageCategoryFilter.length > 0) {
+      filtered = filtered.filter(e => {
+        for (const mainCat of resultsPageCategoryFilter) {
           const subs = EVENT_CATEGORY_SUBCATEGORIES[mainCat] || [];
           if (subs.includes(e.category)) return true;
         }
@@ -787,6 +801,12 @@ export default function Home() {
                       setShowDateDropdown(false);
                     }
                   }}
+                  onClick={(e) => {
+                    // If already on benutzerdefiniert and user clicks again, open dropdown
+                    if (timePeriod === 'benutzerdefiniert') {
+                      setShowDateDropdown(true);
+                    }
+                  }}
                 >
                   <option value="heute">Heute</option>
                   <option value="morgen">Morgen</option>
@@ -869,20 +889,36 @@ export default function Home() {
             {/* Category Filter Row - Feature 7 */}
             <div className="category-filter-row-container">
               <div className="category-filter-row">
+                {/* Show All Events button */}
+                <button
+                  className={`category-filter-btn ${resultsPageCategoryFilter.length === 0 ? 'active' : ''}`}
+                  onClick={() => setResultsPageCategoryFilter([])}
+                >
+                  Alle Events anzeigen
+                  <span className="category-count">({events.filter(matchesSelectedDate).length})</span>
+                </button>
+                
                 {ALL_SUPER_CATEGORIES.map(cat => {
-                  const isSelected = selectedSuperCategories.includes(cat);
+                  const isSelected = resultsPageCategoryFilter.includes(cat);
                   const count = getCategoryCounts()[cat] || 0;
-                  
-                  if (count === 0 && !isSelected) return null;
+                  const isDisabled = count === 0;
                   
                   return (
                     <button
                       key={cat}
-                      className={`category-filter-btn ${isSelected ? 'active' : ''}`}
-                      onClick={() => toggleSuperCategory(cat)}
+                      className={`category-filter-btn ${isSelected ? 'active' : ''} ${isDisabled ? 'disabled' : ''}`}
+                      onClick={() => {
+                        if (isDisabled) return;
+                        if (isSelected) {
+                          setResultsPageCategoryFilter(resultsPageCategoryFilter.filter(c => c !== cat));
+                        } else {
+                          setResultsPageCategoryFilter([...resultsPageCategoryFilter, cat]);
+                        }
+                      }}
+                      disabled={isDisabled}
                     >
                       {cat}
-                      {count > 0 && <span className="category-count">({count})</span>}
+                      <span className="category-count">({count})</span>
                     </button>
                   );
                 })}
@@ -1597,6 +1633,16 @@ export default function Home() {
           background: #404040;
           color: #ffffff;
           border-color: #404040;
+        }
+        .category-filter-btn.disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+          background: #f5f5f5;
+          color: #9ca3af;
+        }
+        .category-filter-btn.disabled:hover {
+          background: #f5f5f5;
+          border-color: #e5e7eb;
         }
         .category-count {
           font-size: 11px;

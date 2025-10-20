@@ -48,6 +48,8 @@ interface WienInfoEvent {
   id: string;
   title: string;
   subtitle?: string;
+  teaserText?: string;
+  description?: string;
   category: string;
   location: string;
   dates?: string[];   // ISO date-times
@@ -334,6 +336,9 @@ function normalizeWienInfoEvent(
     ? `https://www.wien.info${wienInfoEvent.imageUrl}`
     : undefined;
 
+  // Try multiple description fields from wien.info API
+  const description = wienInfoEvent.description || wienInfoEvent.teaserText || wienInfoEvent.subtitle || '';
+
   return {
     title: wienInfoEvent.title,
     category,
@@ -344,7 +349,7 @@ function normalizeWienInfoEvent(
     website: fullUrl,
     source: 'wien.info',
     city: 'Wien',
-    description: wienInfoEvent.subtitle || '',
+    description,
     address: wienInfoEvent.location || 'Wien, Austria',
     ...(endTime ? { endTime } : {}),
     ...(imageUrl ? { imageUrl } : {})
