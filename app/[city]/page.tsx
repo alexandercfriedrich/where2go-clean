@@ -185,8 +185,8 @@ export default async function CityPage({ params }: { params: { city: string } })
             {Object.keys(EVENT_CATEGORY_SUBCATEGORIES).map(cat => {
               const catSlug = cat.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
               const count = events.filter(e => {
-                const subs = EVENT_CATEGORY_SUBCATEGORIES[cat] || [];
-                return subs.includes(e.category);
+                // Check if event's normalized category matches this main category
+                return normalizeCategory(e.category) === cat;
               }).length;
               
               const isDisabled = count === 0;
