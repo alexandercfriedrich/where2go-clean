@@ -159,6 +159,29 @@ export default async function CityPage({ params }: { params: { city: string } })
         {/* Category Filter Row */}
         <div style={{ marginBottom: '24px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
           <div style={{ display: 'flex', gap: '10px', paddingBottom: '8px', minWidth: 'min-content' }}>
+            {/* "Alle Events anzeigen" button - always active on base city page */}
+            <Link
+              href={`/${resolved.slug}/heute`}
+              style={{
+                padding: '8px 16px',
+                background: '#404040',
+                border: '1px solid #e5e7eb',
+                borderRadius: '8px',
+                color: '#ffffff',
+                fontWeight: 500,
+                fontSize: '13px',
+                whiteSpace: 'nowrap',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                textDecoration: 'none',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              Alle Events anzeigen
+              <span style={{ fontSize: '11px', opacity: 0.8 }}>({events.length})</span>
+            </Link>
+            
             {Object.keys(EVENT_CATEGORY_SUBCATEGORIES).map(cat => {
               const catSlug = cat.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
               const count = events.filter(e => {
@@ -166,18 +189,18 @@ export default async function CityPage({ params }: { params: { city: string } })
                 return subs.includes(e.category);
               }).length;
               
-              if (count === 0) return null;
+              const isDisabled = count === 0;
               
               return (
                 <Link
                   key={cat}
-                  href={`/${resolved.slug}/${catSlug}/heute`}
+                  href={isDisabled ? '#' : `/${resolved.slug}/${catSlug}/heute`}
                   style={{
                     padding: '8px 16px',
                     background: '#f5f5f5',
                     border: '1px solid #e5e7eb',
                     borderRadius: '8px',
-                    color: '#374151',
+                    color: isDisabled ? '#9ca3af' : '#374151',
                     fontWeight: 500,
                     fontSize: '13px',
                     whiteSpace: 'nowrap',
@@ -185,7 +208,10 @@ export default async function CityPage({ params }: { params: { city: string } })
                     alignItems: 'center',
                     gap: '6px',
                     textDecoration: 'none',
-                    transition: 'all 0.2s ease'
+                    transition: 'all 0.2s ease',
+                    opacity: isDisabled ? 0.5 : 1,
+                    cursor: isDisabled ? 'not-allowed' : 'pointer',
+                    pointerEvents: isDisabled ? 'none' : 'auto'
                   }}
                 >
                   {cat}
