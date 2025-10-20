@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useRef, useState, CSSProperties } from 'react';
-import { EVENT_CATEGORY_SUBCATEGORIES } from './lib/eventCategories';
+import { EVENT_CATEGORY_SUBCATEGORIES, normalizeCategory } from './lib/eventCategories';
 import { useTranslation } from './lib/useTranslation';
 import { startJobPolling, deduplicateEvents as dedupFront } from './lib/polling';
 import SchemaOrg from './components/SchemaOrg';
@@ -580,11 +580,9 @@ export default function Home() {
       // Get unique main categories from events
       const categorySet = new Set<string>();
       dateFiltered.forEach(ev => {
-        for (const [mainCat, subs] of Object.entries(EVENT_CATEGORY_SUBCATEGORIES)) {
-          if (subs.includes(ev.category)) {
-            categorySet.add(mainCat);
-            break;
-          }
+        const normalizedCategory = normalizeCategory(ev.category);
+        if (normalizedCategory) {
+          categorySet.add(normalizedCategory);
         }
       });
       
@@ -617,22 +615,16 @@ export default function Home() {
     let filtered = dateFiltered;
     if (selectedCategories.length > 0) {
       filtered = filtered.filter(e => {
-        for (const mainCat of selectedCategories) {
-          const subs = EVENT_CATEGORY_SUBCATEGORIES[mainCat] || [];
-          if (subs.includes(e.category)) return true;
-        }
-        return false;
+        const normalizedCategory = normalizeCategory(e.category);
+        return selectedCategories.includes(normalizedCategory);
       });
     }
     
     // Apply results page category filter (horizontal filter row)
     if (resultsPageCategoryFilter.length > 0) {
       filtered = filtered.filter(e => {
-        for (const mainCat of resultsPageCategoryFilter) {
-          const subs = EVENT_CATEGORY_SUBCATEGORIES[mainCat] || [];
-          if (subs.includes(e.category)) return true;
-        }
-        return false;
+        const normalizedCategory = normalizeCategory(e.category);
+        return resultsPageCategoryFilter.includes(normalizedCategory);
       });
     }
     
@@ -649,7 +641,7 @@ export default function Home() {
     const counts: Record<string, number> = {};
     
     for (const [mainCat, subs] of Object.entries(EVENT_CATEGORY_SUBCATEGORIES)) {
-      const count = dateFiltered.filter(e => subs.includes(e.category)).length;
+      const count = dateFiltered.filter(e => normalizeCategory(e.category) === mainCat).length;
       if (count > 0) {
         counts[mainCat] = count;
       }
@@ -673,11 +665,10 @@ export default function Home() {
   
   const getVenuesByCategory = (category: string) => {
     const dateFiltered = events.filter(matchesSelectedDate);
-    const subs = EVENT_CATEGORY_SUBCATEGORIES[category] || [];
     const venues: Record<string, number> = {};
     
     dateFiltered
-      .filter(e => subs.includes(e.category))
+      .filter(e => normalizeCategory(e.category) === category)
       .forEach(e => {
         if (e.venue && e.venue.trim()) {
           venues[e.venue] = (venues[e.venue] || 0) + 1;
