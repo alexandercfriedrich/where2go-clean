@@ -6,6 +6,7 @@ import { startJobPolling, deduplicateEvents as dedupFront } from './lib/polling'
 import SchemaOrg from './components/SchemaOrg';
 import SEOFooter from './components/SEOFooter';
 import EventCardSkeleton from './components/EventCardSkeleton';
+import OptimizedSearch from './components/OptimizedSearch';
 import { generateEventListSchema, generateEventMicrodata, generateCanonicalUrl } from './lib/schemaOrg';
 
 interface EventData {
@@ -102,6 +103,7 @@ export default function Home() {
   // New multi-select filters
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedVenues, setSelectedVenues] = useState<string[]>([]);
+  const [hoveredVenue, setHoveredVenue] = useState<string | null>(null); // Point 5: Track hovered venue for "nur" button
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   // Mobile: Sidebar Toggle
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -111,45 +113,6 @@ export default function Home() {
 
   const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean; totalEvents: number; cachedEvents: number} | null>(null);
   const [toast, setToast] = useState<{show:boolean; message:string}>({show:false,message:''});
-
-  const pollInstanceRef = useRef(0);
-  const [activePolling, setActivePolling] = useState<{ jobId: string; cleanup: () => void; pollInstanceId: number } | null>(null);
-
-  const [debugLogs, setDebugLogs] = useState<{
-    apiCalls: Array<{
-      timestamp: string;
-      url: string;
-      method: string;
-      body?: any;
-      response?: any;
-      status?: number;
-    }>;
-    aiRequests: Array<{
-      timestamp: string;
-      query: string;
-      response: string;
-      category?: string;
-      parsedCount?: number;
-    }>;
-    wienInfoData: Array<{
-      timestamp: string;
-      url: string;
-      query?: string;
-      response?: string;
-      parsedEvents?: number;
-      filteredEvents?: number;
-      rawCategoryCounts?: Record<string, number>;
-      mappedCategoryCounts?: Record<string, number>;
-      unknownRawCategories?: string[];
-      scrapedContent?: string;
-      events?: any[];
-      error?: string;
-    }>;
-  }>({
-    apiCalls: [],
-    aiRequests: [],
-    wienInfoData: []
-  });
 
   const resultsAnchorRef = useRef<HTMLDivElement | null>(null);
   const timeSelectWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -400,57 +363,40 @@ export default function Home() {
     void preloadDefaultEventsFromCache();
   }, []);
 
-  async function fetchForSuperCategory(superCat: string) {
-    const subs = EVENT_CATEGORY_SUBCATEGORIES[superCat] || [];
-    if (subs.length === 0) return;
-    setStepLoading(superCat);
-    try {
-      const reqBody = {
-        city: city.trim(),
-        date: formatDateForAPI(),
-        categories: subs,
-        options: {
-          temperature: 0.2,
-          max_tokens: 12000,
-          expandedSubcategories: true,
-          debug: true,
-          categoryConcurrency: 10
+  // Auto-load cached events when user types a city name (2 second debounce)
+  useEffect(() => {
+    if (!city || city.trim() === '') return;
+    
+    const timer = setTimeout(async () => {
+      try {
+        const today = todayISO();
+        const url = `/api/events/cache-day?city=${encodeURIComponent(city.trim())}&date=${encodeURIComponent(today)}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        
+        if (res.ok) {
+          const json = await res.json();
+          const cachedEvents: EventData[] = Array.isArray(json.events) ? json.events : [];
+          
+          if (cachedEvents.length > 0 && !searchSubmitted) {
+            // Only auto-load if user hasn't submitted a search yet
+            setEvents(cachedEvents);
+            if (json.cached !== undefined) {
+              setCacheInfo({
+                fromCache: json.cached,
+                totalEvents: cachedEvents.length,
+                cachedEvents: cachedEvents.length
+              });
+            }
+          }
         }
-      };
-
-      setDebugLogs(prev => ({
-        ...prev,
-        apiCalls: [...prev.apiCalls, {
-          timestamp: new Date().toISOString(),
-          url: '/api/events',
-          method: 'POST',
-          body: reqBody
-        }]
-      }));
-
-      const res = await fetch('/api/events', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify(reqBody)
-      });
-      const data = await res.json().catch(()=> ({}));
-
-      setDebugLogs(prev => ({
-        ...prev,
-        apiCalls: prev.apiCalls.map((call, idx) =>
-          idx === prev.apiCalls.length - 1 ? { ...call, status: res.status, response: data } : call
-        )
-      }));
-
-      if (!res.ok) throw new Error(data.error || `Serverfehler ${res.status}`);
-
-      const incoming: EventData[] = data.events || [];
-      setEvents(prev => dedupMerge(prev, incoming));
-      if (data.cacheInfo) setCacheInfo(data.cacheInfo);
-    } finally {
-      setStepLoading(null);
-    }
-  }
+      } catch (error) {
+        // Silently fail - this is just a convenience feature
+        console.log('Auto-cache load failed:', error);
+      }
+    }, 2000); // 2 second debounce
+    
+    return () => clearTimeout(timer);
+  }, [city, searchSubmitted]);
 
   async function progressiveSearchEvents() {
     // Validate city name first
@@ -464,159 +410,15 @@ export default function Home() {
       setCategoryLimitError('Bitte wähle mindestens eine Kategorie aus.');
       return;
     }
-    // cancel running batch
-    cancelRef.current.cancel = true;
-    await new Promise(r => setTimeout(r, 0));
-    cancelRef.current = { cancel:false };
-
-    if (activePolling) {
-      try { activePolling.cleanup(); } catch {}
-      setActivePolling(null);
-    }
-
-    setDebugLogs({ apiCalls: [], aiRequests: [], wienInfoData: [] });
-    setLoading(true);
-    setError(null);
-    setEvents([]);
-    setCacheInfo(null);
+    
+    // Always use optimized search - this is now the only search method
     setSearchSubmitted(true);
     setSearchedSuperCategories([...selectedSuperCategories]);
+    setEvents([]);
+    setError(null);
+    setCacheInfo(null);
     setActiveFilter('Alle');
-
-    try {
-      const reqBody = {
-        city: city.trim(),
-        date: formatDateForAPI(),
-        categories: selectedSuperCategories.length ? getSelectedSubcategories(selectedSuperCategories) : [],
-        options: {
-          progressive: true,
-          timePeriod: timePeriod,
-          customDate: customDate,
-          debug: true,
-          fetchWienInfo: true,
-          categoryConcurrency: 10
-        }
-      };
-
-      setDebugLogs(prev => ({
-        ...prev,
-        apiCalls: [...prev.apiCalls, {
-          timestamp: new Date().toISOString(),
-          url: '/api/events',
-          method: 'POST',
-          body: reqBody
-        }]
-      }));
-
-      const jobRes = await fetch('/api/events', {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json' },
-        body: JSON.stringify(reqBody)
-      });
-      const data = await jobRes.json().catch(()=> ({}));
-
-      setDebugLogs(prev => ({
-        ...prev,
-        apiCalls: prev.apiCalls.map((call, idx) =>
-          idx === prev.apiCalls.length - 1 ? { ...call, status: jobRes.status, response: data } : call
-        )
-      }));
-
-      if (!jobRes.ok) throw new Error(data.error || `Serverfehler ${jobRes.status}`);
-
-      const initialEvents = Array.isArray(data.events) ? data.events : [];
-      if (initialEvents.length) {
-        setEvents(prev => dedupMerge(prev, initialEvents));
-        if (data.cacheInfo) setCacheInfo(data.cacheInfo);
-      }
-
-      const onEvents = (chunk: EventData[], _getCurrent: () => EventData[]) => {
-        setEvents(prev => dedupMerge(prev, chunk));
-      };
-      const getCurrent = () => events;
-      const onDone = (_final: EventData[], _status: string) => {
-        setStepLoading(null);
-        setLoading(false);
-        setTimeout(()=> setToast({show:false, message:''}), 2000);
-        if (resultsAnchorRef.current) {
-          resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-        if (data.jobId) fetchDebugInfo(data.jobId);
-      };
-
-      // Only start polling if we have a jobId (not all-cached response)
-      if (data.jobId) {
-        const cleanup = startJobPolling(data.jobId, onEvents, getCurrent, onDone, POLL_INTERVAL_MS, MAX_POLLS);
-        const nextInstance = ++pollInstanceRef.current;
-        setActivePolling({ jobId: data.jobId, cleanup, pollInstanceId: nextInstance });
-      } else {
-        // All cached, mark as done immediately
-        setStepLoading(null);
-        setLoading(false);
-        if (resultsAnchorRef.current) {
-          resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }
-
-    } catch(e:any){
-      setError(e.message || 'Fehler bei der Suche');
-      setLoading(false);
-      setStepLoading(null);
-    }
-  }
-
-  async function fetchDebugInfo(jobId: string) {
-    try {
-      const debugRes = await fetch(`/api/jobs/${jobId}?debug=1`);
-      if (!debugRes.ok) return;
-      const debugData = await debugRes.json();
-
-      setDebugLogs(prev => ({
-        ...prev,
-        apiCalls: [...prev.apiCalls, {
-          timestamp: new Date().toISOString(),
-          url: `/api/jobs/${jobId}?debug=1`,
-          method: 'GET',
-          response: debugData,
-          status: debugRes.status
-        }]
-      }));
-
-      if (debugData.debug && debugData.debug.steps) {
-        const aiRequests = debugData.debug.steps.map((step: any) => ({
-          timestamp: debugData.debug.createdAt || new Date().toISOString(),
-          query: step.query || '',
-          response: step.response || '',
-          category: step.category || '',
-          parsedCount: step.parsedCount || 0
-        }));
-
-        setDebugLogs(prev => ({ ...prev, aiRequests: [...prev.aiRequests, ...aiRequests] }));
-      }
-
-      if (debugData.debug && debugData.debug.wienInfoData) {
-        const wienData = debugData.debug.wienInfoData;
-        setDebugLogs(prev => ({
-          ...prev,
-          wienInfoData: [...prev.wienInfoData, {
-            timestamp: new Date().toISOString(),
-            url: wienData.url || '',
-            query: wienData.query || '',
-            response: wienData.response || '',
-            parsedEvents: wienData.parsedEvents || 0,
-            filteredEvents: wienData.filteredEvents || 0,
-            rawCategoryCounts: wienData.rawCategoryCounts || {},
-            mappedCategoryCounts: wienData.mappedCategoryCounts || {},
-            unknownRawCategories: wienData.unknownRawCategories || [],
-            scrapedContent: wienData.scrapedContent || '',
-            events: wienData.events || [],
-            error: wienData.error || ''
-          }]
-        }));
-      }
-    } catch (e) {
-      console.warn('Failed to fetch debug info:', e);
-    }
+    setResultsPageCategoryFilter([]);
   }
 
   // Initialize filters when events change (also for preload, not tied to searchSubmitted)
@@ -641,18 +443,31 @@ export default function Home() {
         }
       });
       
-      // Initialize all filters as selected and keep all categories expanded
+      // Initialize all filters as selected but keep categories collapsed (Point 4)
       if (selectedCategories.length === 0) {
         setSelectedCategories(Array.from(categorySet));
       }
-      // Always keep all categories expanded
-      setExpandedCategories(Array.from(categorySet));
+      // Don't auto-expand categories on initial load
       
       if (selectedVenues.length === 0) {
         setSelectedVenues(Array.from(venueSet));
       }
     }
   }, [events, searchSubmitted]);
+
+  // Point 3: Reset filters when new events load (new search or cache load)
+  // All categories should be checked, all collapsed
+  useEffect(() => {
+    if (events.length > 0) {
+      // Reset to show all events (empty filter = all selected)
+      setResultsPageCategoryFilter([]);
+      // Collapse all categories
+      setExpandedCategories([]);
+      // Select all venues
+      const allVenues = events.map(e => e.venue).filter(Boolean);
+      setSelectedVenues(Array.from(new Set(allVenues)));
+    }
+  }, [events.length]); // Trigger when event count changes
 
   const displayedEvents = (() => {
     const dateFiltered = events.filter(matchesSelectedDate);
@@ -902,6 +717,28 @@ export default function Home() {
 
             <button type="submit" className="btn-search">Events suchen</button>
           </form>
+          
+          {/* Optimized Search Component - Always Active */}
+          {searchSubmitted && (
+            <OptimizedSearch
+              city={city}
+              date={formatDateForAPI()}
+              categories={getSelectedSubcategories(selectedSuperCategories)}
+              onEventsUpdate={(newEvents) => {
+                // Backend already sends all accumulated events per phase, just replace
+                setEvents(newEvents);
+              }}
+              onLoadingChange={(isLoading) => {
+                setLoading(isLoading);
+                setStepLoading(isLoading ? 'Optimized search...' : null);
+              }}
+              onErrorChange={(err) => {
+                setError(err);
+              }}
+              autoStart={true}
+              debug={false}
+            />
+          )}
         </div>
       </section>
 
@@ -937,21 +774,41 @@ export default function Home() {
                 Wochenende
               </button>
             </nav>
-            
+          </>
+        )}
+        
+        {/* Point 5: Category Filter Row - Show whenever there are events, not just when searchSubmitted */}
+        {events.length > 0 && (
+          <>            
             {/* Category Filter Row - Feature 7 */}
             <div className="category-filter-row-container">
               <div className="category-filter-row">
-                {/* Show All Events button */}
+                {/* Toggle All/None button - Point 4 */}
                 <button
                   className={`category-filter-btn ${resultsPageCategoryFilter.length === 0 ? 'active' : ''}`}
-                  onClick={() => setResultsPageCategoryFilter([])}
+                  onClick={() => {
+                    if (resultsPageCategoryFilter.length === 0) {
+                      // Currently showing all - switch to "Keine Filter" (clear all)
+                      setResultsPageCategoryFilter(ALL_SUPER_CATEGORIES);
+                      setSelectedVenues([]);
+                      setExpandedCategories([]);
+                    } else {
+                      // Currently filtered - switch to "Alle Events" (show all)
+                      setResultsPageCategoryFilter([]);
+                      const allVenues = events.map(e => e.venue).filter(Boolean);
+                      setSelectedVenues(Array.from(new Set(allVenues)));
+                    }
+                  }}
                 >
-                  Alle Events anzeigen
-                  <span className="category-count">({events.filter(matchesSelectedDate).length})</span>
+                  {resultsPageCategoryFilter.length === 0 ? 'Alle Events anzeigen' : 'Keine Filter anwenden'}
+                  <span className="category-count">
+                    ({resultsPageCategoryFilter.length === 0 ? events.filter(matchesSelectedDate).length : 0})
+                  </span>
                 </button>
                 
                 {ALL_SUPER_CATEGORIES.map(cat => {
-                  const isSelected = resultsPageCategoryFilter.includes(cat);
+                  const isShowAll = resultsPageCategoryFilter.length === 0;
+                  const isSelected = isShowAll ? false : resultsPageCategoryFilter.includes(cat);
                   const count = getCategoryCounts()[cat] || 0;
                   const isDisabled = count === 0;
                   
@@ -961,10 +818,19 @@ export default function Home() {
                       className={`category-filter-btn ${isSelected ? 'active' : ''} ${isDisabled ? 'disabled' : ''}`}
                       onClick={() => {
                         if (isDisabled) return;
-                        if (isSelected) {
-                          setResultsPageCategoryFilter(resultsPageCategoryFilter.filter(c => c !== cat));
+                        
+                        // Sync with vertical sidebar
+                        if (resultsPageCategoryFilter.length === 0) {
+                          // Currently showing all - deselect this one category
+                          setResultsPageCategoryFilter(ALL_SUPER_CATEGORIES.filter(c => c !== cat));
+                        } else if (resultsPageCategoryFilter.includes(cat)) {
+                          // Currently selected - deselect it
+                          const newFilter = resultsPageCategoryFilter.filter(c => c !== cat);
+                          setResultsPageCategoryFilter(newFilter.length === ALL_SUPER_CATEGORIES.length - 1 ? [] : newFilter);
                         } else {
-                          setResultsPageCategoryFilter([...resultsPageCategoryFilter, cat]);
+                          // Currently not selected - select it
+                          const newFilter = [...resultsPageCategoryFilter, cat];
+                          setResultsPageCategoryFilter(newFilter.length === ALL_SUPER_CATEGORIES.length ? [] : newFilter);
                         }
                       }}
                       disabled={isDisabled}
@@ -985,10 +851,10 @@ export default function Home() {
         )}
 
         <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
-          {/* Left sidebar: Category-Venue hierarchy */}
-          {searchSubmitted && Object.keys(getCategoryCounts()).length > 0 && (
+          {/* Left sidebar: Category-Venue hierarchy - Point 11: Always show when events are displayed */}
+          {events.length > 0 && Object.keys(getCategoryCounts()).length > 0 && (
             <aside className="venue-filter-sidebar">
-              <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>{t('filter.filtersAndCategories')}</h3>
+              <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '20px', color: '#000' }}>Filters & Categories</h3>
               
               {Object.entries(getCategoryCounts())
                 .sort((a, b) => b[1] - a[1])
@@ -1000,34 +866,53 @@ export default function Home() {
                   const someVenuesSelected = categoryVenues.some(v => selectedVenues.includes(v));
                   
                   return (
-                    <div key={category} style={{ marginBottom: '12px' }}>
+                    <div key={category} style={{ marginBottom: '8px' }}>
                       <div 
                         style={{ 
                           display: 'flex', 
                           alignItems: 'center', 
-                          gap: '8px',
-                          padding: '8px',
-                          background: '#f5f5f5',
-                          borderRadius: '6px',
+                          gap: '12px',
+                          padding: '12px 16px',
+                          background: '#f8f8f8',
+                          borderRadius: '8px',
+                          cursor: 'pointer',
                           transition: 'background 0.2s'
+                        }}
+                        onClick={() => {
+                          setExpandedCategories(prev =>
+                            prev.includes(category)
+                              ? prev.filter(c => c !== category)
+                              : [...prev, category]
+                          );
                         }}
                       >
                         <input
                           type="checkbox"
-                          checked={allVenuesSelected}
+                          checked={resultsPageCategoryFilter.length === 0 || resultsPageCategoryFilter.includes(category)}
                           ref={(el) => {
                             if (el) el.indeterminate = someVenuesSelected && !allVenuesSelected;
                           }}
                           onChange={(e) => {
                             e.stopPropagation();
+                            // Sync with horizontal filters
                             if (e.target.checked) {
+                              // Add to results page filter (or remove all to show all)
+                              if (resultsPageCategoryFilter.length > 0) {
+                                setResultsPageCategoryFilter(prev => [...prev, category]);
+                              }
                               setSelectedVenues(prev => [...new Set([...prev, ...categoryVenues])]);
                             } else {
+                              // Remove from results page filter
+                              setResultsPageCategoryFilter(prev => 
+                                prev.length === 0 
+                                  ? ALL_SUPER_CATEGORIES.filter(c => c !== category)
+                                  : prev.filter(c => c !== category)
+                              );
                               setSelectedVenues(prev => prev.filter(v => !categoryVenues.includes(v)));
                             }
                           }}
                           onClick={(e) => e.stopPropagation()}
-                          style={{ cursor: 'pointer' }}
+                          style={{ cursor: 'pointer', width: '18px', height: '18px' }}
                         />
                         <svg 
                           width="16" 
@@ -1037,41 +922,89 @@ export default function Home() {
                           stroke="currentColor" 
                           strokeWidth="2"
                           style={{ 
-                            transform: 'rotate(90deg)'
+                            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.2s',
+                            flexShrink: 0
                           }}
                         >
                           <polyline points="9 18 15 12 9 6"></polyline>
                         </svg>
-                        <span style={{ flex: 1, fontWeight: 500, fontSize: '14px' }}>{category}</span>
-                        <span style={{ fontSize: '12px', color: '#666' }}>({categoryCount})</span>
+                        <span style={{ flex: 1, fontWeight: 500, fontSize: '15px', color: '#000' }}>{category}</span>
+                        <span style={{ fontSize: '14px', color: '#666', fontWeight: 400 }}>({categoryCount})</span>
                       </div>
                       
-                      <div style={{ marginLeft: '32px', marginTop: '8px' }}>
-                        {Object.entries(venues)
-                          .sort((a, b) => b[1] - a[1])
-                          .map(([venue, count]) => (
-                            <div key={venue} style={{ marginBottom: '6px' }}>
-                              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', padding: '4px 0' }}>
-                                <input
-                                  type="checkbox"
-                                  checked={selectedVenues.includes(venue)}
-                                  onChange={(e) => {
-                                    setSelectedVenues(prev =>
-                                      e.target.checked
-                                        ? [...prev, venue]
-                                        : prev.filter(v => v !== venue)
-                                    );
-                                  }}
-                                  style={{ cursor: 'pointer' }}
-                                />
-                                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  {venue}
-                                </span>
-                                <span style={{ fontSize: '11px', color: '#999' }}>({count})</span>
-                              </label>
-                            </div>
-                          ))}
-                      </div>
+                      {isExpanded && (
+                        <div style={{ marginLeft: '32px', marginTop: '8px' }}>
+                          {Object.entries(venues)
+                            .sort((a, b) => b[1] - a[1])
+                            .map(([venue, count]) => (
+                              <div 
+                                key={venue} 
+                                style={{ marginBottom: '6px', position: 'relative' }}
+                                onMouseEnter={() => setHoveredVenue(venue)}
+                                onMouseLeave={() => setHoveredVenue(null)}
+                              >
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', padding: '4px 0' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedVenues.includes(venue)}
+                                    onChange={(e) => {
+                                      setSelectedVenues(prev =>
+                                        e.target.checked
+                                          ? [...prev, venue]
+                                          : prev.filter(v => v !== venue)
+                                      );
+                                    }}
+                                    style={{ cursor: 'pointer' }}
+                                  />
+                                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {venue}
+                                  </span>
+                                  <span style={{ fontSize: '11px', color: '#999' }}>({count})</span>
+                                  
+                                  {/* Point 5: "nur" button on hover */}
+                                  {hoveredVenue === venue && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        // Show only events from this venue
+                                        setSelectedVenues([venue]);
+                                        // Filter categories to only those with this venue
+                                        const venueCategory = Object.entries(getVenuesByCategory(category)).find(([v]) => v === venue);
+                                        if (venueCategory) {
+                                          setResultsPageCategoryFilter([category]);
+                                        }
+                                      }}
+                                      style={{
+                                        padding: '2px 8px',
+                                        fontSize: '11px',
+                                        color: '#667eea',
+                                        background: 'transparent',
+                                        border: '1px solid #667eea',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        fontWeight: 500,
+                                        transition: 'all 0.15s',
+                                        marginLeft: '4px'
+                                      }}
+                                      onMouseOver={(e) => {
+                                        e.currentTarget.style.background = '#667eea';
+                                        e.currentTarget.style.color = 'white';
+                                      }}
+                                      onMouseOut={(e) => {
+                                        e.currentTarget.style.background = 'transparent';
+                                        e.currentTarget.style.color = '#667eea';
+                                      }}
+                                    >
+                                      nur
+                                    </button>
+                                  )}
+                                </label>
+                              </div>
+                            ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1150,7 +1083,7 @@ export default function Home() {
                     <div className="event-content">
                     {superCat && (
                       <a 
-                        href={`/wien/${superCat.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')}/${timePeriod === 'heute' ? 'heute' : timePeriod === 'morgen' ? 'morgen' : timePeriod === 'kommendes-wochenende' ? 'wochenende' : formatDateForAPI()}`}
+                        href={`/${city.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-')}/${superCat.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')}/${timePeriod === 'heute' ? 'heute' : timePeriod === 'morgen' ? 'morgen' : timePeriod === 'kommendes-wochenende' ? 'wochenende' : formatDateForAPI()}`}
                         className="event-category-badge"
                       >
                         {superCat}
@@ -1284,232 +1217,6 @@ export default function Home() {
       {toast.show && (
         <div className="toast-container">
           <div className="toast">{toast.message}</div>
-        </div>
-      )}
-
-      {(debugLogs.apiCalls.length > 0 || debugLogs.aiRequests.length > 0 || debugLogs.wienInfoData.length > 0) && (
-        <div style={{
-          margin: '40px 0',
-          padding: '20px',
-          background: '#f8f9fa',
-          border: '1px solid #dee2e6',
-          borderRadius: '8px',
-          fontFamily: 'monospace',
-          fontSize: '12px'
-        }}>
-          <h3 style={{ marginBottom: '20px', color: '#495057' }}>🔍 Debug Logs (Temporary)</h3>
-
-          {debugLogs.apiCalls.length > 0 && (
-            <div style={{ marginBottom: '30px' }}>
-              <h4 style={{ color: '#007bff', marginBottom: '10px' }}>📡 API Calls ({debugLogs.apiCalls.length})</h4>
-              {debugLogs.apiCalls.map((call, idx) => (
-                <div key={idx} style={{
-                  marginBottom: '15px',
-                  padding: '10px',
-                  background: '#fff',
-                  border: '1px solid #e9ecef',
-                  borderRadius: '4px'
-                }}>
-                  <div style={{ color: '#28a745', fontWeight: 'bold' }}>
-                    {call.method} {call.url} {call.status && `(${call.status})`}
-                  </div>
-                  <div style={{ color: '#6c757d', fontSize: '10px' }}>{call.timestamp}</div>
-                  {call.body && (
-                    <details style={{ marginTop: '8px' }}>
-                      <summary style={{ cursor: 'pointer', color: '#007bff' }}>Request Body</summary>
-                      <pre style={{
-                        marginTop: '5px',
-                        padding: '8px',
-                        background: '#f8f9fa',
-                        border: '1px solid #dee2e6',
-                        borderRadius: '3px',
-                        overflow: 'auto',
-                        maxHeight: '200px'
-                      }}>
-                        {JSON.stringify(call.body, null, 2)}
-                      </pre>
-                    </details>
-                  )}
-                  {call.response && (
-                    <details style={{ marginTop: '8px' }}>
-                      <summary style={{ cursor: 'pointer', color: '#007bff' }}>Response</summary>
-                      <pre style={{
-                        marginTop: '5px',
-                        padding: '8px',
-                        background: '#f8f9fa',
-                        border: '1px solid #dee2e6',
-                        borderRadius: '3px',
-                        overflow: 'auto',
-                        maxHeight: '200px'
-                      }}>
-                        {JSON.stringify(call.response, null, 2)}
-                      </pre>
-                    </details>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {debugLogs.aiRequests.length > 0 && (
-            <div style={{ marginBottom: '30px' }}>
-              <h4 style={{ color: '#dc3545', marginBottom: '10px' }}>🤖 AI Requests ({debugLogs.aiRequests.length})</h4>
-              {debugLogs.aiRequests.map((req, idx) => (
-                <div key={idx} style={{
-                  marginBottom: '15px',
-                  padding: '10px',
-                  background: '#fff',
-                  border: '1px solid #e9ecef',
-                  borderRadius: '4px'
-                }}>
-                  <div style={{ color: '#dc3545', fontWeight: 'bold' }}>
-                    AI Query {req.category && `(${req.category})`}
-                  </div>
-                  <div style={{ color: '#6c757d', fontSize: '10px' }}>
-                    {req.timestamp} - Parsed: {req.parsedCount || 0} events
-                  </div>
-                  <details style={{ marginTop: '8px' }}>
-                    <summary style={{ cursor: 'pointer', color: '#007bff' }}>Query</summary>
-                    <pre style={{
-                      marginTop: '5px',
-                      padding: '8px',
-                      background: '#fff3cd',
-                      border: '1px solid #ffeaa7',
-                      borderRadius: '3px',
-                      overflow: 'auto',
-                      maxHeight: '150px'
-                    }}>
-                      {req.query}
-                    </pre>
-                  </details>
-                  <details style={{ marginTop: '8px' }}>
-                    <summary style={{ cursor: 'pointer', color: '#007bff' }}>AI Response</summary>
-                    <pre style={{
-                      marginTop: '5px',
-                      padding: '8px',
-                      background: '#d1ecf1',
-                      border: '1px solid #bee5eb',
-                      borderRadius: '3px',
-                      overflow: 'auto',
-                      maxHeight: '300px'
-                    }}>
-                      {req.response}
-                    </pre>
-                  </details>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {debugLogs.wienInfoData.length > 0 && (
-            <div style={{ marginBottom: '20px' }}>
-              <h4 style={{ color: '#fd7e14', marginBottom: '10px' }}>🇦🇹 Wien.info Data ({debugLogs.wienInfoData.length})</h4>
-              {debugLogs.wienInfoData.map((data, idx) => (
-                <div key={idx} style={{
-                  marginBottom: '15px',
-                  padding: '10px',
-                  background: '#fff',
-                  border: '1px solid #e9ecef',
-                  borderRadius: '4px'
-                }}>
-                  <div style={{ color: '#fd7e14', fontWeight: 'bold' }}>Wien.info JSON API</div>
-                  <div style={{ color: '#6c757d', fontSize: '10px' }}>
-                    {data.timestamp} - URL: {data.url}
-                  </div>
-                  {data.query && (
-                    <div style={{ marginTop: '8px', fontSize: '11px' }}>
-                      <strong>Query:</strong> {data.query}
-                    </div>
-                  )}
-                  {(data.parsedEvents !== undefined || data.filteredEvents !== undefined) && (
-                    <div style={{ marginTop: '8px', padding: '8px', background: '#e8f5e8', borderRadius: '3px' }}>
-                      {data.parsedEvents !== undefined && <div><strong>Parsed Events:</strong> {data.parsedEvents}</div>}
-                      {data.filteredEvents !== undefined && <div><strong>Filtered Events:</strong> {data.filteredEvents}</div>}
-                    </div>
-                  )}
-                  {data.rawCategoryCounts && Object.keys(data.rawCategoryCounts).length > 0 && (
-                    <details style={{ marginTop: '8px' }}>
-                      <summary style={{ cursor: 'pointer', color: '#007bff' }}>
-                        Raw Category Counts ({Object.keys(data.rawCategoryCounts).length} types)
-                      </summary>
-                      <pre style={{
-                        marginTop: '5px',
-                        padding: '8px',
-                        background: '#f8f9fa',
-                        border: '1px solid #dee2e6',
-                        borderRadius: '3px',
-                        overflow: 'auto',
-                        maxHeight: '200px'
-                      }}>
-                        {JSON.stringify(data.rawCategoryCounts, null, 2)}
-                      </pre>
-                    </details>
-                  )}
-                  {data.mappedCategoryCounts && Object.keys(data.mappedCategoryCounts).length > 0 && (
-                    <details style={{ marginTop: '8px' }}>
-                      <summary style={{ cursor: 'pointer', color: '#007bff' }}>
-                        Mapped Category Counts ({Object.keys(data.mappedCategoryCounts).length} types)
-                      </summary>
-                      <pre style={{
-                        marginTop: '5px',
-                        padding: '8px',
-                        background: '#f8f9fa',
-                        border: '1px solid #dee2e6',
-                        borderRadius: '3px',
-                        overflow: 'auto',
-                        maxHeight: '200px'
-                      }}>
-                        {JSON.stringify(data.mappedCategoryCounts, null, 2)}
-                      </pre>
-                    </details>
-                  )}
-                  {data.unknownRawCategories && data.unknownRawCategories.length > 0 && (
-                    <div style={{
-                      marginTop: '8px',
-                      padding: '8px',
-                      background: '#fff3cd',
-                      border: '1px solid #ffeaa7',
-                      borderRadius: '3px',
-                      color: '#856404'
-                    }}>
-                      <strong>Unknown Raw Categories ({data.unknownRawCategories.length}):</strong><br/>
-                      {data.unknownRawCategories.join(', ')}
-                    </div>
-                  )}
-                  {data.error && (
-                    <div style={{
-                      marginTop: '8px',
-                      padding: '8px',
-                      background: '#f8d7da',
-                      border: '1px solid #f5c6cb',
-                      borderRadius: '3px',
-                      color: '#721c24'
-                    }}>
-                      Error: {data.error}
-                    </div>
-                  )}
-                  {data.events && data.events.length > 0 && (
-                    <details style={{ marginTop: '8px' }}>
-                      <summary style={{ cursor: 'pointer', color: '#007bff' }}>
-                        API Events ({data.events.length})
-                      </summary>
-                      <pre style={{
-                        marginTop: '5px',
-                        padding: '8px',
-                        background: '#f8f9fa',
-                        border: '1px solid #dee2e6',
-                        borderRadius: '3px',
-                        overflow: 'auto',
-                        maxHeight: '200px'
-                      }}>
-                        {JSON.stringify(data.events, null, 2)}
-                      </pre>
-                    </details>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
 

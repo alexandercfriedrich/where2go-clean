@@ -50,7 +50,7 @@ body {
   background: white;
   border-radius: 20px;
   padding: 40px;
-  margin: -40px auto 60px;
+  margin: 20px auto 60px; /* Point 8: Increased top margin from -40px to 20px for better spacing */
   max-width: 800px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
 }
@@ -289,6 +289,8 @@ body {
   color: #667eea;
   font-weight: 600;
   margin-bottom: 8px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .event-location {
@@ -911,3 +913,56 @@ body {
   overflow-y: auto;
   border: 1px solid #2d3748;
 }
+
+/* Custom Checkbox Styling - Point 2: Gray field with black checkmark */
+.venue-filter-sidebar input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #d1d5db;
+  border-radius: 4px;
+  background-color: #f3f4f6;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+.venue-filter-sidebar input[type="checkbox"]:hover {
+  border-color: #9ca3af;
+  background-color: #e5e7eb;
+}
+
+.venue-filter-sidebar input[type="checkbox"]:checked {
+  background-color: #f3f4f6;
+  border-color: #6b7280;
+}
+
+.venue-filter-sidebar input[type="checkbox"]:checked::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 2px;
+  width: 4px;
+  height: 8px;
+  border: solid #000;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.venue-filter-sidebar input[type="checkbox"]:indeterminate {
+  background-color: #f3f4f6;
+  border-color: #6b7280;
+}
+
+.venue-filter-sidebar input[type="checkbox"]:indeterminate::after {
+  content: '';
+  position: absolute;
+  left: 3px;
+  top: 7px;
+  width: 10px;
+  height: 2px;
+  background-color: #000;
+}
+

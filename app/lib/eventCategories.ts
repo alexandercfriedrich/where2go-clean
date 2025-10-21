@@ -2,145 +2,91 @@
 // Optimiert für maximale Event-Erfassung und bessere Kategorisierung
 
 export const EVENT_CATEGORY_SUBCATEGORIES: Record<string, string[]> = {
-  "DJ Sets/Electronic": [
-    "Electronic Music","DJ Event","Dance Music","Club Music",
-    "Techno/House/EDM","Drum & Bass","Trance/Psytrance","Ambient/Downtempo",
-    "Disco/Nu-Disco","Hardstyle/Hardcore","Breakbeat/Breaks","Dubstep/Bass Music",
-    "Industrial/EBM","Synthwave/Retro","Future Bass","Garage/UK Garage"
-  ],
-  "Clubs/Discos": [
-    "Night Out","Dancing Event","Social Event","Party Event",
-    "Underground Venues","Rooftop Parties","Beach Clubs","After-Hours",
-    "Party Events","Rave Culture","Social Dancing","Special Events",
-    "Cocktail Lounges","Late Night Venues"
-  ],
-  "Live-Konzerte": [
-    "Live Music","Concert","Musical Performance","Live Show",
+  "Musik & Nachtleben": [
+    "Live Music","Concert","Musical Performance","Live Show","Musik & Nachtleben",
     "Rock/Pop/Indie","Hip-Hop/Rap","Classical/Orchestral","Heavy Music",
     "Singer-Songwriter","World Music","Folk/Acoustic","Jazz/Soul/Funk",
-    "Reggae/Dub","Latin Music","Choir/Vocal Ensembles","Tribute Bands",
-    "Experimental Music"
+    "Reggae/Dub","Latin Music","Electronic Music","DJ Event","Dance Music","Club Music",
+    "Techno/House/EDM","Drum & Bass","Trance/Psytrance","Ambient/Downtempo",
+    "Musik & Nachtleben","Night Out","Dancing Event","Party Event","Musik & Nachtleben",
+    "Underground Venues","Rooftop Parties","Beach Clubs","After-Hours"
   ],
   "Theater/Performance": [
     "Live Performance","Stage Show","Entertainment","Performing Arts",
     "Musicals","Opera/Oper","Dance/Ballet/Contemporary","Performance Art/Experimental",
     "Puppetry","One-Man Shows","Storytelling","Street Theater",
-    "Drama Productions","Classical Theater","Improv/Comedy Theater"
+    "Drama Productions","Classical Theater","Improv/Comedy Theater",
+    "Comedy Show","Stand-up Event","Theater/Performance","Stand-up Comedy",
+    "Improv Comedy","Political Satire","Drag Shows"
   ],
-  "Open Air": [
-    "Outdoor Event","Festival","Public Event","Outdoor Activity",
-    "Outdoor Performances","Street/Summer Festivals","Beer Gardens Events","Location-Based Events",
-    "Lantern Festivals","Harbor/Lake Events","Fire Shows","Sunset Sessions",
-    "Night Markets","Art in the Park","Festival Events","City Events"
-  ],
-  "Museen": [
-    "Museum Event","Exhibition","Cultural Visit","Educational Experience",
+  "Museen & Ausstellungen": [
+    "Museum Event","Exhibition","Cultural Visit","Educational Experience","Museen & Ausstellungen",
     "Special Exhibitions","Permanent Collections","Museum Tours","Late Night Museum",
     "Interactive Exhibits","Archaeology","Science Exhibitions","Historical Shows",
     "Photography Exhibitions","Design Exhibitions","Media Art","Modern Art Collections",
-    "Sculpture Exhibitions","Museum Workshops","Curator Talks","Audio Guide Events"
+    "Sculpture Exhibitions","Museum Workshops","Curator Talks",
+    "Art Event","Gallery Visit","Gallery Openings","Street Art","Museen & Ausstellungen"
   ],
-  "Comedy/Kabarett": [
-    "Comedy Show","Stand-up Event","Entertainment Show","Humor Event",
-    "Stand-up Comedy","Improv Comedy","Political Satire","Comedy Open Mic",
-    "Sketch Comedy","Dark Comedy","Character Comedy","Musical Comedy",
-    "Comedy Slams","Roast Events","Observational Comedy","Themed Comedy Nights",
-    "Comedy Battles","Late Night Style Comedy"
+  "Film & Kino": [
+    "Film Event","Movie Screening","Cinema Experience","Film Festival","Film & Kino",
+    "Premieres","Outdoor Screenings","Director Q&As","Short Films",
+    "Documentary Screenings","Independent Cinema","Classic Films","Animation Festivals",
+    "Film Discussions","Cult Classics","Silent Films","Arthouse/Indie"
   ],
-  "Film": [
-    "Movie Event","Cinema","Screening","Film Event",
-    "Film Screenings","Film Festivals","Indie Film Nights","Documentary Screenings",
-    "Short Film Events","Cult Classics","Outdoor Cinema","Film Premieres",
-    "Director Talks","Retrospectives","Theme Film Nights","Animation Nights",
-    "International Cinema","Silent Films with Live Music"
+  "Open Air & Festivals": [
+    "Outdoor Event","Festival","Public Event","Outdoor Activity","Open Air & Festivals",
+    "Outdoor Performances","Street/Summer Festivals","Beer Gardens Events",
+    "Lantern Festivals","Harbor/Lake Events","Fire Shows","Sunset Sessions",
+    "Night Markets","Art in the Park","Festival Events","City Events",
+    "Nature Activity","Outdoor Adventure","Park Events","Beach Activities"
   ],
-  "Kunst/Design": [
-    "Art Event","Gallery Event","Creative Experience","Art Show",
-    "Art Exhibitions & Openings","Interactive Art","Sculpture Exhibits","Design Showcases",
-    "Digital Art","Street & Urban Art","Photography Openings","Light Art",
-    "AR/VR Art","Performance-based Art","Conceptual Art","Art & Tech Hybrids",
-    "Sound Installations","Art Fairs","Pop-up Galleries"
-  ],
-  "Kultur/Traditionen": [
-    "Cultural Event","Traditional Event","Heritage Experience","Folk Event",
-    "Cultural Festivals","Folk Events","Heritage Celebrations","Historical Reenactments",
-    "Traditional Music","Traditional Dance","Seasonal Customs","Processions/Parades",
-    "Regional Cuisine Events","Language Cultural Nights","Story Preservation Events","Craft Traditions",
-    "Ethnic Celebrations"
-  ],
-  "LGBTQ+": [
-    "Queer Event","Pride Event","LGBTQ+ Gathering","Inclusive Event",
-    "Queer Parties","Drag Shows","LGBTQ+ Film","Queer Networking",
-    "Pride Events","Queer Art","Trans Visibility Events","Inclusive Sports",
-    "Queer Book Clubs","LGBTQ+ History Talks","Queer Safe Spaces","Drag Brunch",
-    "Ballroom/Vogue Events","Queer Workshops","Ally Events"
-  ],
-  "Bildung/Lernen": [
-    "Learning Event","Educational Experience","Workshop","Course",
-    "Workshops","Kurse/Classes","Seminare/Seminars","Lectures/Vorträge",
-    "Language Exchange","Book Clubs","Study Groups","Academic Conferences",
-    "Skill Sharing","DIY Workshops","Conferences","Hackathons",
-    "STEM Education","Career Development","Continuing Education"
-  ],
-  "Networking/Business": [
-    "Business Event","Networking Event","Professional Meetup","Career Event",
-    "Startup Events","Pitch Nights","Investor Meetups","Tech Meetups",
-    "Industry Panels","Business Breakfasts","Co-Founder Matchmaking","Women in Business",
-    "Freelancer Meetups","Career Fairs","Recruiting Events","Executive Roundtables",
-    "Product Launch Events","Innovation Labs","Corporate Hackathons"
-  ],
-  "Sport": [
-    "Sports Event","Physical Activity","Competition","Fitness Event",
-    "Football/Soccer","Basketball","Tennis","Fitness & Wellness",
-    "Running/Marathon","Cycling Events","Swimming","Martial Arts",
-    "Extreme Sports","Winter Sports","Team Building Sports","Amateur Leagues",
-    "Sports Viewing Parties","Recreational Sports","E-Sports","Adventure Racing"
-  ],
-  "Natur/Outdoor": [
-    "Nature Event","Outdoor Activity","Environmental Experience","Adventure Event",
-    "Hiking/Wandern","Nature Walks","Forest Bathing","River Activities",
-    "Climbing/Bouldering","Outdoor Survival","Bird Watching","Stargazing",
-    "Eco Tours","Nature Photography","Camping Events","Beach Cleanups",
-    "Trail Running","Canoeing/Kayak","Mountain Events","Wildlife Observation"
-  ],
-  "Wellness/Spirituell": [
-    "Wellness Event","Mindfulness","Self-Care","Spiritual Event",
-    "Meditation Sessions","Yoga Events","Breathwork","Spiritual Gatherings",
-    "Sound Healing","Wellness Retreats","Holistic Health","Mindfulness Workshops",
-    "Energy Work","Detox Programs","Ayurveda Sessions","Tea Ceremonies",
-    "Chakra Workshops","Nature Healing","Mental Health Circles"
-  ],
-  "Soziales/Community": [
-    "Community Event","Social Gathering","Volunteer Activity","Civic Event",
-    "Community Events","Volunteer Activities","Charity Events","Social Causes",
-    "Neighborhood Meetings","Cultural Exchange","Senior Events","Expat Events",
-    "Local Initiatives","Mutual Aid","Fundraising Dinners","Community Workshops",
-    "Donation Drives","Civic Engagement"
-  ],
-  "Märkte/Shopping": [
-    "Market Event","Shopping Experience","Retail Event","Bazaar",
-    "Flohmarkt/Flea Markets","Vintage Markets","Handmade Markets","Antique Fairs",
-    "Shopping Events","Pop-up Shops","Designer Markets","Book Markets",
-    "Record Fairs","Seasonal Markets","Craft Bazaars","Night Markets",
-    "Fashion Sample Sales","Textile Fairs"
-  ],
-  "Food/Culinary": [
-    "Food Event","Tasting","Dining Experience","Culinary Event",
+  "Food & Culinary": [
+    "Food Event","Tasting","Dining Experience","Culinary Event","Food & Culinary",
     "Beverage Tastings","Beer Events/Beer Festivals","Cooking Classes","Food Markets",
     "Restaurant Experiences","Culinary Festivals","Food Tours","Cocktail Events",
     "Coffee Culture","Vegan/Vegetarian Events","International Cuisine","Local Specialties",
     "Food & Music Pairings","Gourmet Events","Street Food","Chef Demonstrations"
   ],
-  "Familien/Kids": [
-    "Family Event","Kids Activity","Children's Program","Family Fun",
+  "Märkte & Shopping": [
+    "Market Event","Shopping Experience","Retail Event","Bazaar","Märkte & Shopping",
+    "Flohmarkt/Flea Markets","Vintage Markets","Handmade Markets","Antique Fairs",
+    "Shopping Events","Pop-up Shops","Designer Markets","Book Markets",
+    "Record Fairs","Seasonal Markets","Craft Bazaars","Night Markets"
+  ],
+  "Sport & Fitness": [
+    "Sports Event","Athletic Activity","Fitness Class","Recreational Sport","Sport & Fitness",
+    "Football/Soccer","Basketball","Running Events","Cycling","Yoga",
+    "Team Sports","Water Sports","Martial Arts","Climbing/Bouldering",
+    "E-Sports","Dance Sports","Extreme Sports","Marathon/Races","CrossFit",
+    "Outdoor Yoga","Wellness Event","Fitness"
+  ],
+  "Kultur & Bildung": [
+    "Cultural Event","Traditional Celebration","Heritage Event","Kultur & Bildung",
+    "Traditional Festivals","Historical Reenactments","Folk Events",
+    "Heritage Tours","Local Traditions","Cultural Workshops",
+    "Educational Event","Learning Experience","Science Activity","Academic Lecture",
+    "University Lectures","Public Talks","Workshops/Seminars","Tech Talks",
+    "Book Discussions","Language Classes","STEM Events","Kultur & Bildung"
+  ],
+  "Familie & Kinder": [
+    "Family Event","Kids Activity","Children's Program","Family Fun","Familie & Kinder",
     "Children Events","Family Festivals","Kids Workshops","Educational Activities",
     "Interactive Shows","Science for Kids","Storytime","Puppet Shows",
     "Family Theater","Parent-Child Activities","STEM Kids","Outdoor Play",
-    "Creative Learning","Cultural Kids Programs","Nature Discovery","Youth Sports"
+    "Creative Learning","Cultural Kids Programs","Nature Discovery"
   ],
-  "Sonstiges/Other": [
-    "General Event","Mixed Event","Special Event","Uncategorized Event",
-    "Diverse Activities","Miscellaneous","Various Events","Special Occasions"
+  "Business & Networking": [
+    "Business Event","Professional Networking","Career Development","Industry Meetup",
+    "Business & Networking","Conferences/Summits","Networking Mixers","Startup Events",
+    "Career Fairs","Webinars/Talks","Business Breakfasts","Expo/Trade Shows",
+    "Corporate Events","Leadership Forums","Entrepreneurship","Coworking Events"
+  ],
+  "Community & Wellness": [
+    "Community Event","Social Gathering","Volunteer Activity","Civic Event",
+    "Community & Wellness","Community & Wellness","Pride Events","Queer Parties","Inclusive Spaces",
+    "Wellness Event","Spiritual Practice","Mindfulness Activity","Community & Wellness",
+    "Meditation Sessions","Sound Healing","Yoga Classes/Workshops","Wellness Retreats",
+    "Mental Health Circles","Charity Events","Support Groups"
   ]
 };
 
@@ -149,35 +95,35 @@ export const EVENT_CATEGORIES = Object.keys(EVENT_CATEGORY_SUBCATEGORIES);
 // Massiv erweiterte Token-Normalisierung für bessere Event-Erfassung
 export const NORMALIZATION_TOKEN_MAP: Record<string,string> = {
   // Electronic/DJ
-  "techno":"DJ Sets/Electronic","edm":"DJ Sets/Electronic","house":"DJ Sets/Electronic","trance":"DJ Sets/Electronic",
-  "minimal":"DJ Sets/Electronic","hardstyle":"DJ Sets/Electronic","hardcore":"DJ Sets/Electronic","breakbeat":"DJ Sets/Electronic",
-  "dubstep":"DJ Sets/Electronic","electronic":"DJ Sets/Electronic","future":"DJ Sets/Electronic","goa":"DJ Sets/Electronic",
-  "elektro":"DJ Sets/Electronic","elektronisch":"DJ Sets/Electronic","dj":"DJ Sets/Electronic","deejay":"DJ Sets/Electronic",
+  "techno":"Musik & Nachtleben","edm":"Musik & Nachtleben","house":"Musik & Nachtleben","trance":"Musik & Nachtleben",
+  "minimal":"Musik & Nachtleben","hardstyle":"Musik & Nachtleben","hardcore":"Musik & Nachtleben","breakbeat":"Musik & Nachtleben",
+  "dubstep":"Musik & Nachtleben","electronic":"Musik & Nachtleben","future":"Musik & Nachtleben","goa":"Musik & Nachtleben",
+  "elektro":"Musik & Nachtleben","elektronisch":"Musik & Nachtleben","dj":"Musik & Nachtleben","deejay":"Musik & Nachtleben",
   
   // Clubs/Party
-  "club":"Clubs/Discos","clubs":"Clubs/Discos","party":"Clubs/Discos","parties":"Clubs/Discos",
-  "disco":"Clubs/Discos","nightclub":"Clubs/Discos","nightlife":"Clubs/Discos","rave":"Clubs/Discos",
-  "after-hour":"Clubs/Discos","afterhours":"Clubs/Discos","dancing":"Clubs/Discos","dance":"Clubs/Discos","tanzen":"Clubs/Discos",
-  "bar":"Clubs/Discos","bars":"Clubs/Discos","lounge":"Clubs/Discos","pub":"Clubs/Discos","pubs":"Clubs/Discos",
-  "feier":"Clubs/Discos","feiern":"Clubs/Discos","nacht":"Clubs/Discos","night":"Clubs/Discos",
+  "club":"Musik & Nachtleben","clubs":"Musik & Nachtleben","party":"Musik & Nachtleben","parties":"Musik & Nachtleben",
+  "disco":"Musik & Nachtleben","nightclub":"Musik & Nachtleben","nightlife":"Musik & Nachtleben","rave":"Musik & Nachtleben",
+  "after-hour":"Musik & Nachtleben","afterhours":"Musik & Nachtleben","dancing":"Musik & Nachtleben","dance":"Musik & Nachtleben","tanzen":"Musik & Nachtleben",
+  "bar":"Musik & Nachtleben","bars":"Musik & Nachtleben","lounge":"Musik & Nachtleben","pub":"Musik & Nachtleben","pubs":"Musik & Nachtleben",
+  "feier":"Musik & Nachtleben","feiern":"Musik & Nachtleben","nacht":"Musik & Nachtleben","night":"Musik & Nachtleben",
   
   // Open Air/Festival
-  "festival":"Open Air","festivals":"Open Air","openair":"Open Air","open-air":"Open Air",
-  "outdoor":"Open Air","draußen":"Open Air","venue":"Open Air","venues":"Open Air",
-  "location":"Open Air","locations":"Open Air","event":"Open Air","events":"Open Air",
-  "veranstaltung":"Open Air","veranstaltungen":"Open Air","public":"Open Air",
+  "festival":"Open Air & Festivals","festivals":"Open Air & Festivals","openair":"Open Air & Festivals","open-air":"Open Air & Festivals",
+  "outdoor":"Open Air & Festivals","draußen":"Open Air & Festivals","venue":"Open Air & Festivals","venues":"Open Air & Festivals",
+  "location":"Open Air & Festivals","locations":"Open Air & Festivals","event":"Open Air & Festivals","events":"Open Air & Festivals",
+  "veranstaltung":"Open Air & Festivals","veranstaltungen":"Open Air & Festivals","public":"Open Air & Festivals",
   
   // LGBTQ+
-  "queer":"LGBTQ+","pride":"LGBTQ+","gay":"LGBTQ+","lesbian":"LGBTQ+","lgbt":"LGBTQ+","lgbtq":"LGBTQ+",
-  "drag":"LGBTQ+","trans":"LGBTQ+","transgender":"LGBTQ+","bisexual":"LGBTQ+","inclusive":"LGBTQ+",
+  "queer":"Community & Wellness","pride":"Community & Wellness","gay":"Community & Wellness","lesbian":"Community & Wellness","lgbt":"Community & Wellness","lgbtq":"Community & Wellness",
+  "drag":"Community & Wellness","trans":"Community & Wellness","transgender":"Community & Wellness","bisexual":"Community & Wellness","inclusive":"Community & Wellness",
   
   // Food/Culinary
-  "food":"Food/Culinary","essen":"Food/Culinary","culinary":"Food/Culinary","kulinarisch":"Food/Culinary",
-  "wein":"Food/Culinary","wine":"Food/Culinary","beer":"Food/Culinary","bier":"Food/Culinary",
-  "cocktail":"Food/Culinary","cocktails":"Food/Culinary","drinking":"Food/Culinary","trinken":"Food/Culinary",
-  "restaurant":"Food/Culinary","restaurants":"Food/Culinary","cafe":"Food/Culinary","cafes":"Food/Culinary",
-  "brunch":"Food/Culinary","dinner":"Food/Culinary","lunch":"Food/Culinary","breakfast":"Food/Culinary",
-  "tasting":"Food/Culinary","degustación":"Food/Culinary","verkostung":"Food/Culinary",
+  "food":"Food & Culinary","essen":"Food & Culinary","culinary":"Food & Culinary","kulinarisch":"Food & Culinary",
+  "wein":"Food & Culinary","wine":"Food & Culinary","beer":"Food & Culinary","bier":"Food & Culinary",
+  "cocktail":"Food & Culinary","cocktails":"Food & Culinary","drinking":"Food & Culinary","trinken":"Food & Culinary",
+  "restaurant":"Food & Culinary","restaurants":"Food & Culinary","cafe":"Food & Culinary","cafes":"Food & Culinary",
+  "brunch":"Food & Culinary","dinner":"Food & Culinary","lunch":"Food & Culinary","breakfast":"Food & Culinary",
+  "tasting":"Food & Culinary","degustación":"Food & Culinary","verkostung":"Food & Culinary",
   
   // Education/Learning
   "workshop":"Bildung/Lernen","workshops":"Bildung/Lernen","seminar":"Bildung/Lernen","seminars":"Bildung/Lernen",
@@ -188,34 +134,34 @@ export const NORMALIZATION_TOKEN_MAP: Record<string,string> = {
   "hackathon":"Bildung/Lernen","skill":"Bildung/Lernen","skills":"Bildung/Lernen",
   
   // Business/Networking
-  "startup":"Networking/Business","business":"Networking/Business","networking":"Networking/Business",
-  "meetup":"Networking/Business","meeting":"Networking/Business","treffen":"Networking/Business",
-  "conference":"Networking/Business","konferenz":"Networking/Business","pitch":"Networking/Business",
-  "professional":"Networking/Business","profi":"Networking/Business","career":"Networking/Business",
+  "startup":"Business & Networking","business":"Business & Networking","networking":"Business & Networking",
+  "meetup":"Business & Networking","meeting":"Business & Networking","treffen":"Business & Networking",
+  "conference":"Business & Networking","konferenz":"Business & Networking","pitch":"Business & Networking",
+  "professional":"Business & Networking","profi":"Business & Networking","career":"Business & Networking",
   
   // Nature/Outdoor
-  "hiking":"Natur/Outdoor","wandern":"Natur/Outdoor","nature":"Natur/Outdoor","natur":"Natur/Outdoor",
-  "climbing":"Natur/Outdoor","klettern":"Natur/Outdoor","trail":"Natur/Outdoor","mountain":"Natur/Outdoor",
-  "forest":"Natur/Outdoor","wald":"Natur/Outdoor","river":"Natur/Outdoor","fluss":"Natur/Outdoor",
+  "hiking":"Open Air & Festivals","wandern":"Open Air & Festivals","nature":"Open Air & Festivals","natur":"Open Air & Festivals",
+  "climbing":"Open Air & Festivals","klettern":"Open Air & Festivals","trail":"Open Air & Festivals","mountain":"Open Air & Festivals",
+  "forest":"Open Air & Festivals","wald":"Open Air & Festivals","river":"Open Air & Festivals","fluss":"Open Air & Festivals",
   
   // Culture/Traditions
-  "kultur":"Kultur/Traditionen","culture":"Kultur/Traditionen","tradition":"Kultur/Traditionen",
-  "heritage":"Kultur/Traditionen","folk":"Kultur/Traditionen","traditional":"Kultur/Traditionen",
-  "kulturell":"Kultur/Traditionen","cultural":"Kultur/Traditionen",
+  "kultur":"Kultur & Bildung","culture":"Kultur & Bildung","tradition":"Kultur & Bildung",
+  "heritage":"Kultur & Bildung","folk":"Kultur & Bildung","traditional":"Kultur & Bildung",
+  "kulturell":"Kultur & Bildung","cultural":"Kultur & Bildung",
   
   // Markets/Shopping
-  "markt":"Märkte/Shopping","market":"Märkte/Shopping","shopping":"Märkte/Shopping",
-  "flohmarkt":"Märkte/Shopping","vintage":"Märkte/Shopping","antique":"Märkte/Shopping",
-  "bazar":"Märkte/Shopping","bazaar":"Märkte/Shopping",
+  "markt":"Märkte & Shopping","market":"Märkte & Shopping","shopping":"Märkte & Shopping",
+  "flohmarkt":"Märkte & Shopping","vintage":"Märkte & Shopping","antique":"Märkte & Shopping",
+  "bazar":"Märkte & Shopping","bazaar":"Märkte & Shopping",
   
   // Social/Community
-  "sozial":"Soziales/Community","social":"Soziales/Community","community":"Soziales/Community",
-  "volunteer":"Soziales/Community","charity":"Soziales/Community","gemeinde":"Soziales/Community",
+  "sozial":"Community & Wellness","social":"Community & Wellness","community":"Community & Wellness",
+  "volunteer":"Community & Wellness","charity":"Community & Wellness","gemeinde":"Community & Wellness",
   
   // Music/Concerts
-  "musik":"Live-Konzerte","music":"Live-Konzerte","konzert":"Live-Konzerte","concert":"Live-Konzerte",
-  "concerts":"Live-Konzerte","konzerte":"Live-Konzerte","live":"Live-Konzerte",
-  "jazz":"Live-Konzerte","rock":"Live-Konzerte","pop":"Live-Konzerte","klassik":"Live-Konzerte","classical":"Live-Konzerte",
+  "musik":"Musik & Nachtleben","music":"Musik & Nachtleben","konzert":"Musik & Nachtleben","concert":"Musik & Nachtleben",
+  "concerts":"Musik & Nachtleben","konzerte":"Musik & Nachtleben","live":"Musik & Nachtleben",
+  "jazz":"Musik & Nachtleben","rock":"Musik & Nachtleben","pop":"Musik & Nachtleben","klassik":"Musik & Nachtleben","classical":"Musik & Nachtleben",
   
   // Theater/Performance
   "theater":"Theater/Performance","theatre":"Theater/Performance","performance":"Theater/Performance",
@@ -223,53 +169,53 @@ export const NORMALIZATION_TOKEN_MAP: Record<string,string> = {
   "bühne":"Theater/Performance","stage":"Theater/Performance",
   
   // Comedy
-  "comedy":"Comedy/Kabarett","kabarett":"Comedy/Kabarett","standup":"Comedy/Kabarett","stand-up":"Comedy/Kabarett",
-  "humor":"Comedy/Kabarett","funny":"Comedy/Kabarett","witzig":"Comedy/Kabarett",
+  "comedy":"Theater/Performance","kabarett":"Theater/Performance","standup":"Theater/Performance","stand-up":"Theater/Performance",
+  "humor":"Theater/Performance","funny":"Theater/Performance","witzig":"Theater/Performance",
   
   // Art/Design
-  "kunst":"Kunst/Design","art":"Kunst/Design","design":"Kunst/Design",
-  "gallery":"Kunst/Design","galerie":"Kunst/Design","studio":"Kunst/Design","studios":"Kunst/Design",
-  "creative":"Kunst/Design","kreativ":"Kunst/Design","artistic":"Kunst/Design",
+  "kunst":"Museen & Ausstellungen","art":"Museen & Ausstellungen","design":"Museen & Ausstellungen",
+  "gallery":"Museen & Ausstellungen","galerie":"Museen & Ausstellungen","studio":"Museen & Ausstellungen","studios":"Museen & Ausstellungen",
+  "creative":"Museen & Ausstellungen","kreativ":"Museen & Ausstellungen","artistic":"Museen & Ausstellungen",
   
   // Museums
-  "museum":"Museen","museen":"Museen","exhibition":"Museen","ausstellung":"Museen",
-  "ausstellungen":"Museen","exhibitions":"Museen","collection":"Museen","sammlung":"Museen",
+  "museum":"Museen & Ausstellungen","museen":"Museen & Ausstellungen","exhibition":"Museen & Ausstellungen","ausstellung":"Museen & Ausstellungen",
+  "ausstellungen":"Museen & Ausstellungen","exhibitions":"Museen & Ausstellungen","collection":"Museen & Ausstellungen","sammlung":"Museen & Ausstellungen",
   
   // Sports
-  "sport":"Sport","sports":"Sport","fitness":"Sport","training":"Sport",
-  "competition":"Sport","wettkampf":"Sport","match":"Sport","game":"Sport",
+  "sport":"Sport & Fitness","sports":"Sport & Fitness","fitness":"Sport & Fitness","training":"Sport & Fitness",
+  "competition":"Sport & Fitness","wettkampf":"Sport & Fitness","match":"Sport & Fitness","game":"Sport & Fitness",
   
   // Family/Kids
-  "family":"Familien/Kids","familie":"Familien/Kids","kids":"Familien/Kids","kinder":"Familien/Kids",
-  "children":"Familien/Kids","child":"Familien/Kids","kind":"Familien/Kids",
-  "teen":"Familien/Kids","teens":"Familien/Kids","teenager":"Familien/Kids","jugendliche":"Familien/Kids",
+  "family":"Familie & Kinder","familie":"Familie & Kinder","kids":"Familie & Kinder","kinder":"Familie & Kinder",
+  "children":"Familie & Kinder","child":"Familie & Kinder","kind":"Familie & Kinder",
+  "teen":"Familie & Kinder","teens":"Familie & Kinder","teenager":"Familie & Kinder","jugendliche":"Familie & Kinder",
   
   // Film
-  "film":"Film","films":"Film","movie":"Film","movies":"Film","cinema":"Film","kino":"Film",
-  "screening":"Film","screenings":"Film","premiere":"Film","premieres":"Film",
+  "film":"Film & Kino","films":"Film & Kino","movie":"Film & Kino","movies":"Film & Kino","cinema":"Film & Kino","kino":"Film & Kino",
+  "screening":"Film & Kino","screenings":"Film & Kino","premiere":"Film & Kino","premieres":"Film & Kino",
   
   // Wellness/Spiritual
-  "wellness":"Wellness/Spirituell","meditation":"Wellness/Spirituell","yoga":"Wellness/Spirituell",
-  "spa":"Wellness/Spirituell","mindfulness":"Wellness/Spirituell","spirituell":"Wellness/Spirituell",
-  "spiritual":"Wellness/Spirituell","zen":"Wellness/Spirituell","healing":"Wellness/Spirituell",
+  "wellness":"Community & Wellness","meditation":"Community & Wellness","yoga":"Community & Wellness",
+  "spa":"Community & Wellness","mindfulness":"Community & Wellness","spirituell":"Community & Wellness",
+  "spiritual":"Community & Wellness","zen":"Community & Wellness","healing":"Community & Wellness",
   
   // Time-based defaults
-  "evening":"Open Air","afternoon":"Open Air","morning":"Wellness/Spirituell",
-  "weekend":"Open Air","weekday":"Bildung/Lernen","daily":"Wellness/Spirituell","weekly":"Bildung/Lernen",
+  "evening":"Open Air & Festivals","afternoon":"Open Air & Festivals","morning":"Community & Wellness",
+  "weekend":"Open Air & Festivals","weekday":"Bildung/Lernen","daily":"Community & Wellness","weekly":"Bildung/Lernen",
   
   // Level/Audience
   "beginner":"Bildung/Lernen","anfänger":"Bildung/Lernen","basic":"Bildung/Lernen",
   "advanced":"Bildung/Lernen","expert":"Bildung/Lernen",
-  "adult":"Networking/Business","adults":"Networking/Business","erwachsene":"Networking/Business",
-  "senior":"Soziales/Community","seniors":"Soziales/Community","senioren":"Soziales/Community",
+  "adult":"Business & Networking","adults":"Business & Networking","erwachsene":"Business & Networking",
+  "senior":"Community & Wellness","seniors":"Community & Wellness","senioren":"Community & Wellness",
   
   // Format-based
-  "online":"Bildung/Lernen","virtual":"Bildung/Lernen","livestream":"Film",
+  "online":"Bildung/Lernen","virtual":"Bildung/Lernen","livestream":"Film & Kino",
   "interactive":"Bildung/Lernen","interaktiv":"Bildung/Lernen","hands-on":"Bildung/Lernen",
-  "free":"Soziales/Community","kostenlos":"Soziales/Community","gratis":"Soziales/Community",
+  "free":"Community & Wellness","kostenlos":"Community & Wellness","gratis":"Community & Wellness",
   
   // Fallback for unknown terms
-  "unknown":"Sonstiges/Other","other":"Sonstiges/Other","misc":"Sonstiges/Other","sonstiges":"Sonstiges/Other"
+  "unknown":"Community & Wellness","other":"Community & Wellness","misc":"Community & Wellness","sonstiges":"Community & Wellness"
 };
 
 export function normalizeCategory(input: string): string {
@@ -315,8 +261,8 @@ export function normalizeCategory(input: string): string {
   const lc = EVENT_CATEGORIES.find(c => c.toLowerCase() === lower);
   if (lc) return lc;
   
-  // 7. Fallback to "Sonstiges/Other"
-  return "Sonstiges/Other";
+  // 7. Fallback to "Community & Wellness"
+  return "Community & Wellness";
 }
 
 // Enhanced validation with fallback
@@ -333,7 +279,7 @@ export function validateAndNormalizeEvents(events: any[]): any[] {
         const norm = normalizeCategory(e.category);
         e.category = norm; // Always assign normalized category (including fallback)
       } else {
-        e.category = "Sonstiges/Other"; // Default for events without category
+        e.category = "Community & Wellness"; // Default for events without category
       }
       return e;
     });
@@ -394,26 +340,26 @@ export function suggestCategoryFromContext(
     if (hour >= 22 || hour <= 4) {
       // Late night events likely clubs/discos
       if (combinedText.includes('music') || combinedText.includes('party')) {
-        return "Clubs/Discos";
+        return "Musik & Nachtleben";
       }
     }
     if (hour >= 6 && hour <= 10) {
       // Morning events likely wellness or business
       if (combinedText.includes('meditation') || combinedText.includes('yoga')) {
-        return "Wellness/Spirituell";
+        return "Community & Wellness";
       }
       if (combinedText.includes('meeting') || combinedText.includes('breakfast')) {
-        return "Networking/Business";
+        return "Business & Networking";
       }
     }
   }
   
   // Venue-based hints
   if (venue.toLowerCase().includes('club') || venue.toLowerCase().includes('bar')) {
-    return "Clubs/Discos";
+    return "Musik & Nachtleben";
   }
   if (venue.toLowerCase().includes('museum')) {
-    return "Museen";
+    return "Museen & Ausstellungen";
   }
   if (venue.toLowerCase().includes('theater') || venue.toLowerCase().includes('theatre')) {
     return "Theater/Performance";
