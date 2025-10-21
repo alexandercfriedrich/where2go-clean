@@ -152,13 +152,48 @@ export class SmartEventFetcher {
 
   /**
    * Phase 1: Try cache (day-bucket + category shards) and Wien.info JSON API
+   * All operations run in parallel for maximum speed
    */
   private async phase1CacheAndLocalAPIs(city: string, date: string): Promise<EventData[]> {
     const events: EventData[] = [];
 
     try {
-      // 1a. Try day-bucket cache first (fastest)
-      const dayBucket = await getDayEvents(city, date);
+      // Run all Phase 1 operations in parallel for speed
+      const [dayBucket, categoryCache, wienInfoEvents] = await Promise.all([
+        // 1a. Try day-bucket cache first (fastest)
+        getDayEvents(city, date).catch(err => {
+          console.warn('[Phase1] Day-bucket error:', err);
+          return null;
+        }),
+        
+        // 1b. Try per-category shards
+        eventsCache.getEventsByCategories(city, date, this.categories).catch(err => {
+          console.warn('[Phase1] Category cache error:', err);
+          return { cachedEvents: {}, missingCategories: [], cacheInfo: {} };
+        }),
+        
+        // 1c. Wien.info JSON API for Vienna (0 AI calls) - runs in parallel
+        (async () => {
+          if (city.toLowerCase() === 'wien' || city.toLowerCase() === 'vienna') {
+            try {
+              const wienResult = await fetchWienInfoEvents({
+                fromISO: date,
+                toISO: date,
+                categories: this.categories,
+                limit: 100,
+                debug: this.debug
+              });
+              return wienResult.events || [];
+            } catch (error) {
+              console.warn('[Phase1] Wien.info API error:', error);
+              return [];
+            }
+          }
+          return [];
+        })()
+      ]);
+
+      // Process day-bucket results
       if (dayBucket && dayBucket.events.length > 0) {
         if (this.debug) {
           console.log(`[Phase1] Day-bucket hit: ${dayBucket.events.length} events`);
@@ -166,10 +201,9 @@ export class SmartEventFetcher {
         events.push(...dayBucket.events);
       }
 
-      // 1b. Try per-category shards for any missing categories
-      if (events.length === 0) {
-        const { cachedEvents } = await eventsCache.getEventsByCategories(city, date, this.categories);
-        for (const [category, categoryEvents] of Object.entries(cachedEvents)) {
+      // Process per-category cache results (only if day-bucket was empty)
+      if (events.length === 0 && categoryCache) {
+        for (const [category, categoryEvents] of Object.entries(categoryCache.cachedEvents)) {
           if (this.debug) {
             console.log(`[Phase1] Category cache hit for ${category}: ${categoryEvents.length} events`);
           }
@@ -177,34 +211,22 @@ export class SmartEventFetcher {
         }
       }
 
-      // 1c. Wien.info JSON API for Vienna (0 AI calls)
-      if (city.toLowerCase() === 'wien' || city.toLowerCase() === 'vienna') {
-        try {
-          const wienResult = await fetchWienInfoEvents({
-            fromISO: date,
-            toISO: date,
-            categories: this.categories,
-            limit: 100,
-            debug: this.debug
-          });
-
-          if (wienResult.events && wienResult.events.length > 0) {
-            if (this.debug) {
-              console.log(`[Phase1] Wien.info API: ${wienResult.events.length} events`);
-            }
-            events.push(...wienResult.events);
-          }
-        } catch (error) {
-          console.warn('[Phase1] Wien.info API error:', error);
+      // Add Wien.info results
+      if (wienInfoEvents.length > 0) {
+        if (this.debug) {
+          console.log(`[Phase1] Wien.info API: ${wienInfoEvents.length} events`);
         }
+        events.push(...wienInfoEvents);
       }
 
       // Deduplicate events from multiple sources
       const deduped = eventAggregator.deduplicateEvents(events);
 
-      // Upsert to day-bucket cache for fast future reads
+      // Upsert to day-bucket cache for fast future reads (non-blocking)
       if (deduped.length > 0) {
-        await upsertDayEvents(city, date, deduped);
+        upsertDayEvents(city, date, deduped).catch(err => 
+          console.warn('[Phase1] Cache upsert error:', err)
+        );
       }
 
       return deduped;

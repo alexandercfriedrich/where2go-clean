@@ -100,9 +100,6 @@ export default function Home() {
   const [searchedSuperCategories, setSearchedSuperCategories] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState('Alle');
   
-  // Optimized search toggle
-  const [useOptimizedSearch, setUseOptimizedSearch] = useState(false);
-  
   // New multi-select filters
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedVenues, setSelectedVenues] = useState<string[]>([]);
@@ -115,45 +112,6 @@ export default function Home() {
 
   const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean; totalEvents: number; cachedEvents: number} | null>(null);
   const [toast, setToast] = useState<{show:boolean; message:string}>({show:false,message:''});
-
-  const pollInstanceRef = useRef(0);
-  const [activePolling, setActivePolling] = useState<{ jobId: string; cleanup: () => void; pollInstanceId: number } | null>(null);
-
-  const [debugLogs, setDebugLogs] = useState<{
-    apiCalls: Array<{
-      timestamp: string;
-      url: string;
-      method: string;
-      body?: any;
-      response?: any;
-      status?: number;
-    }>;
-    aiRequests: Array<{
-      timestamp: string;
-      query: string;
-      response: string;
-      category?: string;
-      parsedCount?: number;
-    }>;
-    wienInfoData: Array<{
-      timestamp: string;
-      url: string;
-      query?: string;
-      response?: string;
-      parsedEvents?: number;
-      filteredEvents?: number;
-      rawCategoryCounts?: Record<string, number>;
-      mappedCategoryCounts?: Record<string, number>;
-      unknownRawCategories?: string[];
-      scrapedContent?: string;
-      events?: any[];
-      error?: string;
-    }>;
-  }>({
-    apiCalls: [],
-    aiRequests: [],
-    wienInfoData: []
-  });
 
   const resultsAnchorRef = useRef<HTMLDivElement | null>(null);
   const timeSelectWrapperRef = useRef<HTMLDivElement | null>(null);
@@ -404,57 +362,40 @@ export default function Home() {
     void preloadDefaultEventsFromCache();
   }, []);
 
-  async function fetchForSuperCategory(superCat: string) {
-    const subs = EVENT_CATEGORY_SUBCATEGORIES[superCat] || [];
-    if (subs.length === 0) return;
-    setStepLoading(superCat);
-    try {
-      const reqBody = {
-        city: city.trim(),
-        date: formatDateForAPI(),
-        categories: subs,
-        options: {
-          temperature: 0.2,
-          max_tokens: 12000,
-          expandedSubcategories: true,
-          debug: true,
-          categoryConcurrency: 10
+  // Auto-load cached events when user types a city name (2 second debounce)
+  useEffect(() => {
+    if (!city || city.trim() === '') return;
+    
+    const timer = setTimeout(async () => {
+      try {
+        const today = todayISO();
+        const url = `/api/events/cache-day?city=${encodeURIComponent(city.trim())}&date=${encodeURIComponent(today)}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        
+        if (res.ok) {
+          const json = await res.json();
+          const cachedEvents: EventData[] = Array.isArray(json.events) ? json.events : [];
+          
+          if (cachedEvents.length > 0 && !searchSubmitted) {
+            // Only auto-load if user hasn't submitted a search yet
+            setEvents(cachedEvents);
+            if (json.cached !== undefined) {
+              setCacheInfo({
+                fromCache: json.cached,
+                totalEvents: cachedEvents.length,
+                cachedEvents: cachedEvents.length
+              });
+            }
+          }
         }
-      };
-
-      setDebugLogs(prev => ({
-        ...prev,
-        apiCalls: [...prev.apiCalls, {
-          timestamp: new Date().toISOString(),
-          url: '/api/events',
-          method: 'POST',
-          body: reqBody
-        }]
-      }));
-
-      const res = await fetch('/api/events', {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify(reqBody)
-      });
-      const data = await res.json().catch(()=> ({}));
-
-      setDebugLogs(prev => ({
-        ...prev,
-        apiCalls: prev.apiCalls.map((call, idx) =>
-          idx === prev.apiCalls.length - 1 ? { ...call, status: res.status, response: data } : call
-        )
-      }));
-
-      if (!res.ok) throw new Error(data.error || `Serverfehler ${res.status}`);
-
-      const incoming: EventData[] = data.events || [];
-      setEvents(prev => dedupMerge(prev, incoming));
-      if (data.cacheInfo) setCacheInfo(data.cacheInfo);
-    } finally {
-      setStepLoading(null);
-    }
-  }
+      } catch (error) {
+        // Silently fail - this is just a convenience feature
+        console.log('Auto-cache load failed:', error);
+      }
+    }, 2000); // 2 second debounce
+    
+    return () => clearTimeout(timer);
+  }, [city, searchSubmitted]);
 
   async function progressiveSearchEvents() {
     // Validate city name first
@@ -469,171 +410,14 @@ export default function Home() {
       return;
     }
     
-    // If optimized search is enabled, just set search submitted and return
-    // The OptimizedSearch component will handle the actual search
-    if (useOptimizedSearch) {
-      setSearchSubmitted(true);
-      setSearchedSuperCategories([...selectedSuperCategories]);
-      setEvents([]);
-      setError(null);
-      setCacheInfo(null);
-      setActiveFilter('Alle');
-      return;
-    }
-    
-    // cancel running batch
-    cancelRef.current.cancel = true;
-    await new Promise(r => setTimeout(r, 0));
-    cancelRef.current = { cancel:false };
-
-    if (activePolling) {
-      try { activePolling.cleanup(); } catch {}
-      setActivePolling(null);
-    }
-
-    setDebugLogs({ apiCalls: [], aiRequests: [], wienInfoData: [] });
-    setLoading(true);
-    setError(null);
-    setEvents([]);
-    setCacheInfo(null);
+    // Always use optimized search - this is now the only search method
     setSearchSubmitted(true);
     setSearchedSuperCategories([...selectedSuperCategories]);
+    setEvents([]);
+    setError(null);
+    setCacheInfo(null);
     setActiveFilter('Alle');
-
-    try {
-      const reqBody = {
-        city: city.trim(),
-        date: formatDateForAPI(),
-        categories: selectedSuperCategories.length ? getSelectedSubcategories(selectedSuperCategories) : [],
-        options: {
-          progressive: true,
-          timePeriod: timePeriod,
-          customDate: customDate,
-          debug: true,
-          fetchWienInfo: true,
-          categoryConcurrency: 10
-        }
-      };
-
-      setDebugLogs(prev => ({
-        ...prev,
-        apiCalls: [...prev.apiCalls, {
-          timestamp: new Date().toISOString(),
-          url: '/api/events',
-          method: 'POST',
-          body: reqBody
-        }]
-      }));
-
-      const jobRes = await fetch('/api/events', {
-        method: 'POST',
-        headers: { 'Content-Type':'application/json' },
-        body: JSON.stringify(reqBody)
-      });
-      const data = await jobRes.json().catch(()=> ({}));
-
-      setDebugLogs(prev => ({
-        ...prev,
-        apiCalls: prev.apiCalls.map((call, idx) =>
-          idx === prev.apiCalls.length - 1 ? { ...call, status: jobRes.status, response: data } : call
-        )
-      }));
-
-      if (!jobRes.ok) throw new Error(data.error || `Serverfehler ${jobRes.status}`);
-
-      const initialEvents = Array.isArray(data.events) ? data.events : [];
-      if (initialEvents.length) {
-        setEvents(prev => dedupMerge(prev, initialEvents));
-        if (data.cacheInfo) setCacheInfo(data.cacheInfo);
-      }
-
-      const onEvents = (chunk: EventData[], _getCurrent: () => EventData[]) => {
-        setEvents(prev => dedupMerge(prev, chunk));
-      };
-      const getCurrent = () => events;
-      const onDone = (_final: EventData[], _status: string) => {
-        setStepLoading(null);
-        setLoading(false);
-        setTimeout(()=> setToast({show:false, message:''}), 2000);
-        if (resultsAnchorRef.current) {
-          resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-        if (data.jobId) fetchDebugInfo(data.jobId);
-      };
-
-      // Only start polling if we have a jobId (not all-cached response)
-      if (data.jobId) {
-        const cleanup = startJobPolling(data.jobId, onEvents, getCurrent, onDone, POLL_INTERVAL_MS, MAX_POLLS);
-        const nextInstance = ++pollInstanceRef.current;
-        setActivePolling({ jobId: data.jobId, cleanup, pollInstanceId: nextInstance });
-      } else {
-        // All cached, mark as done immediately
-        setStepLoading(null);
-        setLoading(false);
-        if (resultsAnchorRef.current) {
-          resultsAnchorRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-      }
-
-    } catch(e:any){
-      setError(e.message || 'Fehler bei der Suche');
-      setLoading(false);
-      setStepLoading(null);
-    }
-  }
-
-  async function fetchDebugInfo(jobId: string) {
-    try {
-      const debugRes = await fetch(`/api/jobs/${jobId}?debug=1`);
-      if (!debugRes.ok) return;
-      const debugData = await debugRes.json();
-
-      setDebugLogs(prev => ({
-        ...prev,
-        apiCalls: [...prev.apiCalls, {
-          timestamp: new Date().toISOString(),
-          url: `/api/jobs/${jobId}?debug=1`,
-          method: 'GET',
-          response: debugData,
-          status: debugRes.status
-        }]
-      }));
-
-      if (debugData.debug && debugData.debug.steps) {
-        const aiRequests = debugData.debug.steps.map((step: any) => ({
-          timestamp: debugData.debug.createdAt || new Date().toISOString(),
-          query: step.query || '',
-          response: step.response || '',
-          category: step.category || '',
-          parsedCount: step.parsedCount || 0
-        }));
-
-        setDebugLogs(prev => ({ ...prev, aiRequests: [...prev.aiRequests, ...aiRequests] }));
-      }
-
-      if (debugData.debug && debugData.debug.wienInfoData) {
-        const wienData = debugData.debug.wienInfoData;
-        setDebugLogs(prev => ({
-          ...prev,
-          wienInfoData: [...prev.wienInfoData, {
-            timestamp: new Date().toISOString(),
-            url: wienData.url || '',
-            query: wienData.query || '',
-            response: wienData.response || '',
-            parsedEvents: wienData.parsedEvents || 0,
-            filteredEvents: wienData.filteredEvents || 0,
-            rawCategoryCounts: wienData.rawCategoryCounts || {},
-            mappedCategoryCounts: wienData.mappedCategoryCounts || {},
-            unknownRawCategories: wienData.unknownRawCategories || [],
-            scrapedContent: wienData.scrapedContent || '',
-            events: wienData.events || [],
-            error: wienData.error || ''
-          }]
-        }));
-      }
-    } catch (e) {
-      console.warn('Failed to fetch debug info:', e);
-    }
+    setResultsPageCategoryFilter([]);
   }
 
   // Initialize filters when events change (also for preload, not tied to searchSubmitted)
@@ -918,28 +702,16 @@ export default function Home() {
             </div>
 
             <button type="submit" className="btn-search">Events suchen</button>
-            
-            {/* Optimized Search Option */}
-            <div className="optimized-search-toggle" style={{ marginTop: '1rem' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
-                <input
-                  type="checkbox"
-                  checked={useOptimizedSearch}
-                  onChange={(e) => setUseOptimizedSearch(e.target.checked)}
-                />
-                <span>Use optimized search (max 5 AI calls)</span>
-              </label>
-            </div>
           </form>
           
-          {/* Optimized Search Component */}
-          {useOptimizedSearch && searchSubmitted && (
+          {/* Optimized Search Component - Always Active */}
+          {searchSubmitted && (
             <OptimizedSearch
               city={city}
               date={formatDateForAPI()}
               categories={getSelectedSubcategories(selectedSuperCategories)}
               onEventsUpdate={(newEvents) => {
-                setEvents(prev => dedupMerge(prev, newEvents));
+                setEvents(newEvents); // Replace events instead of merging to show progressive updates
               }}
               onLoadingChange={(isLoading) => {
                 setLoading(isLoading);
@@ -994,14 +766,19 @@ export default function Home() {
                 {/* Show All Events button */}
                 <button
                   className={`category-filter-btn ${resultsPageCategoryFilter.length === 0 ? 'active' : ''}`}
-                  onClick={() => setResultsPageCategoryFilter([])}
+                  onClick={() => {
+                    setResultsPageCategoryFilter([]);
+                    // Also select all venues when "All" is clicked
+                    const allVenues = events.map(e => e.venue).filter(Boolean);
+                    setSelectedVenues(Array.from(new Set(allVenues)));
+                  }}
                 >
                   Alle Events anzeigen
                   <span className="category-count">({events.filter(matchesSelectedDate).length})</span>
                 </button>
                 
                 {ALL_SUPER_CATEGORIES.map(cat => {
-                  const isSelected = resultsPageCategoryFilter.includes(cat);
+                  const isSelected = resultsPageCategoryFilter.length === 0 || resultsPageCategoryFilter.includes(cat);
                   const count = getCategoryCounts()[cat] || 0;
                   const isDisabled = count === 0;
                   
@@ -1011,10 +788,19 @@ export default function Home() {
                       className={`category-filter-btn ${isSelected ? 'active' : ''} ${isDisabled ? 'disabled' : ''}`}
                       onClick={() => {
                         if (isDisabled) return;
-                        if (isSelected) {
-                          setResultsPageCategoryFilter(resultsPageCategoryFilter.filter(c => c !== cat));
+                        
+                        // Sync with vertical sidebar
+                        if (resultsPageCategoryFilter.length === 0) {
+                          // Currently showing all - deselect this one category
+                          setResultsPageCategoryFilter(ALL_SUPER_CATEGORIES.filter(c => c !== cat));
+                        } else if (resultsPageCategoryFilter.includes(cat)) {
+                          // Currently selected - deselect it
+                          const newFilter = resultsPageCategoryFilter.filter(c => c !== cat);
+                          setResultsPageCategoryFilter(newFilter.length === ALL_SUPER_CATEGORIES.length - 1 ? [] : newFilter);
                         } else {
-                          setResultsPageCategoryFilter([...resultsPageCategoryFilter, cat]);
+                          // Currently not selected - select it
+                          const newFilter = [...resultsPageCategoryFilter, cat];
+                          setResultsPageCategoryFilter(newFilter.length === ALL_SUPER_CATEGORIES.length ? [] : newFilter);
                         }
                       }}
                       disabled={isDisabled}
@@ -1059,20 +845,39 @@ export default function Home() {
                           padding: '8px',
                           background: '#f5f5f5',
                           borderRadius: '6px',
+                          cursor: 'pointer',
                           transition: 'background 0.2s'
+                        }}
+                        onClick={() => {
+                          setExpandedCategories(prev =>
+                            prev.includes(category)
+                              ? prev.filter(c => c !== category)
+                              : [...prev, category]
+                          );
                         }}
                       >
                         <input
                           type="checkbox"
-                          checked={allVenuesSelected}
+                          checked={resultsPageCategoryFilter.length === 0 || resultsPageCategoryFilter.includes(category)}
                           ref={(el) => {
                             if (el) el.indeterminate = someVenuesSelected && !allVenuesSelected;
                           }}
                           onChange={(e) => {
                             e.stopPropagation();
+                            // Sync with horizontal filters
                             if (e.target.checked) {
+                              // Add to results page filter (or remove all to show all)
+                              if (resultsPageCategoryFilter.length > 0) {
+                                setResultsPageCategoryFilter(prev => [...prev, category]);
+                              }
                               setSelectedVenues(prev => [...new Set([...prev, ...categoryVenues])]);
                             } else {
+                              // Remove from results page filter
+                              setResultsPageCategoryFilter(prev => 
+                                prev.length === 0 
+                                  ? ALL_SUPER_CATEGORIES.filter(c => c !== category)
+                                  : prev.filter(c => c !== category)
+                              );
                               setSelectedVenues(prev => prev.filter(v => !categoryVenues.includes(v)));
                             }
                           }}
@@ -1087,7 +892,8 @@ export default function Home() {
                           stroke="currentColor" 
                           strokeWidth="2"
                           style={{ 
-                            transform: 'rotate(90deg)'
+                            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.2s'
                           }}
                         >
                           <polyline points="9 18 15 12 9 6"></polyline>
@@ -1096,32 +902,34 @@ export default function Home() {
                         <span style={{ fontSize: '12px', color: '#666' }}>({categoryCount})</span>
                       </div>
                       
-                      <div style={{ marginLeft: '32px', marginTop: '8px' }}>
-                        {Object.entries(venues)
-                          .sort((a, b) => b[1] - a[1])
-                          .map(([venue, count]) => (
-                            <div key={venue} style={{ marginBottom: '6px' }}>
-                              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', padding: '4px 0' }}>
-                                <input
-                                  type="checkbox"
-                                  checked={selectedVenues.includes(venue)}
-                                  onChange={(e) => {
-                                    setSelectedVenues(prev =>
-                                      e.target.checked
-                                        ? [...prev, venue]
-                                        : prev.filter(v => v !== venue)
-                                    );
-                                  }}
-                                  style={{ cursor: 'pointer' }}
-                                />
-                                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                  {venue}
-                                </span>
-                                <span style={{ fontSize: '11px', color: '#999' }}>({count})</span>
-                              </label>
-                            </div>
-                          ))}
-                      </div>
+                      {isExpanded && (
+                        <div style={{ marginLeft: '32px', marginTop: '8px' }}>
+                          {Object.entries(venues)
+                            .sort((a, b) => b[1] - a[1])
+                            .map(([venue, count]) => (
+                              <div key={venue} style={{ marginBottom: '6px' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', padding: '4px 0' }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={selectedVenues.includes(venue)}
+                                    onChange={(e) => {
+                                      setSelectedVenues(prev =>
+                                        e.target.checked
+                                          ? [...prev, venue]
+                                          : prev.filter(v => v !== venue)
+                                      );
+                                    }}
+                                    style={{ cursor: 'pointer' }}
+                                  />
+                                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {venue}
+                                  </span>
+                                  <span style={{ fontSize: '11px', color: '#999' }}>({count})</span>
+                                </label>
+                              </div>
+                            ))}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
