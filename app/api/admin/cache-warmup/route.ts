@@ -11,7 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { fetchWienInfoEvents } from '@/lib/sources/wienInfo';
 import { eventsCache } from '@/lib/cache';
 import { upsertDayEvents } from '@/lib/dayCache';
-import { computeTTLSecondsForEvents } from '@/lib/aggregator';
+import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
 import { EventData } from '@/lib/types';
 
 export const runtime = 'nodejs';
