@@ -825,7 +825,7 @@ export default function Home() {
           {/* Left sidebar: Category-Venue hierarchy */}
           {searchSubmitted && Object.keys(getCategoryCounts()).length > 0 && (
             <aside className="venue-filter-sidebar">
-              <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>{t('filter.filtersAndCategories')}</h3>
+              <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '20px', color: '#000' }}>Filters & Categories</h3>
               
               {Object.entries(getCategoryCounts())
                 .sort((a, b) => b[1] - a[1])
@@ -837,15 +837,15 @@ export default function Home() {
                   const someVenuesSelected = categoryVenues.some(v => selectedVenues.includes(v));
                   
                   return (
-                    <div key={category} style={{ marginBottom: '12px' }}>
+                    <div key={category} style={{ marginBottom: '8px' }}>
                       <div 
                         style={{ 
                           display: 'flex', 
                           alignItems: 'center', 
-                          gap: '8px',
-                          padding: '8px',
-                          background: '#f5f5f5',
-                          borderRadius: '6px',
+                          gap: '12px',
+                          padding: '12px 16px',
+                          background: '#f8f8f8',
+                          borderRadius: '8px',
                           cursor: 'pointer',
                           transition: 'background 0.2s'
                         }}
@@ -883,7 +883,7 @@ export default function Home() {
                             }
                           }}
                           onClick={(e) => e.stopPropagation()}
-                          style={{ cursor: 'pointer' }}
+                          style={{ cursor: 'pointer', width: '18px', height: '18px' }}
                         />
                         <svg 
                           width="16" 
@@ -894,13 +894,14 @@ export default function Home() {
                           strokeWidth="2"
                           style={{ 
                             transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                            transition: 'transform 0.2s'
+                            transition: 'transform 0.2s',
+                            flexShrink: 0
                           }}
                         >
                           <polyline points="9 18 15 12 9 6"></polyline>
                         </svg>
-                        <span style={{ flex: 1, fontWeight: 500, fontSize: '14px' }}>{category}</span>
-                        <span style={{ fontSize: '12px', color: '#666' }}>({categoryCount})</span>
+                        <span style={{ flex: 1, fontWeight: 500, fontSize: '15px', color: '#000' }}>{category}</span>
+                        <span style={{ fontSize: '14px', color: '#666', fontWeight: 400 }}>({categoryCount})</span>
                       </div>
                       
                       {isExpanded && (
