@@ -30,6 +30,11 @@ OVERALL_TIMEOUT_MS=240000
 # Set these to enable Basic Auth protection for admin pages
 ADMIN_USER=alexander.c.friedrich
 ADMIN_PASS=Where2go?Lufthansa736.
+
+# Bot Protection Configuration (Optional)
+# Enable strict mode to only allow cities from Hot Cities list (default: true)
+# Set to 'false' to allow any city name in URLs
+CITY_STRICT_MODE=true
 ```
 
 **Admin Area Configuration:**
@@ -114,6 +119,7 @@ The application will start on `http://localhost:3000`.
 - **Real-time updates** - Progressive results with new event notifications and toast messages
 - **Conservative deduplication** - Avoids over-filtering events with missing fields
 - **Hot Cities Management** - Admin area for managing city-specific event sources with priority targeting
+- **Bot & Spam Protection** - Middleware-based detection and blocking of malicious requests (see [BOT_PROTECTION_IMPLEMENTATION.md](BOT_PROTECTION_IMPLEMENTATION.md))
 
 ### Hot Cities Feature
 
@@ -149,6 +155,37 @@ When searching for events, the system automatically:
 2. Identifies relevant websites based on requested categories
 3. Provides additional sources to the background worker for prioritized searching
 4. Maintains existing caching behavior to minimize costs
+
+### Bot & Spam Protection
+
+The application includes comprehensive bot and spam protection to prevent malicious requests and resource waste. See [BOT_PROTECTION_IMPLEMENTATION.md](BOT_PROTECTION_IMPLEMENTATION.md) for full documentation.
+
+**Key Features:**
+- **Middleware-based detection** - Blocks suspicious requests before page rendering
+- **File extension blocking** - Rejects requests for `.php`, `.env`, and other malicious files
+- **Path filtering** - Blocks WordPress scanner attacks and config file probes
+- **User-agent detection** - Identifies and blocks known security scanners
+- **City name validation** - Strict mode prevents pages from being generated for invalid cities
+- **Security headers** - Adds headers to protect against XSS, clickjacking, and MIME sniffing
+
+**Configuration:**
+```bash
+# Enable strict city validation (only cities from Hot Cities list, default: true)
+CITY_STRICT_MODE=true
+```
+
+**Logging:**
+Monitor blocked requests in your logs:
+```
+[MIDDLEWARE] Blocked suspicious request: /test.php
+[MIDDLEWARE] Blocked suspicious request: /.env
+```
+
+**Benefits:**
+- ✅ Reduces server load from bot traffic
+- ✅ Prevents resource waste on invalid requests
+- ✅ Protects against common web attacks
+- ✅ Improves cache efficiency by filtering spam
 
 ### Debug Mode
 
