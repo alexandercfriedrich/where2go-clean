@@ -72,37 +72,38 @@ These headers help protect against:
 - Cross-site scripting (XSS) attacks
 - Provide rate limiting hints to clients
 
-### 3. City Name Validation (Strict Mode)
+### 3. City Name Validation (Smart Filtering)
 
-**Files**: `app/lib/city.ts`, `app/[city]/page.tsx`, `app/[city]/[...params]/page.tsx`
+**Files**: `middleware.ts`, `app/lib/city.ts`, `app/[city]/page.tsx`, `app/[city]/[...params]/page.tsx`
 
-#### New Strict Mode Parameter
-The `resolveCityFromParam()` function now accepts a `strictMode` parameter:
+#### Smart City Name Filtering
+The middleware includes intelligent city name validation that blocks malicious patterns while allowing any legitimate city:
 
-```typescript
-export async function resolveCityFromParam(
-  param: string, 
-  strictMode: boolean = false
-): Promise<{ slug: string; name: string } | null>
-```
+**Blocked Patterns**:
+- File extensions in city names (`.php`, `.env`, `.git`, etc.)
+- Path traversal attempts (`../`, `..\\`)
+- Hidden files (starting with `.`)
+- Suspicious keywords used alone (`admin`, `config`, `backup`, `test`, `debug`, `phpinfo`)
 
-When `strictMode` is enabled:
-- Only cities from the Hot Cities list are accepted
-- Invalid city names return `null`, resulting in a 404 page
-- Prevents generation of pages for spam city names
+**Allowed**:
+- Any legitimate city name (`ibiza`, `barcelona`, `new-york`, `wien`, etc.)
+- International characters and hyphens
+- Cities not in the Hot Cities list
 
-#### Environment Variable Control
-You can control strict mode via environment variable:
+This approach provides security while maintaining the system's key feature of supporting searches for any city worldwide.
+
+#### Optional Strict Mode
+For maximum control, strict mode can be enabled via environment variable:
 
 ```bash
-# Enable strict mode (default)
+# Enable strict mode (only allow Hot Cities)
 CITY_STRICT_MODE=true
 
-# Disable strict mode (allow any city name)
+# Disable strict mode (allow any city name - default)
 CITY_STRICT_MODE=false
 ```
 
-**Default**: Strict mode is enabled by default to prevent spam.
+**Default**: Strict mode is **disabled** by default to allow searches for any city. The middleware's smart filtering provides security without requiring strict mode.
 
 ### 4. Middleware Matcher Configuration
 

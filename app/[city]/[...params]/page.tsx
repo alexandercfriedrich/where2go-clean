@@ -144,7 +144,7 @@ export async function generateStaticParams({ params }: { params: { city: string 
 }
 
 export async function generateMetadata({ params }: { params: { city: string; params: string[] } }) {
-  const strictMode = process.env.CITY_STRICT_MODE !== 'false'; // Default to strict
+  const strictMode = process.env.CITY_STRICT_MODE === 'true'; // Default to non-strict
   const resolved = await resolveCityFromParam(params.city, strictMode);
   if (!resolved) return {};
   
@@ -191,8 +191,8 @@ export async function generateMetadata({ params }: { params: { city: string; par
 }
 
 export default async function CityParamsPage({ params }: { params: { city: string; params: string[] } }) {
-  // Use strict mode: only accept cities from Hot Cities list to prevent spam
-  const strictMode = process.env.CITY_STRICT_MODE !== 'false'; // Default to strict
+  // Disable strict mode by default - allow any city name (filtered by middleware)
+  const strictMode = process.env.CITY_STRICT_MODE === 'true'; // Default to non-strict
   const resolved = await resolveCityFromParam(params.city, strictMode);
   if (!resolved) notFound();
   

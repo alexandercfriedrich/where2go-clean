@@ -53,27 +53,31 @@ const BOT_PATTERNS = [
 
 **Result**: Suspicious requests now return `404 Not Found` immediately, preventing page generation.
 
-### 2. Strict City Validation ✅
+### 2. Smart City Name Validation ✅
 
-**Files**: `app/lib/city.ts`, `app/[city]/page.tsx`, `app/[city]/[...params]/page.tsx`
+**Files**: `middleware.ts`, `app/lib/city.ts`, `app/[city]/page.tsx`, `app/[city]/[...params]/page.tsx`
 
-Added strict mode to validate city names against Hot Cities list:
+Added intelligent city name validation at the middleware level:
 
-```typescript
-// New strict mode parameter (default: true)
-export async function resolveCityFromParam(
-  param: string, 
-  strictMode: boolean = false
-): Promise<{ slug: string; name: string } | null>
-```
+**Blocks**:
+- City names with file extensions (`.php`, `.env`, `.git`)
+- Path traversal attempts (`../`, `..\\`)
+- Hidden files (starting with `.`)
+- Suspicious keywords used alone (`admin`, `config`, `backup`, `test`)
 
-**Configuration**:
+**Allows**:
+- Any legitimate city name (`ibiza`, `barcelona`, `new-york`, `wien`)
+- Cities not in the Hot Cities list
+- International characters and hyphens
+
+**Optional Strict Mode**:
 ```bash
 # In .env.local or Vercel Environment Variables
-CITY_STRICT_MODE=true  # Default: strict validation enabled
+CITY_STRICT_MODE=true   # Only allow Hot Cities (optional)
+CITY_STRICT_MODE=false  # Allow any city (default - recommended)
 ```
 
-**Result**: Invalid cities like `ibiza` (if not in Hot Cities) now return 404 instead of generating pages.
+**Result**: Legitimate cities like `ibiza`, `barcelona` work perfectly. Malicious requests like `admin.php`, `.env` are blocked. This maintains the system's key feature of supporting searches for any city worldwide.
 
 ### 3. Security Headers ✅
 

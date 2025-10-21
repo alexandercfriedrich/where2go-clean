@@ -16,9 +16,42 @@ const BOT_PATTERNS = [
 // Suspicious path patterns
 const SUSPICIOUS_PATHS = [
   '/wp-admin', '/wp-content', '/wp-includes', '/wordpress',
-  '/admin/', '/phpmyadmin', '/phpinfo', '/shell',
+  '/phpmyadmin', '/phpinfo', '/shell',
   '/.env', '/.git', '/config', '/backup'
 ];
+
+/**
+ * Checks if a city parameter looks suspicious (potential attack)
+ * Legitimate city names should only contain letters, spaces, and hyphens
+ */
+function isSuspiciousCityName(cityParam: string): boolean {
+  // Allow only alphanumeric, spaces, hyphens, and basic international characters
+  // Block: special chars, numbers at start, suspicious patterns
+  const decoded = decodeURIComponent(cityParam).toLowerCase();
+  
+  // Block if contains file extensions or paths
+  if (BLOCKED_EXTENSIONS.some(ext => decoded.includes(ext))) {
+    return true;
+  }
+  
+  // Block if looks like a path traversal
+  if (decoded.includes('../') || decoded.includes('..\\')) {
+    return true;
+  }
+  
+  // Block if starts with a dot (hidden files)
+  if (decoded.startsWith('.')) {
+    return true;
+  }
+  
+  // Block if contains suspicious keywords (admin, config, etc.)
+  const suspiciousKeywords = ['admin', 'config', 'backup', 'test', 'debug', 'phpinfo'];
+  if (suspiciousKeywords.some(keyword => decoded === keyword)) {
+    return true;
+  }
+  
+  return false;
+}
 
 /**
  * Checks if a request looks like a bot or scanner
@@ -40,6 +73,22 @@ function isSuspiciousRequest(request: NextRequest): boolean {
   // Check for known bot patterns in User-Agent
   if (BOT_PATTERNS.some(pattern => userAgent.includes(pattern))) {
     return true;
+  }
+
+  // Check city parameter in URL patterns like /[city]/... or /[city]
+  // Match: /xxx or /xxx/yyy or /xxx/yyy/zzz (where xxx is the city)
+  const cityMatch = pathname.match(/^\/([^\/]+)/);
+  if (cityMatch && cityMatch[1]) {
+    const cityParam = cityMatch[1];
+    
+    // Skip validation for known application routes
+    const knownRoutes = ['api', 'admin', 'impressum', 'datenschutz', 'kontakt', 'agb', 'ueber-uns', 'premium', 'robots.txt', 'sitemap.xml', 'favicon.ico', 'designs', '_next'];
+    if (!knownRoutes.includes(cityParam)) {
+      // Validate city parameter
+      if (isSuspiciousCityName(cityParam)) {
+        return true;
+      }
+    }
   }
 
   return false;

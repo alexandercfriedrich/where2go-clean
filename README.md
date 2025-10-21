@@ -32,9 +32,9 @@ ADMIN_USER=alexander.c.friedrich
 ADMIN_PASS=Where2go?Lufthansa736.
 
 # Bot Protection Configuration (Optional)
-# Enable strict mode to only allow cities from Hot Cities list (default: true)
-# Set to 'false' to allow any city name in URLs
-CITY_STRICT_MODE=true
+# Disable strict mode by default - allows any city name (recommended)
+# Set to 'true' to only allow cities from Hot Cities list
+CITY_STRICT_MODE=false
 ```
 
 **Admin Area Configuration:**
@@ -165,13 +165,14 @@ The application includes comprehensive bot and spam protection to prevent malici
 - **File extension blocking** - Rejects requests for `.php`, `.env`, and other malicious files
 - **Path filtering** - Blocks WordPress scanner attacks and config file probes
 - **User-agent detection** - Identifies and blocks known security scanners
-- **City name validation** - Strict mode prevents pages from being generated for invalid cities
+- **Smart city validation** - Allows any legitimate city name while blocking malicious patterns (e.g., `ibiza`, `barcelona` work; `admin.php`, `.env` blocked)
 - **Security headers** - Adds headers to protect against XSS, clickjacking, and MIME sniffing
 
 **Configuration:**
 ```bash
-# Enable strict city validation (only cities from Hot Cities list, default: true)
-CITY_STRICT_MODE=true
+# Optional: Enable strict mode to only allow Hot Cities (default: false)
+# By default, any city name is allowed with smart filtering for security
+CITY_STRICT_MODE=false
 ```
 
 **Logging:**

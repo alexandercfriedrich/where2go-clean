@@ -133,7 +133,7 @@ describe('Bot Protection - Scanner User-Agent Detection', () => {
 
 describe('City Name Validation', () => {
   it('should validate city parameter format', () => {
-    const validCityParams = ['wien', 'berlin', 'linz', 'salzburg', 'new-york'];
+    const validCityParams = ['wien', 'berlin', 'linz', 'salzburg', 'new-york', 'ibiza', 'barcelona'];
     
     validCityParams.forEach(param => {
       // Valid city params should only contain alphanumeric and hyphens
@@ -154,6 +154,49 @@ describe('City Name Validation', () => {
       const hasInvalidChars = param.includes(char);
       expect(hasInvalidChars).toBe(true);
     });
+  });
+
+  it('should detect suspicious city names', () => {
+    function isSuspiciousCityName(cityParam: string): boolean {
+      const blockedExtensions = ['.php', '.asp', '.env', '.git', '.config'];
+      const decoded = decodeURIComponent(cityParam).toLowerCase();
+      
+      // Block if contains file extensions
+      if (blockedExtensions.some(ext => decoded.includes(ext))) {
+        return true;
+      }
+      
+      // Block if looks like a path traversal
+      if (decoded.includes('../') || decoded.includes('..\\')) {
+        return true;
+      }
+      
+      // Block if starts with a dot
+      if (decoded.startsWith('.')) {
+        return true;
+      }
+      
+      // Block suspicious keywords used alone
+      const suspiciousKeywords = ['admin', 'config', 'backup', 'test', 'debug', 'phpinfo'];
+      if (suspiciousKeywords.some(keyword => decoded === keyword)) {
+        return true;
+      }
+      
+      return false;
+    }
+
+    // Should be blocked
+    expect(isSuspiciousCityName('test.php')).toBe(true);
+    expect(isSuspiciousCityName('.env')).toBe(true);
+    expect(isSuspiciousCityName('../etc/passwd')).toBe(true);
+    expect(isSuspiciousCityName('admin')).toBe(true);
+    expect(isSuspiciousCityName('config')).toBe(true);
+
+    // Should be allowed - legitimate city names
+    expect(isSuspiciousCityName('ibiza')).toBe(false);
+    expect(isSuspiciousCityName('barcelona')).toBe(false);
+    expect(isSuspiciousCityName('new-york')).toBe(false);
+    expect(isSuspiciousCityName('wien')).toBe(false);
   });
 
   it('should normalize city slugs correctly', () => {
