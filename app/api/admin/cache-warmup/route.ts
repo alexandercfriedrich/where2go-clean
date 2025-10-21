@@ -131,7 +131,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       // Group category events by date
       const catEventsByDate = new Map<string, EventData[]>();
       for (const event of catEvents) {
-        const dateKey = event.day;
+        const dateKey = event.date;
         if (!catEventsByDate.has(dateKey)) {
           catEventsByDate.set(dateKey, []);
         }
