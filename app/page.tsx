@@ -711,7 +711,8 @@ export default function Home() {
               date={formatDateForAPI()}
               categories={getSelectedSubcategories(selectedSuperCategories)}
               onEventsUpdate={(newEvents) => {
-                setEvents(prev => dedupFront(prev, newEvents)); // Merge and deduplicate events for progressive updates
+                // Backend already sends all accumulated events per phase, just replace
+                setEvents(newEvents);
               }}
               onLoadingChange={(isLoading) => {
                 setLoading(isLoading);
