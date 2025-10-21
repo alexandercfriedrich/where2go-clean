@@ -82,6 +82,11 @@ export interface JobStatus {
     completedCategories: number;
     totalCategories: number;
     missingCategories?: string[];
+    // For optimized search
+    phase?: number;
+    completedPhases?: number;
+    totalPhases?: number;
+    message?: string;
   };
   cacheInfo?: any;
   createdAt?: Date;
