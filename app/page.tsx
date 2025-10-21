@@ -103,6 +103,7 @@ export default function Home() {
   // New multi-select filters
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedVenues, setSelectedVenues] = useState<string[]>([]);
+  const [hoveredVenue, setHoveredVenue] = useState<string | null>(null); // Point 5: Track hovered venue for "nur" button
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   // Mobile: Sidebar Toggle
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -455,6 +456,20 @@ export default function Home() {
     }
   }, [events, searchSubmitted]);
 
+  // Point 3: Reset filters when new events load (new search or cache load)
+  // All categories should be checked, all collapsed
+  useEffect(() => {
+    if (events.length > 0) {
+      // Reset to show all events (empty filter = all selected)
+      setResultsPageCategoryFilter([]);
+      // Collapse all categories
+      setExpandedCategories([]);
+      // Select all venues
+      const allVenues = events.map(e => e.venue).filter(Boolean);
+      setSelectedVenues(Array.from(new Set(allVenues)));
+    }
+  }, [events.length]); // Trigger when event count changes
+
   const displayedEvents = (() => {
     const dateFiltered = events.filter(matchesSelectedDate);
     if (!searchSubmitted) return dateFiltered;
@@ -764,18 +779,27 @@ export default function Home() {
             {/* Category Filter Row - Feature 7 */}
             <div className="category-filter-row-container">
               <div className="category-filter-row">
-                {/* Show All Events button */}
+                {/* Toggle All/None button - Point 4 */}
                 <button
                   className={`category-filter-btn ${resultsPageCategoryFilter.length === 0 ? 'active' : ''}`}
                   onClick={() => {
-                    setResultsPageCategoryFilter([]);
-                    // Also select all venues when "All" is clicked
-                    const allVenues = events.map(e => e.venue).filter(Boolean);
-                    setSelectedVenues(Array.from(new Set(allVenues)));
+                    if (resultsPageCategoryFilter.length === 0) {
+                      // Currently showing all - switch to "Keine Filter" (clear all)
+                      setResultsPageCategoryFilter(ALL_SUPER_CATEGORIES);
+                      setSelectedVenues([]);
+                      setExpandedCategories([]);
+                    } else {
+                      // Currently filtered - switch to "Alle Events" (show all)
+                      setResultsPageCategoryFilter([]);
+                      const allVenues = events.map(e => e.venue).filter(Boolean);
+                      setSelectedVenues(Array.from(new Set(allVenues)));
+                    }
                   }}
                 >
-                  Alle Events anzeigen
-                  <span className="category-count">({events.filter(matchesSelectedDate).length})</span>
+                  {resultsPageCategoryFilter.length === 0 ? 'Alle Events anzeigen' : 'Keine Filter anwenden'}
+                  <span className="category-count">
+                    ({resultsPageCategoryFilter.length === 0 ? events.filter(matchesSelectedDate).length : 0})
+                  </span>
                 </button>
                 
                 {ALL_SUPER_CATEGORIES.map(cat => {
@@ -823,8 +847,8 @@ export default function Home() {
         )}
 
         <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
-          {/* Left sidebar: Category-Venue hierarchy */}
-          {searchSubmitted && Object.keys(getCategoryCounts()).length > 0 && (
+          {/* Left sidebar: Category-Venue hierarchy - Point 11: Always show when events are displayed */}
+          {events.length > 0 && Object.keys(getCategoryCounts()).length > 0 && (
             <aside className="venue-filter-sidebar">
               <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '20px', color: '#000' }}>Filters & Categories</h3>
               
@@ -910,7 +934,12 @@ export default function Home() {
                           {Object.entries(venues)
                             .sort((a, b) => b[1] - a[1])
                             .map(([venue, count]) => (
-                              <div key={venue} style={{ marginBottom: '6px' }}>
+                              <div 
+                                key={venue} 
+                                style={{ marginBottom: '6px', position: 'relative' }}
+                                onMouseEnter={() => setHoveredVenue(venue)}
+                                onMouseLeave={() => setHoveredVenue(null)}
+                              >
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', padding: '4px 0' }}>
                                   <input
                                     type="checkbox"
@@ -928,6 +957,45 @@ export default function Home() {
                                     {venue}
                                   </span>
                                   <span style={{ fontSize: '11px', color: '#999' }}>({count})</span>
+                                  
+                                  {/* Point 5: "nur" button on hover */}
+                                  {hoveredVenue === venue && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        // Show only events from this venue
+                                        setSelectedVenues([venue]);
+                                        // Filter categories to only those with this venue
+                                        const venueCategory = Object.entries(getVenuesByCategory(category)).find(([v]) => v === venue);
+                                        if (venueCategory) {
+                                          setResultsPageCategoryFilter([category]);
+                                        }
+                                      }}
+                                      style={{
+                                        padding: '2px 8px',
+                                        fontSize: '11px',
+                                        color: '#667eea',
+                                        background: 'transparent',
+                                        border: '1px solid #667eea',
+                                        borderRadius: '4px',
+                                        cursor: 'pointer',
+                                        fontWeight: 500,
+                                        transition: 'all 0.15s',
+                                        marginLeft: '4px'
+                                      }}
+                                      onMouseOver={(e) => {
+                                        e.currentTarget.style.background = '#667eea';
+                                        e.currentTarget.style.color = 'white';
+                                      }}
+                                      onMouseOut={(e) => {
+                                        e.currentTarget.style.background = 'transparent';
+                                        e.currentTarget.style.color = '#667eea';
+                                      }}
+                                    >
+                                      nur
+                                    </button>
+                                  )}
                                 </label>
                               </div>
                             ))}
