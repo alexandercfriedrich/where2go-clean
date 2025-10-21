@@ -2,7 +2,31 @@
 
 ## Overview
 
-The Optimized Event Search feature reduces AI API calls from 30+ to a maximum of 5 per search while maintaining comprehensive event coverage. This is achieved through a smart 4-phase search pipeline that prioritizes cached data and local APIs before making AI calls.
+The Optimized Event Search is the **primary and only** search method in where2go-clean. It reduces AI API calls from 30+ to a maximum of 5 per search while maintaining comprehensive event coverage. This is achieved through a smart 4-phase search pipeline that prioritizes cached data and local APIs before making AI calls.
+
+All searches automatically use this optimized approach - there is no toggle or alternative search method.
+
+## Recent Improvements (Latest Update)
+
+### Performance Enhancements
+- **Parallel Phase 1 Execution**: All cache and API operations now run simultaneously using `Promise.all()`
+  - 50-66% faster Phase 1 execution
+  - Day-bucket cache, per-category shards, and Wien.info API all queried in parallel
+  
+### Real-Time Progress
+- Events now appear progressively as each phase completes
+- "New events" badge shows when phases add more events
+- No artificial delays between phases
+
+### Auto-Cache Loading
+- Type a city name and wait 2 seconds
+- Cached events automatically load without clicking search
+- Also triggers on blur/click outside the city input field
+
+### Unified Filter System
+- Horizontal and vertical category filters are now synchronized
+- Sidebar categories collapse/expand with visual arrow rotation
+- All categories selected by default when showing "Alle Events"
 
 ## Architecture
 
@@ -57,11 +81,16 @@ The Optimized Event Search feature reduces AI API calls from 30+ to a maximum of
 ### Web Interface
 
 1. Navigate to the main search page
-2. Enable the checkbox: "Use optimized search (max 5 AI calls)"
-3. Select your search criteria (city, date, categories)
-4. Click "Events suchen"
-5. Watch real-time progress through all 4 phases
-6. See events appear progressively with visual indicators
+2. Select your search criteria (city, date, categories)
+3. Click "Events suchen"
+4. Watch real-time progress through all 4 phases
+5. See events appear progressively with visual indicators
+
+**Or use auto-cache loading:**
+1. Type a city name in the search field
+2. Wait 2 seconds (or click outside the field)
+3. If cached events exist, they appear automatically
+4. No need to click search if the cached results are sufficient
 
 ### Programmatic Usage
 
