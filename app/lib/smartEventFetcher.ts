@@ -20,21 +20,22 @@ import { computeTTLSecondsForEvents } from './cacheTtl';
 import { getHotCity } from './hotCityStore';
 
 /**
- * Optimized category set - 12 compact categories for efficient AI querying
+ * Optimized category set - 12 compact main categories for efficient AI querying
+ * These match the EVENT_CATEGORIES from eventCategories.ts
  */
 export const OPTIMIZED_CATEGORIES = [
-  'DJ Sets/Electronic',
-  'Clubs/Discos',
-  'Live-Konzerte',
+  'Musik & Nachtleben',
   'Theater/Performance',
-  'Open Air',
-  'Museen',
-  'Comedy/Kabarett',
-  'Film',
-  'Food/Culinary',
-  'Sport',
-  'Kultur/Traditionen',
-  'Workshops'
+  'Museen & Ausstellungen',
+  'Film & Kino',
+  'Open Air & Festivals',
+  'Food & Culinary',
+  'Märkte & Shopping',
+  'Sport & Fitness',
+  'Kultur & Bildung',
+  'Familie & Kinder',
+  'Business & Networking',
+  'Community & Wellness'
 ] as const;
 
 /**
