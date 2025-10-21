@@ -287,7 +287,7 @@ export default function OptimizedSearch({
       {status === 'done' && (
         <div className="search-complete" role="status">
           <span className="success-icon">✓</span>
-          <span>Search complete! Found {events.length} events</span>
+          <span>Suche abgeschlossen! {events.length} Events gefunden</span>
         </div>
       )}
 
