@@ -50,7 +50,7 @@ body {
   background: white;
   border-radius: 20px;
   padding: 40px;
-  margin: -40px auto 60px;
+  margin: 20px auto 60px; /* Point 8: Increased top margin from -40px to 20px for better spacing */
   max-width: 800px;
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
 }
