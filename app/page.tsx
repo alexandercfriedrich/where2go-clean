@@ -443,12 +443,11 @@ export default function Home() {
         }
       });
       
-      // Initialize all filters as selected and keep all categories expanded
+      // Initialize all filters as selected but keep categories collapsed (Point 4)
       if (selectedCategories.length === 0) {
         setSelectedCategories(Array.from(categorySet));
       }
-      // Always keep all categories expanded
-      setExpandedCategories(Array.from(categorySet));
+      // Don't auto-expand categories on initial load
       
       if (selectedVenues.length === 0) {
         setSelectedVenues(Array.from(venueSet));
@@ -775,7 +774,12 @@ export default function Home() {
                 Wochenende
               </button>
             </nav>
-            
+          </>
+        )}
+        
+        {/* Point 5: Category Filter Row - Show whenever there are events, not just when searchSubmitted */}
+        {events.length > 0 && (
+          <>            
             {/* Category Filter Row - Feature 7 */}
             <div className="category-filter-row-container">
               <div className="category-filter-row">
@@ -1079,7 +1083,7 @@ export default function Home() {
                     <div className="event-content">
                     {superCat && (
                       <a 
-                        href={`/wien/${superCat.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')}/${timePeriod === 'heute' ? 'heute' : timePeriod === 'morgen' ? 'morgen' : timePeriod === 'kommendes-wochenende' ? 'wochenende' : formatDateForAPI()}`}
+                        href={`/${city.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-')}/${superCat.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')}/${timePeriod === 'heute' ? 'heute' : timePeriod === 'morgen' ? 'morgen' : timePeriod === 'kommendes-wochenende' ? 'wochenende' : formatDateForAPI()}`}
                         className="event-category-badge"
                       >
                         {superCat}
