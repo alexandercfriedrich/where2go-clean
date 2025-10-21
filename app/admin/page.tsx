@@ -9,6 +9,8 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [editingCity, setEditingCity] = useState<HotCity | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [warmupLoading, setWarmupLoading] = useState(false);
+  const [warmupMessage, setWarmupMessage] = useState<string | null>(null);
 
   useEffect(() => {
     loadCities();
@@ -92,6 +94,43 @@ export default function AdminPage() {
       alert('City deleted successfully!');
     } catch (err: any) {
       alert(`Error: ${err.message}`);
+    }
+  };
+
+  const handleCacheWarmup = async () => {
+    if (!confirm('Start Wien.info cache warmup? This will fetch events for the next 90 days and may take 1-2 minutes.')) return;
+
+    try {
+      setWarmupLoading(true);
+      setWarmupMessage('Fetching events from Wien.info...');
+
+      const response = await fetch('/api/admin/cache-warmup', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_ADMIN_API_KEY || ''}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Cache warmup failed');
+      }
+
+      if (data.success && data.stats) {
+        const { totalEvents, daysProcessed, categoriesUpdated, duration } = data.stats;
+        setWarmupMessage(
+          `✅ Success! Cached ${totalEvents} events across ${daysProcessed} days ` +
+          `in ${(duration / 1000).toFixed(1)}s. Categories: ${categoriesUpdated.length}`
+        );
+      } else {
+        setWarmupMessage('✅ ' + data.message);
+      }
+    } catch (err: any) {
+      setWarmupMessage('❌ Error: ' + err.message);
+    } finally {
+      setWarmupLoading(false);
     }
   };
 
@@ -271,11 +310,33 @@ export default function AdminPage() {
           <a href="/admin/affiliates" className="btn btn-secondary">
             Manage Affiliates
           </a>
+          <button 
+            className="btn btn-secondary" 
+            onClick={handleCacheWarmup}
+            disabled={warmupLoading}
+            style={{ marginRight: '10px' }}
+          >
+            {warmupLoading ? '⏳ Warming up...' : '🔥 Wien.info Warmup'}
+          </button>
           <button className="btn btn-primary" onClick={handleCreateCity}>
             Add New City
           </button>
         </div>
       </div>
+
+      {warmupMessage && (
+        <div style={{
+          padding: '15px',
+          marginBottom: '20px',
+          borderRadius: '5px',
+          backgroundColor: warmupMessage.startsWith('✅') ? '#d4edda' : '#f8d7da',
+          color: warmupMessage.startsWith('✅') ? '#155724' : '#721c24',
+          border: warmupMessage.startsWith('✅') ? '1px solid #c3e6cb' : '1px solid #f5c6cb',
+          fontSize: '14px'
+        }}>
+          {warmupMessage}
+        </div>
+      )}
 
       <div style={{ marginBottom: '30px' }}>
         <h2 style={{ color: '#333', fontSize: '1.8rem' }}>Hot Cities Management</h2>
