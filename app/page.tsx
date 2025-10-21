@@ -778,7 +778,8 @@ export default function Home() {
                 </button>
                 
                 {ALL_SUPER_CATEGORIES.map(cat => {
-                  const isSelected = resultsPageCategoryFilter.length === 0 || resultsPageCategoryFilter.includes(cat);
+                  const isShowAll = resultsPageCategoryFilter.length === 0;
+                  const isSelected = isShowAll ? false : resultsPageCategoryFilter.includes(cat);
                   const count = getCategoryCounts()[cat] || 0;
                   const isDisabled = count === 0;
                   
