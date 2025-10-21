@@ -74,9 +74,11 @@ These headers help protect against:
 
 ### 3. City Name Validation (Smart Filtering)
 
-**Files**: `middleware.ts`, `app/lib/city.ts`, `app/[city]/page.tsx`, `app/[city]/[...params]/page.tsx`
+**Files**: `middleware.ts`, `app/page.tsx`, `app/lib/city.ts`, `app/[city]/page.tsx`, `app/[city]/[...params]/page.tsx`
 
 #### Smart City Name Filtering
+
+**Server-Side (Middleware)**:
 The middleware includes intelligent city name validation that blocks malicious patterns while allowing any legitimate city:
 
 **Blocked Patterns**:
@@ -90,7 +92,22 @@ The middleware includes intelligent city name validation that blocks malicious p
 - International characters and hyphens
 - Cities not in the Hot Cities list
 
-This approach provides security while maintaining the system's key feature of supporting searches for any city worldwide.
+**Client-Side (Search Input Field)**:
+The same validation is applied to the city input field in the search form (`app/page.tsx`) to prevent malicious input from being submitted:
+
+- Validates input in real-time as users type
+- Displays immediate error messages for invalid input
+- Blocks search submission if validation fails
+- Uses the same validation rules as middleware for consistency
+
+```typescript
+function validateCityName(cityInput: string): { valid: boolean; error?: string } {
+  // Validates against file extensions, path traversal, suspicious keywords, XSS attempts
+  // Returns validation result with error message if invalid
+}
+```
+
+This dual-layer approach provides security at both the client and server level while maintaining the system's key feature of supporting searches for any city worldwide.
 
 #### Optional Strict Mode
 For maximum control, strict mode can be enabled via environment variable:
@@ -103,7 +120,7 @@ CITY_STRICT_MODE=true
 CITY_STRICT_MODE=false
 ```
 
-**Default**: Strict mode is **disabled** by default to allow searches for any city. The middleware's smart filtering provides security without requiring strict mode.
+**Default**: Strict mode is **disabled** by default to allow searches for any city. The middleware's and client-side smart filtering provide security without requiring strict mode.
 
 ### 4. Middleware Matcher Configuration
 
@@ -124,21 +141,27 @@ This ensures:
 
 ## Testing
 
-### Test Suite
-**File**: `app/lib/__tests__/botProtection.test.ts`
+### Test Suites
+
+**File**: `app/lib/__tests__/botProtection.test.ts` (Middleware validation)
+**File**: `app/lib/__tests__/cityInputValidation.test.ts` (Client-side validation)
 
 Comprehensive test coverage includes:
 
-1. **File Extension Blocking**: Validates that malicious extensions are blocked
-2. **Suspicious Path Detection**: Ensures WordPress and other attack paths are detected
-3. **Scanner User-Agent Detection**: Verifies known scanner patterns are identified
-4. **City Name Validation**: Tests valid and invalid city parameter formats
-5. **Security Headers**: Confirms required security headers are defined
+1. **File Extension Blocking**: Validates that malicious extensions are blocked (middleware)
+2. **Suspicious Path Detection**: Ensures WordPress and other attack paths are detected (middleware)
+3. **Scanner User-Agent Detection**: Verifies known scanner patterns are identified (middleware)
+4. **City Name Validation (Server)**: Tests middleware validation of city parameters
+5. **City Input Validation (Client)**: Validates input field blocks malicious input
+6. **Security Headers**: Confirms required security headers are defined
 
 ### Running Tests
 ```bash
 npm test -- app/lib/__tests__/botProtection.test.ts
+npm test -- app/lib/__tests__/cityInputValidation.test.ts
 ```
+
+**Total Tests**: 24 tests (12 middleware + 12 client-side)
 
 ## Logging and Monitoring
 
