@@ -272,7 +272,7 @@ export default function OptimizedSearch({
           {/* Event Count with Badge */}
           <div className="event-count-container">
             <span className="event-count">
-              {events.length} {events.length === 1 ? 'event' : 'events'} found
+              {events.length} {events.length === 1 ? 'Event' : 'Events'} gefunden
             </span>
             {showNewBadge && (
               <span className="new-badge" aria-live="polite">
