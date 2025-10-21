@@ -73,9 +73,7 @@ async function fetchEvents(city: string, dateISO: string, category: string | nul
 }
 
 export default async function CityPage({ params }: { params: { city: string } }) {
-  // Disable strict mode by default - allow any city name (filtered by middleware)
-  const strictMode = process.env.CITY_STRICT_MODE === 'true'; // Default to non-strict
-  const resolved = await resolveCityFromParam(params.city, strictMode);
+  const resolved = await resolveCityFromParam(params.city);
   if (!resolved) {
     return <div style={{ padding: 24 }}>Unbekannte Stadt.</div>;
   }

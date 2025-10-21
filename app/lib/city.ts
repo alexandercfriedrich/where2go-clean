@@ -3,16 +3,7 @@ import { getHotCityBySlug, getHotCity, slugify as slugifyCity } from '@/lib/hotC
 
 export type DateToken = 'heute' | 'morgen' | 'wochenende' | string;
 
-/**
- * Resolves a city parameter to a city object
- * @param param - The city parameter from the URL
- * @param strictMode - If true, only accept cities from the Hot Cities list (default: false)
- * @returns City object or null if not found
- */
-export async function resolveCityFromParam(
-  param: string, 
-  strictMode: boolean = false
-): Promise<{ slug: string; name: string } | null> {
+export async function resolveCityFromParam(param: string): Promise<{ slug: string; name: string } | null> {
   const decoded = decodeURIComponent(param || '').trim();
   if (!decoded) return null;
 
@@ -24,12 +15,7 @@ export async function resolveCityFromParam(
   const byName = await getHotCity(decoded);
   if (byName) return { slug: slugifyCity(byName.name), name: byName.name };
 
-  // In strict mode, only accept known cities
-  if (strictMode) {
-    return null;
-  }
-
-  // Fallback: accept any city name (for flexibility)
+  // Fallback: freie Stadt akzeptieren
   return { slug: slugifyCity(decoded), name: capitalize(decoded) };
 }
 

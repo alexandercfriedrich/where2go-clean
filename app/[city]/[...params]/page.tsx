@@ -144,8 +144,7 @@ export async function generateStaticParams({ params }: { params: { city: string 
 }
 
 export async function generateMetadata({ params }: { params: { city: string; params: string[] } }) {
-  const strictMode = process.env.CITY_STRICT_MODE === 'true'; // Default to non-strict
-  const resolved = await resolveCityFromParam(params.city, strictMode);
+  const resolved = await resolveCityFromParam(params.city);
   if (!resolved) return {};
   
   const p = params.params || [];
@@ -191,9 +190,7 @@ export async function generateMetadata({ params }: { params: { city: string; par
 }
 
 export default async function CityParamsPage({ params }: { params: { city: string; params: string[] } }) {
-  // Disable strict mode by default - allow any city name (filtered by middleware)
-  const strictMode = process.env.CITY_STRICT_MODE === 'true'; // Default to non-strict
-  const resolved = await resolveCityFromParam(params.city, strictMode);
+  const resolved = await resolveCityFromParam(params.city);
   if (!resolved) notFound();
   
   const p = params.params || [];
