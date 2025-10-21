@@ -33,17 +33,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const startTime = Date.now();
 
   try {
-    // Authentication check
-    const authHeader = request.headers.get('authorization');
-    const apiKey = authHeader?.replace('Bearer ', '');
-    const adminKey = process.env.ADMIN_API_KEY;
-
-    if (!adminKey || apiKey !== adminKey) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    // No authentication required for admin warmup
 
     // Calculate date range: today + 90 days
     const today = new Date();
