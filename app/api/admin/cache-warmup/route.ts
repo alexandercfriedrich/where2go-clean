@@ -93,7 +93,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // Group events by date for day-bucket storage
     const eventsByDate = new Map<string, EventData[]>();
     for (const event of events) {
-      const dateKey = event.day; // Already in YYYY-MM-DD format
+      const dateKey = event.date; // Already in YYYY-MM-DD format
       if (!eventsByDate.has(dateKey)) {
         eventsByDate.set(dateKey, []);
       }
@@ -117,9 +117,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // 1. Store per-day buckets
     for (const [date, dayEvents] of Array.from(eventsByDate)) {
       try {
-        const ttl = computeTTLSecondsForEvents(dayEvents);
-        await upsertDayEvents(city, date, dayEvents, ttl);
-        console.log(`[cache-warmup] Stored ${dayEvents.length} events for ${date} (TTL: ${ttl}s)`);
+        await upsertDayEvents(city, date, dayEvents);
+        console.log(`[cache-warmup] Stored ${dayEvents.length} events for ${date}`);
       } catch (error) {
         console.error(`[cache-warmup] Error storing day bucket for ${date}:`, error);
       }
