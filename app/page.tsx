@@ -6,6 +6,7 @@ import { startJobPolling, deduplicateEvents as dedupFront } from './lib/polling'
 import SchemaOrg from './components/SchemaOrg';
 import SEOFooter from './components/SEOFooter';
 import EventCardSkeleton from './components/EventCardSkeleton';
+import OptimizedSearch from './components/OptimizedSearch';
 import { generateEventListSchema, generateEventMicrodata, generateCanonicalUrl } from './lib/schemaOrg';
 
 interface EventData {
@@ -98,6 +99,9 @@ export default function Home() {
   const [searchSubmitted, setSearchSubmitted] = useState(false);
   const [searchedSuperCategories, setSearchedSuperCategories] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState('Alle');
+  
+  // Optimized search toggle
+  const [useOptimizedSearch, setUseOptimizedSearch] = useState(false);
   
   // New multi-select filters
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -464,6 +468,19 @@ export default function Home() {
       setCategoryLimitError('Bitte wähle mindestens eine Kategorie aus.');
       return;
     }
+    
+    // If optimized search is enabled, just set search submitted and return
+    // The OptimizedSearch component will handle the actual search
+    if (useOptimizedSearch) {
+      setSearchSubmitted(true);
+      setSearchedSuperCategories([...selectedSuperCategories]);
+      setEvents([]);
+      setError(null);
+      setCacheInfo(null);
+      setActiveFilter('Alle');
+      return;
+    }
+    
     // cancel running batch
     cancelRef.current.cancel = true;
     await new Promise(r => setTimeout(r, 0));
@@ -901,7 +918,40 @@ export default function Home() {
             </div>
 
             <button type="submit" className="btn-search">Events suchen</button>
+            
+            {/* Optimized Search Option */}
+            <div className="optimized-search-toggle" style={{ marginTop: '1rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem' }}>
+                <input
+                  type="checkbox"
+                  checked={useOptimizedSearch}
+                  onChange={(e) => setUseOptimizedSearch(e.target.checked)}
+                />
+                <span>Use optimized search (max 5 AI calls)</span>
+              </label>
+            </div>
           </form>
+          
+          {/* Optimized Search Component */}
+          {useOptimizedSearch && searchSubmitted && (
+            <OptimizedSearch
+              city={city}
+              date={formatDateForAPI()}
+              categories={getSelectedSubcategories(selectedSuperCategories)}
+              onEventsUpdate={(newEvents) => {
+                setEvents(prev => dedupMerge(prev, newEvents));
+              }}
+              onLoadingChange={(isLoading) => {
+                setLoading(isLoading);
+                setStepLoading(isLoading ? 'Optimized search...' : null);
+              }}
+              onErrorChange={(err) => {
+                setError(err);
+              }}
+              autoStart={true}
+              debug={false}
+            />
+          )}
         </div>
       </section>
 
