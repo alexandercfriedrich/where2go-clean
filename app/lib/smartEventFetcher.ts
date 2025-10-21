@@ -122,8 +122,8 @@ export class SmartEventFetcher {
     // ========== PHASE 2: Hot-City prioritized venues (max 2 AI calls) ==========
     if (aiCallsUsed < maxAiCalls && totalEvents < 20) {
       const availableCalls = Math.min(2, maxAiCalls - aiCallsUsed);
-      const phase2Events = await this.phase2HotCityVenues(city, date, availableCalls);
-      aiCallsUsed += Math.min(phase2Events.length > 0 ? 2 : 0, availableCalls);
+      const { events: phase2Events, aiCallsUsed: phase2AiCallsUsed } = await this.phase2HotCityVenues(city, date, availableCalls);
+      aiCallsUsed += phase2AiCallsUsed;
       await updatePhase(2, phase2Events, `Found ${phase2Events.length} events from prioritized venues (${aiCallsUsed} AI calls used)`);
     } else {
       await updatePhase(2, [], `Skipped - sufficient events or no AI calls remaining`);
