@@ -34,6 +34,50 @@ const MAX_CATEGORY_SELECTION = 3;
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLLS = 48;
 
+// City name validation - blocks malicious patterns
+const BLOCKED_EXTENSIONS = [
+  '.php', '.asp', '.aspx', '.jsp', '.cgi', '.pl', '.py',
+  '.sh', '.bat', '.cmd', '.exe', '.dll', '.so',
+  '.env', '.git', '.htaccess', '.config', '.bak', '.sql'
+];
+
+const SUSPICIOUS_KEYWORDS = ['admin', 'config', 'backup', 'test', 'debug', 'phpinfo', 'shell', 'root'];
+
+function validateCityName(cityInput: string): { valid: boolean; error?: string } {
+  if (!cityInput || !cityInput.trim()) {
+    return { valid: false, error: 'Bitte gib eine Stadt ein.' };
+  }
+
+  const city = cityInput.trim().toLowerCase();
+  
+  // Block if contains file extensions
+  if (BLOCKED_EXTENSIONS.some(ext => city.includes(ext))) {
+    return { valid: false, error: 'Ungültige Eingabe erkannt. Bitte gib einen gültigen Städtenamen ein.' };
+  }
+  
+  // Block if looks like a path traversal
+  if (city.includes('../') || city.includes('..\\') || city.includes('/') || city.includes('\\')) {
+    return { valid: false, error: 'Ungültige Zeichen in der Stadt-Eingabe.' };
+  }
+  
+  // Block if starts with a dot (hidden files)
+  if (city.startsWith('.')) {
+    return { valid: false, error: 'Ungültige Eingabe. Stadt darf nicht mit einem Punkt beginnen.' };
+  }
+  
+  // Block suspicious keywords used alone
+  if (SUSPICIOUS_KEYWORDS.some(keyword => city === keyword)) {
+    return { valid: false, error: 'Ungültige Stadt-Eingabe erkannt.' };
+  }
+  
+  // Block if contains HTML/script tags
+  if (/<script|<\/script|javascript:|onerror=/i.test(city)) {
+    return { valid: false, error: 'Ungültige Eingabe erkannt.' };
+  }
+  
+  return { valid: true };
+}
+
 export default function Home() {
   const { t, formatEventDate } = useTranslation();
   // Default: Wien + heute
@@ -409,10 +453,13 @@ export default function Home() {
   }
 
   async function progressiveSearchEvents() {
-    if (!city.trim()) {
-      setError('Bitte gib eine Stadt ein.');
+    // Validate city name first
+    const validation = validateCityName(city);
+    if (!validation.valid) {
+      setError(validation.error || 'Ungültige Stadt-Eingabe.');
       return;
     }
+    
     if (selectedSuperCategories.length === 0) {
       setCategoryLimitError('Bitte wähle mindestens eine Kategorie aus.');
       return;
@@ -771,7 +818,21 @@ export default function Home() {
                   id="city"
                   className="form-input"
                   value={city}
-                  onChange={e => setCity(e.target.value)}
+                  onChange={e => {
+                    const newValue = e.target.value;
+                    setCity(newValue);
+                    
+                    // Clear error when user types
+                    if (error) setError(null);
+                    
+                    // Validate on input for immediate feedback
+                    if (newValue.trim()) {
+                      const validation = validateCityName(newValue);
+                      if (!validation.valid) {
+                        setError(validation.error || 'Ungültige Eingabe');
+                      }
+                    }
+                  }}
                   placeholder="Wien, 1060 Wien, Mariahilf..."
                 />
               </div>
