@@ -73,7 +73,9 @@ async function fetchEvents(city: string, dateISO: string, category: string | nul
 }
 
 export default async function CityPage({ params }: { params: { city: string } }) {
-  const resolved = await resolveCityFromParam(params.city);
+  // Use strict mode: only accept cities from Hot Cities list to prevent spam
+  const strictMode = process.env.CITY_STRICT_MODE !== 'false'; // Default to strict
+  const resolved = await resolveCityFromParam(params.city, strictMode);
   if (!resolved) {
     return <div style={{ padding: 24 }}>Unbekannte Stadt.</div>;
   }
