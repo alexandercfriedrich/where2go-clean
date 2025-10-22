@@ -415,6 +415,26 @@ describe('Schema.org Utilities', () => {
       
       expect(url).toContain('www.where2go.at');
     });
+
+    it('should normalize diacritics in city and title', () => {
+      const event: EventData = {
+        title: 'Fête de la Musique – Café Français',
+        category: 'Music',
+        date: '2025-06-21',
+        time: '20:00',
+        venue: 'Café',
+        city: 'Zürich',
+        price: '15€',
+        website: 'https://example.com'
+      };
+
+      const url = generateCanonicalUrl(event, 'https://where2go.com');
+      
+      expect(url).toBe('https://where2go.com/zurich/event/2025-06-21/fete-de-la-musique-cafe-francais');
+      expect(url).not.toContain('é');
+      expect(url).not.toContain('ü');
+      expect(url).not.toContain('–');
+    });
   });
 
   describe('generateEventJsonLd', () => {
