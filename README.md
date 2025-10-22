@@ -60,6 +60,16 @@ OVERALL_TIMEOUT_MS=240000
 ADMIN_USER=alexander.c.friedrich
 ADMIN_PASS=Where2go?Lufthansa736.
 
+# NextAuth Configuration (Required for admin API session verification)
+# Secret key for NextAuth session encryption (generate with: openssl rand -base64 32)
+NEXTAUTH_SECRET=your_nextauth_secret_here
+# Base URL for your application
+NEXTAUTH_URL=http://localhost:3000
+
+# Admin Email Whitelist (Required for /api/admin/cache-warmup)
+# Comma-separated list of admin email addresses allowed to trigger cache warmup
+ADMIN_EMAILS=alexander.c.friedrich@example.com,admin@example.com
+
 # Bot Protection Configuration (Optional)
 # Disable strict mode by default - allows any city name (recommended)
 # Set to 'true' to only allow cities from Hot Cities list
@@ -71,10 +81,17 @@ CITY_STRICT_MODE=false
 - **Required Environment Variables:**
   - `ADMIN_USER`: Username for admin access
   - `ADMIN_PASS`: Password for admin access
+  - `NEXTAUTH_SECRET`: Secret key for NextAuth JWT session encryption
+  - `NEXTAUTH_URL`: Base URL of your application (e.g., `http://localhost:3000`)
+  - `ADMIN_EMAILS`: Comma-separated list of admin email addresses for API access
 - **Example credentials** (set these in your deployment environment):
   - `ADMIN_USER=alexander.c.friedrich`
   - `ADMIN_PASS=Where2go?Lufthansa736.`
+  - `NEXTAUTH_SECRET=<generate with: openssl rand -base64 32>`
+  - `NEXTAUTH_URL=https://your-domain.com`
+  - `ADMIN_EMAILS=admin@example.com,user@example.com`
 - Without these credentials, admin pages will return "Admin credentials not configured" error
+- The `/api/admin/cache-warmup` route requires both a valid NextAuth session AND an email in the ADMIN_EMAILS whitelist
 - Legacy `ADMIN_SECRET` header authentication is still supported for API calls as an alternative
 
 **Redis Configuration (Required):**
