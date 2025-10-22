@@ -360,7 +360,7 @@ describe('Schema.org Utilities', () => {
 
       const url = generateCanonicalUrl(event, 'https://where2go.com');
       
-      expect(url).toBe('https://where2go.com/event/berlin/2025-06-15/summer-festival-2025');
+      expect(url).toBe('https://where2go.com/berlin/event/2025-06-15/summer-festival-2025');
     });
 
     it('should normalize title correctly', () => {
@@ -377,6 +377,7 @@ describe('Schema.org Utilities', () => {
 
       const url = generateCanonicalUrl(event);
       
+      expect(url).toContain('/wien/event/');
       expect(url).toContain('rock-roll-night');
       expect(url).not.toContain('&');
       expect(url).not.toContain('!');
@@ -395,7 +396,7 @@ describe('Schema.org Utilities', () => {
 
       const url = generateCanonicalUrl(event);
       
-      expect(url).toContain('/the-venue-name/');
+      expect(url).toContain('/the-venue-name/event/');
     });
 
     it('should use default baseUrl if not provided', () => {
