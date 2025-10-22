@@ -4,10 +4,12 @@
  * Fetches all Wien.info events for the next 90 days and stores them in cache.
  * Can be triggered manually via admin button or scheduled as a cron job.
  * 
- * Security: Protected by ADMIN_API_KEY environment variable
+ * Security: Protected by NextAuth session verification + ADMIN_EMAILS whitelist
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '@/lib/auth';
 import { fetchWienInfoEvents } from '@/lib/sources/wienInfo';
 import { eventsCache } from '@/lib/cache';
 import { upsertDayEvents } from '@/lib/dayCache';
@@ -33,7 +35,30 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const startTime = Date.now();
 
   try {
-    // No authentication required for admin warmup
+    // Server-side NextAuth session verification + admin email whitelist
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const adminEmailsEnv = process.env.ADMIN_EMAILS || '';
+    const adminEmails = adminEmailsEnv
+      .split(',')
+      .map(e => e.trim().toLowerCase())
+      .filter(Boolean);
+
+    const userEmail = (session.user.email || '').toLowerCase();
+    if (!adminEmails.includes(userEmail)) {
+      return NextResponse.json(
+        { success: false, error: 'Forbidden' },
+        { status: 403 }
+      );
+    }
+
+    // Continue with warmup logic...
 
     // Calculate date range: today + 90 days
     const today = new Date();
