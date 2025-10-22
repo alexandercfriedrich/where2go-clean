@@ -4,12 +4,10 @@
  * Fetches all Wien.info events for the next 90 days and stores them in cache.
  * Can be triggered manually via admin button or scheduled as a cron job.
  * 
- * Security: Protected by either API key (ADMIN_API_KEY) or NextAuth session + ADMIN_EMAILS whitelist
+ * Security: Protected by middleware Basic Auth (no additional auth required in route)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/lib/auth';
 import { fetchWienInfoEvents } from '@/lib/sources/wienInfo';
 import { eventsCache } from '@/lib/cache';
 import { upsertDayEvents } from '@/lib/dayCache';
@@ -35,48 +33,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const startTime = Date.now();
 
   try {
-    // Authentication: Support both API key (for cron/programmatic) and NextAuth session (for admin users)
-    const authHeader = request.headers.get('authorization');
-    const adminApiKey = process.env.ADMIN_API_KEY;
-    
-    // Method 1: API Key authentication (for cron jobs and programmatic access)
-    if (authHeader?.startsWith('Bearer ') && adminApiKey) {
-      const providedKey = authHeader.substring(7);
-      if (providedKey !== adminApiKey) {
-        return NextResponse.json(
-          { success: false, error: 'Invalid API key' },
-          { status: 401 }
-        );
-      }
-      // API key valid, proceed with warmup
-    } 
-    // Method 2: NextAuth session + admin email whitelist (for authenticated admin users)
-    else {
-      const session = await getServerSession(authOptions);
-      if (!session?.user?.email) {
-        return NextResponse.json(
-          { success: false, error: 'Unauthorized - No session or API key provided' },
-          { status: 401 }
-        );
-      }
-
-      const adminEmailsEnv = process.env.ADMIN_EMAILS || '';
-      const adminEmails = adminEmailsEnv
-        .split(',')
-        .map(e => e.trim().toLowerCase())
-        .filter(Boolean);
-
-      const userEmail = (session.user.email || '').toLowerCase();
-      if (!adminEmails.includes(userEmail)) {
-        return NextResponse.json(
-          { success: false, error: 'Forbidden - Email not in admin whitelist' },
-          { status: 403 }
-        );
-      }
-      // Session and email valid, proceed with warmup
-    }
-
-    // Continue with warmup logic...
+    // No authentication required - route is already protected by middleware Basic Auth
 
     // Calculate date range: today + 90 days
     const today = new Date();
