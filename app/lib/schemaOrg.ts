@@ -212,7 +212,7 @@ export function generateCanonicalUrl(event: EventData, baseUrl: string = 'https:
     .trim();
 
   // Ensure date is in YYYY-MM-DD format
-  const date = event.date.slice(0, 10);
+  const date = event.date ? event.date.slice(0, 10) : 'unknown-date';
 
   return `${baseUrl}/${citySlug}/event/${date}/${normalizedTitle}`;
 }
