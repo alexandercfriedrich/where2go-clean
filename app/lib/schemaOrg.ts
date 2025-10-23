@@ -200,8 +200,8 @@ export function generateCanonicalUrl(event: EventData, baseUrl: string = 'https:
     .replace(/-+/g, '-')
     .trim();
 
-  // Use city from event or fallback to venue, then 'event' as last resort
-  const cityRaw = event.city || event.venue || 'event';
+  // Use city from event or fallback to venue, then 'unknown' as last resort
+  const cityRaw = event.city || event.venue || 'unknown';
   const citySlug = cityRaw
     .toLowerCase()
     .normalize('NFKD')
