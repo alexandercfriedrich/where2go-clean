@@ -178,6 +178,7 @@ export default async function LegacyEventPage({ params }: { params: { params: st
           className="dark-event-card" 
           {...microdata}
           style={{ 
+            position: 'relative',
             background: 'rgba(255, 255, 255, 0.05)',
             border: '1px solid rgba(255, 255, 255, 0.1)',
             borderRadius: '12px',
@@ -193,6 +194,8 @@ export default async function LegacyEventPage({ params }: { params: { params: st
             <>
               <meta itemProp="image" content={foundEvent.imageUrl} />
               <div 
+                role="img"
+                aria-label={`Event image for ${foundEvent.title}`}
                 style={{
                   width: '100%',
                   height: '300px',

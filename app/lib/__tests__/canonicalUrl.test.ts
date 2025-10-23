@@ -91,7 +91,7 @@ describe('Canonical URL Migration', () => {
       expect(url).toBe('https://www.where2go.at/kunsthalle-zurich/event/2025-04-10/gallery-opening');
     });
 
-    it('should handle ultimate fallback to "event"', () => {
+    it('should handle ultimate fallback to "unknown"', () => {
       const event: EventData = {
         title: 'Mystery Event',
         category: 'Other',
@@ -104,8 +104,8 @@ describe('Canonical URL Migration', () => {
 
       const url = generateCanonicalUrl(event, 'https://www.where2go.at');
       
-      // Should use 'event' as fallback
-      expect(url).toBe('https://www.where2go.at/event/event/2025-05-20/mystery-event');
+      // Should use 'unknown' as fallback
+      expect(url).toBe('https://www.where2go.at/unknown/event/2025-05-20/mystery-event');
     });
   });
 
