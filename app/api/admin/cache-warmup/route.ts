@@ -4,7 +4,7 @@
  * Fetches all Wien.info events for the next 90 days and stores them in cache.
  * Can be triggered manually via admin button or scheduled as a cron job.
  * 
- * Security: Protected by ADMIN_API_KEY environment variable
+ * Security: Protected by middleware Basic Auth (no additional auth required in route)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -33,7 +33,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const startTime = Date.now();
 
   try {
-    // No authentication required for admin warmup
+    // No authentication required - route is already protected by middleware Basic Auth
 
     // Calculate date range: today + 90 days
     const today = new Date();

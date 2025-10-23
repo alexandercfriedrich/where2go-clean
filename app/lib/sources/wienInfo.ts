@@ -8,7 +8,8 @@ import {
   buildWienInfoUrl,
   getWienInfoF1IdsForCategories,
   canonicalizeWienInfoLabel,
-  mapWienInfoCategoryLabelToWhereToGo
+  mapWienInfoCategoryLabelToWhereToGo,
+  WIEN_INFO_F1_BY_LABEL
 } from '@/event_mapping_wien_info';
 
 interface FetchWienInfoOptions {
@@ -81,11 +82,18 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
 
   try {
     // 1) Resolve F1 IDs for requested main categories (forward mapping via SSOT)
-    const f1Ids = getWienInfoF1IdsForCategories(categories);
-
-    if (f1Ids.length === 0) {
-      if (debug) console.log('[WIEN.INFO:FETCH] No F1 mappings found for categories:', categories);
-      return { events: [], error: 'No results from Wien.info!' };
+    // If categories is empty, fetch all categories by using all F1 IDs
+    let f1Ids: number[];
+    if (categories.length === 0) {
+      // Empty categories means fetch ALL categories - get all F1 IDs from SSOT
+      f1Ids = Object.values(WIEN_INFO_F1_BY_LABEL);
+      if (debug) console.log('[WIEN.INFO:FETCH] No categories specified, fetching all F1 IDs:', f1Ids);
+    } else {
+      f1Ids = getWienInfoF1IdsForCategories(categories);
+      if (f1Ids.length === 0) {
+        if (debug) console.log('[WIEN.INFO:FETCH] No F1 mappings found for categories:', categories);
+        return { events: [], error: 'No results from Wien.info!' };
+      }
     }
 
     // 2) JSON API endpoint (fixed)

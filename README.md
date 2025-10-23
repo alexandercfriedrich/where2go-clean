@@ -67,7 +67,7 @@ CITY_STRICT_MODE=false
 ```
 
 **Admin Area Configuration:**
-- The admin area (`/admin/*` and `/api/admin/*`) is protected by HTTP Basic Auth
+- The admin area (`/admin/*` and `/api/admin/*`) is protected by HTTP Basic Auth via middleware
 - **Required Environment Variables:**
   - `ADMIN_USER`: Username for admin access
   - `ADMIN_PASS`: Password for admin access
@@ -75,6 +75,7 @@ CITY_STRICT_MODE=false
   - `ADMIN_USER=alexander.c.friedrich`
   - `ADMIN_PASS=Where2go?Lufthansa736.`
 - Without these credentials, admin pages will return "Admin credentials not configured" error
+- All admin routes, including `/api/admin/cache-warmup`, rely on the middleware authentication
 - Legacy `ADMIN_SECRET` header authentication is still supported for API calls as an alternative
 
 **Redis Configuration (Required):**
