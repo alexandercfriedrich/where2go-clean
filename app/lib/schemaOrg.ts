@@ -186,28 +186,35 @@ export function generateMicrodataProps(property: string, content?: string): Reco
 
 /**
  * Generates a canonical URL for an event
- * Format: {baseUrl}/event/{city}/{date}/{normalized-title}
+ * Format: {baseUrl}/{citySlug}/event/{date}/{normalized-title}
+ * Uses city-first routing consistent with the app's routing structure
  */
 export function generateCanonicalUrl(event: EventData, baseUrl: string = 'https://www.where2go.at'): string {
-  // Normalize title: lowercase, replace spaces with hyphens, remove special chars
+  // Normalize title: lowercase, NFKD normalization for diacritics, replace spaces with hyphens, remove special chars
   const normalizedTitle = event.title
     .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
     .replace(/[^a-z0-9\s-]/g, '')
     .replace(/\s+/g, '-')
     .replace(/-+/g, '-')
     .trim();
 
-  // Use city from event or fallback to venue
-  const city = (event.city || event.venue || 'event')
+  // Use city from event or fallback to venue, then 'unknown' as last resort
+  const cityRaw = event.city || event.venue || 'unknown';
+  const citySlug = cityRaw
     .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
     .replace(/[^a-z0-9\s-]/g, '')
     .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
     .trim();
 
   // Ensure date is in YYYY-MM-DD format
-  const date = event.date;
+  const date = event.date ? event.date.slice(0, 10) : 'unknown-date';
 
-  return `${baseUrl}/event/${city}/${date}/${normalizedTitle}`;
+  return `${baseUrl}/${citySlug}/event/${date}/${normalizedTitle}`;
 }
 
 /**
