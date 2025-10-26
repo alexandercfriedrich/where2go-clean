@@ -31,6 +31,8 @@ async function fetchEvents(city: string, dateISO: string, category: string | nul
         ))
       : null;
 
+    console.log(`[DEBUG] Requested categories:`, requestedCategories);
+
     let allEvents: EventData[] = [];
 
     // Try to load from day-bucket first
@@ -38,35 +40,60 @@ async function fetchEvents(city: string, dateISO: string, category: string | nul
     
     if (dayBucket && dayBucket.events.length > 0) {
       allEvents = dayBucket.events;
+      console.log(`[DEBUG] Loaded ${allEvents.length} events from day-bucket`);
     } else {
+      console.log(`[DEBUG] Day-bucket empty or not found, loading from category shards`);
       // Fallback: Load from per-category shards
       const categoriesToLoad = requestedCategories || EVENT_CATEGORIES;
       const cacheResult = await eventsCache.getEventsByCategories(city, dateISO, categoriesToLoad);
       
       const cachedEventsList: EventData[] = [];
       for (const cat in cacheResult.cachedEvents) {
-        cachedEventsList.push(...cacheResult.cachedEvents[cat]);
+        const catEvents = cacheResult.cachedEvents[cat];
+        console.log(`[DEBUG] Category ${cat}: ${catEvents.length} events`);
+        cachedEventsList.push(...catEvents);
       }
       
       // Deduplicate events from different category shards
       allEvents = eventAggregator.deduplicateEvents(cachedEventsList);
+      console.log(`[DEBUG] After deduplication: ${allEvents.length} events`);
     }
+
+    // Count events by source
+    const eventsBySource: Record<string, number> = {};
+    allEvents.forEach(event => {
+      const source = event.source || 'unknown';
+      eventsBySource[source] = (eventsBySource[source] || 0) + 1;
+    });
+    console.log(`[DEBUG] Events by source:`, eventsBySource);
+    console.log(`[DEBUG] Wien.info events:`, eventsBySource['wien.info'] || 0);
 
     // Filter: Only return valid (non-expired) events
     const now = new Date();
     const validEvents = allEvents.filter(event => isEventValidNow(event, now));
+    console.log(`[DEBUG] Valid (non-expired) events: ${validEvents.length} of ${allEvents.length}`);
 
     // Filter by requested categories if specified
     let filteredEvents = validEvents;
     if (requestedCategories && requestedCategories.length > 0) {
       filteredEvents = validEvents.filter(event => {
         if (!event.category) return false;
-        const normalizedEventCategory = normalizeCategory(event.category);
-        return requestedCategories.includes(normalizedEventCategory);
+        
+        // Handle both single category strings and category arrays
+        const eventCategories = Array.isArray(event.category) 
+          ? event.category 
+          : [event.category];
+        
+        // Check if any of the event's categories match the requested categories
+        return eventCategories.some(cat => {
+          const normalizedEventCategory = normalizeCategory(cat);
+          return requestedCategories.includes(normalizedEventCategory);
+        });
       });
+      console.log(`[DEBUG] After category filtering: ${filteredEvents.length} events`);
     }
 
-    console.log(`[fetchEvents] Events count: ${filteredEvents.length}`);
+    console.log(`[fetchEvents] Final events count: ${filteredEvents.length}`);
     
     return filteredEvents;
   } catch (error) {
