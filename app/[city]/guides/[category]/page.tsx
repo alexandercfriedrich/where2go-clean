@@ -4,18 +4,38 @@ import { TLDRBox } from '@/components/TLDRBox';
 import { FAQSection } from '@/components/FAQSection';
 import { VenueCard } from '@/components/VenueCard';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
-import { getGuideContentByCity, getAllGuidesForCity } from '@/data/guideContent';
-import { resolveCityFromParam } from '@/lib/city';
+import { getGuideContentByCity, getAllGuides, getAllGuidesForCity } from '@/data/guideContent';
+
+// Helper to normalize city name from URL param
+function normalizeCityParam(cityParam: string): string {
+  // Simple normalization: lowercase and trim
+  return cityParam.toLowerCase().trim();
+}
+
+// Helper to get display name for city
+function getCityDisplayName(cityParam: string): string {
+  const normalized = normalizeCityParam(cityParam);
+  // Capitalize first letter for display
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
 
 // Generate static params for all available city/category combinations
-export async function generateStaticParams({ params }: { params: { city: string } }) {
-  // For now, we'll generate guides for Wien
-  // In the future, this should check Hot Cities
-  const cityGuides = getAllGuidesForCity('wien');
+export async function generateStaticParams() {
+  const allGuides = getAllGuides();
   
-  return cityGuides.map((guide) => ({
-    category: guide.categorySlug,
-  }));
+  return allGuides.map((guide) => {
+    // Create city slug from guide.city
+    const citySlug = guide.city.toLowerCase()
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-');
+    
+    return {
+      city: citySlug,
+      category: guide.categorySlug,
+    };
+  });
 }
 
 // Generate metadata for the guide page
@@ -24,17 +44,8 @@ export async function generateMetadata({
 }: { 
   params: { city: string; category: string } 
 }) {
-  const strictMode = process.env.CITY_STRICT_MODE === 'true';
-  const resolved = await resolveCityFromParam(params.city, strictMode);
-  
-  if (!resolved) {
-    return {
-      title: 'Stadt nicht gefunden | Where2Go',
-      description: 'Die gewünschte Stadt konnte nicht gefunden werden.',
-    };
-  }
-
-  const guide = getGuideContentByCity(resolved.name, params.category);
+  const cityName = normalizeCityParam(params.city);
+  const guide = getGuideContentByCity(cityName, params.category);
   
   if (!guide) {
     return {
@@ -43,7 +54,7 @@ export async function generateMetadata({
     };
   }
 
-  const url = `https://www.where2go.at/${resolved.slug}/guides/${params.category}`;
+  const url = `https://www.where2go.at/${params.city}/guides/${params.category}`;
 
   return {
     title: guide.title,
@@ -64,23 +75,19 @@ export default async function GuidePage({
 }: { 
   params: { city: string; category: string } 
 }) {
-  const strictMode = process.env.CITY_STRICT_MODE === 'true';
-  const resolved = await resolveCityFromParam(params.city, strictMode);
-  
-  if (!resolved) {
-    notFound();
-  }
-
-  const guide = getGuideContentByCity(resolved.name, params.category);
+  const cityName = normalizeCityParam(params.city);
+  const guide = getGuideContentByCity(cityName, params.category);
 
   if (!guide) {
     notFound();
   }
 
+  const cityDisplayName = getCityDisplayName(params.city);
+
   const breadcrumbItems = [
-    { label: resolved.name, href: `/${resolved.slug}` },
-    { label: 'Guides', href: `/${resolved.slug}/guides` },
-    { label: guide.category, href: `/${resolved.slug}/guides/${params.category}` },
+    { label: cityDisplayName, href: `/${params.city}` },
+    { label: 'Guides', href: `/${params.city}/guides` },
+    { label: guide.category, href: `/${params.city}/guides/${params.category}` },
   ];
 
   return (
