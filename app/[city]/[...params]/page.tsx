@@ -2,6 +2,8 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import SchemaOrg from '@/components/SchemaOrg';
 import Breadcrumb from '@/components/Breadcrumb';
+import { TLDRBox } from '@/components/TLDRBox';
+import { VenueCard } from '@/components/VenueCard';
 import { generateEventListSchema, generateEventMicrodata, generateCanonicalUrl } from '@/lib/schemaOrg';
 import { resolveCityFromParam, dateTokenToISO, formatGermanDate, KNOWN_DATE_TOKENS } from '@/lib/city';
 import { getRevalidateFor } from '@/lib/isr';
@@ -11,6 +13,7 @@ import { getDayEvents, isEventValidNow } from '@/lib/dayCache';
 import { eventsCache } from '@/lib/cache';
 import { eventAggregator } from '@/lib/aggregator';
 import { generateCitySEO } from '@/lib/seoContent';
+import { getCategoryContent } from '@/data/categoryContent';
 import type { EventData } from '@/lib/types';
 
 // Mark as dynamic since we use Redis for HotCities
@@ -225,6 +228,9 @@ export default async function CityParamsPage({ params }: { params: { city: strin
   const events = await fetchEvents(resolved.name, dateISO, category);
   const listSchema = generateEventListSchema(events, resolved.name, dateISO, 'https://www.where2go.at');
   const seoContent = generateCitySEO(resolved.name, dateParam, category || undefined);
+  
+  // Get category-specific content if category is filtered
+  const categoryContent = category ? getCategoryContent(resolved.name, category) : null;
 
   const categoryPart = category ? `${category} ` : '';
   const categorySlug = category ? p[0] : '';
@@ -486,6 +492,109 @@ export default async function CityParamsPage({ params }: { params: { city: strin
             );
           })}
         </div>
+
+        {/* Category-Specific Content Section */}
+        {categoryContent && (
+          <div style={{ marginTop: '48px', marginBottom: '48px' }}>
+            <h2 style={{ 
+              fontSize: '28px', 
+              fontWeight: 700, 
+              color: '#FFFFFF', 
+              marginBottom: '20px' 
+            }}>
+              Was macht {category} in {resolved.name} besonders?
+            </h2>
+            <p style={{ 
+              fontSize: '16px', 
+              lineHeight: '1.8', 
+              color: 'rgba(255, 255, 255, 0.85)', 
+              marginBottom: '32px' 
+            }}>
+              {categoryContent.description}
+            </p>
+
+            {categoryContent.topVenues.length > 0 && (
+              <>
+                <h3 style={{ 
+                  fontSize: '24px', 
+                  fontWeight: 600, 
+                  color: '#FFFFFF', 
+                  marginBottom: '20px' 
+                }}>
+                  Top Locations für {category}
+                </h3>
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
+                  gap: '20px', 
+                  marginBottom: '32px' 
+                }}>
+                  {categoryContent.topVenues.map((venue, idx) => (
+                    <VenueCard
+                      key={idx}
+                      name={venue.name}
+                      description={venue.description}
+                      address={venue.address}
+                      capacity={venue.capacity}
+                      priceRange={venue.priceRange}
+                      specialFeature={venue.specialFeature}
+                      insiderTip={venue.insiderTip}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
+
+            {categoryContent.insiderTips.length > 0 && (
+              <>
+                <h3 style={{ 
+                  fontSize: '24px', 
+                  fontWeight: 600, 
+                  color: '#FFFFFF', 
+                  marginBottom: '16px' 
+                }}>
+                  Insider-Tipps
+                </h3>
+                <ul style={{ 
+                  listStyle: 'none', 
+                  padding: 0, 
+                  marginBottom: '32px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}>
+                  {categoryContent.insiderTips.map((tip, idx) => (
+                    <li 
+                      key={idx}
+                      style={{
+                        fontSize: '15px',
+                        lineHeight: '1.6',
+                        color: 'rgba(255, 255, 255, 0.85)',
+                        paddingLeft: '24px',
+                        position: 'relative',
+                      }}
+                    >
+                      <span style={{
+                        position: 'absolute',
+                        left: '0',
+                        color: '#FF6B35',
+                        fontWeight: 'bold',
+                      }}>
+                        💡
+                      </span>
+                      {tip}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+
+            <TLDRBox
+              title={`${category} in ${resolved.name} - Zusammenfassung`}
+              items={categoryContent.tldrItems}
+            />
+          </div>
+        )}
 
         {/* SEO Content Section */}
         <div className="seo-content-section">
