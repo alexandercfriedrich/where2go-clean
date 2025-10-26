@@ -186,7 +186,8 @@ export default async function GuidePage({
       name: v.name,
       description: v.description || `${v.name} in ${cityDisplayName}`,
       address: v.address?.full || v.address?.street,
-      // priceRange and insiderTip omitted for Hot City venues
+      priceRange: undefined,
+      insiderTip: undefined,
     }))
   ];
 
