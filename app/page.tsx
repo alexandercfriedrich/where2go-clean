@@ -627,7 +627,7 @@ export default function Home() {
 
       {/* TL;DR Box - Homepage Highlights */}
       {!searchSubmitted && (
-        <section className="search-section" style={{ paddingTop: '20px', paddingBottom: '20px' }}>
+        <section className="search-section py-5">
           <div className="container">
             <TLDRBox
               items={[
@@ -872,11 +872,11 @@ export default function Home() {
           </>
         )}
 
-        <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+        <div className="flex gap-5 items-start">
           {/* Left sidebar: Category-Venue hierarchy - Point 11: Always show when events are displayed */}
           {events.length > 0 && Object.keys(getCategoryCounts()).length > 0 && (
             <aside className="venue-filter-sidebar">
-              <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '20px', color: '#000' }}>Filters & Categories</h3>
+              <h3 className="text-lg font-bold mb-5 text-black">Filters & Categories</h3>
               
               {Object.entries(getCategoryCounts())
                 .sort((a, b) => b[1] - a[1])
@@ -888,18 +888,9 @@ export default function Home() {
                   const someVenuesSelected = categoryVenues.some(v => selectedVenues.includes(v));
                   
                   return (
-                    <div key={category} style={{ marginBottom: '8px' }}>
+                    <div key={category} className="mb-2">
                       <div 
-                        style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: '12px',
-                          padding: '12px 16px',
-                          background: '#f8f8f8',
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          transition: 'background 0.2s'
-                        }}
+                        className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg cursor-pointer transition-colors hover:bg-gray-100"
                         onClick={() => {
                           setExpandedCategories(prev =>
                             prev.includes(category)
@@ -934,7 +925,7 @@ export default function Home() {
                             }
                           }}
                           onClick={(e) => e.stopPropagation()}
-                          style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                          className="cursor-pointer w-[18px] h-[18px]"
                         />
                         <svg 
                           width="16" 
@@ -943,29 +934,24 @@ export default function Home() {
                           fill="none" 
                           stroke="currentColor" 
                           strokeWidth="2"
-                          style={{ 
-                            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
-                            transition: 'transform 0.2s',
-                            flexShrink: 0
-                          }}
+                          className={`transition-transform duration-200 shrink-0 ${isExpanded ? 'rotate-90' : 'rotate-0'}`}
                         >
                           <polyline points="9 18 15 12 9 6"></polyline>
                         </svg>
-                        <span style={{ flex: 1, fontWeight: 500, fontSize: '15px', color: '#000' }}>{category}</span>
-                        <span style={{ fontSize: '14px', color: '#666', fontWeight: 400 }}>({categoryCount})</span>
+                        <span className="flex-1 font-medium text-[15px] text-black">{category}</span>
+                        <span className="text-sm text-gray-600">({categoryCount})</span>
                       </div>
                       
                       {isExpanded && (
-                        <div style={{ marginLeft: '32px', marginTop: '8px' }}>
+                        <div className="ml-8 mt-2">
                           {Object.entries(venues)
                             .sort((a, b) => b[1] - a[1])
                             .map(([venue, count]) => (
                               <div 
                                 key={venue} 
-                                className="venue-filter-item"
-                                style={{ marginBottom: '6px', position: 'relative' }}
+                                className="venue-filter-item mb-1.5 relative"
                               >
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', padding: '4px 0' }}>
+                                <label className="flex items-center gap-2 cursor-pointer text-[13px] py-1">
                                   <input
                                     type="checkbox"
                                     checked={selectedVenues.includes(venue)}
@@ -976,12 +962,12 @@ export default function Home() {
                                           : prev.filter(v => v !== venue)
                                       );
                                     }}
-                                    style={{ cursor: 'pointer' }}
+                                    className="cursor-pointer"
                                   />
-                                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  <span className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">
                                     {venue}
                                   </span>
-                                  <span style={{ fontSize: '11px', color: '#999' }}>({count})</span>
+                                  <span className="text-[11px] text-gray-400">({count})</span>
                                   
                                   {/* Point 5: "nur" button on hover */}
                                   {hoveredVenue === venue && (
@@ -997,26 +983,7 @@ export default function Home() {
                                           setResultsPageCategoryFilter([category]);
                                         }
                                       }}
-                                      style={{
-                                        padding: '2px 8px',
-                                        fontSize: '11px',
-                                        color: '#667eea',
-                                        background: 'transparent',
-                                        border: '1px solid #667eea',
-                                        borderRadius: '4px',
-                                        cursor: 'pointer',
-                                        fontWeight: 500,
-                                        transition: 'all 0.15s',
-                                        marginLeft: '4px'
-                                      }}
-                                      onMouseOver={(e) => {
-                                        e.currentTarget.style.background = '#667eea';
-                                        e.currentTarget.style.color = 'white';
-                                      }}
-                                      onMouseOut={(e) => {
-                                        e.currentTarget.style.background = 'transparent';
-                                        e.currentTarget.style.color = '#667eea';
-                                      }}
+                                      className="px-2 py-0.5 text-[11px] text-indigo-500 bg-transparent border border-indigo-500 rounded cursor-pointer font-medium transition-all duration-150 ml-1 hover:bg-indigo-500 hover:text-white"
                                     >
                                       nur
                                     </button>
@@ -1032,7 +999,7 @@ export default function Home() {
             </aside>
           )}
 
-        <main className="main-content" style={{ flex: 1 }}>
+        <main className="main-content flex-1">
           {error && <div className="error">{error}</div>}
 
           {loading && events.length === 0 && (
@@ -1243,34 +1210,16 @@ export default function Home() {
 
       {/* Beliebte Event-Guides Section - NEU */}
       {!searchSubmitted && (
-        <section style={{ padding: '48px 16px', background: 'linear-gradient(135deg, #1A1A1A 0%, #2A2A2A 100%)' }}>
-          <div className="container" style={{ maxWidth: '1200px', margin: '0 auto' }}>
-            <h2 style={{ 
-              fontSize: '32px', 
-              fontWeight: 700, 
-              color: '#FFFFFF', 
-              marginBottom: '16px',
-              textAlign: 'center'
-            }}>
+        <section className="py-12 px-4 bg-gradient-to-br from-[#1A1A1A] to-[#2A2A2A]">
+          <div className="container max-w-7xl mx-auto">
+            <h2 className="text-[32px] font-bold text-white mb-4 text-center">
               🎯 Beliebte Event-Guides
             </h2>
-            <p style={{ 
-              fontSize: '16px', 
-              color: 'rgba(255, 255, 255, 0.7)', 
-              marginBottom: '40px',
-              textAlign: 'center',
-              maxWidth: '800px',
-              margin: '0 auto 40px'
-            }}>
+            <p className="text-base text-white/70 mb-10 text-center max-w-3xl mx-auto">
               Entdecke unsere detaillierten Guides zu den besten Events in deiner Stadt
             </p>
             
-            <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', 
-              gap: '24px',
-              marginBottom: '32px'
-            }}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
               {getAllGuides().map((guide) => {
                 // Extract city slug from guide data
                 const citySlug = guide.city.toLowerCase()
@@ -1285,61 +1234,25 @@ export default function Home() {
                   <Link
                     key={guide.slug}
                     href={guideUrl}
-                    className="guide-card-link"
-                    style={{
-                      display: 'block',
-                      padding: '24px',
-                      background: 'rgba(255, 255, 255, 0.05)',
-                      borderRadius: '12px',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
-                      textDecoration: 'none',
-                      transition: 'all 0.3s ease',
-                      cursor: 'pointer',
-                    }}
+                    className="block p-6 bg-white/5 rounded-xl border border-white/10 no-underline transition-all duration-300 cursor-pointer hover:bg-white/10 hover:border-white/20 hover:-translate-y-1"
                   >
-                    <div style={{ marginBottom: '12px' }}>
-                      <span style={{
-                        display: 'inline-block',
-                        padding: '4px 12px',
-                        background: 'rgba(255, 107, 53, 0.2)',
-                        color: '#FF6B35',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        marginBottom: '12px'
-                      }}>
+                    <div className="mb-3">
+                      <span className="inline-block px-3 py-1 bg-[#FF6B35]/20 text-[#FF6B35] rounded-md text-xs font-semibold mb-3">
                         {guide.city}
                       </span>
                     </div>
                     
-                    <h3 style={{ 
-                      fontSize: '20px', 
-                      fontWeight: 600, 
-                      color: '#FFFFFF', 
-                      marginBottom: '12px',
-                      lineHeight: '1.3'
-                    }}>
+                    <h3 className="text-xl font-semibold text-white mb-3 leading-tight">
                       {guide.category}
                     </h3>
                     
-                    <p style={{ 
-                      fontSize: '14px', 
-                      color: 'rgba(255, 255, 255, 0.7)', 
-                      lineHeight: '1.6',
-                      marginBottom: '16px'
-                    }}>
+                    <p className="text-sm text-white/70 leading-relaxed mb-4">
                       {guide.description.slice(0, 120)}...
                     </p>
                     
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      color: '#FF6B35',
-                      fontSize: '14px',
-                      fontWeight: 600
-                    }}>
+                    <div className="flex items-center text-[#FF6B35] text-sm font-semibold">
                       Guide lesen
-                      <span style={{ marginLeft: '8px' }}>→</span>
+                      <span className="ml-2">→</span>
                     </div>
                   </Link>
                 );
@@ -1351,8 +1264,8 @@ export default function Home() {
 
       {/* FAQ Section - Homepage */}
       {!searchSubmitted && (
-        <section style={{ padding: '24px 16px' }}>
-          <div className="container" style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <section className="py-6 px-4">
+          <div className="container max-w-7xl mx-auto">
             <FAQSection faqs={homepageFAQs} />
           </div>
         </section>

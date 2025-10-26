@@ -34,49 +34,21 @@ export function FAQSection({ faqs, title = 'Häufig gestellte Fragen' }: FAQSect
       />
       
       {/* Visual FAQ Section */}
-      <section
-        style={{
-          marginTop: '48px',
-          marginBottom: '48px',
-        }}
-      >
-        <h2
-          style={{
-            fontSize: '28px',
-            fontWeight: 700,
-            color: '#FFFFFF',
-            marginBottom: '24px',
-          }}
-        >
+      <section className="mt-12 mb-12">
+        <h2 className="text-3xl font-bold text-white mb-6">
           {title}
         </h2>
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '20px',
-          }}
-        >
+        <div className="flex flex-col gap-5">
           {faqs.map((faq, index) => (
             <div
               key={index}
               itemScope
               itemType="https://schema.org/Question"
-              style={{
-                background: 'linear-gradient(135deg, #2A2A2A 0%, #1F1F1F 100%)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '12px',
-                padding: '20px',
-              }}
+              className="bg-gradient-to-br from-[#2A2A2A] to-[#1F1F1F] border border-white/10 rounded-xl p-5"
             >
               <h3
                 itemProp="name"
-                style={{
-                  fontSize: '18px',
-                  fontWeight: 600,
-                  color: '#FFFFFF',
-                  marginBottom: '12px',
-                }}
+                className="text-lg font-semibold text-white mb-3"
               >
                 {faq.question}
               </h3>
@@ -87,11 +59,7 @@ export function FAQSection({ faqs, title = 'Häufig gestellte Fragen' }: FAQSect
               >
                 <div
                   itemProp="text"
-                  style={{
-                    fontSize: '15px',
-                    lineHeight: '1.6',
-                    color: 'rgba(255, 255, 255, 0.85)',
-                  }}
+                  className="text-[15px] leading-relaxed text-white/85"
                 >
                   {faq.answer}
                 </div>
