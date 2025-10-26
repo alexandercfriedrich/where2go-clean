@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useRef, useState, CSSProperties } from 'react';
+import Link from 'next/link';
 import { EVENT_CATEGORY_SUBCATEGORIES, normalizeCategory } from './lib/eventCategories';
 import { useTranslation } from './lib/useTranslation';
 import { startJobPolling, deduplicateEvents as dedupFront } from './lib/polling';
@@ -11,6 +12,7 @@ import { generateEventListSchema, generateEventMicrodata, generateCanonicalUrl }
 import { TLDRBox } from './components/TLDRBox';
 import { FAQSection } from './components/FAQSection';
 import { homepageFAQs } from './data/faqDatabase';
+import { getAllGuides } from './data/guideContent';
 
 interface EventData {
   title: string;
@@ -1238,6 +1240,123 @@ export default function Home() {
         <div className="toast-container">
           <div className="toast">{toast.message}</div>
         </div>
+      )}
+
+      {/* Beliebte Event-Guides Section - NEU */}
+      {!searchSubmitted && (
+        <section style={{ padding: '48px 16px', background: 'linear-gradient(135deg, #1A1A1A 0%, #2A2A2A 100%)' }}>
+          <div className="container" style={{ maxWidth: '1200px', margin: '0 auto' }}>
+            <h2 style={{ 
+              fontSize: '32px', 
+              fontWeight: 700, 
+              color: '#FFFFFF', 
+              marginBottom: '16px',
+              textAlign: 'center'
+            }}>
+              🎯 Beliebte Event-Guides
+            </h2>
+            <p style={{ 
+              fontSize: '16px', 
+              color: 'rgba(255, 255, 255, 0.7)', 
+              marginBottom: '40px',
+              textAlign: 'center',
+              maxWidth: '800px',
+              margin: '0 auto 40px'
+            }}>
+              Entdecke unsere detaillierten Guides zu den besten Events in deiner Stadt
+            </p>
+            
+            <div style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', 
+              gap: '24px',
+              marginBottom: '32px'
+            }}>
+              {getAllGuides().map((guide) => {
+                // Extract city slug from guide data
+                const citySlug = guide.city.toLowerCase()
+                  .normalize('NFKD')
+                  .replace(/[\u0300-\u036f]/g, '')
+                  .replace(/[^a-z0-9\s-]/g, '')
+                  .replace(/\s+/g, '-');
+                
+                const guideUrl = `/${citySlug}/guides/${guide.categorySlug}`;
+                
+                return (
+                  <Link
+                    key={guide.slug}
+                    href={guideUrl}
+                    style={{
+                      display: 'block',
+                      padding: '24px',
+                      background: 'rgba(255, 255, 255, 0.05)',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      textDecoration: 'none',
+                      transition: 'all 0.3s ease',
+                      cursor: 'pointer',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+                      e.currentTarget.style.borderColor = 'rgba(255, 107, 53, 0.5)';
+                      e.currentTarget.style.transform = 'translateY(-4px)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    <div style={{ marginBottom: '12px' }}>
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '4px 12px',
+                        background: 'rgba(255, 107, 53, 0.2)',
+                        color: '#FF6B35',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        marginBottom: '12px'
+                      }}>
+                        {guide.city}
+                      </span>
+                    </div>
+                    
+                    <h3 style={{ 
+                      fontSize: '20px', 
+                      fontWeight: 600, 
+                      color: '#FFFFFF', 
+                      marginBottom: '12px',
+                      lineHeight: '1.3'
+                    }}>
+                      {guide.category}
+                    </h3>
+                    
+                    <p style={{ 
+                      fontSize: '14px', 
+                      color: 'rgba(255, 255, 255, 0.7)', 
+                      lineHeight: '1.6',
+                      marginBottom: '16px'
+                    }}>
+                      {guide.description.slice(0, 120)}...
+                    </p>
+                    
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      color: '#FF6B35',
+                      fontSize: '14px',
+                      fontWeight: 600
+                    }}>
+                      Guide lesen
+                      <span style={{ marginLeft: '8px' }}>→</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </section>
       )}
 
       {/* FAQ Section - Homepage */}
