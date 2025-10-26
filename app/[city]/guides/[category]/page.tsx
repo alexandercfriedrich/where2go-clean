@@ -59,13 +59,13 @@ async function getHotCityVenuesForCategory(
 
     // Map guide category to event categories for filtering
     const eventCategories = mapGuideCategoryToEventCategories(categorySlug);
-    
+    const normalizedEventCategories = eventCategories.map(ec => normalizeCategory(ec));
     // Filter venues by category and active status
     return hotCity.venues.filter((venue: HotCityVenue) => 
       venue.isActive &&
       venue.categories && 
       venue.categories.some((cat: string) => 
-        eventCategories.some(ec => normalizeCategory(cat) === normalizeCategory(ec))
+        normalizedEventCategories.includes(normalizeCategory(cat))
       )
     );
   } catch (error) {
