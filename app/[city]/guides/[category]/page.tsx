@@ -4,21 +4,37 @@ import { TLDRBox } from '@/components/TLDRBox';
 import { FAQSection } from '@/components/FAQSection';
 import { VenueCard } from '@/components/VenueCard';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
-import { getGuideContent, getAllGuideSlugs } from '@/data/guideContent';
+import { getGuideContentByCity, getAllGuidesForCity } from '@/data/guideContent';
+import { resolveCityFromParam } from '@/lib/city';
 
-// Generate static params for all available guides
-export async function generateStaticParams() {
-  const slugs = getAllGuideSlugs();
-  return slugs.map((slug) => {
-    // Parse slug format: [category]-[city]
-    // For "live-konzerte-wien", we return slug as is
-    return { slug };
-  });
+// Generate static params for all available city/category combinations
+export async function generateStaticParams({ params }: { params: { city: string } }) {
+  // For now, we'll generate guides for Wien
+  // In the future, this should check Hot Cities
+  const cityGuides = getAllGuidesForCity('wien');
+  
+  return cityGuides.map((guide) => ({
+    category: guide.categorySlug,
+  }));
 }
 
 // Generate metadata for the guide page
-export async function generateMetadata({ params }: { params: { slug: string } }) {
-  const guide = getGuideContent(params.slug);
+export async function generateMetadata({ 
+  params 
+}: { 
+  params: { city: string; category: string } 
+}) {
+  const strictMode = process.env.CITY_STRICT_MODE === 'true';
+  const resolved = await resolveCityFromParam(params.city, strictMode);
+  
+  if (!resolved) {
+    return {
+      title: 'Stadt nicht gefunden | Where2Go',
+      description: 'Die gewünschte Stadt konnte nicht gefunden werden.',
+    };
+  }
+
+  const guide = getGuideContentByCity(resolved.name, params.category);
   
   if (!guide) {
     return {
@@ -27,7 +43,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
     };
   }
 
-  const url = `https://www.where2go.at/guide/${params.slug}`;
+  const url = `https://www.where2go.at/${resolved.slug}/guides/${params.category}`;
 
   return {
     title: guide.title,
@@ -43,16 +59,28 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   };
 }
 
-export default async function GuidePage({ params }: { params: { slug: string } }) {
-  const guide = getGuideContent(params.slug);
+export default async function GuidePage({ 
+  params 
+}: { 
+  params: { city: string; category: string } 
+}) {
+  const strictMode = process.env.CITY_STRICT_MODE === 'true';
+  const resolved = await resolveCityFromParam(params.city, strictMode);
+  
+  if (!resolved) {
+    notFound();
+  }
+
+  const guide = getGuideContentByCity(resolved.name, params.category);
 
   if (!guide) {
     notFound();
   }
 
   const breadcrumbItems = [
-    { label: 'Guides', href: '/guides' },
-    { label: guide.category, href: `/guide/${params.slug}` },
+    { label: resolved.name, href: `/${resolved.slug}` },
+    { label: 'Guides', href: `/${resolved.slug}/guides` },
+    { label: guide.category, href: `/${resolved.slug}/guides/${params.category}` },
   ];
 
   return (

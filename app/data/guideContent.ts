@@ -20,6 +20,7 @@ export interface GuideContent {
   description: string;
   city: string;
   category: string;
+  categorySlug: string; // URL-friendly category slug
   heroText: string;
   tldrItems: string[];
   sections: GuideSection[];
@@ -36,6 +37,7 @@ const liveKonzerteWienGuide: GuideContent = {
   description: 'Entdecke die besten Live-Konzerte, Locations und Events in Wien. Von klassischen Konzerten bis zu elektronischer Musik – dein kompletter Guide für unvergessliche Musik-Erlebnisse.',
   city: 'Wien',
   category: 'Live Konzerte',
+  categorySlug: 'live-konzerte',
   heroText: 'Wien ist die Musikhauptstadt Europas. Mit über 100 Live-Events pro Woche, von der Staatsoper bis zum Underground-Club, bietet die Stadt für jeden Musikgeschmack das Richtige.',
   tldrItems: [
     'Täglich 50+ Live-Konzerte in allen Genres',
@@ -114,17 +116,62 @@ const liveKonzerteWienGuide: GuideContent = {
   ctaLink: '/wien/live-konzerte',
 };
 
-// Guide database
-export const guideDatabase: Record<string, GuideContent> = {
-  'live-konzerte-wien': liveKonzerteWienGuide,
+// Guide database organized by city
+export const guideDatabase: Record<string, Record<string, GuideContent>> = {
+  wien: {
+    'live-konzerte': liveKonzerteWienGuide,
+  },
 };
 
-// Helper function to get guide content
-export function getGuideContent(slug: string): GuideContent | null {
-  return guideDatabase[slug] || null;
+// Helper function to get guide content by city and category
+export function getGuideContentByCity(city: string, categorySlug: string): GuideContent | null {
+  const normalizedCity = city.toLowerCase().trim();
+  const cityGuides = guideDatabase[normalizedCity];
+  
+  if (!cityGuides) {
+    return null;
+  }
+  
+  return cityGuides[categorySlug] || null;
 }
 
-// Helper to list all available guides
+// Helper to get all guides for a specific city
+export function getAllGuidesForCity(city: string): GuideContent[] {
+  const normalizedCity = city.toLowerCase().trim();
+  const cityGuides = guideDatabase[normalizedCity];
+  
+  if (!cityGuides) {
+    return [];
+  }
+  
+  return Object.values(cityGuides);
+}
+
+// Helper to list all available guides (all cities)
+export function getAllGuides(): GuideContent[] {
+  const allGuides: GuideContent[] = [];
+  
+  for (const cityGuides of Object.values(guideDatabase)) {
+    allGuides.push(...Object.values(cityGuides));
+  }
+  
+  return allGuides;
+}
+
+// Legacy function for backward compatibility (deprecated)
+export function getGuideContent(slug: string): GuideContent | null {
+  // Parse slug format: [category]-[city]
+  const parts = slug.split('-');
+  if (parts.length < 2) return null;
+  
+  // Assume last part is city, rest is category
+  const city = parts[parts.length - 1];
+  const categorySlug = parts.slice(0, -1).join('-');
+  
+  return getGuideContentByCity(city, categorySlug);
+}
+
+// Legacy function for backward compatibility (deprecated)
 export function getAllGuideSlugs(): string[] {
-  return Object.keys(guideDatabase);
+  return getAllGuides().map(guide => guide.slug);
 }
