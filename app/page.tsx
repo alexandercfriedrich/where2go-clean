@@ -8,6 +8,9 @@ import SEOFooter from './components/SEOFooter';
 import EventCardSkeleton from './components/EventCardSkeleton';
 import OptimizedSearch from './components/OptimizedSearch';
 import { generateEventListSchema, generateEventMicrodata, generateCanonicalUrl } from './lib/schemaOrg';
+import { TLDRBox } from './components/TLDRBox';
+import { FAQSection } from './components/FAQSection';
+import { homepageFAQs } from './data/faqDatabase';
 
 interface EventData {
   title: string;
@@ -620,6 +623,23 @@ export default function Home() {
         </div>
       </header>
 
+      {/* TL;DR Box - Homepage Highlights */}
+      {!searchSubmitted && (
+        <section className="search-section" style={{ paddingTop: '20px', paddingBottom: '20px' }}>
+          <div className="container">
+            <TLDRBox
+              items={[
+                'Entdecke täglich neue Events in deiner Stadt',
+                'Filtere nach Kategorie, Datum und Location',
+                'Von klassischen Konzerten bis zu Club-Partys',
+                'Alle Infos: Preise, Zeiten, Locations und Tickets',
+                'Kostenlose und bezahlte Events auf einen Blick',
+              ]}
+            />
+          </div>
+        </section>
+      )}
+
       <section className="search-section">
         <div className="container">
           <form
@@ -1218,6 +1238,15 @@ export default function Home() {
         <div className="toast-container">
           <div className="toast">{toast.message}</div>
         </div>
+      )}
+
+      {/* FAQ Section - Homepage */}
+      {!searchSubmitted && (
+        <section style={{ padding: '24px 16px' }}>
+          <div className="container" style={{ maxWidth: '1200px', margin: '0 auto' }}>
+            <FAQSection faqs={homepageFAQs} />
+          </div>
+        </section>
       )}
 
       {/* SEO Footer - only on homepage */}

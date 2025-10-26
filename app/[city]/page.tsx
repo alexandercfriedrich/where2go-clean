@@ -1,6 +1,8 @@
 import Link from 'next/link';
 import SchemaOrg from '@/components/SchemaOrg';
 import Breadcrumb from '@/components/Breadcrumb';
+import { TLDRBox } from '@/components/TLDRBox';
+import { FAQSection } from '@/components/FAQSection';
 import { generateEventListSchema, generateEventMicrodata, generateCanonicalUrl } from '@/lib/schemaOrg';
 import { resolveCityFromParam, dateTokenToISO, formatGermanDate } from '@/lib/city';
 import { getRevalidateFor } from '@/lib/isr';
@@ -9,6 +11,7 @@ import { eventsCache } from '@/lib/cache';
 import { eventAggregator } from '@/lib/aggregator';
 import { EVENT_CATEGORIES, normalizeCategory, EVENT_CATEGORY_SUBCATEGORIES } from '@/lib/eventCategories';
 import { generateCitySEO } from '@/lib/seoContent';
+import { getCityContent } from '@/data/cityContent';
 import type { EventData } from '@/lib/types';
 
 // Mark as dynamic since we use Redis for HotCities
@@ -84,6 +87,7 @@ export default async function CityPage({ params }: { params: { city: string } })
   const events = await fetchEvents(resolved.name, dateISO);
   const listSchema = generateEventListSchema(events, resolved.name, dateISO, 'https://www.where2go.at');
   const seoContent = generateCitySEO(resolved.name);
+  const cityContent = getCityContent(resolved.name);
 
   const breadcrumbItems = [
     { label: resolved.name, href: `/${resolved.slug}` }
@@ -333,6 +337,36 @@ export default async function CityPage({ params }: { params: { city: string } })
               </div>
             );
           })}
+        </div>
+
+        {/* City Intro Content Section */}
+        <div style={{ marginTop: '48px', marginBottom: '48px' }}>
+          <h2 style={{ 
+            fontSize: '28px', 
+            fontWeight: 700, 
+            color: '#FFFFFF', 
+            marginBottom: '20px' 
+          }}>
+            Was macht {resolved.name} besonders für Events?
+          </h2>
+          <p style={{ 
+            fontSize: '16px', 
+            lineHeight: '1.8', 
+            color: 'rgba(255, 255, 255, 0.85)', 
+            marginBottom: '24px' 
+          }}>
+            {cityContent.intro}
+          </p>
+
+          <TLDRBox
+            title={`${resolved.name} Event-Highlights`}
+            items={cityContent.highlights}
+          />
+
+          <FAQSection 
+            faqs={cityContent.faqs} 
+            title={`Häufige Fragen zu Events in ${resolved.name}`}
+          />
         </div>
 
         {/* SEO Content Section */}
