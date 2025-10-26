@@ -111,6 +111,7 @@ export default async function GuidesOverviewPage({
             <Link
               key={guide.slug}
               href={`/${params.city}/guides/${guide.categorySlug}`}
+              className="guide-overview-card"
               style={{
                 display: 'block',
                 background: 'rgba(255, 255, 255, 0.05)',
@@ -119,16 +120,6 @@ export default async function GuidesOverviewPage({
                 padding: '32px',
                 textDecoration: 'none',
                 transition: 'all 0.3s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                e.currentTarget.style.borderColor = 'rgba(255, 107, 53, 0.5)';
-                e.currentTarget.style.transform = 'translateY(-4px)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
               <h2
@@ -212,6 +203,7 @@ export default async function GuidesOverviewPage({
         <div style={{ marginTop: '48px', textAlign: 'center' }}>
           <Link
             href={`/${params.city}`}
+            className="back-to-city-link"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -224,12 +216,6 @@ export default async function GuidesOverviewPage({
               fontSize: '16px',
               fontWeight: 600,
               transition: 'all 0.3s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.15)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)';
             }}
           >
             ← Zurück zu {cityDisplayName}

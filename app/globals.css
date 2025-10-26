@@ -966,3 +966,26 @@ body {
   background-color: #000;
 }
 
+/* Guide Card Hover Effects - Fix for Client Component Event Handlers */
+.guide-card-link:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 107, 53, 0.5) !important;
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.guide-overview-card:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+  border-color: rgba(255, 107, 53, 0.5) !important;
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+.back-to-city-link:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+}
+
+.venue-filter-item:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+

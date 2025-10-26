@@ -962,9 +962,8 @@ export default function Home() {
                             .map(([venue, count]) => (
                               <div 
                                 key={venue} 
+                                className="venue-filter-item"
                                 style={{ marginBottom: '6px', position: 'relative' }}
-                                onMouseEnter={() => setHoveredVenue(venue)}
-                                onMouseLeave={() => setHoveredVenue(null)}
                               >
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', padding: '4px 0' }}>
                                   <input
@@ -1286,6 +1285,7 @@ export default function Home() {
                   <Link
                     key={guide.slug}
                     href={guideUrl}
+                    className="guide-card-link"
                     style={{
                       display: 'block',
                       padding: '24px',
@@ -1295,16 +1295,6 @@ export default function Home() {
                       textDecoration: 'none',
                       transition: 'all 0.3s ease',
                       cursor: 'pointer',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
-                      e.currentTarget.style.borderColor = 'rgba(255, 107, 53, 0.5)';
-                      e.currentTarget.style.transform = 'translateY(-4px)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                      e.currentTarget.style.transform = 'translateY(0)';
                     }}
                   >
                     <div style={{ marginBottom: '12px' }}>
