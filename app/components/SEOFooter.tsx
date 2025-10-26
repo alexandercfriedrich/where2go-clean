@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { getAllGuides } from '@/data/guideContent';
 
 interface City {
   name: string;
@@ -106,6 +107,32 @@ export default function SEOFooter() {
             </div>
           </div>
         )}
+
+        {/* Event-Guides Section */}
+        <div className="city-links-section">
+          <h3>Event-Guides</h3>
+          <div className="city-links-grid">
+            {getAllGuides().slice(0, 6).map((guide) => {
+              const citySlug = guide.city.toLowerCase()
+                .normalize('NFKD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9\s-]/g, '')
+                .replace(/\s+/g, '-');
+              
+              return (
+                <div key={guide.slug} className="city-links-group">
+                  <Link 
+                    href={`/${citySlug}/guides/${guide.categorySlug}`}
+                    className="guide-link"
+                  >
+                    <span className="guide-arrow">→</span>
+                    {guide.title}
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       <style jsx>{`
@@ -218,6 +245,32 @@ export default function SEOFooter() {
         .city-links-group a:hover {
           color: #4a7de8;
           text-decoration: underline;
+        }
+        
+        .guide-link {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          color: #5b8cff;
+          text-decoration: none;
+          font-size: 15px;
+          line-height: 1.6;
+          transition: color 0.2s ease;
+        }
+        
+        .guide-link:hover {
+          color: #4a7de8;
+          text-decoration: underline;
+        }
+        
+        .guide-arrow {
+          font-size: 12px;
+          color: #9ca3af;
+          transition: color 0.2s ease;
+        }
+        
+        .guide-link:hover .guide-arrow {
+          color: #FF6B35;
         }
 
         @media (max-width: 768px) {
