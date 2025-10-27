@@ -91,7 +91,12 @@ class InMemoryCache {
     missingCategories: string[];
     cacheInfo: { [category: string]: { fromCache: boolean; eventCount: number } };
   }> {
-    console.log('[DEBUG Cache.getEventsByCategories] Input:', { city, date, categories });
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const debugEnabled = process.env.DEBUG_CACHE === 'true' || isDevelopment;
+    
+    if (debugEnabled) {
+      console.log('[DEBUG Cache.getEventsByCategories] Input:', { city, date, categories });
+    }
     
     const cachedEvents: Record<string, any[]> = {};
     const missingCategories: string[] = [];
@@ -99,33 +104,42 @@ class InMemoryCache {
 
     for (const category of categories) {
       const key = InMemoryCache.createKeyForCategory(city, date, category);
-      // Sanitize category name for logging
-      const sanitizedCategory = String(category).replace(/[^\w\s&/-]/g, '');
-      console.log(`[DEBUG Cache] Looking up category "${sanitizedCategory}" with key: ${key}`);
+      
+      if (debugEnabled) {
+        // Sanitize category name for logging
+        const sanitizedCategory = String(category).replace(/[^\w\s&/-]/g, '');
+        console.log(`[DEBUG Cache] Looking up category "${sanitizedCategory}" with key: ${key}`);
+      }
       
       const events = await this.get<any[]>(key);
       
       if (Array.isArray(events) && events.length > 0) {
         cachedEvents[category] = events;
         cacheInfo[category] = { fromCache: true, eventCount: events.length };
-        // Sanitize category name for logging to prevent any potential issues
-        const sanitizedCategory = String(category).replace(/[^\w\s&/-]/g, '');
-        console.log(`[DEBUG Cache] ✅ Found ${events.length} events for category "${sanitizedCategory}"`);
+        if (debugEnabled) {
+          // Sanitize category name for logging to prevent any potential issues
+          const sanitizedCategory = String(category).replace(/[^\w\s&/-]/g, '');
+          console.log(`[DEBUG Cache] ✅ Found ${events.length} events for category "${sanitizedCategory}"`);
+        }
       } else {
         missingCategories.push(category);
         cacheInfo[category] = { fromCache: false, eventCount: 0 };
-        // Sanitized for logging - safe to use in template string
-        const sanitizedCategory = String(category).replace(/[^\w\s&/-]/g, '');
-        console.log(`[DEBUG Cache] ❌ No events found for category "${sanitizedCategory}"`, events === null ? '(key not found)' : '(empty array)');
+        if (debugEnabled) {
+          // Sanitized for logging - safe to use in template string
+          const sanitizedCategory = String(category).replace(/[^\w\s&/-]/g, '');
+          console.log(`[DEBUG Cache] ❌ No events found for category "${sanitizedCategory}"`, events === null ? '(key not found)' : '(empty array)');
+        }
       }
     }
     
-    console.log('[DEBUG Cache.getEventsByCategories] Summary:', {
-      totalCategories: categories.length,
-      cachedCategories: Object.keys(cachedEvents).length,
-      missingCategories: missingCategories.length,
-      totalEvents: Object.values(cachedEvents).reduce((sum, arr) => sum + arr.length, 0)
-    });
+    if (debugEnabled) {
+      console.log('[DEBUG Cache.getEventsByCategories] Summary:', {
+        totalCategories: categories.length,
+        cachedCategories: Object.keys(cachedEvents).length,
+        missingCategories: missingCategories.length,
+        totalEvents: Object.values(cachedEvents).reduce((sum, arr) => sum + arr.length, 0)
+      });
+    }
     
     return { cachedEvents, missingCategories, cacheInfo };
   }
@@ -265,40 +279,56 @@ class InMemoryCache {
    * Returns null if not found or invalid.
    */
   async getDayEvents(city: string, date: string): Promise<DayBucket | null> {
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const debugEnabled = process.env.DEBUG_CACHE === 'true' || isDevelopment;
+    
     const baseKey = InMemoryCache.createDayBucketKey(city, date);
     const fullKey = `${this.dayBucketPrefix}${baseKey}`;
     
-    console.log('[DEBUG Cache.getDayEvents] Looking up day-bucket:', { city, date, key: fullKey });
+    if (debugEnabled) {
+      console.log('[DEBUG Cache.getDayEvents] Looking up day-bucket:', { city, date, key: fullKey });
+    }
     
     try {
       const raw = await this.redis.get(fullKey);
       
       if (!raw) {
-        console.log('[DEBUG Cache.getDayEvents] ❌ Day-bucket not found in Redis');
+        if (debugEnabled) {
+          console.log('[DEBUG Cache.getDayEvents] ❌ Day-bucket not found in Redis');
+        }
         return null;
       }
 
       if (typeof raw === 'object' && raw !== null) {
         const bucket = raw as DayBucket;
         const eventCount = Object.keys(bucket.eventsById || {}).length;
-        console.log('[DEBUG Cache.getDayEvents] ✅ Found day-bucket with', eventCount, 'events (object format)');
+        if (debugEnabled) {
+          console.log('[DEBUG Cache.getDayEvents] ✅ Found day-bucket with', eventCount, 'events (object format)');
+        }
         return bucket;
       }
 
       const str = String(raw);
       if (str === '[object Object]' || str.startsWith('[object Object]')) {
-        console.warn(`[DEBUG Cache.getDayEvents] ⚠️ Corrupted value for key=${baseKey}. Deleting key.`);
+        if (debugEnabled) {
+          console.warn(`[DEBUG Cache.getDayEvents] ⚠️ Corrupted value for key=${baseKey}. Deleting key.`);
+        }
         await this.redis.del(fullKey);
         return null;
       }
 
       const bucket = JSON.parse(str) as DayBucket;
       const eventCount = Object.keys(bucket.eventsById || {}).length;
-      console.log('[DEBUG Cache.getDayEvents] ✅ Found day-bucket with', eventCount, 'events (parsed from JSON)');
+      if (debugEnabled) {
+        console.log('[DEBUG Cache.getDayEvents] ✅ Found day-bucket with', eventCount, 'events (parsed from JSON)');
+      }
       
       return bucket;
     } catch (e) {
-      console.error('[DEBUG Cache.getDayEvents] ❌ Parse/Redis error for key=', baseKey, e);
+      // Only log errors in development or when debug is enabled to avoid cluttering production build logs
+      if (debugEnabled) {
+        console.error('[DEBUG Cache.getDayEvents] ❌ Parse/Redis error for key=', baseKey, e);
+      }
       return null;
     }
   }

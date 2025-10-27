@@ -20,12 +20,17 @@ import type { EventData } from '@/lib/types';
 export const dynamic = 'force-dynamic';
 
 async function fetchEvents(city: string, dateISO: string, category: string | null): Promise<EventData[]> {
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const debugEnabled = process.env.DEBUG_EVENTS === 'true' || isDevelopment;
+  
   try {
-    console.log('=== FILTER DEBUG START ===');
-    // Sanitize inputs for logging
-    const sanitizedCity = String(city).replace(/[^\w\s-]/g, '');
-    const sanitizedCategory = category ? String(category).replace(/[^\w\s&/-]/g, '') : 'null';
-    console.log(`[fetchEvents] Direct call: city=${sanitizedCity}, date=${dateISO}, category=${sanitizedCategory}`);
+    if (debugEnabled) {
+      console.log('=== FILTER DEBUG START ===');
+      // Sanitize inputs for logging
+      const sanitizedCity = String(city).replace(/[^\w\s-]/g, '');
+      const sanitizedCategory = category ? String(category).replace(/[^\w\s&/-]/g, '') : 'null';
+      console.log(`[fetchEvents] Direct call: city=${sanitizedCity}, date=${dateISO}, category=${sanitizedCategory}`);
+    }
     
     // Direct call to cache logic (no HTTP request needed)
     const requestedCategories = category
@@ -37,7 +42,9 @@ async function fetchEvents(city: string, dateISO: string, category: string | nul
         ))
       : null;
 
-    console.log('[DEBUG fetchEvents] Requested categories:', requestedCategories);
+    if (debugEnabled) {
+      console.log('[DEBUG fetchEvents] Requested categories:', requestedCategories);
+    }
 
     let allEvents: EventData[] = [];
     let cacheSource = 'unknown';
@@ -48,29 +55,41 @@ async function fetchEvents(city: string, dateISO: string, category: string | nul
     if (dayBucket && dayBucket.events.length > 0) {
       allEvents = dayBucket.events;
       cacheSource = 'day-bucket';
-      console.log('[DEBUG fetchEvents] Loaded from day-bucket:', allEvents.length, 'events');
+      if (debugEnabled) {
+        console.log('[DEBUG fetchEvents] Loaded from day-bucket:', allEvents.length, 'events');
+      }
     } else {
       // Fallback: Load from per-category shards
       const categoriesToLoad = requestedCategories || EVENT_CATEGORIES;
-      console.log('[DEBUG fetchEvents] Day-bucket empty, loading from category shards:', categoriesToLoad);
+      if (debugEnabled) {
+        console.log('[DEBUG fetchEvents] Day-bucket empty, loading from category shards:', categoriesToLoad);
+      }
       
       const cacheResult = await eventsCache.getEventsByCategories(city, dateISO, categoriesToLoad);
       
       const cachedEventsList: EventData[] = [];
       for (const cat in cacheResult.cachedEvents) {
         cachedEventsList.push(...cacheResult.cachedEvents[cat]);
-        console.log(`[DEBUG fetchEvents] Category "${cat}": ${cacheResult.cachedEvents[cat].length} events`);
+        if (debugEnabled) {
+          console.log(`[DEBUG fetchEvents] Category "${cat}": ${cacheResult.cachedEvents[cat].length} events`);
+        }
       }
       
-      console.log('[DEBUG fetchEvents] Missing categories:', cacheResult.missingCategories);
+      if (debugEnabled) {
+        console.log('[DEBUG fetchEvents] Missing categories:', cacheResult.missingCategories);
+      }
       
       // Deduplicate events from different category shards
       allEvents = eventAggregator.deduplicateEvents(cachedEventsList);
       cacheSource = 'category-shards';
-      console.log('[DEBUG fetchEvents] After deduplication:', allEvents.length, 'events');
+      if (debugEnabled) {
+        console.log('[DEBUG fetchEvents] After deduplication:', allEvents.length, 'events');
+      }
     }
 
-    console.log(`[DEBUG fetchEvents] Total events from ${cacheSource}:`, allEvents.length);
+    if (debugEnabled) {
+      console.log(`[DEBUG fetchEvents] Total events from ${cacheSource}:`, allEvents.length);
+    }
 
     // Filter: Only return valid (non-expired) events
     const now = new Date();
@@ -79,12 +98,16 @@ async function fetchEvents(city: string, dateISO: string, category: string | nul
       const isValid = isEventValidNow(event, now);
       if (!isValid) {
         expiredCount++;
-        console.log('[DEBUG Filter] Event expired:', event.title, 'date:', event.date, 'time:', event.time);
+        if (debugEnabled) {
+          console.log('[DEBUG Filter] Event expired:', event.title, 'date:', event.date, 'time:', event.time);
+        }
       }
       return isValid;
     });
 
-    console.log('[DEBUG fetchEvents] After validity filter:', validEvents.length, 'events (expired:', expiredCount, ')');
+    if (debugEnabled) {
+      console.log('[DEBUG fetchEvents] After validity filter:', validEvents.length, 'events (expired:', expiredCount, ')');
+    }
 
     // Filter by requested categories if specified
     let filteredEvents = validEvents;
@@ -94,7 +117,9 @@ async function fetchEvents(city: string, dateISO: string, category: string | nul
       filteredEvents = validEvents.filter(event => {
         if (!event.category) {
           categoryFilteredOut++;
-          console.log('[DEBUG Filter] Event has no category:', event.title);
+          if (debugEnabled) {
+            console.log('[DEBUG Filter] Event has no category:', event.title);
+          }
           return false;
         }
         const normalizedEventCategory = normalizeCategory(event.category);
@@ -102,31 +127,37 @@ async function fetchEvents(city: string, dateISO: string, category: string | nul
         
         if (!matches) {
           categoryFilteredOut++;
-          console.log('[DEBUG Filter] Category mismatch:', {
-            eventTitle: event.title,
-            eventCategory: event.category,
-            normalizedCategory: normalizedEventCategory,
-            requestedCategories: requestedCategories,
-            matches: matches
-          });
+          if (debugEnabled) {
+            console.log('[DEBUG Filter] Category mismatch:', {
+              eventTitle: event.title,
+              eventCategory: event.category,
+              normalizedCategory: normalizedEventCategory,
+              requestedCategories: requestedCategories,
+              matches: matches
+            });
+          }
         }
         
         return matches;
       });
       
-      console.log('[DEBUG fetchEvents] After category filter:', filteredEvents.length, 'events (filtered out:', categoryFilteredOut, ')');
+      if (debugEnabled) {
+        console.log('[DEBUG fetchEvents] After category filter:', filteredEvents.length, 'events (filtered out:', categoryFilteredOut, ')');
+      }
     }
 
-    console.log('[DEBUG fetchEvents] Final count:', filteredEvents.length);
-    console.log('[DEBUG fetchEvents] Summary:', {
-      source: cacheSource,
-      total: allEvents.length,
-      afterValidityCheck: validEvents.length,
-      afterCategoryFilter: filteredEvents.length,
-      expired: expiredCount,
-      categoryFiltered: categoryFilteredOut
-    });
-    console.log('=== FILTER DEBUG END ===');
+    if (debugEnabled) {
+      console.log('[DEBUG fetchEvents] Final count:', filteredEvents.length);
+      console.log('[DEBUG fetchEvents] Summary:', {
+        source: cacheSource,
+        total: allEvents.length,
+        afterValidityCheck: validEvents.length,
+        afterCategoryFilter: filteredEvents.length,
+        expired: expiredCount,
+        categoryFiltered: categoryFilteredOut
+      });
+      console.log('=== FILTER DEBUG END ===');
+    }
     
     return filteredEvents;
   } catch (error) {
@@ -252,10 +283,15 @@ export async function generateMetadata({ params }: { params: { city: string; par
 }
 
 export default async function CityParamsPage({ params }: { params: { city: string; params: string[] } }) {
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const debugEnabled = process.env.DEBUG_EVENTS === 'true' || isDevelopment;
+  
   // Track page generation time for ISR debugging
   const pageGeneratedAt = new Date().toISOString();
-  console.log('[DEBUG Page Generation] Page generated at:', pageGeneratedAt);
-  console.log('[DEBUG Page Generation] Params:', params);
+  if (debugEnabled) {
+    console.log('[DEBUG Page Generation] Page generated at:', pageGeneratedAt);
+    console.log('[DEBUG Page Generation] Params:', params);
+  }
   
   // Disable strict mode by default - allow any city name (filtered by middleware)
   const strictMode = process.env.CITY_STRICT_MODE === 'true'; // Default to non-strict
@@ -289,9 +325,13 @@ export default async function CityParamsPage({ params }: { params: { city: strin
 
   const dateISO = dateTokenToISO(dateParam);
   
-  console.log('[DEBUG Page] Fetching events with params:', { city: resolved.name, dateISO, category });
+  if (debugEnabled) {
+    console.log('[DEBUG Page] Fetching events with params:', { city: resolved.name, dateISO, category });
+  }
   const events = await fetchEvents(resolved.name, dateISO, category);
-  console.log('[DEBUG Page] Received', events.length, 'events from fetchEvents');
+  if (debugEnabled) {
+    console.log('[DEBUG Page] Received', events.length, 'events from fetchEvents');
+  }
   
   const listSchema = generateEventListSchema(events, resolved.name, dateISO, 'https://www.where2go.at');
   const seoContent = generateCitySEO(resolved.name, dateParam, category || undefined);
