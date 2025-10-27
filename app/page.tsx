@@ -1917,6 +1917,9 @@ function TwoMonthCalendar({
           </div>
         ))}
       </div>
+      
+      {/* Debug Panel - Only in development */}
+      <DebugPanel debugInfo={debugInfo} enabled={enableDebug} />
     </div>
   );
 }
@@ -1954,9 +1957,6 @@ function W2GLoader5() {
           />
         ))}
       </div>
-      
-      {/* Debug Panel - Only in development */}
-      <DebugPanel debugInfo={debugInfo} enabled={enableDebug} />
     </div>
   );
 }
