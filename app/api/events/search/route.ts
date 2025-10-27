@@ -161,6 +161,28 @@ export async function POST(request: NextRequest) {
       newAIEvents: newEvents.length
     });
 
+    // Build debug info for development
+    const debugInfo = qDebug || qVerbose ? {
+      requestId,
+      missingCategories,
+      aiQueries: missingCategories.length,
+      cacheHits: Object.keys(cacheResult.cachedEvents).length,
+      cacheMisses: missingCategories.length,
+      beforeDedup: {
+        cached: cachedEventsFlat.length,
+        ai: newEventsRaw.length,
+        total: cachedEventsFlat.length + newEventsRaw.length
+      },
+      afterDedup: {
+        cached: dedupCached.length,
+        ai: newEvents.length,
+        combined: combined.length,
+        duplicatesRemoved: (cachedEventsFlat.length + newEventsRaw.length) - combined.length
+      },
+      ttlSeconds: computeTTLSecondsForEvents(newEvents),
+      cacheBreakdown
+    } : undefined;
+
     return NextResponse.json({
       events: combined,
       cached: dedupCached.length > 0,
@@ -172,7 +194,8 @@ export async function POST(request: NextRequest) {
         cachedEvents: dedupCached.length,
         cacheBreakdown
       },
-      ttlApplied: computeTTLSecondsForEvents(newEvents)
+      ttlApplied: computeTTLSecondsForEvents(newEvents),
+      debug: debugInfo
     });
 
   } catch (error) {

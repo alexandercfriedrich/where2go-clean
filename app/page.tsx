@@ -8,6 +8,7 @@ import SchemaOrg from './components/SchemaOrg';
 import SEOFooter from './components/SEOFooter';
 import EventCardSkeleton from './components/EventCardSkeleton';
 import OptimizedSearch from './components/OptimizedSearch';
+import { DebugPanel, DebugInfo } from './components/DebugPanel';
 import { generateEventListSchema, generateEventMicrodata, generateCanonicalUrl } from './lib/schemaOrg';
 import { TLDRBox } from './components/TLDRBox';
 import { FAQSection } from './components/FAQSection';
@@ -118,6 +119,15 @@ export default function Home() {
   const [resultsPageCategoryFilter, setResultsPageCategoryFilter] = useState<string[]>([]);
 
   const [cacheInfo, setCacheInfo] = useState<{fromCache: boolean; totalEvents: number; cachedEvents: number} | null>(null);
+  const [debugInfo, setDebugInfo] = useState<DebugInfo[]>([]);
+  const [enableDebug, setEnableDebug] = useState(false);
+
+  // Enable debug mode in development
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setEnableDebug(process.env.NODE_ENV === 'development');
+    }
+  }, []);
   const [toast, setToast] = useState<{show:boolean; message:string}>({show:false,message:''});
 
   const resultsAnchorRef = useRef<HTMLDivElement | null>(null);
@@ -415,6 +425,24 @@ export default function Home() {
     if (selectedSuperCategories.length === 0) {
       setCategoryLimitError('Bitte wähle mindestens eine Kategorie aus.');
       return;
+    }
+    
+    // Clear debug info for new search
+    setDebugInfo([]);
+    
+    // Add search start debug info
+    if (enableDebug) {
+      setDebugInfo(prev => [...prev, {
+        timestamp: new Date().toISOString(),
+        type: 'api',
+        action: 'Search Started',
+        data: {
+          city,
+          date: formatDateForAPI(),
+          categories: getSelectedSubcategories(selectedSuperCategories),
+          superCategories: selectedSuperCategories
+        }
+      }]);
     }
     
     // Always use optimized search - this is now the only search method
@@ -752,6 +780,22 @@ export default function Home() {
               onEventsUpdate={(newEvents) => {
                 // Backend already sends all accumulated events per phase, just replace
                 setEvents(newEvents);
+                
+                // Add debug info for event updates
+                if (enableDebug) {
+                  setDebugInfo(prev => [...prev, {
+                    timestamp: new Date().toISOString(),
+                    type: 'api',
+                    action: 'Events Updated',
+                    data: {
+                      eventCount: newEvents.length,
+                      sources: newEvents.reduce((acc, e) => {
+                        acc[e.source || 'unknown'] = (acc[e.source || 'unknown'] || 0) + 1;
+                        return acc;
+                      }, {} as Record<string, number>)
+                    }
+                  }]);
+                }
               }}
               onLoadingChange={(isLoading) => {
                 setLoading(isLoading);
@@ -759,9 +803,17 @@ export default function Home() {
               }}
               onErrorChange={(err) => {
                 setError(err);
+                if (enableDebug && err) {
+                  setDebugInfo(prev => [...prev, {
+                    timestamp: new Date().toISOString(),
+                    type: 'api',
+                    action: 'Error Occurred',
+                    data: { error: err }
+                  }]);
+                }
               }}
               autoStart={true}
-              debug={false}
+              debug={enableDebug}
             />
           )}
         </div>
@@ -1902,6 +1954,9 @@ function W2GLoader5() {
           />
         ))}
       </div>
+      
+      {/* Debug Panel - Only in development */}
+      <DebugPanel debugInfo={debugInfo} enabled={enableDebug} />
     </div>
   );
 }
