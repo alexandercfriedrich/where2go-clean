@@ -102,6 +102,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
 
   const [searchSubmitted, setSearchSubmitted] = useState(false);
+  const [searchCounter, setSearchCounter] = useState(0); // Track search iterations to force OptimizedSearch remount
   const [searchedSuperCategories, setSearchedSuperCategories] = useState<string[]>([]);
   const [activeFilter, setActiveFilter] = useState('Alle');
   
@@ -418,6 +419,7 @@ export default function Home() {
     
     // Always use optimized search - this is now the only search method
     setSearchSubmitted(true);
+    setSearchCounter(prev => prev + 1); // Increment to force OptimizedSearch remount
     setSearchedSuperCategories([...selectedSuperCategories]);
     setEvents([]);
     setError(null);
@@ -743,6 +745,7 @@ export default function Home() {
           {/* Optimized Search Component - Always Active */}
           {searchSubmitted && (
             <OptimizedSearch
+              key={searchCounter} // Force remount on each new search
               city={city}
               date={formatDateForAPI()}
               categories={getSelectedSubcategories(selectedSuperCategories)}
