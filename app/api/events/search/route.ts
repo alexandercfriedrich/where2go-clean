@@ -130,7 +130,9 @@ export async function POST(request: NextRequest) {
       }
       for (const cat of Object.keys(grouped)) {
         await eventsCache.setEventsByCategory(city, date, cat, grouped[cat], ttlSeconds);
-        console.log(`[DEBUG Search API ${requestId}] Cached ${grouped[cat].length} events for category "${cat}"`);
+        // Sanitize category name for logging
+        const sanitizedCat = String(cat).replace(/[^\w\s&/-]/g, '');
+        console.log(`[DEBUG Search API ${requestId}] Cached ${grouped[cat].length} events for category "${sanitizedCat}"`);
       }
       
       // Also upsert into day-bucket cache (combined events, not just new ones)

@@ -99,18 +99,24 @@ class InMemoryCache {
 
     for (const category of categories) {
       const key = InMemoryCache.createKeyForCategory(city, date, category);
-      console.log(`[DEBUG Cache] Looking up category "${category}" with key: ${key}`);
+      // Sanitize category name for logging
+      const sanitizedCategory = String(category).replace(/[^\w\s&/-]/g, '');
+      console.log(`[DEBUG Cache] Looking up category "${sanitizedCategory}" with key: ${key}`);
       
       const events = await this.get<any[]>(key);
       
       if (Array.isArray(events) && events.length > 0) {
         cachedEvents[category] = events;
         cacheInfo[category] = { fromCache: true, eventCount: events.length };
-        console.log(`[DEBUG Cache] ✅ Found ${events.length} events for category "${category}"`);
+        // Sanitize category name for logging to prevent any potential issues
+        const sanitizedCategory = String(category).replace(/[^\w\s&/-]/g, '');
+        console.log(`[DEBUG Cache] ✅ Found ${events.length} events for category "${sanitizedCategory}"`);
       } else {
         missingCategories.push(category);
         cacheInfo[category] = { fromCache: false, eventCount: 0 };
-        console.log(`[DEBUG Cache] ❌ No events found for category "${category}"`, events === null ? '(key not found)' : '(empty array)');
+        // Sanitized for logging - safe to use in template string
+        const sanitizedCategory = String(category).replace(/[^\w\s&/-]/g, '');
+        console.log(`[DEBUG Cache] ❌ No events found for category "${sanitizedCategory}"`, events === null ? '(key not found)' : '(empty array)');
       }
     }
     

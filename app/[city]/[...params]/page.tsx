@@ -22,7 +22,10 @@ export const dynamic = 'force-dynamic';
 async function fetchEvents(city: string, dateISO: string, category: string | null): Promise<EventData[]> {
   try {
     console.log('=== FILTER DEBUG START ===');
-    console.log(`[fetchEvents] Direct call: city=${city}, date=${dateISO}, category=${category}`);
+    // Sanitize inputs for logging
+    const sanitizedCity = String(city).replace(/[^\w\s-]/g, '');
+    const sanitizedCategory = category ? String(category).replace(/[^\w\s&/-]/g, '') : 'null';
+    console.log(`[fetchEvents] Direct call: city=${sanitizedCity}, date=${dateISO}, category=${sanitizedCategory}`);
     
     // Direct call to cache logic (no HTTP request needed)
     const requestedCategories = category
