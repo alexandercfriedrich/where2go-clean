@@ -91,21 +91,36 @@ class InMemoryCache {
     missingCategories: string[];
     cacheInfo: { [category: string]: { fromCache: boolean; eventCount: number } };
   }> {
+    console.log('[DEBUG Cache.getEventsByCategories] Input:', { city, date, categories });
+    
     const cachedEvents: Record<string, any[]> = {};
     const missingCategories: string[] = [];
     const cacheInfo: Record<string, { fromCache: boolean; eventCount: number }> = {};
 
     for (const category of categories) {
       const key = InMemoryCache.createKeyForCategory(city, date, category);
+      console.log(`[DEBUG Cache] Looking up category "${category}" with key: ${key}`);
+      
       const events = await this.get<any[]>(key);
+      
       if (Array.isArray(events) && events.length > 0) {
         cachedEvents[category] = events;
         cacheInfo[category] = { fromCache: true, eventCount: events.length };
+        console.log(`[DEBUG Cache] ✅ Found ${events.length} events for category "${category}"`);
       } else {
         missingCategories.push(category);
         cacheInfo[category] = { fromCache: false, eventCount: 0 };
+        console.log(`[DEBUG Cache] ❌ No events found for category "${category}"`, events === null ? '(key not found)' : '(empty array)');
       }
     }
+    
+    console.log('[DEBUG Cache.getEventsByCategories] Summary:', {
+      totalCategories: categories.length,
+      cachedCategories: Object.keys(cachedEvents).length,
+      missingCategories: missingCategories.length,
+      totalEvents: Object.values(cachedEvents).reduce((sum, arr) => sum + arr.length, 0)
+    });
+    
     return { cachedEvents, missingCategories, cacheInfo };
   }
 
@@ -247,24 +262,37 @@ class InMemoryCache {
     const baseKey = InMemoryCache.createDayBucketKey(city, date);
     const fullKey = `${this.dayBucketPrefix}${baseKey}`;
     
+    console.log('[DEBUG Cache.getDayEvents] Looking up day-bucket:', { city, date, key: fullKey });
+    
     try {
       const raw = await this.redis.get(fullKey);
-      if (!raw) return null;
+      
+      if (!raw) {
+        console.log('[DEBUG Cache.getDayEvents] ❌ Day-bucket not found in Redis');
+        return null;
+      }
 
       if (typeof raw === 'object' && raw !== null) {
-        return raw as DayBucket;
+        const bucket = raw as DayBucket;
+        const eventCount = Object.keys(bucket.eventsById || {}).length;
+        console.log('[DEBUG Cache.getDayEvents] ✅ Found day-bucket with', eventCount, 'events (object format)');
+        return bucket;
       }
 
       const str = String(raw);
       if (str === '[object Object]' || str.startsWith('[object Object]')) {
-        console.warn(`[eventsCache.getDayEvents] Corrupted value for key=${baseKey}. Deleting key.`);
+        console.warn(`[DEBUG Cache.getDayEvents] ⚠️ Corrupted value for key=${baseKey}. Deleting key.`);
         await this.redis.del(fullKey);
         return null;
       }
 
-      return JSON.parse(str) as DayBucket;
+      const bucket = JSON.parse(str) as DayBucket;
+      const eventCount = Object.keys(bucket.eventsById || {}).length;
+      console.log('[DEBUG Cache.getDayEvents] ✅ Found day-bucket with', eventCount, 'events (parsed from JSON)');
+      
+      return bucket;
     } catch (e) {
-      console.error('[eventsCache.getDayEvents] Parse/Redis error for key=', baseKey, e);
+      console.error('[DEBUG Cache.getDayEvents] ❌ Parse/Redis error for key=', baseKey, e);
       return null;
     }
   }
