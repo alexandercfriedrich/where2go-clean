@@ -5,11 +5,11 @@ import { EventData } from './types';
  * TTL is set to the time until the earliest event ends.
  * 
  * @param events Array of EventData objects
- * @returns TTL in seconds, minimum 60 seconds, maximum 24 hours
+ * @returns TTL in seconds, minimum 1 hour (3600s), maximum 24 hours
  */
 export function computeTTLSecondsForEvents(events: EventData[]): number {
   if (!events || events.length === 0) {
-    return 300; // Default 5 minutes for empty events
+    return 3600; // Default 1 hour for empty events
   }
 
   const now = new Date();
@@ -46,12 +46,13 @@ export function computeTTLSecondsForEvents(events: EventData[]): number {
     const ttlMs = earliestEndTime.getTime() - now.getTime();
     const ttlSeconds = Math.floor(ttlMs / 1000);
     
-    // Ensure minimum 1 minute, maximum 24 hours
-    return Math.max(60, Math.min(ttlSeconds, 24 * 60 * 60));
+    // Ensure minimum 1 hour (prevents rapid expiration), maximum 24 hours
+    // This prevents category cache entries from disappearing too quickly
+    return Math.max(3600, Math.min(ttlSeconds, 24 * 60 * 60));
   }
 
-  // Fallback to 5 minutes if we can't determine end times
-  return 300;
+  // Fallback to 1 hour if we can't determine end times
+  return 3600;
 }
 
 /**
