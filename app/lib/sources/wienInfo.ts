@@ -198,12 +198,16 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
     }
 
     // 8) Normalize to our EventData format (limited by "limit")
+    const totalFilteredEvents = filteredEvents.length;
     const normalizedEvents = filteredEvents.slice(0, limit).map((event) =>
       normalizeWienInfoEvent(event, categories, fromISO, toISO)
     );
 
     if (debug) {
       console.log('[WIEN.INFO:FETCH] Final normalized events:', normalizedEvents.length);
+      if (totalFilteredEvents > limit) {
+        console.warn(`[WIEN.INFO:FETCH] ⚠️  Limit applied: ${totalFilteredEvents} events available, but only returning ${limit} events. Increase 'limit' parameter to get more events.`);
+      }
       if (debugVerbose) console.log('[WIEN.INFO:FETCH] Events:', normalizedEvents);
     }
 

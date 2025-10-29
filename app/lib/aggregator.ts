@@ -398,7 +398,14 @@ export class EventAggregator {
 
         const sTitle = this.sim(normalizeForEventId(base.title), normalizeForEventId(list[j].title));
         const sVenue = this.sim(normalizeForEventId(base.venue), normalizeForEventId(list[j].venue || ''));
-        if (sTitle >= 0.92 && sVenue >= 0.7) {
+        
+        // More conservative fuzzy matching to avoid false duplicates:
+        // - Require 95% title similarity (was 92%)
+        // - Require 80% venue similarity (was 70%)
+        // - Skip fuzzy matching if either venue is empty to avoid false positives
+        const hasVenue = (base.venue && base.venue.length > 2) && (list[j].venue && list[j].venue.length > 2);
+        
+        if (sTitle >= 0.95 && hasVenue && sVenue >= 0.80) {
           // merge j into base
           base = {
             ...base,

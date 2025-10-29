@@ -183,7 +183,7 @@ export class SmartEventFetcher {
                 fromISO: date,
                 toISO: date,
                 categories: this.categories,
-                limit: 100,
+                limit: 500, // Increased from 100 to fetch more events per day
                 debug: this.debug
               });
               return wienResult.events || [];

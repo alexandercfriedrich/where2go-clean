@@ -20,8 +20,17 @@ import type { EventData } from '@/lib/types';
 export const dynamic = 'force-dynamic';
 
 async function fetchEvents(city: string, dateISO: string, category: string | null): Promise<EventData[]> {
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const debugEnabled = process.env.DEBUG_EVENTS === 'true' || isDevelopment;
+  
   try {
-    console.log(`[fetchEvents] Direct call: city=${city}, date=${dateISO}, category=${category}`);
+    if (debugEnabled) {
+      console.log('=== FILTER DEBUG START ===');
+      // Sanitize inputs for logging
+      const sanitizedCity = String(city).replace(/[^\w\s-]/g, '');
+      const sanitizedCategory = category ? String(category).replace(/[^\w\s&/-]/g, '') : 'null';
+      console.log(`[fetchEvents] Direct call: city=${sanitizedCity}, date=${dateISO}, category=${sanitizedCategory}`);
+    }
     
     // Direct call to cache logic (no HTTP request needed)
     const requestedCategories = category
@@ -33,42 +42,122 @@ async function fetchEvents(city: string, dateISO: string, category: string | nul
         ))
       : null;
 
+    if (debugEnabled) {
+      console.log('[DEBUG fetchEvents] Requested categories:', requestedCategories);
+    }
+
     let allEvents: EventData[] = [];
+    let cacheSource = 'unknown';
 
     // Try to load from day-bucket first
     const dayBucket = await getDayEvents(city, dateISO);
     
     if (dayBucket && dayBucket.events.length > 0) {
       allEvents = dayBucket.events;
+      cacheSource = 'day-bucket';
+      if (debugEnabled) {
+        console.log('[DEBUG fetchEvents] Loaded from day-bucket:', allEvents.length, 'events');
+      }
     } else {
       // Fallback: Load from per-category shards
       const categoriesToLoad = requestedCategories || EVENT_CATEGORIES;
+      if (debugEnabled) {
+        console.log('[DEBUG fetchEvents] Day-bucket empty, loading from category shards:', categoriesToLoad);
+      }
+      
       const cacheResult = await eventsCache.getEventsByCategories(city, dateISO, categoriesToLoad);
       
       const cachedEventsList: EventData[] = [];
       for (const cat in cacheResult.cachedEvents) {
         cachedEventsList.push(...cacheResult.cachedEvents[cat]);
+        if (debugEnabled) {
+          console.log(`[DEBUG fetchEvents] Category "${cat}": ${cacheResult.cachedEvents[cat].length} events`);
+        }
+      }
+      
+      if (debugEnabled) {
+        console.log('[DEBUG fetchEvents] Missing categories:', cacheResult.missingCategories);
       }
       
       // Deduplicate events from different category shards
       allEvents = eventAggregator.deduplicateEvents(cachedEventsList);
+      cacheSource = 'category-shards';
+      if (debugEnabled) {
+        console.log('[DEBUG fetchEvents] After deduplication:', allEvents.length, 'events');
+      }
+    }
+
+    if (debugEnabled) {
+      console.log(`[DEBUG fetchEvents] Total events from ${cacheSource}:`, allEvents.length);
     }
 
     // Filter: Only return valid (non-expired) events
     const now = new Date();
-    const validEvents = allEvents.filter(event => isEventValidNow(event, now));
+    let expiredCount = 0;
+    const validEvents = allEvents.filter(event => {
+      const isValid = isEventValidNow(event, now);
+      if (!isValid) {
+        expiredCount++;
+        if (debugEnabled) {
+          console.log('[DEBUG Filter] Event expired:', event.title, 'date:', event.date, 'time:', event.time);
+        }
+      }
+      return isValid;
+    });
+
+    if (debugEnabled) {
+      console.log('[DEBUG fetchEvents] After validity filter:', validEvents.length, 'events (expired:', expiredCount, ')');
+    }
 
     // Filter by requested categories if specified
     let filteredEvents = validEvents;
+    let categoryFilteredOut = 0;
+    
     if (requestedCategories && requestedCategories.length > 0) {
       filteredEvents = validEvents.filter(event => {
-        if (!event.category) return false;
+        if (!event.category) {
+          categoryFilteredOut++;
+          if (debugEnabled) {
+            console.log('[DEBUG Filter] Event has no category:', event.title);
+          }
+          return false;
+        }
         const normalizedEventCategory = normalizeCategory(event.category);
-        return requestedCategories.includes(normalizedEventCategory);
+        const matches = requestedCategories.includes(normalizedEventCategory);
+        
+        if (!matches) {
+          categoryFilteredOut++;
+          if (debugEnabled) {
+            console.log('[DEBUG Filter] Category mismatch:', {
+              eventTitle: event.title,
+              eventCategory: event.category,
+              normalizedCategory: normalizedEventCategory,
+              requestedCategories: requestedCategories,
+              matches: matches
+            });
+          }
+        }
+        
+        return matches;
       });
+      
+      if (debugEnabled) {
+        console.log('[DEBUG fetchEvents] After category filter:', filteredEvents.length, 'events (filtered out:', categoryFilteredOut, ')');
+      }
     }
 
-    console.log(`[fetchEvents] Events count: ${filteredEvents.length}`);
+    if (debugEnabled) {
+      console.log('[DEBUG fetchEvents] Final count:', filteredEvents.length);
+      console.log('[DEBUG fetchEvents] Summary:', {
+        source: cacheSource,
+        total: allEvents.length,
+        afterValidityCheck: validEvents.length,
+        afterCategoryFilter: filteredEvents.length,
+        expired: expiredCount,
+        categoryFiltered: categoryFilteredOut
+      });
+      console.log('=== FILTER DEBUG END ===');
+    }
     
     return filteredEvents;
   } catch (error) {
@@ -194,6 +283,16 @@ export async function generateMetadata({ params }: { params: { city: string; par
 }
 
 export default async function CityParamsPage({ params }: { params: { city: string; params: string[] } }) {
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const debugEnabled = process.env.DEBUG_EVENTS === 'true' || isDevelopment;
+  
+  // Track page generation time for ISR debugging
+  const pageGeneratedAt = new Date().toISOString();
+  if (debugEnabled) {
+    console.log('[DEBUG Page Generation] Page generated at:', pageGeneratedAt);
+    console.log('[DEBUG Page Generation] Params:', params);
+  }
+  
   // Disable strict mode by default - allow any city name (filtered by middleware)
   const strictMode = process.env.CITY_STRICT_MODE === 'true'; // Default to non-strict
   const resolved = await resolveCityFromParam(params.city, strictMode);
@@ -225,7 +324,15 @@ export default async function CityParamsPage({ params }: { params: { city: strin
   }
 
   const dateISO = dateTokenToISO(dateParam);
+  
+  if (debugEnabled) {
+    console.log('[DEBUG Page] Fetching events with params:', { city: resolved.name, dateISO, category });
+  }
   const events = await fetchEvents(resolved.name, dateISO, category);
+  if (debugEnabled) {
+    console.log('[DEBUG Page] Received', events.length, 'events from fetchEvents');
+  }
+  
   const listSchema = generateEventListSchema(events, resolved.name, dateISO, 'https://www.where2go.at');
   const seoContent = generateCitySEO(resolved.name, dateParam, category || undefined);
   
@@ -251,6 +358,20 @@ export default async function CityParamsPage({ params }: { params: { city: strin
   return (
     <div style={{ background: 'linear-gradient(135deg, #1A1A1A 0%, #2A2A2A 100%)', minHeight: '100vh', padding: '24px 16px' }}>
       <div className="container" style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        {/* Hidden debug info for ISR tracking */}
+        <div 
+          id="debug-page-info" 
+          data-page-generated-at={pageGeneratedAt}
+          data-city={resolved.name}
+          data-date={dateISO}
+          data-category={category || 'all'}
+          data-event-count={events.length}
+          style={{ display: 'none' }}
+          aria-hidden="true"
+        >
+          Page generated: {pageGeneratedAt} | Events: {events.length}
+        </div>
+        
         <SchemaOrg schema={listSchema} />
         <Breadcrumb items={breadcrumbItems} />
         
