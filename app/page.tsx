@@ -1821,6 +1821,9 @@ export default function Home() {
         /* Spacing for meta rows */
         .event-meta-line { line-height: 1.5; }
       `}</style>
+
+      {/* Debug Panel - Only in development */}
+      <DebugPanel debugInfo={debugInfo} enabled={enableDebug} />
     </div>
   );
 }
@@ -1917,9 +1920,6 @@ function TwoMonthCalendar({
           </div>
         ))}
       </div>
-      
-      {/* Debug Panel - Only in development */}
-      <DebugPanel debugInfo={debugInfo} enabled={enableDebug} />
     </div>
   );
 }
