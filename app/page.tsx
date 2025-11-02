@@ -13,6 +13,7 @@ import { TLDRBox } from './components/TLDRBox';
 import { FAQSection } from './components/FAQSection';
 import { homepageFAQs } from './data/faqDatabase';
 import { getAllGuides } from './data/guideContent';
+import { getCategoryIcon } from './components/CategoryIcons';
 
 interface EventData {
   title: string;
@@ -715,22 +716,33 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Kategorien sind immer sichtbar und ausgeklappt */}
+            {/* Kategorien mit visuellen Icons */}
             <div className="categories-section">
               <label className="categories-label">{t('form.categories')}</label>
-              <div className="categories-grid">
+              <p className="categories-hint">Wähle bis zu {MAX_CATEGORY_SELECTION} Kategorien</p>
+              <div className="categories-visual-grid">
                 {ALL_SUPER_CATEGORIES.map(c => {
                   const active = selectedSuperCategories.includes(c);
+                  const disabled = !active && selectedSuperCategories.length >= MAX_CATEGORY_SELECTION;
+                  const IconComponent = getCategoryIcon(c);
+                  
                   return (
-                    <label key={c} className="category-checkbox">
-                      <input
-                        type="checkbox"
-                        checked={active}
-                        onChange={() => toggleSuperCategory(c)}
-                        disabled={!active && selectedSuperCategories.length >= MAX_CATEGORY_SELECTION}
-                      />
-                      <span className="category-name">{c}</span>
-                    </label>
+                    <button
+                      key={c}
+                      type="button"
+                      className={`category-card ${active ? 'active' : ''} ${disabled ? 'disabled' : ''}`}
+                      onClick={() => !disabled && toggleSuperCategory(c)}
+                      disabled={disabled}
+                      aria-label={`${active ? 'Abwählen' : 'Auswählen'}: ${c}`}
+                    >
+                      <div className="category-icon-wrapper">
+                        <IconComponent className="category-icon" size={40} />
+                        {active && (
+                          <div className="category-check">✓</div>
+                        )}
+                      </div>
+                      <span className="category-card-name">{c}</span>
+                    </button>
                   );
                 })}
               </div>
@@ -740,22 +752,30 @@ export default function Home() {
             <button type="submit" className="btn-search">Events suchen</button>
           </form>
           
-          {/* Optimized Search Component - Always Active */}
+          {/* Optimized Search Component - Always Active with Live Streaming */}
           {searchSubmitted && (
             <OptimizedSearch
               city={city}
               date={formatDateForAPI()}
               categories={getSelectedSubcategories(selectedSuperCategories)}
               onEventsUpdate={(newEvents) => {
-                // Backend already sends all accumulated events per phase, just replace
+                // Backend streams all accumulated events, just replace
                 setEvents(newEvents);
               }}
               onLoadingChange={(isLoading) => {
                 setLoading(isLoading);
-                setStepLoading(isLoading ? 'Optimized search...' : null);
+                setStepLoading(isLoading ? 'Streaming event search...' : null);
               }}
               onErrorChange={(err) => {
                 setError(err);
+              }}
+              onPhaseUpdate={(phase, totalPhases, message) => {
+                // Show toast notification for each phase
+                setToast({
+                  show: true,
+                  message: `Phase ${phase}/${totalPhases}: ${message}`
+                });
+                setTimeout(() => setToast({show: false, message: ''}), 4000);
               }}
               autoStart={true}
               debug={false}
@@ -1609,36 +1629,117 @@ export default function Home() {
 
         .categories-section {
           margin-top: 20px;
-          padding: 18px;
-          background: #f9fafb;
-          border: 1px solid #e5e7eb;
-          border-radius: 10px;
+          padding: 24px;
+          background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+          border: 2px solid #e5e7eb;
+          border-radius: 16px;
         }
         .categories-label {
           display: block;
-          font-weight: 600;
-          font-size: 14px;
+          font-weight: 700;
+          font-size: 18px;
+          margin-bottom: 8px;
+          color: #111827;
+        }
+        .categories-hint {
+          font-size: 13px;
+          color: #6b7280;
+          margin-bottom: 20px;
+          font-weight: 500;
+        }
+        .categories-visual-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+          gap: 16px;
+          margin-bottom: 16px;
+        }
+        .category-card {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 20px 12px;
+          background: white;
+          border: 3px solid #e5e7eb;
+          border-radius: 16px;
+          cursor: pointer;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
+          min-height: 140px;
+        }
+        .category-card:hover:not(.disabled) {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+          border-color: #9ca3af;
+        }
+        .category-card.active {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border-color: #667eea;
+          color: white;
+          box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+        }
+        .category-card.active:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 28px rgba(102, 126, 234, 0.5);
+        }
+        .category-card.disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+          filter: grayscale(1);
+        }
+        .category-icon-wrapper {
+          position: relative;
           margin-bottom: 12px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 64px;
+          height: 64px;
+        }
+        .category-icon {
+          color: #374151;
+          transition: all 0.3s ease;
+        }
+        .category-card.active .category-icon {
+          color: white;
+        }
+        .category-check {
+          position: absolute;
+          top: -8px;
+          right: -8px;
+          width: 24px;
+          height: 24px;
+          background: white;
+          color: #667eea;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 14px;
+          font-weight: bold;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+          animation: checkIn 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+        @keyframes checkIn {
+          0% {
+            transform: scale(0) rotate(-45deg);
+            opacity: 0;
+          }
+          100% {
+            transform: scale(1) rotate(0deg);
+            opacity: 1;
+          }
+        }
+        .category-card-name {
+          font-size: 13px;
+          font-weight: 600;
+          text-align: center;
+          line-height: 1.3;
           color: #374151;
         }
-        .categories-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-          gap: 10px;
-          margin-bottom: 14px;
+        .category-card.active .category-card-name {
+          color: white;
         }
-        .category-checkbox {
-          display:flex; align-items:center; gap:8px; padding:10px 12px;
-          border:1.5px solid #d1d5db; background:#fff; border-radius:8px;
-          font-size:13px; cursor:pointer; transition:all .2s ease;
-          color:#374151; font-weight:500;
-        }
-        .category-checkbox:hover { background:#f3f4f6; border-color:#9ca3af; }
-        .category-checkbox input { accent-color:#404040; width:16px; height:16px; cursor:pointer; margin:0; }
-        .category-checkbox:has(input:checked) { background:#404040; color:#fff; border-color:#404040; box-shadow:0 1px 3px rgba(0,0,0,0.12); }
-        .category-checkbox:has(input:checked):hover { background:#1f2937; border-color:#1f2937; }
-        .category-checkbox:has(input:checked) input { accent-color:#ffffff; }
-        .category-checkbox:has(input:disabled) { opacity: 0.5; cursor: not-allowed; }
         .categories-actions {
           display: flex;
           gap: 10px;
@@ -1664,7 +1765,22 @@ export default function Home() {
 
         @media (max-width: 600px) {
           .search-form .form-row { gap:12px; }
-          .categories-section { gap:10px; }
+          .categories-section { padding: 16px; gap:10px; }
+          .categories-visual-grid {
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 12px;
+          }
+          .category-card {
+            min-height: 110px;
+            padding: 16px 8px;
+          }
+          .category-icon-wrapper {
+            width: 48px;
+            height: 48px;
+          }
+          .category-card-name {
+            font-size: 11px;
+          }
           .results-filter-bar { flex-direction:column; align-items:flex-start; gap:8px; }
         }
 
