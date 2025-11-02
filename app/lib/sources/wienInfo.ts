@@ -81,7 +81,31 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
   const { fromISO, toISO, categories, limit = 100, debug = false, debugVerbose = false } = opts;
 
   try {
-    // 1) Resolve F1 IDs for requested main categories (forward mapping via SSOT)
+    // 1) Normalize UI super-categories to main categories for F1 mapping
+    const uiSuperToMain: Record<string, string> = {
+      'Museen & Ausstellungen': 'Museen',
+      'Film & Kino': 'Film',
+      'Open Air & Festivals': 'Open Air',
+      'Musik & Nachtleben': 'Live-Konzerte',
+      'Märkte & Shopping': 'Märkte/Shopping',
+      'Food & Culinary': 'Food/Culinary',
+      'Community & Wellness': 'Soziales/Community',
+      'Sport & Fitness': 'Sport',
+      'Kultur & Bildung': 'Kultur/Traditionen',
+      'Business & Networking': 'Networking/Business',
+      'Familie & Kinder': 'Familien/Kids',
+      'Theater/Performance': 'Theater/Performance'
+    };
+
+    // Normalize categories before F1 lookup
+    const mainCategories = categories.map(cat => uiSuperToMain[cat] || cat);
+
+    if (debug) {
+      console.log('[WIEN.INFO:FETCH] UI categories:', categories);
+      console.log('[WIEN.INFO:FETCH] Normalized to main:', mainCategories);
+    }
+
+    // 2) Resolve F1 IDs for requested main categories (forward mapping via SSOT)
     // If categories is empty, fetch all categories by using all F1 IDs
     let f1Ids: number[];
     if (categories.length === 0) {
@@ -89,7 +113,7 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
       f1Ids = Object.values(WIEN_INFO_F1_BY_LABEL);
       if (debug) console.log('[WIEN.INFO:FETCH] No categories specified, fetching all F1 IDs:', f1Ids);
     } else {
-      f1Ids = getWienInfoF1IdsForCategories(categories);
+      f1Ids = getWienInfoF1IdsForCategories(mainCategories);
       if (f1Ids.length === 0) {
         if (debug) console.log('[WIEN.INFO:FETCH] No F1 mappings found for categories:', categories);
         return { events: [], error: 'No results from Wien.info!' };
