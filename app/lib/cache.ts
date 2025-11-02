@@ -52,7 +52,7 @@ class InMemoryCache {
   }
 
   // Generic Redis ops with robust JSON handling
-  async set<T>(key: string, value: T, ttlSeconds = 300): Promise<void> {
+  async set<T>(key: string, value: T, ttlSeconds = 3600): Promise<void> {
     try {
       const serialized = JSON.stringify(value);
       await this.redis.set(this.k(key), serialized, { ex: ttlSeconds });
@@ -109,7 +109,7 @@ class InMemoryCache {
     return { cachedEvents, missingCategories, cacheInfo };
   }
 
-  async setEventsByCategory(city: string, date: string, category: string, events: any[], ttlSeconds = 300): Promise<void> {
+  async setEventsByCategory(city: string, date: string, category: string, events: any[], ttlSeconds = 3600): Promise<void> {
     const key = InMemoryCache.createKeyForCategory(city, date, category);
     await this.set(key, events, ttlSeconds);
   }
