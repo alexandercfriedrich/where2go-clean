@@ -1,12 +1,13 @@
 /**
- * OptimizedSearch - Client component for live progress tracking
+ * OptimizedSearch - Streaming-enabled client component with live progress tracking
  * 
  * Features:
- * - Triggers POST /api/events/optimized to start job
- * - Polls /api/jobs/{jobId} every 2s for status
- * - Displays progress bar and current phase
- * - Shows "new events" badge when count increases
- * - Exposes callbacks for integration
+ * - Connects to POST /api/events/optimized NDJSON streaming endpoint
+ * - Processes streaming NDJSON responses in real-time
+ * - Shows live notifications for each phase update
+ * - Updates event list immediately as new events arrive
+ * - Displays progress bar with phase information
+ * - Shows toast notifications for new event batches
  * - Mobile responsive design
  */
 
@@ -32,25 +33,17 @@ interface OptimizedSearchProps {
   onEventsUpdate?: (events: EventData[]) => void;
   onLoadingChange?: (loading: boolean) => void;
   onErrorChange?: (error: string | null) => void;
+  onPhaseUpdate?: (phase: number, totalPhases: number, message: string) => void;
   autoStart?: boolean;
   debug?: boolean;
 }
 
-interface JobStatus {
-  id: string;
-  status: 'pending' | 'processing' | 'done' | 'error';
-  events?: EventData[];
-  error?: string;
-  progress?: {
-    phase?: number;
-    completedPhases?: number;
-    totalPhases?: number;
-    message?: string;
-  };
-}
-
-const POLL_INTERVAL = 2000; // 2 seconds
-const MAX_POLLS = 60; // 2 minutes max
+// NDJSON message types from backend
+type StreamMessage = 
+  | { type: 'phase'; phase: number; totalPhases: number; message: string; timestamp: number }
+  | { type: 'events'; phase: number; events: EventData[]; totalEvents: number; timestamp: number }
+  | { type: 'complete'; totalEvents: number; events: EventData[]; timestamp: number }
+  | { type: 'error'; error: string; timestamp: number };
 
 export default function OptimizedSearch({
   city,
@@ -59,14 +52,15 @@ export default function OptimizedSearch({
   onEventsUpdate,
   onLoadingChange,
   onErrorChange,
+  onPhaseUpdate,
   autoStart = false,
   debug = false
 }: OptimizedSearchProps) {
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [status, setStatus] = useState<'idle' | 'pending' | 'processing' | 'done' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
   const [events, setEvents] = useState<EventData[]>([]);
   const [previousEventCount, setPreviousEventCount] = useState(0);
   const [showNewBadge, setShowNewBadge] = useState(false);
+  const [newEventCount, setNewEventCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<{
     phase: number;
@@ -78,20 +72,143 @@ export default function OptimizedSearch({
     message: 'Initializing...'
   });
 
-  const pollCountRef = useRef(0);
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Start the optimized search
+  // Parse NDJSON stream
+  const parseNDJSON = useCallback(async (reader: ReadableStreamDefaultReader<Uint8Array>) => {
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) {
+          if (debug) {
+            console.log('[OptimizedSearch:Stream] Stream ended');
+          }
+          break;
+        }
+
+        // Append to buffer and process complete lines
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        
+        // Keep the last incomplete line in buffer
+        buffer = lines.pop() || '';
+
+        // Process each complete line
+        for (const line of lines) {
+          if (!line.trim()) continue;
+
+          try {
+            const message: StreamMessage = JSON.parse(line);
+            
+            if (debug) {
+              console.log('[OptimizedSearch:Stream] Message:', message);
+            }
+
+            switch (message.type) {
+              case 'phase':
+                setProgress({
+                  phase: message.phase,
+                  totalPhases: message.totalPhases,
+                  message: message.message
+                });
+                if (onPhaseUpdate) {
+                  onPhaseUpdate(message.phase, message.totalPhases, message.message);
+                }
+                break;
+
+              case 'events':
+                setEvents(prevEvents => {
+                  const newEvents = [...prevEvents, ...message.events];
+                  
+                  // Show "new events" badge
+                  if (message.events.length > 0) {
+                    setNewEventCount(message.events.length);
+                    setShowNewBadge(true);
+                    setTimeout(() => setShowNewBadge(false), 3000);
+                  }
+
+                  if (onEventsUpdate) {
+                    onEventsUpdate(newEvents);
+                  }
+
+                  return newEvents;
+                });
+                break;
+
+              case 'complete':
+                setStatus('done');
+                setEvents(message.events);
+                setProgress({
+                  phase: 4,
+                  totalPhases: 4,
+                  message: `Complete! Found ${message.totalEvents} unique events`
+                });
+                if (onEventsUpdate) {
+                  onEventsUpdate(message.events);
+                }
+                if (onLoadingChange) {
+                  onLoadingChange(false);
+                }
+                break;
+
+              case 'error':
+                setStatus('error');
+                setError(message.error);
+                if (onErrorChange) {
+                  onErrorChange(message.error);
+                }
+                if (onLoadingChange) {
+                  onLoadingChange(false);
+                }
+                break;
+            }
+          } catch (parseError) {
+            console.error('[OptimizedSearch:Stream] Failed to parse line:', line, parseError);
+          }
+        }
+      }
+    } catch (streamError) {
+      if (streamError instanceof Error && streamError.name === 'AbortError') {
+        if (debug) {
+          console.log('[OptimizedSearch:Stream] Aborted');
+        }
+      } else {
+        console.error('[OptimizedSearch:Stream] Stream error:', streamError);
+        setStatus('error');
+        setError('Stream connection error');
+        if (onErrorChange) {
+          onErrorChange('Stream connection error');
+        }
+        if (onLoadingChange) {
+          onLoadingChange(false);
+        }
+      }
+    }
+  }, [debug, onEventsUpdate, onPhaseUpdate, onLoadingChange, onErrorChange]);
+
+  // Start the optimized search with streaming
   const startSearch = useCallback(async () => {
     try {
-      setStatus('pending');
+      // Reset state
+      setStatus('loading');
       setError(null);
       setEvents([]);
       setPreviousEventCount(0);
-      pollCountRef.current = 0;
+      setProgress({
+        phase: 0,
+        totalPhases: 4,
+        message: 'Starting search...'
+      });
       
       if (onLoadingChange) onLoadingChange(true);
       if (onErrorChange) onErrorChange(null);
+
+      // Create abort controller for this request
+      abortControllerRef.current = new AbortController();
 
       const response = await fetch('/api/events/optimized', {
         method: 'POST',
@@ -101,124 +218,51 @@ export default function OptimizedSearch({
           date,
           categories,
           options: { debug }
-        })
+        }),
+        signal: abortControllerRef.current.signal
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to start search');
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      setJobId(data.jobId);
-      
-      if (debug) {
-        console.log('[OptimizedSearch] Job started:', data.jobId);
+      if (!response.body) {
+        throw new Error('No response body');
       }
+
+      if (debug) {
+        console.log('[OptimizedSearch] Streaming started');
+      }
+
+      // Process NDJSON stream
+      const reader = response.body.getReader();
+      await parseNDJSON(reader);
+
     } catch (err) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        if (debug) {
+          console.log('[OptimizedSearch] Search aborted');
+        }
+        return;
+      }
+
       const errorMsg = err instanceof Error ? err.message : 'Failed to start search';
       setError(errorMsg);
       setStatus('error');
       if (onLoadingChange) onLoadingChange(false);
       if (onErrorChange) onErrorChange(errorMsg);
+      console.error('[OptimizedSearch] Error:', err);
     }
-  }, [city, date, categories, debug, onLoadingChange, onErrorChange]);
+  }, [city, date, categories, debug, onLoadingChange, onErrorChange, parseNDJSON]);
 
-  // Poll for job status
+  // Cleanup on unmount
   useEffect(() => {
-    if (!jobId || status === 'done' || status === 'error') {
-      return;
-    }
-
-    const poll = async () => {
-      try {
-        pollCountRef.current += 1;
-
-        if (pollCountRef.current > MAX_POLLS) {
-          setError('Search timed out');
-          setStatus('error');
-          if (onErrorChange) onErrorChange('Search timed out');
-          if (onLoadingChange) onLoadingChange(false);
-          return;
-        }
-
-        const response = await fetch(`/api/jobs/${jobId}`);
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch job status');
-        }
-
-        const jobStatus: JobStatus = await response.json();
-
-        if (debug) {
-          console.log('[OptimizedSearch] Job status:', jobStatus);
-        }
-
-        setStatus(jobStatus.status);
-
-        // Update progress
-        if (jobStatus.progress) {
-          setProgress({
-            phase: jobStatus.progress.phase ?? 0,
-            totalPhases: jobStatus.progress.totalPhases ?? 4,
-            message: jobStatus.progress.message ?? 'Processing...'
-          });
-        }
-
-        // Update events with new badge detection
-        if (jobStatus.events && jobStatus.events.length > 0) {
-          setEvents(jobStatus.events);
-          
-          // Show "new events" badge if count increased
-          if (jobStatus.events.length > previousEventCount) {
-            setShowNewBadge(true);
-            setPreviousEventCount(jobStatus.events.length);
-            
-            // Hide badge after 2 seconds
-            setTimeout(() => setShowNewBadge(false), 2000);
-          }
-
-          if (onEventsUpdate) {
-            onEventsUpdate(jobStatus.events);
-          }
-        }
-
-        // Handle completion
-        if (jobStatus.status === 'done') {
-          if (onLoadingChange) onLoadingChange(false);
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-          }
-        }
-
-        // Handle error
-        if (jobStatus.status === 'error') {
-          setError(jobStatus.error || 'Search failed');
-          if (onErrorChange) onErrorChange(jobStatus.error || 'Search failed');
-          if (onLoadingChange) onLoadingChange(false);
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-          }
-        }
-      } catch (err) {
-        console.error('[OptimizedSearch] Poll error:', err);
-        // Don't fail on single poll error, keep trying
-      }
-    };
-
-    // Start polling
-    pollingIntervalRef.current = setInterval(poll, POLL_INTERVAL);
-    poll(); // Immediate first poll
-
     return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = null;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
     };
-  }, [jobId, status, previousEventCount, debug, onEventsUpdate, onLoadingChange, onErrorChange]);
+  }, []);
 
   // Auto-start if requested
   useEffect(() => {
@@ -231,7 +275,7 @@ export default function OptimizedSearch({
     ? Math.round((progress.phase / progress.totalPhases) * 100)
     : 0;
 
-  const isLoading = status === 'pending' || status === 'processing';
+  const isLoading = status === 'loading';
 
   return (
     <div className="optimized-search-container">
@@ -246,7 +290,7 @@ export default function OptimizedSearch({
         </button>
       )}
 
-      {/* Loading State */}
+      {/* Loading State with Live Updates */}
       {isLoading && (
         <div className="search-progress" role="status" aria-live="polite">
           {/* Progress Bar */}
@@ -274,9 +318,9 @@ export default function OptimizedSearch({
             <span className="event-count">
               {events.length} {events.length === 1 ? 'Event' : 'Events'} gefunden
             </span>
-            {showNewBadge && (
+            {showNewBadge && newEventCount > 0 && (
               <span className="new-badge" aria-live="polite">
-                +{events.length - previousEventCount} new
+                +{newEventCount} new!
               </span>
             )}
           </div>
@@ -327,121 +371,143 @@ export default function OptimizedSearch({
         }
 
         .search-progress {
-          padding: 1rem;
+          padding: 1.5rem;
           background: white;
-          border-radius: 8px;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          border-radius: 12px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+          animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(-10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
 
         .progress-bar-container {
           width: 100%;
-          height: 8px;
+          height: 10px;
           background: #e5e7eb;
-          border-radius: 4px;
+          border-radius: 5px;
           overflow: hidden;
-          margin-bottom: 0.75rem;
+          margin-bottom: 1rem;
         }
 
         .progress-bar-fill {
           height: 100%;
           background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-          transition: width 0.3s ease;
+          transition: width 0.5s ease;
+          box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
         }
 
         .progress-info {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          margin-bottom: 0.5rem;
+          margin-bottom: 0.75rem;
           font-size: 0.875rem;
         }
 
         .phase-label {
-          font-weight: 600;
+          font-weight: 700;
           color: #374151;
+          font-size: 0.95rem;
         }
 
         .progress-message {
           color: #6b7280;
           font-style: italic;
+          text-align: right;
+          flex: 1;
+          margin-left: 1rem;
         }
 
         .event-count-container {
           display: flex;
           align-items: center;
-          gap: 0.5rem;
-          font-size: 0.875rem;
+          gap: 0.75rem;
+          font-size: 0.95rem;
           color: #374151;
         }
 
         .event-count {
-          font-weight: 500;
+          font-weight: 600;
         }
 
         .new-badge {
-          padding: 0.25rem 0.5rem;
-          background: #10b981;
+          padding: 0.35rem 0.75rem;
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
           color: white;
-          border-radius: 12px;
-          font-size: 0.75rem;
-          font-weight: 600;
-          animation: slideIn 0.3s ease;
+          border-radius: 16px;
+          font-size: 0.8rem;
+          font-weight: 700;
+          animation: slideInBounce 0.5s ease;
+          box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
         }
 
-        @keyframes slideIn {
-          from {
+        @keyframes slideInBounce {
+          0% {
             opacity: 0;
-            transform: translateX(-10px);
+            transform: translateX(-20px) scale(0.8);
           }
-          to {
+          60% {
             opacity: 1;
-            transform: translateX(0);
+            transform: translateX(5px) scale(1.05);
+          }
+          100% {
+            transform: translateX(0) scale(1);
           }
         }
 
         .search-complete {
-          padding: 1rem;
-          background: #f0fdf4;
-          border: 1px solid #86efac;
-          border-radius: 8px;
+          padding: 1.25rem;
+          background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+          border: 2px solid #86efac;
+          border-radius: 12px;
           display: flex;
           align-items: center;
-          gap: 0.5rem;
+          gap: 0.75rem;
           color: #166534;
+          font-weight: 600;
+          box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
         }
 
         .success-icon {
-          font-size: 1.25rem;
+          font-size: 1.5rem;
         }
 
         .search-error {
-          padding: 1rem;
-          background: #fef2f2;
-          border: 1px solid #fecaca;
-          border-radius: 8px;
+          padding: 1.25rem;
+          background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+          border: 2px solid #fecaca;
+          border-radius: 12px;
           display: flex;
           align-items: center;
-          gap: 0.5rem;
+          gap: 0.75rem;
           color: #991b1b;
+          font-weight: 600;
+          box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2);
         }
 
         .error-icon {
-          font-size: 1.25rem;
+          font-size: 1.5rem;
         }
 
         .retry-btn {
           margin-left: auto;
-          padding: 0.375rem 0.75rem;
+          padding: 0.5rem 1rem;
           background: white;
-          border: 1px solid #dc2626;
-          border-radius: 4px;
+          border: 2px solid #dc2626;
+          border-radius: 6px;
           color: #dc2626;
           cursor: pointer;
           font-size: 0.875rem;
+          font-weight: 600;
+          transition: all 0.2s;
         }
 
         .retry-btn:hover {
-          background: #fef2f2;
+          background: #dc2626;
+          color: white;
         }
 
         /* Mobile responsive */
@@ -449,11 +515,20 @@ export default function OptimizedSearch({
           .progress-info {
             flex-direction: column;
             align-items: flex-start;
-            gap: 0.25rem;
+            gap: 0.5rem;
+          }
+
+          .progress-message {
+            text-align: left;
+            margin-left: 0;
           }
 
           .btn-search {
             width: 100%;
+          }
+
+          .search-progress {
+            padding: 1rem;
           }
         }
       `}</style>

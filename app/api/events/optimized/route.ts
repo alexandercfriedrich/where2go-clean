@@ -1,17 +1,21 @@
 /**
- * Optimized Events API Endpoint
+ * Optimized Events API Endpoint - NDJSON Streaming
  * 
  * POST /api/events/optimized
- * - Creates a background job for optimized event search
- * - Immediately returns jobId for progress tracking
+ * - Streams NDJSON responses with immediate phase and event updates
  * - Uses SmartEventFetcher with 4-phase pipeline (max 5 AI calls)
+ * - Each line is a JSON object: phase update or event batch
  * 
- * Response: { jobId: string, status: 'pending' }
+ * Response: NDJSON stream with phase updates and events
  */
 
-import { NextRequest, NextResponse } from 'next/server';
-import { getJobStore } from '@/lib/jobStore';
-import { JobStatus } from '@/lib/types';
+import { NextRequest } from 'next/server';
+import { createSmartEventFetcher } from '@/lib/smartEventFetcher';
+import { normalizeCategory } from '@/lib/eventCategories';
+import { EventData } from '@/lib/types';
+import { eventsCache } from '@/lib/cache';
+import { upsertDayEvents } from '@/lib/dayCache';
+import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -26,6 +30,13 @@ interface OptimizedSearchRequest {
     maxTokens?: number;
   };
 }
+
+// NDJSON message types
+type StreamMessage = 
+  | { type: 'phase'; phase: number; totalPhases: number; message: string; timestamp: number }
+  | { type: 'events'; phase: number; events: EventData[]; totalEvents: number; timestamp: number }
+  | { type: 'complete'; totalEvents: number; events: EventData[]; timestamp: number }
+  | { type: 'error'; error: string; timestamp: number };
 
 /**
  * Validates city name to prevent malicious inputs
@@ -73,74 +84,11 @@ function validateDate(date: string): { valid: boolean; error?: string } {
 }
 
 /**
- * Schedules background processing via Vercel Background Functions
+ * Write an NDJSON line to the stream
  */
-async function scheduleBackgroundProcessing(
-  request: NextRequest,
-  jobId: string,
-  city: string,
-  date: string,
-  categories: string[],
-  options: any
-): Promise<void> {
-  const isVercel = process.env.VERCEL === '1';
-  
-  if (isVercel) {
-    // Production: Use Vercel deployment URL
-    const deploymentUrl = request.headers.get('x-vercel-deployment-url');
-    const host = deploymentUrl || request.headers.get('x-forwarded-host') || request.headers.get('host');
-    const protocol = 'https';
-    
-    if (!host) {
-      throw new Error('Unable to determine host for background processing');
-    }
-
-    const backgroundUrl = `${protocol}://${host}/api/events/optimized/process`;
-    console.log('[OptimizedAPI] Scheduling background processing:', backgroundUrl);
-
-    const protectionBypass = process.env.PROTECTION_BYPASS_TOKEN;
-    const internalSecret = process.env.INTERNAL_API_SECRET;
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'x-vercel-background': '1',
-    };
-    
-    if (protectionBypass) {
-      headers['x-vercel-protection-bypass'] = protectionBypass;
-    }
-    if (internalSecret) {
-      headers['x-internal-secret'] = internalSecret;
-    }
-
-    const response = await fetch(backgroundUrl, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ jobId, city, date, categories, options })
-    });
-
-    if (!response.ok) {
-      const text = await response.text();
-      throw new Error(`Background scheduling failed: ${response.status} ${response.statusText} - ${text}`);
-    }
-
-    console.log('[OptimizedAPI] Background processing scheduled successfully');
-  } else {
-    // Local development: Direct HTTP call
-    const localUrl = 'http://localhost:3000/api/events/optimized/process';
-    console.log('[OptimizedAPI] Local dev background call:', localUrl);
-    
-    fetch(localUrl, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'x-vercel-background': '1'
-      },
-      body: JSON.stringify({ jobId, city, date, categories, options })
-    }).catch(error => {
-      console.error('[OptimizedAPI] Local background request failed:', error);
-    });
-  }
+function writeNDJSON(encoder: TextEncoder, controller: ReadableStreamDefaultController, message: StreamMessage) {
+  const line = JSON.stringify(message) + '\n';
+  controller.enqueue(encoder.encode(line));
 }
 
 export async function POST(request: NextRequest) {
@@ -152,80 +100,178 @@ export async function POST(request: NextRequest) {
     // Validate city
     const cityValidation = validateCityName(city);
     if (!cityValidation.valid) {
-      return NextResponse.json(
-        { error: cityValidation.error },
-        { status: 400 }
+      return new Response(
+        JSON.stringify({ type: 'error', error: cityValidation.error, timestamp: Date.now() }) + '\n',
+        { 
+          status: 400,
+          headers: { 'Content-Type': 'application/x-ndjson' }
+        }
       );
     }
 
     // Validate date
     const dateValidation = validateDate(date);
     if (!dateValidation.valid) {
-      return NextResponse.json(
-        { error: dateValidation.error },
-        { status: 400 }
+      return new Response(
+        JSON.stringify({ type: 'error', error: dateValidation.error, timestamp: Date.now() }) + '\n',
+        { 
+          status: 400,
+          headers: { 'Content-Type': 'application/x-ndjson' }
+        }
       );
     }
 
     // Check API key
     const apiKey = process.env.PERPLEXITY_API_KEY;
     if (!apiKey) {
-      return NextResponse.json(
-        { error: 'Perplexity API key not configured' },
-        { status: 500 }
+      return new Response(
+        JSON.stringify({ type: 'error', error: 'Perplexity API key not configured', timestamp: Date.now() }) + '\n',
+        { 
+          status: 500,
+          headers: { 'Content-Type': 'application/x-ndjson' }
+        }
       );
     }
 
-    // Create job
-    const jobId = `job_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
-    const jobStore = getJobStore();
+    console.log(`[OptimizedAPI:Stream] Starting search for ${city} on ${date}`);
 
-    const job: JobStatus = {
-      id: jobId,
-      status: 'pending',
-      events: [],
-      progress: {
-        completedCategories: 0,
-        totalCategories: 4, // 4 phases
-        phase: 0,
-        completedPhases: 0,
-        totalPhases: 4,
-        message: 'Initializing optimized search...'
+    // Create readable stream for NDJSON output
+    const encoder = new TextEncoder();
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          // Track all events across phases
+          let allEvents: EventData[] = [];
+
+          // Create SmartEventFetcher
+          const fetcher = createSmartEventFetcher({
+            apiKey,
+            categories: categories.length > 0 ? categories : undefined,
+            debug: options.debug ?? false,
+            temperature: options.temperature,
+            maxTokens: options.maxTokens
+          });
+
+          // Phase update callback - streams updates immediately
+          const onPhaseUpdate = async (
+            phase: number,
+            newEvents: EventData[],
+            totalEvents: number,
+            message: string
+          ) => {
+            try {
+              // Add new events to running total
+              allEvents.push(...newEvents);
+
+              // Normalize categories
+              const normalizedEvents = allEvents.map(e => ({
+                ...e,
+                category: normalizeCategory(e.category || '')
+              }));
+
+              // Send phase update
+              writeNDJSON(encoder, controller, {
+                type: 'phase',
+                phase,
+                totalPhases: 4,
+                message,
+                timestamp: Date.now()
+              });
+
+              // Send events if we have any new ones
+              if (newEvents.length > 0) {
+                const normalizedNewEvents = newEvents.map(e => ({
+                  ...e,
+                  category: normalizeCategory(e.category || '')
+                }));
+
+                writeNDJSON(encoder, controller, {
+                  type: 'events',
+                  phase,
+                  events: normalizedNewEvents,
+                  totalEvents: normalizedEvents.length,
+                  timestamp: Date.now()
+                });
+
+                // Update cache immediately
+                const ttlSeconds = computeTTLSecondsForEvents(normalizedEvents);
+                await upsertDayEvents(city, date, normalizedEvents);
+
+                // Update per-category shards
+                const grouped: Record<string, EventData[]> = {};
+                for (const event of normalizedEvents) {
+                  if (!event.category) continue;
+                  if (!grouped[event.category]) {
+                    grouped[event.category] = [];
+                  }
+                  grouped[event.category].push(event);
+                }
+
+                for (const [category, categoryEvents] of Object.entries(grouped)) {
+                  await eventsCache.setEventsByCategory(city, date, category, categoryEvents, ttlSeconds);
+                }
+              }
+
+              console.log(`[OptimizedAPI:Stream] Phase ${phase}: ${message} (${newEvents.length} new, ${totalEvents} total)`);
+            } catch (error) {
+              console.error(`[OptimizedAPI:Stream] Error in phase update:`, error);
+              // Don't throw - continue streaming
+            }
+          };
+
+          // Execute the optimized search with streaming updates
+          const finalEvents = await fetcher.fetchEventsOptimized(city, date, onPhaseUpdate);
+
+          // Normalize final events
+          const normalizedFinal = finalEvents.map(e => ({
+            ...e,
+            category: normalizeCategory(e.category || '')
+          }));
+
+          // Send completion message
+          writeNDJSON(encoder, controller, {
+            type: 'complete',
+            totalEvents: normalizedFinal.length,
+            events: normalizedFinal,
+            timestamp: Date.now()
+          });
+
+          console.log(`[OptimizedAPI:Stream] Complete: ${normalizedFinal.length} events`);
+
+          // Close the stream
+          controller.close();
+        } catch (error) {
+          console.error('[OptimizedAPI:Stream] Error:', error);
+          
+          // Send error message
+          writeNDJSON(encoder, controller, {
+            type: 'error',
+            error: error instanceof Error ? error.message : 'Search failed',
+            timestamp: Date.now()
+          });
+
+          controller.close();
+        }
+      }
+    });
+
+    // Return streaming response
+    return new Response(stream, {
+      headers: {
+        'Content-Type': 'application/x-ndjson',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
       },
-      createdAt: new Date(),
-      lastUpdateAt: new Date().toISOString()
-    };
-
-    await jobStore.setJob(jobId, job);
-
-    console.log(`[OptimizedAPI] Created job ${jobId} for ${city} on ${date}`);
-
-    // Schedule background processing
-    try {
-      await scheduleBackgroundProcessing(request, jobId, city, date, categories, options);
-    } catch (error) {
-      console.error('[OptimizedAPI] Failed to schedule background processing:', error);
-      await jobStore.updateJob(jobId, {
-        status: 'error',
-        error: 'Failed to start background processing: ' + (error instanceof Error ? error.message : String(error))
-      });
-      return NextResponse.json(
-        { error: 'Failed to start search' },
-        { status: 500 }
-      );
-    }
-
-    // Return job ID immediately
-    return NextResponse.json({
-      jobId,
-      status: 'pending'
     });
 
   } catch (error) {
-    console.error('[OptimizedAPI] Error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 }
+    console.error('[OptimizedAPI:Stream] Unexpected error:', error);
+    return new Response(
+      JSON.stringify({ type: 'error', error: error instanceof Error ? error.message : 'Internal server error', timestamp: Date.now() }) + '\n',
+      { 
+        status: 500,
+        headers: { 'Content-Type': 'application/x-ndjson' }
+      }
     );
   }
 }
