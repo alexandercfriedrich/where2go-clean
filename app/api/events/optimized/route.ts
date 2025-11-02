@@ -193,11 +193,12 @@ export async function POST(request: NextRequest) {
                   timestamp: Date.now()
                 });
 
-                // Update cache immediately
+                // Update cache immediately with extended TTL
                 const ttlSeconds = computeTTLSecondsForEvents(normalizedEvents);
+                const extendedTtl = Math.max(3600, ttlSeconds); // Force 1 hour minimum for streaming events
                 await upsertDayEvents(city, date, normalizedEvents);
 
-                // Update per-category shards
+                // Update per-category shards with extended TTL
                 const grouped: Record<string, EventData[]> = {};
                 for (const event of normalizedEvents) {
                   if (!event.category) continue;
@@ -208,7 +209,7 @@ export async function POST(request: NextRequest) {
                 }
 
                 for (const [category, categoryEvents] of Object.entries(grouped)) {
-                  await eventsCache.setEventsByCategory(city, date, category, categoryEvents, ttlSeconds);
+                  await eventsCache.setEventsByCategory(city, date, category, categoryEvents, extendedTtl);
                 }
               }
 

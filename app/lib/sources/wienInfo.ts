@@ -173,7 +173,17 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
 
     // 7) Filter events by date range and category tags
     const filteredEvents = filterWienInfoEvents(apiEvents, fromISO, toISO, f1Ids);
-    if (debug) console.log('[WIEN.INFO:FILTER] Filtered events:', filteredEvents.length, 'from', apiEvents.length);
+    
+    if (debug) {
+      console.log('[WIEN.INFO] Raw API response:', apiEvents.length);
+      console.log('[WIEN.INFO] F1 IDs used:', f1Ids);
+      console.log('[WIEN.INFO] After date filter:', filteredEvents.length);
+      console.log('[WIEN.INFO] Category mappings:', mappedCategoryCounts);
+      if (filteredEvents.length === 0) {
+        console.log('[WIEN.INFO] NO EVENTS - Debug categories:', categories);
+        console.log('[WIEN.INFO] NO EVENTS - Date range:', fromISO, 'to', toISO);
+      }
+    }
 
     if (filteredEvents.length === 0) {
       const resp = `${debugResponse} No events found after date/category filtering.`;

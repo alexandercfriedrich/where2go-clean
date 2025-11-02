@@ -184,7 +184,7 @@ export class SmartEventFetcher {
                 toISO: date,
                 categories: this.categories,
                 limit: 500, // Fix from PR173: Increase limit to show more events
-                debug: this.debug
+                debug: true // Always enable debug for Wien.info to see event counts
               });
               return wienResult.events || [];
             } catch (error) {
