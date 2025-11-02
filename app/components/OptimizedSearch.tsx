@@ -104,6 +104,12 @@ export default function OptimizedSearch({
           try {
             const message: StreamMessage = JSON.parse(line);
             
+            // Validate message type
+            if (!message.type || !['phase', 'events', 'complete', 'error'].includes(message.type)) {
+              console.warn('[OptimizedSearch:Stream] Invalid message type:', message);
+              continue;
+            }
+            
             if (debug) {
               console.log('[OptimizedSearch:Stream] Message:', message);
             }
@@ -167,7 +173,13 @@ export default function OptimizedSearch({
                 break;
             }
           } catch (parseError) {
-            console.error('[OptimizedSearch:Stream] Failed to parse line:', line, parseError);
+            // Enhanced error handling - log but continue processing other lines
+            if (debug) {
+              console.error('[OptimizedSearch:Stream] Parse error for line:', line, parseError);
+            } else {
+              console.warn('[OptimizedSearch:Stream] Failed to parse message, skipping');
+            }
+            // Continue processing other lines
           }
         }
       }

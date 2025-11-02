@@ -135,7 +135,7 @@ export class SmartEventFetcher {
     // ========== PHASE 3: Smart Category Search (max 3 AI calls, batched) ==========
     if (aiCallsUsed < maxAiCalls) {
       const availableCalls = Math.min(3, maxAiCalls - aiCallsUsed);
-      const phase3Events = await this.phase3SmartCategorySearch(city, date, availableCalls);
+      const phase3Events = await this.phase3SmartCategorySearch(city, date, availableCalls, allEvents);
       aiCallsUsed += availableCalls;
       await updatePhase(3, phase3Events, `Found ${phase3Events.length} events from category search (${aiCallsUsed} AI calls used)`);
     } else {
@@ -183,7 +183,7 @@ export class SmartEventFetcher {
                 fromISO: date,
                 toISO: date,
                 categories: this.categories,
-                limit: 100,
+                limit: 500, // Fix from PR173: Increase limit to show more events
                 debug: this.debug
               });
               return wienResult.events || [];
@@ -287,53 +287,95 @@ export class SmartEventFetcher {
   /**
    * Phase 3: Smart batched category search (max 3 AI calls)
    * Groups categories intelligently to maximize coverage with minimal calls
+   * Now includes gap-filling for missing categories
    */
   private async phase3SmartCategorySearch(
     city: string,
     date: string,
-    maxCalls: number
+    maxCalls: number,
+    existingEvents: EventData[] = []
   ): Promise<EventData[]> {
     if (maxCalls === 0) return [];
 
     try {
       const service = createPerplexityService(this.apiKey);
+      let aiCallsUsed = 0;
+      const allEvents: EventData[] = [];
 
       // Select up to 6 main categories (user-provided or defaults)
       const selectedCategories = this.categories.slice(0, 6);
 
-      // Batch categories into groups for parallel querying
-      // With 3 AI calls, we can query ~2 categories per call
-      const batchSize = Math.ceil(selectedCategories.length / maxCalls);
-      const batches: string[][] = [];
-      for (let i = 0; i < selectedCategories.length; i += batchSize) {
-        batches.push(selectedCategories.slice(i, i + batchSize));
-      }
-
-      if (this.debug) {
-        console.log(`[Phase3] Querying ${selectedCategories.length} categories in ${batches.length} batches`);
-      }
-
-      const allEvents: EventData[] = [];
-
-      // Execute each batch as a single multi-category call
-      for (const batch of batches) {
+      // Identify missing categories for gap-filling
+      const missingCategories = this.identifyMissingCategories(existingEvents);
+      
+      // If we have missing categories and calls available, use gap-filling
+      if (missingCategories.length > 0 && maxCalls > 0) {
+        if (this.debug) {
+          console.log(`[Phase3] Gap-filling for ${missingCategories.length} missing categories: ${missingCategories.join(', ')}`);
+        }
+        
         try {
-          const results = await service.executeMultiQuery(city, date, batch, {
-            debug: this.debug,
-            temperature: this.temperature,
-            max_tokens: this.maxTokens,
-            enableVenueQueries: false, // Disable venue queries to avoid duplicates
-            categoryConcurrency: batch.length // Process all categories in batch simultaneously
-          });
-
-          const batchEvents = eventAggregator.aggregateResults(results, date);
-          allEvents.push(...batchEvents);
-
+          const gapResult = await service.executeGapFillingQuery(
+            city,
+            date,
+            missingCategories,
+            existingEvents.length,
+            {
+              debug: this.debug,
+              temperature: this.temperature,
+              max_tokens: this.maxTokens
+            }
+          );
+          
+          const gapEvents = eventAggregator.aggregateResults([gapResult], date);
+          allEvents.push(...gapEvents);
+          aiCallsUsed++;
+          
           if (this.debug) {
-            console.log(`[Phase3] Batch ${batch.join(', ')}: ${batchEvents.length} events`);
+            console.log(`[Phase3] Gap-filling found ${gapEvents.length} events`);
           }
         } catch (error) {
-          console.warn(`[Phase3] Batch error for ${batch.join(', ')}:`, error);
+          console.warn('[Phase3] Gap-filling error:', error);
+        }
+      }
+
+      // Use remaining calls for category-specific queries
+      const remainingCalls = maxCalls - aiCallsUsed;
+      if (remainingCalls > 0) {
+        // Batch categories into groups for parallel querying
+        const batchSize = Math.ceil(selectedCategories.length / remainingCalls);
+        const batches: string[][] = [];
+        for (let i = 0; i < selectedCategories.length; i += batchSize) {
+          batches.push(selectedCategories.slice(i, i + batchSize));
+        }
+
+        if (this.debug) {
+          console.log(`[Phase3] Querying ${selectedCategories.length} categories in ${batches.length} batches`);
+        }
+
+        // Execute each batch as a single multi-category call
+        for (const batch of batches) {
+          if (aiCallsUsed >= maxCalls) break;
+          
+          try {
+            const results = await service.executeMultiQuery(city, date, batch, {
+              debug: this.debug,
+              temperature: this.temperature,
+              max_tokens: this.maxTokens,
+              enableVenueQueries: false, // Disable venue queries to avoid duplicates
+              categoryConcurrency: batch.length // Process all categories in batch simultaneously
+            });
+
+            const batchEvents = eventAggregator.aggregateResults(results, date);
+            allEvents.push(...batchEvents);
+            aiCallsUsed++;
+
+            if (this.debug) {
+              console.log(`[Phase3] Batch ${batch.join(', ')}: ${batchEvents.length} events`);
+            }
+          } catch (error) {
+            console.warn(`[Phase3] Batch error for ${batch.join(', ')}:`, error);
+          }
         }
       }
 
@@ -342,6 +384,19 @@ export class SmartEventFetcher {
       console.error('[Phase3] Error:', error);
       return [];
     }
+  }
+
+  /**
+   * Helper: Identify categories missing from current event set
+   */
+  private identifyMissingCategories(currentEvents: EventData[]): string[] {
+    const foundCategories = new Set(
+      currentEvents
+        .map(e => e.category)
+        .filter(cat => cat && cat.trim() !== '')
+    );
+    
+    return this.categories.filter(cat => !foundCategories.has(cat));
   }
 }
 

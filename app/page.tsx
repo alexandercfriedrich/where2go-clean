@@ -775,7 +775,9 @@ export default function Home() {
                   show: true,
                   message: `Phase ${phase}/${totalPhases}: ${message}`
                 });
-                setTimeout(() => setToast({show: false, message: ''}), 4000);
+                // Longer display for early phases, shorter for final phase
+                const toastDuration = phase < totalPhases ? 6000 : 3000;
+                setTimeout(() => setToast({show: false, message: ''}), toastDuration);
               }}
               autoStart={true}
               debug={false}
