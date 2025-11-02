@@ -114,10 +114,21 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
       if (debug) console.log('[WIEN.INFO:FETCH] No categories specified, fetching all F1 IDs:', f1Ids);
     } else {
       f1Ids = getWienInfoF1IdsForCategories(mainCategories);
+      
+      // Fallback: if no F1 mappings found, use all F1 IDs to avoid empty results
       if (f1Ids.length === 0) {
-        if (debug) console.log('[WIEN.INFO:FETCH] No F1 mappings found for categories:', categories);
-        return { events: [], error: 'No results from Wien.info!' };
+        f1Ids = Object.values(WIEN_INFO_F1_BY_LABEL);
+        if (debug) {
+          console.warn('[WIEN.INFO:FETCH] No F1 mappings found, using ALL F1 IDs as fallback');
+          console.log('[WIEN.INFO:FETCH] Fallback F1 count:', f1Ids.length);
+        }
       }
+    }
+
+    // Debug: Show final F1 IDs being used
+    if (debug) {
+      console.log('[WIEN.INFO:FETCH] Final F1 IDs:', f1Ids);
+      console.log('[WIEN.INFO:FETCH] F1 count:', f1Ids.length);
     }
 
     // 2) JSON API endpoint (fixed)
