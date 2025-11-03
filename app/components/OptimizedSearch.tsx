@@ -180,8 +180,6 @@ export default function OptimizedSearch({
             // Enhanced error handling - log but continue processing other lines
             if (debug) {
               console.error('[OptimizedSearch:Stream] Parse error for line:', line, parseError);
-            } else {
-              console.warn('[OptimizedSearch:Stream] Failed to parse message, skipping');
             }
             // Continue processing other lines
           }
