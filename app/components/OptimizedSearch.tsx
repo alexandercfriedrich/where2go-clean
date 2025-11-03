@@ -159,6 +159,8 @@ export default function OptimizedSearch({
                 if (onLoadingChange) {
                   onLoadingChange(false);
                 }
+                // Clear abort controller to allow new searches
+                abortControllerRef.current = null;
                 break;
 
               case 'error':
@@ -170,6 +172,8 @@ export default function OptimizedSearch({
                 if (onLoadingChange) {
                   onLoadingChange(false);
                 }
+                // Clear abort controller to allow new searches
+                abortControllerRef.current = null;
                 break;
             }
           } catch (parseError) {
@@ -188,6 +192,10 @@ export default function OptimizedSearch({
         if (debug) {
           console.log('[OptimizedSearch:Stream] Aborted');
         }
+        setStatus('idle');
+        if (onLoadingChange) {
+          onLoadingChange(false);
+        }
       } else {
         console.error('[OptimizedSearch:Stream] Stream error:', streamError);
         setStatus('error');
@@ -205,11 +213,18 @@ export default function OptimizedSearch({
   // Start the optimized search with streaming
   const startSearch = useCallback(async () => {
     try {
+      // Abort any existing search
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+
       // Reset state
       setStatus('loading');
       setError(null);
       setEvents([]);
       setPreviousEventCount(0);
+      setShowNewBadge(false);
+      setNewEventCount(0);
       setProgress({
         phase: 0,
         totalPhases: 4,
@@ -255,6 +270,9 @@ export default function OptimizedSearch({
         if (debug) {
           console.log('[OptimizedSearch] Search aborted');
         }
+        setStatus('idle');
+        if (onLoadingChange) onLoadingChange(false);
+        abortControllerRef.current = null;
         return;
       }
 
@@ -263,6 +281,7 @@ export default function OptimizedSearch({
       setStatus('error');
       if (onLoadingChange) onLoadingChange(false);
       if (onErrorChange) onErrorChange(errorMsg);
+      abortControllerRef.current = null;
       console.error('[OptimizedSearch] Error:', err);
     }
   }, [city, date, categories, debug, onLoadingChange, onErrorChange, parseNDJSON]);

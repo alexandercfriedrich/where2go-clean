@@ -9,7 +9,7 @@ import SEOFooter from './components/SEOFooter';
 import EventCardSkeleton from './components/EventCardSkeleton';
 import OptimizedSearch from './components/OptimizedSearch';
 import { generateEventListSchema, generateEventMicrodata, generateCanonicalUrl } from './lib/schemaOrg';
-import { TLDRBox } from './components/TLDRBox';
+
 import { FAQSection } from './components/FAQSection';
 import { homepageFAQs } from './data/faqDatabase';
 import { getAllGuides } from './data/guideContent';
@@ -627,21 +627,7 @@ export default function Home() {
       </header>
 
       {/* TL;DR Box - Homepage Highlights */}
-      {!searchSubmitted && (
-        <section className="search-section" style={{ paddingTop: '20px', paddingBottom: '20px' }}>
-          <div className="container">
-            <TLDRBox
-              items={[
-                'Entdecke täglich neue Events in deiner Stadt',
-                'Filtere nach Kategorie, Datum und Location',
-                'Von klassischen Konzerten bis zu Club-Partys',
-                'Alle Infos: Preise, Zeiten, Locations und Tickets',
-                'Kostenlose und bezahlte Events auf einen Blick',
-              ]}
-            />
-          </div>
-        </section>
-      )}
+
 
       <section className="search-section">
         <div className="container">
