@@ -121,15 +121,27 @@ export class SmartEventFetcher {
     await updatePhase(1, phase1Events, `Found ${phase1Events.length} events from cache and local APIs`);
 
     // ========== PHASE 2: Hot-City prioritized venues (max 2 AI calls) ==========
-    if (aiCallsUsed < maxAiCalls && totalEvents < 20) {
-      const availableCalls = Math.min(2, maxAiCalls - aiCallsUsed);
-      const phase2Events = await this.phase2HotCityVenues(city, date, availableCalls);
-      // Phase 2 uses up to 2 AI calls if venues are available
-      const phase2AiCallsUsed = phase2Events.length > 0 ? Math.min(2, availableCalls) : 0;
-      aiCallsUsed += phase2AiCallsUsed;
-      await updatePhase(2, phase2Events, `Found ${phase2Events.length} events from prioritized venues (${aiCallsUsed} AI calls used)`);
+    // Phase 2 runs whenever there are AI calls available, regardless of event count
+    // It only skips if: no Hot City config exists OR no venues/sites are configured
+    if (aiCallsUsed < maxAiCalls) {
+      const hotCity = await getHotCity(city);
+      const hasWebsites = !!hotCity && Array.isArray(hotCity.websites) && hotCity.websites.length > 0;
+      const hasVenues = !!hotCity && Array.isArray(hotCity.venues) && hotCity.venues.length > 0;
+      
+      if (!hotCity) {
+        await updatePhase(2, [], `Skipped - no Hot City configuration for ${city}`);
+      } else if (!hasWebsites && !hasVenues) {
+        await updatePhase(2, [], `Skipped - no venues/sites configured for Hot City ${city}`);
+      } else {
+        const availableCalls = Math.min(2, maxAiCalls - aiCallsUsed);
+        const phase2Events = await this.phase2HotCityVenues(city, date, availableCalls, hotCity);
+        // Phase 2 uses up to 2 AI calls if venues are available
+        const phase2AiCallsUsed = phase2Events.length > 0 ? Math.min(2, availableCalls) : 0;
+        aiCallsUsed += phase2AiCallsUsed;
+        await updatePhase(2, phase2Events, `Found ${phase2Events.length} events from prioritized venues (${aiCallsUsed} AI calls used)`);
+      }
     } else {
-      await updatePhase(2, [], `Skipped - sufficient events or no AI calls remaining`);
+      await updatePhase(2, [], `Skipped - AI call budget exhausted`);
     }
 
     // ========== PHASE 3: Smart Category Search (max 3 AI calls, batched) ==========
@@ -241,21 +253,39 @@ export class SmartEventFetcher {
 
   /**
    * Phase 2: Query top prioritized venues from Hot Cities (max 2 AI calls)
+   * Now accepts hotCity parameter to avoid redundant lookups
    */
   private async phase2HotCityVenues(
     city: string,
     date: string,
-    maxCalls: number
+    maxCalls: number,
+    hotCity: any
   ): Promise<EventData[]> {
     if (maxCalls === 0) return [];
 
     try {
-      const hotCity = await getHotCity(city);
+      // hotCity is now passed in and already validated
       if (!hotCity) {
         if (this.debug) {
-          console.log(`[Phase2] No hot city config for ${city}`);
+          console.log(`[Phase2] No hot city config provided for ${city}`);
         }
         return [];
+      }
+
+      // Check if venues/sites are configured (both websites and venues arrays)
+      const websiteCount = Array.isArray(hotCity.websites) ? hotCity.websites.length : 0;
+      const venueCount = Array.isArray(hotCity.venues) ? hotCity.venues.length : 0;
+      const totalVenueSites = websiteCount + venueCount;
+      
+      if (totalVenueSites === 0) {
+        if (this.debug) {
+          console.log(`[Phase2] Hot city ${city} has no venues/sites configured`);
+        }
+        return [];
+      }
+
+      if (this.debug) {
+        console.log(`[Phase2] Querying ${totalVenueSites} venues/sites (${websiteCount} websites, ${venueCount} structured venues) for Hot City ${city}`);
       }
 
       const service = createPerplexityService(this.apiKey);
@@ -274,7 +304,7 @@ export class SmartEventFetcher {
       const events = eventAggregator.aggregateResults(results, date);
 
       if (this.debug) {
-        console.log(`[Phase2] Venue queries returned ${events.length} events`);
+        console.log(`[Phase2] Venue queries returned ${events.length} events from ${totalVenueSites} configured venues/sites`);
       }
 
       return events;
