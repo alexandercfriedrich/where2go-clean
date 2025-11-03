@@ -81,12 +81,17 @@ export const EVENT_CATEGORY_SUBCATEGORIES: Record<string, string[]> = {
     "Career Fairs","Webinars/Talks","Business Breakfasts","Expo/Trade Shows",
     "Corporate Events","Leadership Forums","Entrepreneurship","Coworking Events"
   ],
-  "Community & Wellness": [
-    "Community Event","Social Gathering","Volunteer Activity","Civic Event",
-    "Community & Wellness","Community & Wellness","Pride Events","Queer Parties","Inclusive Spaces",
-    "Wellness Event","Spiritual Practice","Mindfulness Activity","Community & Wellness",
-    "Meditation Sessions","Sound Healing","Yoga Classes/Workshops","Wellness Retreats",
-    "Mental Health Circles","Charity Events","Support Groups"
+  "LGBTQ+": [
+    "Pride Events","Queer Parties","Gay Events","Lesbian Events",
+    "LGBTQ+ Community","LGBTQIA+ Events","Transgender Events",
+    "Bisexual Events","Non-binary Events","Inclusive Spaces",
+    "Diversity Events","Rainbow Events",
+    "Queer Theater","Gay Clubs","Lesbian Bars","Pride Concerts",
+    "LGBTQ+ Art","Queer Comedy","Pride Festivals","Rainbow Markets",
+    "Gay Sports","LGBTQ+ Film","Queer Literature","Pride Parties",
+    "Drag Shows","Drag Brunches","Gay Karaoke","Queer Dance",
+    "Coming Out Support","LGBTQ+ Meetups","Queer Networking",
+    "Pride Organizations","LGBTQ+ Volunteering","Trans Support Groups"
   ]
 };
 
