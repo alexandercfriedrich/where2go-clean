@@ -439,9 +439,9 @@ class InMemoryCache {
     // Compute TTL in seconds
     let ttlSeconds = Math.floor((targetTime.getTime() - now.getTime()) / 1000);
     
-    // Safety bounds: minimum 60s, maximum 7 days
+    // Safety bounds: minimum 1 hour, maximum 7 days
     const sevenDays = 7 * 24 * 60 * 60;
-    ttlSeconds = Math.max(60, Math.min(ttlSeconds, sevenDays));
+    ttlSeconds = Math.max(3600, Math.min(ttlSeconds, sevenDays));
 
     return ttlSeconds;
   }

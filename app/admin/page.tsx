@@ -107,7 +107,6 @@ export default function AdminPage() {
       const response = await fetch('/api/admin/cache-warmup', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${process.env.NEXT_PUBLIC_ADMIN_API_KEY || ''}`,
           'Content-Type': 'application/json'
         }
       });
