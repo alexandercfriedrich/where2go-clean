@@ -542,7 +542,7 @@ Return JSON array with ALL found events.`;
     category: string,
     options: PerplexityOptions = {}
   ): Promise<PerplexityResult> {
-    const prompt = buildOptimizedCategoryPrompt(city, date, category, options);
+    const prompt = generateCategoryPrompt(city, date, category, options);
     
     if (options.debug || process.env.LOG_PPLX_QUERIES === '1') {
       console.log(`[PPLX:CATEGORY] Querying ${category} for ${city} on ${date}`);
