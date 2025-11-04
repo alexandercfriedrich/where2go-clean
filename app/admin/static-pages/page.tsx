@@ -113,30 +113,18 @@ export default function StaticPagesAdmin() {
 
   function handleCreateNewPage() {
     setEditingPage({
-      id: '',
-      title: '',
+      id: 'neue-seite', // Default ID to prevent empty validation error
+      title: 'Neue Seite',
       content: '',
-      path: '/',
+      path: '/neue-seite',
       updatedAt: new Date().toISOString(),
     });
     setEditorMode('rich');
     setShowCreateForm(true);
   }
 
+  // Simplified editor mode switching - no conversion needed as Quill handles HTML
   function switchEditorMode(newMode: EditorMode) {
-    if (!editingPage) return;
-    
-    let convertedContent = editingPage.content;
-    
-    if (newMode === 'html' && editorMode === 'rich') {
-      // Rich Text → HTML: Content ist bereits HTML
-      convertedContent = editingPage.content;
-    } else if (newMode === 'rich' && editorMode === 'html') {
-      // HTML → Rich Text: Content bleibt HTML (Quill kann HTML parsen)
-      convertedContent = editingPage.content;
-    }
-    
-    setEditingPage({ ...editingPage, content: convertedContent });
     setEditorMode(newMode);
   }
 
@@ -424,6 +412,12 @@ export default function StaticPagesAdmin() {
           font-weight: bold;
           color: #333;
         }
+        .form-group .field-hint {
+          font-size: 12px;
+          color: #666;
+          font-weight: normal;
+          margin-left: 8px;
+        }
         .form-input {
           width: 100%;
           padding: 10px;
@@ -431,6 +425,9 @@ export default function StaticPagesAdmin() {
           border-radius: 4px;
           font-size: 14px;
           box-sizing: border-box;
+        }
+        .form-input.required {
+          border-left: 3px solid #007bff;
         }
         .form-textarea {
           width: 100%;
@@ -593,36 +590,36 @@ export default function StaticPagesAdmin() {
             <h2>{showCreateForm ? 'Neue Seite erstellen' : `Edit ${editingPage.title}`}</h2>
 
             <div className="form-group">
-              <label>ID {showCreateForm && '(eindeutig, nur Kleinbuchstaben und Bindestriche)'}</label>
+              <label>ID <span className="field-hint">{showCreateForm ? '(eindeutig, nur Kleinbuchstaben und Bindestriche)' : '(nicht änderbar)'}</span></label>
               <input
                 type="text"
-                className="form-input"
+                className={`form-input ${showCreateForm ? 'required' : ''}`}
                 value={editingPage.id}
                 onChange={(e) => setEditingPage({ ...editingPage, id: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
                 disabled={!showCreateForm} // ID nur bei neuen Seiten änderbar
-                placeholder="datenschutz"
+                placeholder="meine-neue-seite"
               />
             </div>
 
             <div className="form-group">
-              <label>Title</label>
+              <label>Title <span className="field-hint">(erforderlich)</span></label>
               <input
                 type="text"
-                className="form-input"
+                className="form-input required"
                 value={editingPage.title}
                 onChange={(e) => setEditingPage({ ...editingPage, title: e.target.value })}
-                placeholder="Datenschutzerklärung"
+                placeholder="Meine neue Seite"
               />
             </div>
 
             <div className="form-group">
-              <label>Path</label>
+              <label>Path <span className="field-hint">(URL-Pfad, z.B. /meine-seite)</span></label>
               <input
                 type="text"
-                className="form-input"
+                className="form-input required"
                 value={editingPage.path}
                 onChange={(e) => setEditingPage({ ...editingPage, path: e.target.value })}
-                placeholder="/datenschutz"
+                placeholder="/meine-neue-seite"
               />
             </div>
 
