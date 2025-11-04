@@ -15,7 +15,7 @@ interface StaticPage {
 async function loadStaticPages(): Promise<StaticPage[]> {
   try {
     const redis = getRedisClient();
-    const data = await redis.get(REDIS_KEY);
+    const data = await redis.get<string>(REDIS_KEY);
     if (!data) {
       console.log('No static pages found in Redis, returning empty array');
       return [];

@@ -450,3 +450,15 @@ class InMemoryCache {
 // Singleton instance
 export const eventsCache = new InMemoryCache();
 export default InMemoryCache;
+
+/**
+ * Get a Redis client instance for general use (e.g., static pages storage)
+ */
+export function getRedisClient(): Redis {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) {
+    throw new Error('[getRedisClient] Redis env vars missing (UPSTASH_REDIS_REST_URL/TOKEN).');
+  }
+  return new Redis({ url, token });
+}
