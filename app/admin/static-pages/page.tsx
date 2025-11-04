@@ -135,12 +135,14 @@ export default function StaticPagesAdmin() {
       setSaving(true);
       setError(null);
       
-      console.log('Saving page data:', {
-        id: editingPage.id,
-        title: editingPage.title,
-        content: content,
-        path: editingPage.path,
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Saving page data:', {
+          id: editingPage.id,
+          title: editingPage.title,
+          content: content,
+          path: editingPage.path,
+        });
+      }
       
       const res = await fetch('/api/admin/static-pages', {
         method: 'POST',
@@ -160,7 +162,9 @@ export default function StaticPagesAdmin() {
       }
       
       const result = await res.json();
-      console.log('Save successful:', result);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Save successful:', result);
+      }
       
       await loadPages();
       setEditingPage(null);
@@ -180,7 +184,9 @@ export default function StaticPagesAdmin() {
   }
 
   const handleContentChange = useCallback((value: string) => {
-    console.log('Content changed:', value?.substring(0, 100)); // Debug log
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Content changed:', value?.substring(0, 100));
+    }
     setEditingPage(prev => prev ? { ...prev, content: value } : null);
     setHasUnsavedChanges(true);
   }, []);
