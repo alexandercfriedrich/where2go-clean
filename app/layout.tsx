@@ -4,6 +4,8 @@ import Script from 'next/script';
 // Basis-Design 1 früh laden, damit kein FOUC auftritt.
 // Der DesignCssLoader schaltet bei ?design=2 nachträglich auf design2.css um.
 import '../public/designs/design1.css';
+// React-Quill CSS für Rich Text Editor
+import 'react-quill-new/dist/quill.snow.css';
 import DesignCssLoader from './components/DesignCssLoader';
 import SchemaOrg from './components/SchemaOrg';
 import MainFooter from './components/MainFooter';
