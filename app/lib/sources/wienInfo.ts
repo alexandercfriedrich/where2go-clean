@@ -89,7 +89,7 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
       'Musik & Nachtleben': 'Live-Konzerte',
       'Märkte & Shopping': 'Märkte/Shopping',
       'Food & Culinary': 'Food/Culinary',
-      'Community & Wellness': 'Soziales/Community',
+      'LGBTQ+': 'Soziales/Community',
       'Sport & Fitness': 'Sport',
       'Kultur & Bildung': 'Kultur/Traditionen',
       'Business & Networking': 'Networking/Business',

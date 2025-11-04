@@ -709,8 +709,15 @@ NO explanatory text outside the JSON structure.`;
       'kids': 'Familie & Kinder',
       'business': 'Business & Networking',
       'networking': 'Business & Networking',
-      'wellness': 'Community & Wellness',
-      'community': 'Community & Wellness'
+      'wellness': 'Sport & Fitness',
+      'community': 'LGBTQ+',
+      'pride': 'LGBTQ+',
+      'queer': 'LGBTQ+',
+      'lgbt': 'LGBTQ+',
+      'lgbtq': 'LGBTQ+',
+      'gay': 'LGBTQ+',
+      'lesbian': 'LGBTQ+',
+      'drag': 'LGBTQ+'
     };
     
     for (const [keyword, mainCat] of Object.entries(keywords)) {

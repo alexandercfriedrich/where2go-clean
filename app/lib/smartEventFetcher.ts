@@ -35,7 +35,7 @@ export const OPTIMIZED_CATEGORIES = [
   'Kultur & Bildung',
   'Familie & Kinder',
   'Business & Networking',
-  'Community & Wellness'
+  'LGBTQ+'
 ] as const;
 
 /**
