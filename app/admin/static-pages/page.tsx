@@ -3,6 +3,9 @@
 import { useEffect, useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 
+// Quill CSS imports
+import 'react-quill/dist/quill.snow.css';
+
 // Dynamic import für React-Quill um SSR-Probleme zu vermeiden
 const ReactQuill = dynamic(() => import('react-quill'), { 
   ssr: false,
@@ -671,7 +674,7 @@ export default function StaticPagesAdmin() {
                 />
               )}
               
-              <div style={{ fontSize: '12px', color: '666', marginTop: '8px' }}>
+              <div style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
                 {editorMode === 'rich' 
                   ? '🎨 Rich Text Editor: Verwenden Sie die Toolbar für Formatierungen'
                   : '📝 HTML Editor: Direkter HTML-Code Input'}
