@@ -1,13 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
-import dynamic from 'next/dynamic';
-
-// Dynamic import für React-Quill um SSR-Probleme zu vermeiden
-const ReactQuill = dynamic(() => import('react-quill-new'), { 
-  ssr: false,
-  loading: () => <div className="form-textarea" style={{ minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #ddd' }}>Editor wird geladen...</div>
-});
+import { useEffect, useState } from 'react';
 
 interface StaticPage {
   id: string;
@@ -23,7 +16,6 @@ export default function StaticPagesAdmin() {
   const [error, setError] = useState<string | null>(null);
   const [editingPage, setEditingPage] = useState<StaticPage | null>(null);
   const [saving, setSaving] = useState(false);
-  const [isClient, setIsClient] = useState(false);
 
   const staticPages = [
     { id: 'seo-footer', title: 'SEO Footer (Homepage)', path: '/' },
@@ -35,38 +27,7 @@ export default function StaticPagesAdmin() {
     { id: 'premium', title: 'Premium', path: '/premium' },
   ];
 
-  // React-Quill Konfiguration
-  const quillModules = useMemo(() => ({
-    toolbar: [
-      [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-      [{ 'font': [] }],
-      [{ 'size': ['small', false, 'large', 'huge'] }],
-      ['bold', 'italic', 'underline', 'strike'],
-      [{ 'color': [] }, { 'background': [] }],
-      [{ 'script': 'sub'}, { 'script': 'super' }],
-      [{ 'list': 'ordered'}, { 'list': 'bullet' }],
-      [{ 'indent': '-1'}, { 'indent': '+1' }],
-      [{ 'align': [] }],
-      ['blockquote', 'code-block'],
-      ['link', 'image'],
-      ['clean']
-    ],
-  }), []);
-
-  const quillFormats = [
-    'header', 'font', 'size',
-    'bold', 'italic', 'underline', 'strike',
-    'color', 'background',
-    'script',
-    'list', 'bullet',
-    'indent',
-    'align',
-    'blockquote', 'code-block',
-    'link', 'image'
-  ];
-
   useEffect(() => {
-    setIsClient(true);
     loadPages();
   }, []);
 
@@ -83,7 +44,6 @@ export default function StaticPagesAdmin() {
       setPages(data.pages || []);
     } catch (e: any) {
       setError(e.message || 'Unknown error');
-      console.error('Error loading pages:', e);
     } finally {
       setLoading(false);
     }
@@ -107,7 +67,6 @@ export default function StaticPagesAdmin() {
   async function handleSavePage() {
     if (!editingPage) return;
 
-    // Validierung
     if (!editingPage.id?.trim() || !editingPage.title?.trim()) {
       setError('Bitte ID und Titel ausfüllen.');
       return;
@@ -116,54 +75,31 @@ export default function StaticPagesAdmin() {
       setError('Pfad ist ungültig. Er muss mit / beginnen, z. B. /impressum');
       return;
     }
-    
-    // Content als String validieren und bereinigen
-    let content = editingPage.content || '';
-    if (typeof content !== 'string') {
-      console.warn('Content is not a string, converting:', typeof content, content);
-      content = String(content);
-    }
-    
-    // Leeren Quill-Content bereinigen
-    if (content === '<p><br></p>' || content === '<p></p>') {
-      content = '';
+    if (typeof editingPage.content !== 'string') {
+      setError('Inhalt ist ungültig.');
+      return;
     }
 
     try {
       setSaving(true);
       setError(null);
-      
-      console.log('Saving page data:', {
-        id: editingPage.id,
-        title: editingPage.title,
-        content: content,
-        path: editingPage.path,
-      });
-      
       const res = await fetch('/api/admin/static-pages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: editingPage.id,
           title: editingPage.title,
-          content: content,
+          content: editingPage.content,
           path: editingPage.path,
         }),
       });
-      
       if (!res.ok) {
         const err = await res.json().catch(() => ({} as any));
-        console.error('API Error:', err);
         throw new Error(err?.error || 'Failed to save page');
       }
-      
-      const result = await res.json();
-      console.log('Save successful:', result);
-      
       await loadPages();
       setEditingPage(null);
     } catch (e: any) {
-      console.error('Save error:', e);
       setError(e.message || 'Unknown error');
     } finally {
       setSaving(false);
@@ -172,13 +108,6 @@ export default function StaticPagesAdmin() {
 
   function handleCancel() {
     setEditingPage(null);
-    setError(null);
-  }
-
-  function handleContentChange(value: string) {
-    if (editingPage) {
-      setEditingPage({ ...editingPage, content: value });
-    }
   }
 
   if (loading) {
@@ -225,15 +154,11 @@ export default function StaticPagesAdmin() {
           font-size: 14px;
           transition: background-color 0.3s;
         }
-        .btn:disabled {
-          opacity: 0.6;
-          cursor: not-allowed;
-        }
         .btn-primary {
           background-color: #007bff;
           color: white;
         }
-        .btn-primary:hover:not(:disabled) {
+        .btn-primary:hover {
           background-color: #0056b3;
         }
         .btn-secondary {
@@ -241,7 +166,7 @@ export default function StaticPagesAdmin() {
           color: white;
           margin-right: 10px;
         }
-        .btn-secondary:hover:not(:disabled) {
+        .btn-secondary:hover {
           background-color: #545b62;
         }
         .pages-grid {
@@ -286,14 +211,6 @@ export default function StaticPagesAdmin() {
           border-radius: 6px;
           margin-bottom: 16px;
         }
-        .success {
-          background: #d4edda;
-          color: #155724;
-          border: 1px solid #c3e6cb;
-          padding: 10px 12px;
-          border-radius: 6px;
-          margin-bottom: 16px;
-        }
         .modal-overlay {
           position: fixed;
           inset: 0;
@@ -302,24 +219,22 @@ export default function StaticPagesAdmin() {
           align-items: center;
           justify-content: center;
           z-index: 1000;
-          overflow-y: auto;
         }
         .modal {
           background: white;
           border-radius: 8px;
           padding: 30px;
-          max-width: 1000px;
-          width: 95%;
-          max-height: 90vh;
+          max-width: 900px;
+          width: 90%;
+          max-height: 80vh;
           overflow-y: auto;
-          margin: 20px;
         }
         .form-group {
           margin-bottom: 20px;
         }
         .form-group label {
           display: block;
-          margin-bottom: 8px;
+          margin-bottom: 5px;
           font-weight: bold;
           color: #333;
         }
@@ -329,7 +244,6 @@ export default function StaticPagesAdmin() {
           border: 1px solid #ddd;
           border-radius: 4px;
           font-size: 14px;
-          box-sizing: border-box;
         }
         .form-textarea {
           width: 100%;
@@ -342,34 +256,12 @@ export default function StaticPagesAdmin() {
             'Courier New', monospace;
           resize: vertical;
           white-space: pre-wrap;
-          box-sizing: border-box;
         }
         .modal-actions {
           display: flex;
           gap: 10px;
           justify-content: flex-end;
           margin-top: 20px;
-          padding-top: 20px;
-          border-top: 1px solid #eee;
-        }
-        .editor-container {
-          border: 1px solid #ddd;
-          border-radius: 4px;
-          background: white;
-        }
-        .editor-container :global(.ql-container) {
-          min-height: 300px;
-          font-size: 14px;
-        }
-        .editor-container :global(.ql-toolbar) {
-          border-bottom: 1px solid #ddd;
-        }
-        .editor-container :global(.ql-editor) {
-          min-height: 300px;
-        }
-        .editor-container :global(.ql-editor.ql-blank::before) {
-          font-style: italic;
-          color: #999;
         }
       `}</style>
 
@@ -392,7 +284,7 @@ export default function StaticPagesAdmin() {
                   <h3 className="page-title">{pageInfo.title}</h3>
                   <div className="page-path">{pageInfo.path}</div>
                   {existing && (
-                    <div style={{ fontSize: '0.8rem', color: '#666', marginTop: 5 }}>  
+                    <div style={{ fontSize: '0.8rem', color: '#666', marginTop: 5 }}>
                       Last updated: {new Date(existing.updatedAt).toLocaleString()}
                     </div>
                   )}
@@ -436,23 +328,13 @@ export default function StaticPagesAdmin() {
             </div>
 
             <div className="form-group">
-              <label>Content (Rich Text Editor)</label>
-              {isClient ? (
-                <div className="editor-container">
-                  <ReactQuill
-                    theme="snow"
-                    value={editingPage.content}
-                    onChange={handleContentChange}
-                    modules={quillModules}
-                    formats={quillFormats}
-                    placeholder="Geben Sie hier Ihren Content ein. Sie können Text formatieren, Links hinzufügen und vieles mehr..."
-                  />
-                </div>
-              ) : (
-                <div className="form-textarea" style={{ minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  Editor wird geladen...
-                </div>
-              )}
+              <label>Content (HTML)</label>
+              <textarea
+                className="form-textarea"
+                value={editingPage.content}
+                onChange={(e) => setEditingPage({ ...editingPage, content: e.target.value })}
+                placeholder="Enter HTML content for this page..."
+              />
             </div>
 
             <div className="modal-actions">
