@@ -102,8 +102,9 @@ async function loadStaticPages(): Promise<StaticPage[]> {
   }
 }
 
+// GET /api/static-pages/[id]
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
