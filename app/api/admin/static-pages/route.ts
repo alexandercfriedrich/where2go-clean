@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
+import { getRedisClient } from '@/lib/cache';
 
-const DEFAULT_DATA_DIR = path.join(process.cwd(), 'data');
-const DEFAULT_FILE = path.join(DEFAULT_DATA_DIR, 'static-pages.json');
-// Fallback for read-only filesystems (e.g., Vercel)
-const TMP_FILE = '/tmp/static-pages.json';
+const REDIS_KEY = 'where2go:static-pages:v1';
 
 interface StaticPage {
   id: string;
@@ -15,64 +11,40 @@ interface StaticPage {
   updatedAt: string;
 }
 
-function fileExists(p: string) {
+// Load static pages from Redis
+async function loadStaticPages(): Promise<StaticPage[]> {
   try {
-    return fs.existsSync(p);
-  } catch {
-    return false;
-  }
-}
-function ensureDir(dir: string) {
-  if (!fileExists(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-}
-function pickReadableFile(): string {
-  if (fileExists(DEFAULT_FILE)) return DEFAULT_FILE;
-  if (fileExists(TMP_FILE)) return TMP_FILE;
-  return DEFAULT_FILE;
-}
-function loadStaticPages(): StaticPage[] {
-  const filePath = pickReadableFile();
-  if (!fileExists(filePath)) return [];
-  try {
-    const data = fs.readFileSync(filePath, 'utf8');
-    if (!data?.trim()) return [];
-    return JSON.parse(data);
+    const redis = getRedisClient();
+    const data = await redis.get(REDIS_KEY);
+    if (!data) {
+      console.log('No static pages found in Redis, returning empty array');
+      return [];
+    }
+    const pages = JSON.parse(data);
+    console.log(`Loaded ${pages.length} static pages from Redis`);
+    return pages;
   } catch (error) {
-    console.error('Error loading static pages:', error);
+    console.error('Error loading static pages from Redis:', error);
     return [];
   }
 }
-function tryWrite(filePath: string, content: string) {
+
+// Save static pages to Redis
+async function saveStaticPages(pages: StaticPage[]): Promise<void> {
   try {
-    const dir = path.dirname(filePath);
-    if (filePath !== TMP_FILE) ensureDir(dir);
-    fs.writeFileSync(filePath, content);
-    return filePath;
-  } catch (error: any) {
-    const code = error?.code;
-    if ((code === 'EROFS' || code === 'EPERM' || code === 'EACCES') && filePath !== TMP_FILE) {
-      try {
-        fs.writeFileSync(TMP_FILE, content);
-        return TMP_FILE;
-      } catch (e2) {
-        console.error('Error saving static pages to /tmp:', e2);
-        throw e2;
-      }
-    }
-    console.error('Error saving static pages:', error);
+    const redis = getRedisClient();
+    const json = JSON.stringify(pages, null, 2);
+    await redis.set(REDIS_KEY, json);
+    console.log(`Saved ${pages.length} static pages to Redis`);
+  } catch (error) {
+    console.error('Error saving static pages to Redis:', error);
     throw error;
   }
-}
-function saveStaticPages(pages: StaticPage[]) {
-  const json = JSON.stringify(pages, null, 2);
-  tryWrite(DEFAULT_FILE, json);
 }
 
 export async function GET() {
   try {
-    const pages = loadStaticPages();
+    const pages = await loadStaticPages();
     return NextResponse.json({ pages });
   } catch (error) {
     console.error('Error in GET /api/admin/static-pages:', error);
@@ -84,18 +56,26 @@ export async function POST(request: NextRequest) {
   try {
     const pageData = (await request.json()) as Partial<StaticPage>;
 
+    console.log('Received POST request with data:', {
+      id: pageData.id,
+      title: pageData.title,
+      contentLength: pageData.content?.length || 0,
+      path: pageData.path
+    });
+
     // Validation
     if (!pageData.id || !pageData.title) {
       return NextResponse.json({ error: 'Missing required fields: id, title' }, { status: 400 });
     }
     if (typeof pageData.content !== 'string') {
+      console.error('Invalid content type:', typeof pageData.content, pageData.content);
       return NextResponse.json({ error: 'Missing or invalid field: content' }, { status: 400 });
     }
     if (typeof pageData.path !== 'string' || !pageData.path.startsWith('/')) {
       return NextResponse.json({ error: 'Missing or invalid field: path (must start with /)' }, { status: 400 });
     }
 
-    const pages = loadStaticPages();
+    const pages = await loadStaticPages();
     const idx = pages.findIndex(p => p.id === pageData.id);
 
     const normalized: StaticPage = {
@@ -106,10 +86,23 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date().toISOString(),
     };
 
-    if (idx >= 0) pages[idx] = normalized;
-    else pages.push(normalized);
+    if (idx >= 0) {
+      pages[idx] = normalized;
+      console.log(`Updated existing page: ${pageData.id}`);
+    } else {
+      pages.push(normalized);
+      console.log(`Created new page: ${pageData.id}`);
+    }
 
-    saveStaticPages(pages);
+    await saveStaticPages(pages);
+    
+    console.log('Successfully saved page to Redis:', {
+      id: normalized.id,
+      title: normalized.title,
+      contentLength: normalized.content.length,
+      updatedAt: normalized.updatedAt
+    });
+    
     return NextResponse.json({ success: true, page: normalized });
   } catch (error: any) {
     console.error('Error in POST /api/admin/static-pages:', error);
@@ -126,14 +119,15 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Missing page ID' }, { status: 400 });
     }
 
-    const pages = loadStaticPages();
+    const pages = await loadStaticPages();
     const filtered = pages.filter(p => p.id !== pageId);
 
     if (pages.length === filtered.length) {
       return NextResponse.json({ error: 'Page not found' }, { status: 404 });
     }
 
-    saveStaticPages(filtered);
+    await saveStaticPages(filtered);
+    console.log(`Deleted static page: ${pageId}`);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error in DELETE /api/admin/static-pages:', error);
