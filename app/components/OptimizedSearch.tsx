@@ -349,7 +349,7 @@ export default function OptimizedSearch({
             </span>
             {showNewBadge && newEventCount > 0 && (
               <span className="new-badge" aria-live="polite">
-                +{newEventCount} new!
+                +{newEventCount} neu!
               </span>
             )}
           </div>
