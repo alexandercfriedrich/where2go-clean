@@ -1,5 +1,8 @@
 'use client';
 
+// React-Quill CSS für Rich Text Editor (nur für Admin-Bereich)
+import 'react-quill/dist/quill.snow.css';
+
 export default function AdminLayout({
   children,
 }: {
