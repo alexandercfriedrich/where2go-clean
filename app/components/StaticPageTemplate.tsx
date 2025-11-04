@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 
 interface StaticPage {
   id: string;
@@ -19,27 +19,8 @@ export default function StaticPageTemplate({ pageId, defaultTitle, defaultConten
   const [page, setPage] = useState<StaticPage | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Apply design1.css by default
-  useEffect(() => {
-    const id = 'w2g-design-css';
-    const existing = document.getElementById(id) as HTMLLinkElement | null;
-    const href = `/designs/design1.css`;
-    
-    if (existing) {
-      if (existing.getAttribute('href') !== href) existing.setAttribute('href', href);
-    } else {
-      const link = document.createElement('link');
-      link.id = id;
-      link.rel = 'stylesheet';
-      link.href = href;
-      document.head.appendChild(link);
-    }
-
-    // Load page content
-    loadPageContent();
-  }, [pageId]);
-
-  async function loadPageContent() {
+  // Memoize the load function to prevent unnecessary re-renders
+  const loadPageContent = useCallback(async () => {
     try {
       console.log(`Loading static page content for: ${pageId}`);
       const res = await fetch(`/api/static-pages/${pageId}`, { 
@@ -61,7 +42,27 @@ export default function StaticPageTemplate({ pageId, defaultTitle, defaultConten
     } finally {
       setLoading(false);
     }
-  }
+  }, [pageId]);
+
+  // Apply design1.css by default and load content
+  useEffect(() => {
+    const id = 'w2g-design-css';
+    const existing = document.getElementById(id) as HTMLLinkElement | null;
+    const href = `/designs/design1.css`;
+    
+    if (existing) {
+      if (existing.getAttribute('href') !== href) existing.setAttribute('href', href);
+    } else {
+      const link = document.createElement('link');
+      link.id = id;
+      link.rel = 'stylesheet';
+      link.href = href;
+      document.head.appendChild(link);
+    }
+
+    // Load page content
+    loadPageContent();
+  }, [loadPageContent]);
 
   if (loading) {
     return (
