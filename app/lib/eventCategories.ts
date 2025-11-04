@@ -81,12 +81,17 @@ export const EVENT_CATEGORY_SUBCATEGORIES: Record<string, string[]> = {
     "Career Fairs","Webinars/Talks","Business Breakfasts","Expo/Trade Shows",
     "Corporate Events","Leadership Forums","Entrepreneurship","Coworking Events"
   ],
-  "Community & Wellness": [
-    "Community Event","Social Gathering","Volunteer Activity","Civic Event",
-    "Community & Wellness","Community & Wellness","Pride Events","Queer Parties","Inclusive Spaces",
-    "Wellness Event","Spiritual Practice","Mindfulness Activity","Community & Wellness",
-    "Meditation Sessions","Sound Healing","Yoga Classes/Workshops","Wellness Retreats",
-    "Mental Health Circles","Charity Events","Support Groups"
+  "LGBTQ+": [
+    "Pride Events","Queer Parties","Gay Events","Lesbian Events",
+    "LGBTQ+ Community","LGBTQIA+ Events","Transgender Events",
+    "Bisexual Events","Non-binary Events","Inclusive Spaces",
+    "Diversity Events","Rainbow Events",
+    "Queer Theater","Gay Clubs","Lesbian Bars","Pride Concerts",
+    "LGBTQ+ Art","Queer Comedy","Pride Festivals","Rainbow Markets",
+    "Gay Sports","LGBTQ+ Film","Queer Literature","Pride Parties",
+    "Drag Shows","Drag Brunches","Gay Karaoke","Queer Dance",
+    "Coming Out Support","LGBTQ+ Meetups","Queer Networking",
+    "Pride Organizations","LGBTQ+ Volunteering","Trans Support Groups"
   ]
 };
 
@@ -114,8 +119,8 @@ export const NORMALIZATION_TOKEN_MAP: Record<string,string> = {
   "veranstaltung":"Open Air & Festivals","veranstaltungen":"Open Air & Festivals","public":"Open Air & Festivals",
   
   // LGBTQ+
-  "queer":"Community & Wellness","pride":"Community & Wellness","gay":"Community & Wellness","lesbian":"Community & Wellness","lgbt":"Community & Wellness","lgbtq":"Community & Wellness",
-  "drag":"Community & Wellness","trans":"Community & Wellness","transgender":"Community & Wellness","bisexual":"Community & Wellness","inclusive":"Community & Wellness",
+  "queer":"LGBTQ+","pride":"LGBTQ+","gay":"LGBTQ+","lesbian":"LGBTQ+","lgbt":"LGBTQ+","lgbtq":"LGBTQ+",
+  "drag":"LGBTQ+","trans":"LGBTQ+","transgender":"LGBTQ+","bisexual":"LGBTQ+","inclusive":"LGBTQ+",
   
   // Food/Culinary
   "food":"Food & Culinary","essen":"Food & Culinary","culinary":"Food & Culinary","kulinarisch":"Food & Culinary",
@@ -155,8 +160,8 @@ export const NORMALIZATION_TOKEN_MAP: Record<string,string> = {
   "bazar":"Märkte & Shopping","bazaar":"Märkte & Shopping",
   
   // Social/Community
-  "sozial":"Community & Wellness","social":"Community & Wellness","community":"Community & Wellness",
-  "volunteer":"Community & Wellness","charity":"Community & Wellness","gemeinde":"Community & Wellness",
+  "sozial":"LGBTQ+","social":"LGBTQ+","community":"LGBTQ+",
+  "volunteer":"LGBTQ+","charity":"LGBTQ+","gemeinde":"LGBTQ+",
   
   // Music/Concerts
   "musik":"Musik & Nachtleben","music":"Musik & Nachtleben","konzert":"Musik & Nachtleben","concert":"Musik & Nachtleben",
@@ -195,27 +200,27 @@ export const NORMALIZATION_TOKEN_MAP: Record<string,string> = {
   "screening":"Film & Kino","screenings":"Film & Kino","premiere":"Film & Kino","premieres":"Film & Kino",
   
   // Wellness/Spiritual
-  "wellness":"Community & Wellness","meditation":"Community & Wellness","yoga":"Community & Wellness",
-  "spa":"Community & Wellness","mindfulness":"Community & Wellness","spirituell":"Community & Wellness",
-  "spiritual":"Community & Wellness","zen":"Community & Wellness","healing":"Community & Wellness",
+  "wellness":"Sport & Fitness","meditation":"Sport & Fitness","yoga":"Sport & Fitness",
+  "spa":"Sport & Fitness","mindfulness":"Sport & Fitness","spirituell":"Sport & Fitness",
+  "spiritual":"Sport & Fitness","zen":"Sport & Fitness","healing":"Sport & Fitness",
   
   // Time-based defaults
-  "evening":"Open Air & Festivals","afternoon":"Open Air & Festivals","morning":"Community & Wellness",
-  "weekend":"Open Air & Festivals","weekday":"Bildung/Lernen","daily":"Community & Wellness","weekly":"Bildung/Lernen",
+  "evening":"Open Air & Festivals","afternoon":"Open Air & Festivals","morning":"LGBTQ+",
+  "weekend":"Open Air & Festivals","weekday":"Bildung/Lernen","daily":"LGBTQ+","weekly":"Bildung/Lernen",
   
   // Level/Audience
   "beginner":"Bildung/Lernen","anfänger":"Bildung/Lernen","basic":"Bildung/Lernen",
   "advanced":"Bildung/Lernen","expert":"Bildung/Lernen",
   "adult":"Business & Networking","adults":"Business & Networking","erwachsene":"Business & Networking",
-  "senior":"Community & Wellness","seniors":"Community & Wellness","senioren":"Community & Wellness",
+  "senior":"LGBTQ+","seniors":"LGBTQ+","senioren":"LGBTQ+",
   
   // Format-based
   "online":"Bildung/Lernen","virtual":"Bildung/Lernen","livestream":"Film & Kino",
   "interactive":"Bildung/Lernen","interaktiv":"Bildung/Lernen","hands-on":"Bildung/Lernen",
-  "free":"Community & Wellness","kostenlos":"Community & Wellness","gratis":"Community & Wellness",
+  "free":"LGBTQ+","kostenlos":"LGBTQ+","gratis":"LGBTQ+",
   
   // Fallback for unknown terms
-  "unknown":"Community & Wellness","other":"Community & Wellness","misc":"Community & Wellness","sonstiges":"Community & Wellness"
+  "unknown":"LGBTQ+","other":"LGBTQ+","misc":"LGBTQ+","sonstiges":"LGBTQ+"
 };
 
 export function normalizeCategory(input: string): string {
@@ -261,8 +266,8 @@ export function normalizeCategory(input: string): string {
   const lc = EVENT_CATEGORIES.find(c => c.toLowerCase() === lower);
   if (lc) return lc;
   
-  // 7. Fallback to "Community & Wellness"
-  return "Community & Wellness";
+  // 7. Fallback to "LGBTQ+"
+  return "LGBTQ+";
 }
 
 // Enhanced validation with fallback
@@ -279,7 +284,7 @@ export function validateAndNormalizeEvents(events: any[]): any[] {
         const norm = normalizeCategory(e.category);
         e.category = norm; // Always assign normalized category (including fallback)
       } else {
-        e.category = "Community & Wellness"; // Default for events without category
+        e.category = "LGBTQ+"; // Default for events without category
       }
       return e;
     });

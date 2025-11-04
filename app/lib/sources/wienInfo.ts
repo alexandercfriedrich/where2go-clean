@@ -81,7 +81,31 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
   const { fromISO, toISO, categories, limit = 100, debug = false, debugVerbose = false } = opts;
 
   try {
-    // 1) Resolve F1 IDs for requested main categories (forward mapping via SSOT)
+    // 1) Normalize UI super-categories to main categories for F1 mapping
+    const uiSuperToMain: Record<string, string> = {
+      'Museen & Ausstellungen': 'Museen',
+      'Film & Kino': 'Film',
+      'Open Air & Festivals': 'Open Air',
+      'Musik & Nachtleben': 'Live-Konzerte',
+      'Märkte & Shopping': 'Märkte/Shopping',
+      'Food & Culinary': 'Food/Culinary',
+      'LGBTQ+': 'Soziales/Community',
+      'Sport & Fitness': 'Sport',
+      'Kultur & Bildung': 'Kultur/Traditionen',
+      'Business & Networking': 'Networking/Business',
+      'Familie & Kinder': 'Familien/Kids',
+      'Theater/Performance': 'Theater/Performance'
+    };
+
+    // Normalize categories before F1 lookup
+    const mainCategories = categories.map(cat => uiSuperToMain[cat] || cat);
+
+    if (debug) {
+      console.log('[WIEN.INFO:FETCH] UI categories:', categories);
+      console.log('[WIEN.INFO:FETCH] Normalized to main:', mainCategories);
+    }
+
+    // 2) Resolve F1 IDs for requested main categories (forward mapping via SSOT)
     // If categories is empty, fetch all categories by using all F1 IDs
     let f1Ids: number[];
     if (categories.length === 0) {
@@ -89,11 +113,22 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
       f1Ids = Object.values(WIEN_INFO_F1_BY_LABEL);
       if (debug) console.log('[WIEN.INFO:FETCH] No categories specified, fetching all F1 IDs:', f1Ids);
     } else {
-      f1Ids = getWienInfoF1IdsForCategories(categories);
+      f1Ids = getWienInfoF1IdsForCategories(mainCategories);
+      
+      // Fallback: if no F1 mappings found, use all F1 IDs to avoid empty results
       if (f1Ids.length === 0) {
-        if (debug) console.log('[WIEN.INFO:FETCH] No F1 mappings found for categories:', categories);
-        return { events: [], error: 'No results from Wien.info!' };
+        f1Ids = Object.values(WIEN_INFO_F1_BY_LABEL);
+        if (debug) {
+          console.warn('[WIEN.INFO:FETCH] No F1 mappings found, using ALL F1 IDs as fallback');
+          console.log('[WIEN.INFO:FETCH] Fallback F1 count:', f1Ids.length);
+        }
       }
+    }
+
+    // Debug: Show final F1 IDs being used
+    if (debug) {
+      console.log('[WIEN.INFO:FETCH] Final F1 IDs:', f1Ids);
+      console.log('[WIEN.INFO:FETCH] F1 count:', f1Ids.length);
     }
 
     // 2) JSON API endpoint (fixed)
@@ -173,7 +208,17 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
 
     // 7) Filter events by date range and category tags
     const filteredEvents = filterWienInfoEvents(apiEvents, fromISO, toISO, f1Ids);
-    if (debug) console.log('[WIEN.INFO:FILTER] Filtered events:', filteredEvents.length, 'from', apiEvents.length);
+    
+    if (debug) {
+      console.log('[WIEN.INFO] Raw API response:', apiEvents.length);
+      console.log('[WIEN.INFO] F1 IDs used:', f1Ids);
+      console.log('[WIEN.INFO] After date filter:', filteredEvents.length);
+      console.log('[WIEN.INFO] Category mappings:', mappedCategoryCounts);
+      if (filteredEvents.length === 0) {
+        console.log('[WIEN.INFO] NO EVENTS - Debug categories:', categories);
+        console.log('[WIEN.INFO] NO EVENTS - Date range:', fromISO, 'to', toISO);
+      }
+    }
 
     if (filteredEvents.length === 0) {
       const resp = `${debugResponse} No events found after date/category filtering.`;

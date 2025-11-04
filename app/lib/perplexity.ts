@@ -9,12 +9,13 @@
 
 import {
   EVENT_CATEGORIES,
+  EVENT_CATEGORY_SUBCATEGORIES,
   buildExpandedCategoryContext,
   buildCategoryListForPrompt,
   allowedCategoriesForSchema,
   mapToMainCategories
 } from './eventCategories';
-import { PerplexityResult } from './types';
+import { PerplexityResult, EventData } from './types';
 import { venueQueryService, VenueQuery } from './services/VenueQueryService';
 
 // Declare process for Node.js environment variables (to avoid requiring @types/node)
@@ -534,8 +535,224 @@ Return JSON array with ALL found events.`;
     return results;
   }
 
+  // NEW: Execute category-specific focused search
+  async function executeCategoryQuery(
+    city: string,
+    date: string,
+    category: string,
+    options: PerplexityOptions = {}
+  ): Promise<PerplexityResult> {
+    const prompt = generateCategoryPrompt(city, date, category);
+    
+    if (options.debug || process.env.LOG_PPLX_QUERIES === '1') {
+      console.log(`[PPLX:CATEGORY] Querying ${category} for ${city} on ${date}`);
+    }
+    
+    const response = await call(prompt, options);
+    
+    return {
+      query: prompt,
+      response,
+      events: [],
+      timestamp: Date.now()
+    };
+  }
+
+  // NEW: Execute targeted gap-filling query for missing categories
+  async function executeGapFillingQuery(
+    city: string,
+    date: string,
+    missingCategories: string[],
+    existingEventCount: number,
+    options: PerplexityOptions = {}
+  ): Promise<PerplexityResult> {
+    const categoriesStr = missingCategories.join(', ');
+    
+    const prompt = `TARGETED GAP-FILLING SEARCH for ${city} on ${date}
+
+Current Status: Found ${existingEventCount} events, but missing coverage in these categories:
+${missingCategories.map(cat => `- ${cat}`).join('\n')}
+
+Mission: Find events SPECIFICALLY in these underrepresented categories.
+Focus on these categories ONLY: ${categoriesStr}
+
+Search Strategy:
+1. Deep-dive into specialized ${categoriesStr.toLowerCase()} venues
+2. Check niche ${categoriesStr.toLowerCase()} communities and groups
+3. Look for underground and alternative ${categoriesStr.toLowerCase()} events
+4. Search social media for ${categoriesStr.toLowerCase()} announcements
+5. Find popup and temporary ${categoriesStr.toLowerCase()} activities
+
+Return comprehensive JSON array of events in ONLY these categories: ${categoriesStr}
+NO explanatory text outside the JSON structure.`;
+
+    if (options.debug || process.env.LOG_PPLX_QUERIES === '1') {
+      console.log(`[PPLX:GAP-FILL] Filling gaps for ${missingCategories.length} categories`);
+    }
+    
+    const response = await call(prompt, options);
+    
+    return {
+      query: prompt,
+      response,
+      events: [],
+      timestamp: Date.now()
+    };
+  }
+
+  // NEW: Execute enrichment query to add more details to sparse events
+  async function executeEnrichmentQuery(
+    city: string,
+    date: string,
+    eventTitle: string,
+    venue: string,
+    options: PerplexityOptions = {}
+  ): Promise<PerplexityResult> {
+    const prompt = `EVENT ENRICHMENT for "${eventTitle}" at ${venue} in ${city} on ${date}
+
+Find additional details for this specific event:
+- Full description and what to expect
+- Exact start and end times
+- Detailed pricing information (early bird, regular, at door)
+- Booking/ticket links
+- Age restrictions or requirements
+- Special features or highlights
+- Address and location details
+- Related events or series information
+
+Return a single JSON object with enriched event data.
+Include only factual, verified information.
+NO explanatory text outside the JSON structure.`;
+
+    if (options.debug || process.env.LOG_PPLX_QUERIES === '1') {
+      console.log(`[PPLX:ENRICH] Enriching event: ${eventTitle}`);
+    }
+    
+    const response = await call(prompt, options);
+    
+    return {
+      query: prompt,
+      response,
+      events: [],
+      timestamp: Date.now()
+    };
+  }
+
+  // NEW: Helper to generate category-focused prompts
+  function generateCategoryPrompt(
+    city: string,
+    date: string,
+    category: string,
+    additionalContext?: string
+  ): string {
+    const categoryContext = buildExpandedCategoryContext(category);
+    const strategies = getCategorySpecificStrategies(category, city);
+    
+    let prompt = `${categoryContext}
+
+FOCUSED SEARCH for ${category} events in ${city} on ${date}
+
+${strategies}`;
+
+    if (additionalContext) {
+      prompt += `\n\nAdditional Context:\n${additionalContext}`;
+    }
+
+    prompt += `\n\nReturn comprehensive JSON array of ${category} events.
+NO explanatory text outside the JSON structure.`;
+
+    return prompt;
+  }
+
+  // NEW: Helper to match and normalize categories
+  function matchCategory(rawCategory: string): string | null {
+    const normalized = rawCategory.toLowerCase().trim();
+    
+    // Direct match in EVENT_CATEGORIES
+    for (const mainCat of EVENT_CATEGORIES) {
+      if (mainCat.toLowerCase() === normalized) {
+        return mainCat;
+      }
+    }
+    
+    // Check subcategories from EVENT_CATEGORY_SUBCATEGORIES
+    for (const [mainCat, subcats] of Object.entries(EVENT_CATEGORY_SUBCATEGORIES)) {
+      for (const subcat of subcats) {
+        if (subcat.toLowerCase() === normalized) {
+          return mainCat;
+        }
+      }
+    }
+    
+    // Fuzzy keyword matching
+    const keywords = {
+      'music': 'Musik & Nachtleben',
+      'concert': 'Musik & Nachtleben',
+      'dj': 'Musik & Nachtleben',
+      'theater': 'Theater/Performance',
+      'performance': 'Theater/Performance',
+      'museum': 'Museen & Ausstellungen',
+      'exhibition': 'Museen & Ausstellungen',
+      'film': 'Film & Kino',
+      'movie': 'Film & Kino',
+      'festival': 'Open Air & Festivals',
+      'outdoor': 'Open Air & Festivals',
+      'food': 'Food & Culinary',
+      'restaurant': 'Food & Culinary',
+      'market': 'Märkte & Shopping',
+      'shopping': 'Märkte & Shopping',
+      'sport': 'Sport & Fitness',
+      'fitness': 'Sport & Fitness',
+      'culture': 'Kultur & Bildung',
+      'education': 'Kultur & Bildung',
+      'family': 'Familie & Kinder',
+      'kids': 'Familie & Kinder',
+      'business': 'Business & Networking',
+      'networking': 'Business & Networking',
+      'wellness': 'Sport & Fitness',
+      'community': 'LGBTQ+',
+      'pride': 'LGBTQ+',
+      'queer': 'LGBTQ+',
+      'lgbt': 'LGBTQ+',
+      'lgbtq': 'LGBTQ+',
+      'gay': 'LGBTQ+',
+      'lesbian': 'LGBTQ+',
+      'drag': 'LGBTQ+'
+    };
+    
+    for (const [keyword, mainCat] of Object.entries(keywords)) {
+      if (normalized.includes(keyword)) {
+        return mainCat;
+      }
+    }
+    
+    return null;
+  }
+
+  // NEW: Helper to filter events by categories
+  function filterEventsByCategories(events: EventData[], categories: string[]): EventData[] {
+    if (categories.length === 0) {
+      return events;
+    }
+    
+    const normalizedCategories = categories.map(c => c.toLowerCase());
+    
+    return events.filter(event => {
+      const eventCategory = (event.category || '').toLowerCase();
+      return normalizedCategories.some(cat => 
+        eventCategory.includes(cat) || cat.includes(eventCategory)
+      );
+    });
+  }
+
   return {
-    executeMultiQuery
+    executeMultiQuery,
+    executeCategoryQuery,
+    executeGapFillingQuery,
+    executeEnrichmentQuery,
+    generateCategoryPrompt,
+    matchCategory,
+    filterEventsByCategories
   };
 }
 

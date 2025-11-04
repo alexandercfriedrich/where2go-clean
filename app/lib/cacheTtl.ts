@@ -9,7 +9,7 @@ import { EventData } from './types';
  */
 export function computeTTLSecondsForEvents(events: EventData[]): number {
   if (!events || events.length === 0) {
-    return 300; // Default 5 minutes for empty events
+    return 3600; // Default 1 hour for empty events (PR173 fix)
   }
 
   const now = new Date();
@@ -46,12 +46,12 @@ export function computeTTLSecondsForEvents(events: EventData[]): number {
     const ttlMs = earliestEndTime.getTime() - now.getTime();
     const ttlSeconds = Math.floor(ttlMs / 1000);
     
-    // Ensure minimum 1 minute, maximum 24 hours
-    return Math.max(60, Math.min(ttlSeconds, 24 * 60 * 60));
+    // Ensure minimum 1 hour, maximum 24 hours (PR173 fix)
+    return Math.max(3600, Math.min(ttlSeconds, 24 * 60 * 60));
   }
 
-  // Fallback to 5 minutes if we can't determine end times
-  return 300;
+  // Fallback to 1 hour if we can't determine end times (PR173 fix)
+  return 3600;
 }
 
 /**
