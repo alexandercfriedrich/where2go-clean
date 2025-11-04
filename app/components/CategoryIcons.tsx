@@ -93,6 +93,25 @@ export const WellnessIcon = ({ className = '', size = 48 }: IconProps) => (
   </svg>
 );
 
+export const LGBTQIcon = ({ className = '', size = 48 }: IconProps) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 122.88 122.88" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="rainbowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#e40303"/>
+        <stop offset="16.67%" stopColor="#ff8c00"/>
+        <stop offset="33.33%" stopColor="#ffed00"/>
+        <stop offset="50%" stopColor="#008018"/>
+        <stop offset="66.67%" stopColor="#004cff"/>
+        <stop offset="83.33%" stopColor="#732982"/>
+        <stop offset="100%" stopColor="#e40303"/>
+      </linearGradient>
+    </defs>
+    <path d="M61.44,0A61.44,61.44,0,1,1,0,61.44,61.44,61.44,0,0,1,61.44,0Z" stroke="url(#rainbowGradient)" strokeWidth="8" fill="none"/>
+    <path d="M61.44,23.27A38.17,38.17,0,1,1,23.27,61.44,38.17,38.17,0,0,1,61.44,23.27Z" stroke="url(#rainbowGradient)" strokeWidth="6" fill="none"/>
+    <path d="M40.5,50.3h41.88M61.44,29.36V91.18" stroke="url(#rainbowGradient)" strokeWidth="5" strokeLinecap="round"/>
+  </svg>
+);
+
 /**
  * Maps category names to their icon components
  */
@@ -108,7 +127,8 @@ export const categoryIcons: Record<string, React.FC<IconProps>> = {
   'Kultur & Bildung': CultureIcon,
   'Familie & Kinder': FamilyIcon,
   'Business & Networking': BusinessIcon,
-  'Community & Wellness': WellnessIcon,
+  'LGBTQ+': LGBTQIcon,
+  'Community & Wellness': WellnessIcon, // Legacy fallback
 };
 
 /**

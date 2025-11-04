@@ -123,6 +123,7 @@ export default function Home() {
   const resultsAnchorRef = useRef<HTMLDivElement | null>(null);
   const timeSelectWrapperRef = useRef<HTMLDivElement | null>(null);
   const cancelRef = useRef<{cancel:boolean}>({cancel:false});
+  const toastTimeoutRef = useRef<number | null>(null);
 
   // Flag für initialen Cache-Preload (ohne neue Suche)
   const [initialPreloadDone, setInitialPreloadDone] = useState(false);
@@ -763,7 +764,9 @@ export default function Home() {
                 });
                 // Longer display for early phases, shorter for final phase
                 const toastDuration = phase < totalPhases ? 6000 : 3000;
-                setTimeout(() => setToast({show: false, message: ''}), toastDuration);
+                // Clear any existing timeout to prevent race conditions
+                if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+                toastTimeoutRef.current = window.setTimeout(() => setToast({show: false, message: ''}), toastDuration);
               }}
               autoStart={true}
               debug={false}
