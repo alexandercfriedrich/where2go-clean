@@ -69,17 +69,15 @@ export default function StaticPagesAdmin() {
     setIsClient(true);
     loadPages();
     
-    // Load Quill CSS dynamically
+    // Load Quill CSS dynamically from CDN
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = 'https://cdn.jsdelivr.net/npm/react-quill-new@3.6.0/dist/quill.snow.css';
+    link.href = 'https://cdn.jsdelivr.net/npm/react-quill-new@3/dist/quill.snow.css';
     document.head.appendChild(link);
     
     return () => {
       // Cleanup: remove the link when component unmounts
-      if (link.parentNode) {
-        link.parentNode.removeChild(link);
-      }
+      link.remove();
     };
   }, []);
 
