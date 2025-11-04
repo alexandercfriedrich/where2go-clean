@@ -10,6 +10,18 @@ export interface CacheEntryDebug {
 }
 
 /**
+ * Get Redis client instance for direct Redis operations
+ */
+export function getRedisClient(): Redis {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) {
+    throw new Error('[getRedisClient] Redis env vars missing (UPSTASH_REDIS_REST_URL/TOKEN).');
+  }
+  return new Redis({ url, token });
+}
+
+/**
  * Redis-backed events cache (versioned namespace).
  * - Always writes JSON strings
  * - Robust parsing on read (guards against "[object Object]" corrupt values)
@@ -23,12 +35,7 @@ class InMemoryCache {
   private dayBucketPrefix = 'events:v3:'; // day-bucket namespace
 
   constructor() {
-    const url = process.env.UPSTASH_REDIS_REST_URL;
-    const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-    if (!url || !token) {
-      throw new Error('[eventsCache] Redis env vars missing (UPSTASH_REDIS_REST_URL/TOKEN).');
-    }
-    this.redis = new Redis({ url, token });
+    this.redis = getRedisClient();
   }
 
   static createKey(city: string, date: string, categories?: string[]): string {
