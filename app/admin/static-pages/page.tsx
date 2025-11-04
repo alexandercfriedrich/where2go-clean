@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 
 // Dynamic import für React-Quill um SSR-Probleme zu vermeiden
@@ -24,6 +24,7 @@ export default function StaticPagesAdmin() {
   const [editingPage, setEditingPage] = useState<StaticPage | null>(null);
   const [saving, setSaving] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   const staticPages = [
     { id: 'seo-footer', title: 'SEO Footer (Homepage)', path: '/' },
@@ -65,12 +66,7 @@ export default function StaticPagesAdmin() {
     'link', 'image'
   ];
 
-  useEffect(() => {
-    setIsClient(true);
-    loadPages();
-  }, []);
-
-  async function loadPages() {
+  const loadPages = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -87,10 +83,16 @@ export default function StaticPagesAdmin() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    setIsClient(true);
+    loadPages();
+  }, [loadPages]);
 
   function handleEditPage(pageInfo: { id: string; title: string; path: string }) {
     const existing = pages.find(p => p.id === pageInfo.id);
+    setHasUnsavedChanges(false);
     if (existing) {
       setEditingPage(existing);
     } else {
@@ -133,12 +135,14 @@ export default function StaticPagesAdmin() {
       setSaving(true);
       setError(null);
       
-      console.log('Saving page data:', {
-        id: editingPage.id,
-        title: editingPage.title,
-        content: content,
-        path: editingPage.path,
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Saving page data:', {
+          id: editingPage.id,
+          title: editingPage.title,
+          content: content,
+          path: editingPage.path,
+        });
+      }
       
       const res = await fetch('/api/admin/static-pages', {
         method: 'POST',
@@ -158,10 +162,13 @@ export default function StaticPagesAdmin() {
       }
       
       const result = await res.json();
-      console.log('Save successful:', result);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Save successful:', result);
+      }
       
       await loadPages();
       setEditingPage(null);
+      setHasUnsavedChanges(false);
     } catch (e: any) {
       console.error('Save error:', e);
       setError(e.message || 'Unknown error');
@@ -173,13 +180,16 @@ export default function StaticPagesAdmin() {
   function handleCancel() {
     setEditingPage(null);
     setError(null);
+    setHasUnsavedChanges(false);
   }
 
-  function handleContentChange(value: string) {
-    if (editingPage) {
-      setEditingPage({ ...editingPage, content: value });
+  const handleContentChange = useCallback((value: string) => {
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Content changed:', value?.substring(0, 100));
     }
-  }
+    setEditingPage(prev => prev ? { ...prev, content: value } : null);
+    setHasUnsavedChanges(true);
+  }, []);
 
   if (loading) {
     return (
@@ -412,7 +422,10 @@ export default function StaticPagesAdmin() {
       {editingPage && (
         <div className="modal-overlay" onClick={() => setEditingPage(null)}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Edit {editingPage.title}</h2>
+            <h2>
+              Edit {editingPage.title}
+              {hasUnsavedChanges && <span style={{ color: '#ff9800', marginLeft: '10px', fontSize: '0.8em' }}>● Unsaved changes</span>}
+            </h2>
 
             <div className="form-group">
               <label>Title</label>
@@ -440,8 +453,9 @@ export default function StaticPagesAdmin() {
               {isClient ? (
                 <div className="editor-container">
                   <ReactQuill
+                    key={editingPage.id}
                     theme="snow"
-                    value={editingPage.content}
+                    value={editingPage.content || ''}
                     onChange={handleContentChange}
                     modules={quillModules}
                     formats={quillFormats}
