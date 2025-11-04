@@ -3,13 +3,8 @@
 import { useEffect, useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 
-// Dynamic import for React-Quill to avoid SSR issues and CSS import issues
-const ReactQuill = dynamic(async () => {
-  const { default: RQ } = await import('react-quill');
-  // Import Quill CSS dynamically
-  await import('react-quill/dist/quill.snow.css');
-  return RQ;
-}, { 
+// Dynamic import für React-Quill um SSR-Probleme zu vermeiden
+const ReactQuill = dynamic(() => import('react-quill'), { 
   ssr: false,
   loading: () => <div className="form-textarea" style={{ minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #ddd' }}>Editor wird geladen...</div>
 });
@@ -78,6 +73,17 @@ export default function StaticPagesAdmin() {
   useEffect(() => {
     setIsClient(true);
     loadPages();
+    
+    // Load Quill CSS from CDN
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = 'https://cdn.quilljs.com/1.3.6/quill.snow.css';
+    document.head.appendChild(link);
+    
+    return () => {
+      // Clean up CSS link when component unmounts
+      document.head.removeChild(link);
+    };
   }, []);
 
   async function loadPages() {
@@ -459,20 +465,6 @@ export default function StaticPagesAdmin() {
           border: 1px solid #ddd;
           border-radius: 4px;
           background: white;
-        }
-        .editor-container :global(.ql-container) {
-          min-height: 300px;
-          font-size: 14px;
-        }
-        .editor-container :global(.ql-toolbar) {
-          border-bottom: 1px solid #ddd;
-        }
-        .editor-container :global(.ql-editor) {
-          min-height: 300px;
-        }
-        .editor-container :global(.ql-editor.ql-blank::before) {
-          font-style: italic;
-          color: #999;
         }
         .editor-mode-toggle {
           display: flex;
