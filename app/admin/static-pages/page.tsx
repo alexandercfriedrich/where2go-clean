@@ -3,11 +3,13 @@
 import { useEffect, useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 
-// Quill CSS imports
-import 'react-quill/dist/quill.snow.css';
-
-// Dynamic import für React-Quill um SSR-Probleme zu vermeiden
-const ReactQuill = dynamic(() => import('react-quill'), { 
+// Dynamic import for React-Quill to avoid SSR issues and CSS import issues
+const ReactQuill = dynamic(async () => {
+  const { default: RQ } = await import('react-quill');
+  // Import Quill CSS dynamically
+  await import('react-quill/dist/quill.snow.css');
+  return RQ;
+}, { 
   ssr: false,
   loading: () => <div className="form-textarea" style={{ minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #ddd' }}>Editor wird geladen...</div>
 });
@@ -43,7 +45,7 @@ export default function StaticPagesAdmin() {
     { id: 'premium', title: 'Premium', path: '/premium' },
   ];
 
-  // React-Quill Konfiguration
+  // React-Quill Configuration
   const quillModules = useMemo(() => ({
     toolbar: [
       [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
