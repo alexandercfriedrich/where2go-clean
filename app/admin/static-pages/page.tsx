@@ -17,13 +17,18 @@ interface StaticPage {
   updatedAt: string;
 }
 
+type EditorMode = 'rich' | 'html';
+
 export default function StaticPagesAdmin() {
   const [pages, setPages] = useState<StaticPage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [editingPage, setEditingPage] = useState<StaticPage | null>(null);
   const [saving, setSaving] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [editorMode, setEditorMode] = useState<EditorMode>('rich');
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
   const staticPages = [
     { id: 'seo-footer', title: 'SEO Footer (Homepage)', path: '/' },
@@ -102,6 +107,37 @@ export default function StaticPagesAdmin() {
         updatedAt: new Date().toISOString(),
       });
     }
+    setEditorMode('rich'); // Start with rich text editor
+    setShowCreateForm(false);
+  }
+
+  function handleCreateNewPage() {
+    setEditingPage({
+      id: '',
+      title: '',
+      content: '',
+      path: '/',
+      updatedAt: new Date().toISOString(),
+    });
+    setEditorMode('rich');
+    setShowCreateForm(true);
+  }
+
+  function switchEditorMode(newMode: EditorMode) {
+    if (!editingPage) return;
+    
+    let convertedContent = editingPage.content;
+    
+    if (newMode === 'html' && editorMode === 'rich') {
+      // Rich Text → HTML: Content ist bereits HTML
+      convertedContent = editingPage.content;
+    } else if (newMode === 'rich' && editorMode === 'html') {
+      // HTML → Rich Text: Content bleibt HTML (Quill kann HTML parsen)
+      convertedContent = editingPage.content;
+    }
+    
+    setEditingPage({ ...editingPage, content: convertedContent });
+    setEditorMode(newMode);
   }
 
   async function handleSavePage() {
@@ -114,6 +150,12 @@ export default function StaticPagesAdmin() {
     }
     if (!editingPage.path?.startsWith('/')) {
       setError('Pfad ist ungültig. Er muss mit / beginnen, z. B. /impressum');
+      return;
+    }
+    
+    // Check if ID already exists when creating new page
+    if (showCreateForm && pages.find(p => p.id === editingPage.id)) {
+      setError(`Eine Seite mit der ID "${editingPage.id}" existiert bereits. Bitte wählen Sie eine andere ID.`);
       return;
     }
     
@@ -132,12 +174,14 @@ export default function StaticPagesAdmin() {
     try {
       setSaving(true);
       setError(null);
+      setSuccess(null);
       
       console.log('Saving page data:', {
         id: editingPage.id,
         title: editingPage.title,
         content: content,
         path: editingPage.path,
+        editorMode
       });
       
       const res = await fetch('/api/admin/static-pages', {
@@ -160,8 +204,10 @@ export default function StaticPagesAdmin() {
       const result = await res.json();
       console.log('Save successful:', result);
       
+      setSuccess(`Seite "${editingPage.title}" erfolgreich gespeichert!`);
       await loadPages();
       setEditingPage(null);
+      setShowCreateForm(false);
     } catch (e: any) {
       console.error('Save error:', e);
       setError(e.message || 'Unknown error');
@@ -170,9 +216,33 @@ export default function StaticPagesAdmin() {
     }
   }
 
+  async function handleDeletePage(pageId: string) {
+    if (!confirm(`Möchten Sie die Seite "${pageId}" wirklich löschen?`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/static-pages?id=${pageId}`, {
+        method: 'DELETE',
+      });
+      
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({} as any));
+        throw new Error(err?.error || 'Failed to delete page');
+      }
+      
+      setSuccess(`Seite "${pageId}" erfolgreich gelöscht!`);
+      await loadPages();
+    } catch (e: any) {
+      setError(e.message || 'Unknown error');
+    }
+  }
+
   function handleCancel() {
     setEditingPage(null);
+    setShowCreateForm(false);
     setError(null);
+    setSuccess(null);
   }
 
   function handleContentChange(value: string) {
@@ -180,6 +250,14 @@ export default function StaticPagesAdmin() {
       setEditingPage({ ...editingPage, content: value });
     }
   }
+
+  // Clear success message after 5 seconds
+  useEffect(() => {
+    if (success) {
+      const timer = setTimeout(() => setSuccess(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [success]);
 
   if (loading) {
     return (
@@ -224,6 +302,7 @@ export default function StaticPagesAdmin() {
           cursor: pointer;
           font-size: 14px;
           transition: background-color 0.3s;
+          margin-right: 10px;
         }
         .btn:disabled {
           opacity: 0.6;
@@ -236,13 +315,30 @@ export default function StaticPagesAdmin() {
         .btn-primary:hover:not(:disabled) {
           background-color: #0056b3;
         }
+        .btn-success {
+          background-color: #28a745;
+          color: white;
+        }
+        .btn-success:hover:not(:disabled) {
+          background-color: #1e7e34;
+        }
         .btn-secondary {
           background-color: #6c757d;
           color: white;
-          margin-right: 10px;
         }
         .btn-secondary:hover:not(:disabled) {
           background-color: #545b62;
+        }
+        .btn-danger {
+          background-color: #dc3545;
+          color: white;
+        }
+        .btn-danger:hover:not(:disabled) {
+          background-color: #c82333;
+        }
+        .btn-small {
+          padding: 5px 10px;
+          font-size: 12px;
         }
         .pages-grid {
           display: grid;
@@ -278,6 +374,11 @@ export default function StaticPagesAdmin() {
           color: #28a745;
           font-weight: bold;
         }
+        .page-actions {
+          display: flex;
+          gap: 8px;
+          margin-top: 15px;
+        }
         .error {
           background: #fdecea;
           color: #b71c1c;
@@ -308,7 +409,7 @@ export default function StaticPagesAdmin() {
           background: white;
           border-radius: 8px;
           padding: 30px;
-          max-width: 1000px;
+          max-width: 1200px;
           width: 95%;
           max-height: 90vh;
           overflow-y: auto;
@@ -371,6 +472,38 @@ export default function StaticPagesAdmin() {
           font-style: italic;
           color: #999;
         }
+        .editor-mode-toggle {
+          display: flex;
+          gap: 0;
+          margin-bottom: 10px;
+          border: 1px solid #ddd;
+          border-radius: 4px;
+          overflow: hidden;
+        }
+        .editor-mode-btn {
+          padding: 8px 16px;
+          border: none;
+          background: #f8f9fa;
+          cursor: pointer;
+          font-size: 12px;
+          text-transform: uppercase;
+          font-weight: bold;
+          transition: all 0.2s;
+        }
+        .editor-mode-btn.active {
+          background: #007bff;
+          color: white;
+        }
+        .editor-mode-btn:hover:not(.active) {
+          background: #e9ecef;
+        }
+        .create-section {
+          margin-bottom: 30px;
+          padding: 20px;
+          border: 2px dashed #ddd;
+          border-radius: 8px;
+          text-align: center;
+        }
       `}</style>
 
       <div className="admin-header">
@@ -381,6 +514,16 @@ export default function StaticPagesAdmin() {
       </div>
 
       {error && <div className="error">{error}</div>}
+      {success && <div className="success">{success}</div>}
+
+      {/* Create New Page Section */}
+      <div className="create-section">
+        <h3>Neue Seite erstellen</h3>
+        <p>Erstellen Sie eine neue statische Seite mit eigenem Inhalt.</p>
+        <button className="btn btn-success" onClick={handleCreateNewPage}>
+          ➕ Neue Seite erstellen
+        </button>
+      </div>
 
       <div className="pages-grid">
         {staticPages.map((pageInfo) => {
@@ -399,20 +542,67 @@ export default function StaticPagesAdmin() {
                 </div>
                 <div className="page-status">{existing ? 'Customized' : 'Default'}</div>
               </div>
-              <div>
-                <button className="btn btn-primary" onClick={() => handleEditPage(pageInfo)}>
-                  Edit Content
+              <div className="page-actions">
+                <button className="btn btn-primary btn-small" onClick={() => handleEditPage(pageInfo)}>
+                  ✏️ Edit
                 </button>
+                {existing && (
+                  <button 
+                    className="btn btn-danger btn-small" 
+                    onClick={() => handleDeletePage(pageInfo.id)}
+                  >
+                    🗑️ Delete
+                  </button>
+                )}
               </div>
             </div>
           );
         })}
+        
+        {/* Custom pages (not in default list) */}
+        {pages.filter(p => !staticPages.find(sp => sp.id === p.id)).map((page) => (
+          <div key={page.id} className="page-card">
+            <div className="page-header">
+              <div>
+                <h3 className="page-title">{page.title}</h3>
+                <div className="page-path">{page.path}</div>
+                <div style={{ fontSize: '0.8rem', color: '#666', marginTop: 5 }}>  
+                  Last updated: {new Date(page.updatedAt).toLocaleString()}
+                </div>
+              </div>
+              <div className="page-status">Custom</div>
+            </div>
+            <div className="page-actions">
+              <button className="btn btn-primary btn-small" onClick={() => handleEditPage(page)}>
+                ✏️ Edit
+              </button>
+              <button 
+                className="btn btn-danger btn-small" 
+                onClick={() => handleDeletePage(page.id)}
+              >
+                🗑️ Delete
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
 
       {editingPage && (
-        <div className="modal-overlay" onClick={() => setEditingPage(null)}>
+        <div className="modal-overlay" onClick={handleCancel}>
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>Edit {editingPage.title}</h2>
+            <h2>{showCreateForm ? 'Neue Seite erstellen' : `Edit ${editingPage.title}`}</h2>
+
+            <div className="form-group">
+              <label>ID {showCreateForm && '(eindeutig, nur Kleinbuchstaben und Bindestriche)'}</label>
+              <input
+                type="text"
+                className="form-input"
+                value={editingPage.id}
+                onChange={(e) => setEditingPage({ ...editingPage, id: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
+                disabled={!showCreateForm} // ID nur bei neuen Seiten änderbar
+                placeholder="datenschutz"
+              />
+            </div>
 
             <div className="form-group">
               <label>Title</label>
@@ -421,6 +611,7 @@ export default function StaticPagesAdmin() {
                 className="form-input"
                 value={editingPage.title}
                 onChange={(e) => setEditingPage({ ...editingPage, title: e.target.value })}
+                placeholder="Datenschutzerklärung"
               />
             </div>
 
@@ -431,13 +622,33 @@ export default function StaticPagesAdmin() {
                 className="form-input"
                 value={editingPage.path}
                 onChange={(e) => setEditingPage({ ...editingPage, path: e.target.value })}
-                placeholder="/impressum"
+                placeholder="/datenschutz"
               />
             </div>
 
             <div className="form-group">
-              <label>Content (Rich Text Editor)</label>
-              {isClient ? (
+              <label>Content Editor</label>
+              
+              {/* Editor Mode Toggle */}
+              <div className="editor-mode-toggle">
+                <button 
+                  className={`editor-mode-btn ${editorMode === 'rich' ? 'active' : ''}`}
+                  onClick={() => switchEditorMode('rich')}
+                  type="button"
+                >
+                  🎨 Rich Text
+                </button>
+                <button 
+                  className={`editor-mode-btn ${editorMode === 'html' ? 'active' : ''}`}
+                  onClick={() => switchEditorMode('html')}
+                  type="button"
+                >
+                  📝 HTML Code
+                </button>
+              </div>
+              
+              {/* Rich Text Editor */}
+              {editorMode === 'rich' && isClient ? (
                 <div className="editor-container">
                   <ReactQuill
                     theme="snow"
@@ -448,11 +659,26 @@ export default function StaticPagesAdmin() {
                     placeholder="Geben Sie hier Ihren Content ein. Sie können Text formatieren, Links hinzufügen und vieles mehr..."
                   />
                 </div>
-              ) : (
+              ) : editorMode === 'rich' && !isClient ? (
                 <div className="form-textarea" style={{ minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   Editor wird geladen...
                 </div>
+              ) : (
+                /* HTML Editor */
+                <textarea
+                  className="form-textarea"
+                  value={editingPage.content}
+                  onChange={(e) => handleContentChange(e.target.value)}
+                  placeholder="<h2>Ihr HTML Code hier</h2>&#10;<p>Sie können direkt HTML eingeben und bearbeiten.</p>"
+                  style={{ fontFamily: 'monospace', fontSize: '13px' }}
+                />
               )}
+              
+              <div style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
+                {editorMode === 'rich' 
+                  ? '🎨 Rich Text Editor: Verwenden Sie die Toolbar für Formatierungen'
+                  : '📝 HTML Editor: Direkter HTML-Code Input'}
+              </div>
             </div>
 
             <div className="modal-actions">
