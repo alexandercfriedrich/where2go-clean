@@ -114,25 +114,26 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // AFTER events are cached to Redis, ALSO save to PostgreSQL (truly non-blocking)
+    (async () => {
+      try {
+        const result = await EventRepository.bulkInsertEvents(runningEvents, city);
+        console.log(`[PostgreSQL] Inserted ${result.inserted} events for ${city}`);
+        if (result.errors.length > 0) {
+          console.warn('[PostgreSQL] Insert errors:', result.errors);
+        }
+      } catch (pgError) {
+        // Don't fail the request if PostgreSQL fails
+        console.error('[PostgreSQL] Background insert failed:', pgError);
+      }
+    })();
+
     await jobStore.updateJob(jobId, {
       status: 'done',
       events: runningEvents,
       progress: { completedCategories: effective.length, totalCategories: effective.length },
       lastUpdateAt: new Date().toISOString()
     });
-
-    // AFTER events are cached to Redis, ALSO save to PostgreSQL
-    // Don't block the response if PostgreSQL fails
-    try {
-      const result = await EventRepository.bulkInsertEvents(runningEvents, city)
-      console.log(`[PostgreSQL] Inserted ${result.inserted} events for ${city}`)
-      if (result.errors.length > 0) {
-        console.warn('[PostgreSQL] Insert errors:', result.errors)
-      }
-    } catch (pgError) {
-      // Don't fail the request if PostgreSQL fails
-      console.error('[PostgreSQL] Background insert failed:', pgError)
-    }
 
     return NextResponse.json({ jobId, status: 'done', events: runningEvents, categoriesProcessed: effective });
   } catch (error) {

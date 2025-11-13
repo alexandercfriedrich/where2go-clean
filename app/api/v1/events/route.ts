@@ -13,8 +13,14 @@ export async function GET(request: NextRequest) {
     const date = searchParams.get('date') || undefined
     const category = searchParams.get('category') || undefined
     const search = searchParams.get('search') || undefined
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const limitParam = searchParams.get('limit') || '50'
     const useCache = searchParams.get('cache') !== 'false'
+
+    // Validate limit parameter
+    let limit = parseInt(limitParam, 10)
+    if (isNaN(limit) || limit <= 0) {
+      limit = 50
+    }
 
     if (!city) {
       return NextResponse.json(
@@ -24,6 +30,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 1) Try Redis cache first (if enabled)
+    // Note: Cache lookup requires both date and category; other query patterns bypass cache
     let events: EventData[] = []
     let fromCache = false
 
