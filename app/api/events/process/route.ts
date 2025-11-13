@@ -19,9 +19,9 @@ const DEFAULT_CATEGORIES = EVENT_CATEGORIES;
  * 
  * Accepts query parameters and delegates to POST handler:
  * - Required: jobId, city, date
- * - Optional: categories (comma-separated)
+ * - Optional: categories (comma-separated), options (JSON string)
  * 
- * Example: /api/events/process?jobId=xyz&city=Wien&date=2025-01-20&categories=musik,kultur
+ * Example: /api/events/process?jobId=xyz&city=Wien&date=2025-01-20&categories=musik,kultur&options={"debug":true}
  * 
  * Returns 400 (not 405) if parameters are missing, allowing callers to fix their requests.
  */
@@ -32,10 +32,12 @@ export async function GET(request: NextRequest) {
   const city = url.searchParams.get('city');
   const date = url.searchParams.get('date');
   const categoriesParam = url.searchParams.get('categories');
+  const optionsParam = url.searchParams.get('options');
   
   // If query parameters are provided, construct a body-like object and process
   if (jobId && city && date) {
-    const categories = categoriesParam ? categoriesParam.split(',') : undefined;
+    const categories = categoriesParam ? categoriesParam.split(',').map(c => c.trim()) : undefined;
+    const options = optionsParam ? JSON.parse(optionsParam) : undefined;
     
     // Create a mock request with the data in a format the POST handler expects
     const bodyData = {
@@ -43,6 +45,7 @@ export async function GET(request: NextRequest) {
       city,
       date,
       ...(categories && { categories }),
+      ...(options && { options }),
     };
     
     // We need to create a new request with this data as the body
@@ -59,8 +62,8 @@ export async function GET(request: NextRequest) {
   return NextResponse.json({ 
     error: 'This endpoint requires either POST with JSON body or GET with query parameters',
     requiredParams: ['jobId', 'city', 'date'],
-    optionalParams: ['categories'],
-    example: '/api/events/process?jobId=xyz&city=Wien&date=2025-01-20&categories=musik,kultur'
+    optionalParams: ['categories', 'options'],
+    example: '/api/events/process?jobId=xyz&city=Wien&date=2025-01-20&categories=musik,kultur&options={"debug":true}'
   }, { status: 400 });
 }
 
