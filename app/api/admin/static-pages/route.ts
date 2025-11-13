@@ -20,7 +20,8 @@ async function loadStaticPages(): Promise<StaticPage[]> {
       console.log('No static pages found in Redis, returning empty array');
       return [];
     }
-    const pages = JSON.parse(data);
+    // Handle Redis returning string or object
+    const pages = typeof data === 'string' ? JSON.parse(data) : data;
     console.log(`Loaded ${pages.length} static pages from Redis`);
     return pages;
   } catch (error) {

@@ -450,3 +450,11 @@ class InMemoryCache {
 // Singleton instance
 export const eventsCache = new InMemoryCache();
 export default InMemoryCache;
+
+/**
+ * Get a raw Redis client instance for direct access (e.g., for static pages)
+ * Returns the singleton Redis client from eventsCache to avoid connection pooling issues
+ */
+export function getRedisClient(): Redis {
+  return (eventsCache as any).redis;
+}
