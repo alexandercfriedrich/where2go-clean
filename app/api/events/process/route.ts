@@ -12,6 +12,45 @@ export const runtime = 'nodejs';
 export const maxDuration = 300;
 const DEFAULT_CATEGORIES = EVENT_CATEGORIES;
 
+export async function GET(request: NextRequest) {
+  // GET requests don't have a body, so we extract parameters from query string
+  const url = new URL(request.url);
+  const jobId = url.searchParams.get('jobId');
+  const city = url.searchParams.get('city');
+  const date = url.searchParams.get('date');
+  const categoriesParam = url.searchParams.get('categories');
+  
+  // If query parameters are provided, construct a body-like object and process
+  if (jobId && city && date) {
+    const categories = categoriesParam ? categoriesParam.split(',') : undefined;
+    
+    // Create a mock request with the data in a format the POST handler expects
+    const bodyData = {
+      jobId,
+      city,
+      date,
+      ...(categories && { categories }),
+    };
+    
+    // We need to create a new request with this data as the body
+    const mockRequest = new Request(request.url, {
+      method: 'POST',
+      headers: request.headers,
+      body: JSON.stringify(bodyData)
+    });
+    
+    return POST(mockRequest as NextRequest);
+  }
+  
+  // If no query parameters, return helpful error
+  return NextResponse.json({ 
+    error: 'This endpoint requires either POST with JSON body or GET with query parameters',
+    requiredParams: ['jobId', 'city', 'date'],
+    optionalParams: ['categories'],
+    example: '/api/events/process?jobId=xyz&city=Wien&date=2025-01-20&categories=musik,kultur'
+  }, { status: 400 });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { jobId, city, date, categories, options } = await request.json();
