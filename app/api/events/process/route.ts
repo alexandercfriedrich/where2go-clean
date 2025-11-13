@@ -12,6 +12,19 @@ export const runtime = 'nodejs';
 export const maxDuration = 300;
 const DEFAULT_CATEGORIES = EVENT_CATEGORIES;
 
+/**
+ * GET handler for /api/events/process
+ * 
+ * Enables GET support to prevent 405 errors and allow PostgreSQL writes.
+ * 
+ * Accepts query parameters and delegates to POST handler:
+ * - Required: jobId, city, date
+ * - Optional: categories (comma-separated)
+ * 
+ * Example: /api/events/process?jobId=xyz&city=Wien&date=2025-01-20&categories=musik,kultur
+ * 
+ * Returns 400 (not 405) if parameters are missing, allowing callers to fix their requests.
+ */
 export async function GET(request: NextRequest) {
   // GET requests don't have a body, so we extract parameters from query string
   const url = new URL(request.url);
