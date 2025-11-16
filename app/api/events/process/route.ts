@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
     try {
       options = optionsParam ? JSON.parse(optionsParam) : undefined;
     } catch (e) {
+      console.error('Failed to parse options parameter:', e);
       return NextResponse.json({ 
         error: 'Invalid JSON in options parameter',
         example: '/api/events/process?jobId=xyz&city=Wien&date=2025-01-20&options={"debug":true}'
