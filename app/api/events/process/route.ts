@@ -37,7 +37,16 @@ export async function GET(request: NextRequest) {
   // If query parameters are provided, construct a body-like object and process
   if (jobId && city && date) {
     const categories = categoriesParam ? categoriesParam.split(',').map(c => c.trim()) : undefined;
-    const options = optionsParam ? JSON.parse(optionsParam) : undefined;
+    
+    let options;
+    try {
+      options = optionsParam ? JSON.parse(optionsParam) : undefined;
+    } catch (e) {
+      return NextResponse.json({ 
+        error: 'Invalid JSON in options parameter',
+        example: '/api/events/process?jobId=xyz&city=Wien&date=2025-01-20&options={"debug":true}'
+      }, { status: 400 });
+    }
     
     // Create a mock request with the data in a format the POST handler expects
     const bodyData = {

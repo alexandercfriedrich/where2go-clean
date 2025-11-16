@@ -68,4 +68,20 @@ describe('/api/events/process - GET Support', () => {
     // It might return 404 (Job not found) or 400 (bad parameters), but NOT 405
     expect(response.status).not.toBe(405);
   });
+
+  it('GET handler should return 400 for malformed JSON in options parameter', async () => {
+    const request = new Request('http://localhost:3000/api/events/process?jobId=test-job&city=Wien&date=2025-01-20&options={invalid-json}', {
+      method: 'GET',
+      headers: { 
+        'Content-Type': 'application/json',
+        'x-vercel-background': '1'
+      }
+    });
+
+    const response = await GET(request as any);
+    
+    expect(response.status).toBe(400);
+    const data = await response.json();
+    expect(data.error).toContain('Invalid JSON in options parameter');
+  });
 });
