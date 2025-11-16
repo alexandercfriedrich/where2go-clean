@@ -20,7 +20,7 @@ export class EventRepository {
     if (!dateStr) return null;
     
     // Handle all-day events (ganztags, all day, ganztagig, etc.)
-    if (timeStr && /ganztags|all.?day|ganztagig|fullday/i.test(timeStr)) {
+    if (timeStr && /ganztags|all[- ]?day|ganztagig|fullday/i.test(timeStr)) {
       return `${dateStr}T00:00:00.000Z`;
     }
     
