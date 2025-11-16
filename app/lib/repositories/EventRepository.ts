@@ -7,10 +7,6 @@ type DbEventInsert = Database['public']['Tables']['events']['Insert']
 
 export class EventRepository {
   /**
-   * Convert EventData (from existing code) to Database Insert format
-   */
-
-    /**
    * Helper to parse time strings, handling 'ganztags' (all-day) events
    * @param dateStr - Date string (e.g., '2025-11-16')
    * @param timeStr - Time string (e.g., '19:00' or 'ganztags')
@@ -26,7 +22,13 @@ export class EventRepository {
     
     // Handle normal time strings
     if (timeStr) {
-      return `${dateStr}T${timeStr}:00.000Z`;
+      // Validate timeStr is in HH:mm format
+      if (/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(timeStr)) {
+        return `${dateStr}T${timeStr}:00.000Z`;
+      } else {
+        // Invalid time format; return null
+        return null;
+      }
     }
     
     return null;
