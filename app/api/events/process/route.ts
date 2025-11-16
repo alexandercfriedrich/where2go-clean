@@ -12,6 +12,71 @@ export const runtime = 'nodejs';
 export const maxDuration = 300;
 const DEFAULT_CATEGORIES = EVENT_CATEGORIES;
 
+/**
+ * GET handler for /api/events/process
+ * 
+ * Enables GET support to prevent 405 errors and allow PostgreSQL writes.
+ * 
+ * Accepts query parameters and delegates to POST handler:
+ * - Required: jobId, city, date
+ * - Optional: categories (comma-separated), options (JSON string)
+ * 
+ * Example: /api/events/process?jobId=xyz&city=Wien&date=2025-01-20&categories=musik,kultur&options={"debug":true}
+ * 
+ * Returns 400 (not 405) if parameters are missing, allowing callers to fix their requests.
+ */
+export async function GET(request: NextRequest) {
+  // GET requests don't have a body, so we extract parameters from query string
+  const url = new URL(request.url);
+  const jobId = url.searchParams.get('jobId');
+  const city = url.searchParams.get('city');
+  const date = url.searchParams.get('date');
+  const categoriesParam = url.searchParams.get('categories');
+  const optionsParam = url.searchParams.get('options');
+  
+  // If query parameters are provided, construct a body-like object and process
+  if (jobId && city && date) {
+    const categories = categoriesParam ? categoriesParam.split(',').map(c => c.trim()) : undefined;
+    
+    let options;
+    try {
+      options = optionsParam ? JSON.parse(optionsParam) : undefined;
+    } catch (e) {
+      console.error('Failed to parse options parameter:', e);
+      return NextResponse.json({ 
+        error: 'Invalid JSON in options parameter',
+        example: '/api/events/process?jobId=xyz&city=Wien&date=2025-01-20&options={"debug":true}'
+      }, { status: 400 });
+    }
+    
+    // Create a mock request with the data in a format the POST handler expects
+    const bodyData = {
+      jobId,
+      city,
+      date,
+      ...(categories && { categories }),
+      ...(options && { options }),
+    };
+    
+    // We need to create a new request with this data as the body
+    const mockRequest = new Request(request.url, {
+      method: 'POST',
+      headers: request.headers,
+      body: JSON.stringify(bodyData)
+    });
+    
+    return POST(mockRequest as NextRequest);
+  }
+  
+  // If no query parameters, return helpful error
+  return NextResponse.json({ 
+    error: 'This endpoint requires either POST with JSON body or GET with query parameters',
+    requiredParams: ['jobId', 'city', 'date'],
+    optionalParams: ['categories', 'options'],
+    example: '/api/events/process?jobId=xyz&city=Wien&date=2025-01-20&categories=musik,kultur&options={"debug":true}'
+  }, { status: 400 });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { jobId, city, date, categories, options } = await request.json();
