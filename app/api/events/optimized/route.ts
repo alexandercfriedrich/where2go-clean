@@ -243,8 +243,7 @@ export async function POST(request: NextRequest) {
                     // Write events to PostgreSQL asynchronously
                     if (normalizedFinal.length > 0) {
                                   try {
-                                                  const repository = new EventRepository();
-                                                  await repository.bulkInsertEvents(normalizedFinal, city);
+                                                  await EventRepository.bulkInsertEvents(normalizedFinal, city);
                                                   console.log(`[OptimizedAPI:PostgreSQL] Wrote ${normalizedFinal.length} events to Supabase`);
                                                 } catch (error) {
                                                   console.error('[OptimizedAPI:PostgreSQL] Failed to write events:', error);
