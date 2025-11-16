@@ -22,33 +22,42 @@ export class EventRepository {
       ? (event.date ? `${event.date}T${event.endTime}:00.000Z` : null)
       : null;
 
-    // More precise free event detection - check for exact word matches
-    const priceStr = event.price?.toLowerCase().trim() || '';
-    const isFree = priceStr === 'free' || 
-                   priceStr === 'gratis' || 
-                   priceStr === 'kostenlos' ||
-                   priceStr.startsWith('free ') ||
-                   priceStr.startsWith('gratis ');
-
     return {
       title: event.title,
       description: event.description || null,
       category: event.category,
-      subcategory: null,
-      start_date_time: startDateTime,
-      end_date_time: endDateTime,
+      subcategory: event.eventType || null,
       city: city,
       country: 'Austria',
-      source: event.source || 'unknown',
-      source_url: event.website || null,
+      start_date_time: startDateTime,
+      end_date_time: endDateTime,
+      custom_venue_name: event.venue || null,
+      custom_venue_address: event.address || null,
+      price_info: event.price || null,
+      is_free: this.isFreeEvent(event.price),
+      website_url: event.website || null,
+      booking_url: event.bookingLink || null,
       image_urls: event.imageUrl ? [event.imageUrl] : null,
-      tags: null,
-      is_free: isFree,
-      price_min: null,
-      price_max: null,
-      price_currency: 'EUR',
-      popularity_score: 0
-    }
+      tags: event.eventType ? [event.eventType] : null,
+      source: event.source || 'ai',
+      source_url: event.website || null,
+      published_at: new Date().toISOString()
+    };
+  }
+
+  /**
+   * Helper method to detect if an event is free based on price string
+   */
+  private static isFreeEvent(priceStr?: string): boolean {
+    if (!priceStr) return false;
+    const lower = priceStr.toLowerCase().trim();
+    return (
+      lower === 'free' ||
+      lower === 'gratis' ||
+      lower === 'kostenlos' ||
+      lower.indexOf('free ') === 0 ||
+      lower.indexOf('gratis ') === 0
+    );
   }
 
   /**
