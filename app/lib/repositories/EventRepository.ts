@@ -119,7 +119,7 @@ export class EventRepository {
   }
 
   /**
-   * Bulk insert events into PostgreSQL
+   * Bulk upsert events into PostgreSQL
    * IMPORTANT: Use this in background jobs or migrations
    */
   static async bulkInsertEvents(
@@ -133,11 +133,11 @@ export class EventRepository {
       // Type assertion needed due to Supabase SDK type inference limitations
       const { data, error } = await supabaseAdmin
         .from('events')
-        .insert(dbEvents as any)
+        .upsert(dbEvents as any, { onConflict: 'title,start_date_time,city' })
         .select()
 
       if (error) {
-        errors.push(`Bulk insert error: ${error.message}`)
+        errors.push(`Bulk upsert error: ${error.message}`)
         return { success: false, inserted: 0, errors }
       }
 
