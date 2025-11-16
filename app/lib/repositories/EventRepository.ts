@@ -7,21 +7,38 @@ type DbEventInsert = Database['public']['Tables']['events']['Insert']
 
 export class EventRepository {
   /**
-   * Convert EventData (from existing code) to Database Insert format
+   * Helper to parse time strings, handling 'ganztags' (all-day) events
+   * @param dateStr - Date string (e.g., '2025-11-16')
+   * @param timeStr - Time string (e.g., '19:00' or 'ganztags')
+   * @returns ISO 8601 timestamp or null
    */
+  private static parseDateTime(dateStr: string | undefined, timeStr: string | undefined): string | null {
+    if (!dateStr) return null;
+    
+    // Handle all-day events (ganztags, all day, ganztagig, etc.)
+    if (timeStr && /ganztags|all[- ]?day|ganztagig|fullday/i.test(timeStr)) {
+      return `${dateStr}T00:00:00.000Z`;
+    }
+    
+    // Handle normal time strings
+    if (timeStr) {
+      // Validate timeStr is in HH:mm format
+      if (/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(timeStr)) {
+        return `${dateStr}T${timeStr}:00.000Z`;
+      } else {
+        // Invalid time format; return null
+        return null;
+      }
+    }
+    
+    return null;
+  }
+
   private static eventDataToDbInsert(event: EventData, city: string): DbEventInsert {
     // Combine date and time for proper ISO timestamp
-    const startDateTime = event.date && event.time
-      ? `${event.date}T${event.time}:00.000Z`
-      : event.date
-      ? `${event.date}T00:00:00.000Z`
-      : new Date().toISOString();
-
+    const startDateTime = this.parseDateTime(event.date, event.time) || new Date().toISOString();
     // Parse endTime if available
-    const endDateTime = event.endTime
-      ? (event.date ? `${event.date}T${event.endTime}:00.000Z` : null)
-      : null;
-
+    const endDateTime = this.parseDateTime(event.date, event.endTime);
     return {
       title: event.title,
       description: event.description || null,
