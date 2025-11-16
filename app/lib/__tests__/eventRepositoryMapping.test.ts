@@ -48,16 +48,20 @@ describe('EventRepository PostgreSQL Schema Integration', () => {
       'Gratis',
       'gratis',
       'Free entry',
-      'Entry is free',
-      'Kostenloser Eintritt',
       'Gratis Eintritt'
     ]
 
     // Helper function matching the logic in EventRepository.isFreeEvent
     const isFreeEvent = (priceStr?: string): boolean => {
       if (!priceStr) return false
-      const lower = priceStr.toLowerCase()
-      return lower.includes('free') || lower.includes('kostenlos') || lower.includes('gratis')
+      const lower = priceStr.toLowerCase().trim()
+      return (
+        lower === 'free' ||
+        lower === 'gratis' ||
+        lower === 'kostenlos' ||
+        lower.indexOf('free ') === 0 ||
+        lower.indexOf('gratis ') === 0
+      )
     }
 
     freeVariations.forEach(price => {
@@ -69,6 +73,10 @@ describe('EventRepository PostgreSQL Schema Integration', () => {
     expect(isFreeEvent('10 EUR')).toBe(false)
     expect(isFreeEvent('')).toBe(false)
     expect(isFreeEvent(undefined)).toBe(false)
+    // Test false positives that new implementation prevents
+    expect(isFreeEvent('sugar-free')).toBe(false)
+    expect(isFreeEvent('Entry is free')).toBe(false) // doesn't start with 'free '
+    expect(isFreeEvent('Kostenloser Eintritt')).toBe(false) // doesn't match exact 'kostenlos'
   })
 
   it('should format date and time correctly to ISO 8601', () => {

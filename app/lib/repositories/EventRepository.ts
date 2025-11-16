@@ -39,7 +39,7 @@ export class EventRepository {
       booking_url: event.bookingLink || null,
       image_urls: event.imageUrl ? [event.imageUrl] : null,
       tags: event.eventType ? [event.eventType] : null,
-      source: (event.source as any) || 'ai',
+      source: event.source || 'ai',
       source_url: event.website || null,
       published_at: new Date().toISOString()
     };
@@ -50,8 +50,14 @@ export class EventRepository {
    */
   private static isFreeEvent(priceStr?: string): boolean {
     if (!priceStr) return false;
-    const lower = priceStr.toLowerCase();
-    return lower.includes('free') || lower.includes('kostenlos') || lower.includes('gratis');
+    const lower = priceStr.toLowerCase().trim();
+    return (
+      lower === 'free' ||
+      lower === 'gratis' ||
+      lower === 'kostenlos' ||
+      lower.indexOf('free ') === 0 ||
+      lower.indexOf('gratis ') === 0
+    );
   }
 
   /**

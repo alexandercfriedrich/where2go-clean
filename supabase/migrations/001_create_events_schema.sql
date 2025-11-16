@@ -27,7 +27,8 @@ CREATE TABLE events (
   longitude DECIMAL(11, 8),
   
   -- Venue Information
-  venue_id UUID REFERENCES venues(id),
+  -- NOTE: Foreign key constraint to venues(id) will be added in Phase 2 when venues table is implemented
+  venue_id UUID,
   custom_venue_name VARCHAR(255),
   custom_venue_address TEXT,
   
