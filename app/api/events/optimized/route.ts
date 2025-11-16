@@ -16,6 +16,7 @@ import { EventData } from '@/lib/types';
 import { eventsCache } from '@/lib/cache';
 import { upsertDayEvents } from '@/lib/dayCache';
 import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
+import { EventRepository } from '@/lib/repositories/EventRepository';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -238,6 +239,17 @@ export async function POST(request: NextRequest) {
           });
 
           console.log(`[OptimizedAPI:Stream] Complete: ${normalizedFinal.length} events`);
+
+                    // Write events to PostgreSQL asynchronously
+                    if (normalizedFinal.length > 0) {
+                                  try {
+                                                  await EventRepository.bulkInsertEvents(normalizedFinal, city);
+                                                  console.log(`[OptimizedAPI:PostgreSQL] Wrote ${normalizedFinal.length} events to Supabase`);
+                                                } catch (error) {
+                                                  console.error('[OptimizedAPI:PostgreSQL] Failed to write events:', error);
+                                                  // Don't throw - events are already cached in Redis
+                                                }
+                                }
 
           // Close the stream
           controller.close();
