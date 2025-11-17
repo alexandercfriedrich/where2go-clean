@@ -98,7 +98,7 @@ export default function AdminPage() {
   };
 
   const handleCacheWarmup = async () => {
-    if (!confirm('Start Wien.info cache warmup? This will fetch events for the next 90 days and may take 1-2 minutes.')) return;
+    if (!confirm('Start Wien.info cache warmup? This will fetch events for the next 365 days (1 year) and may take several minutes.')) return;
 
     try {
       setWarmupLoading(true);
