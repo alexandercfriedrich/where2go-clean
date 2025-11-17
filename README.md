@@ -32,6 +32,48 @@ See [OPTIMIZED_SEARCH.md](./OPTIMIZED_SEARCH.md) for detailed documentation.
 
 ## Setup
 
+### Phase 1: PostgreSQL Migration (Current) 🚧
+
+**Status:** Hybrid architecture with PostgreSQL as primary data source and Redis cache fallback.
+
+The application now supports PostgreSQL (via Supabase) as the primary persistent data layer:
+- ✅ Supabase client and database types
+- ✅ EventRepository and VenueRepository for CRUD operations
+- ✅ HybridEventService for PostgreSQL-first with Redis fallback
+- ✅ Migration script: `npm run migrate` or `npm run migrate:dry-run`
+- ✅ New API v1 endpoints: `/api/v1/events`, `/api/v1/events/[id]`, `/api/v1/search`
+- ✅ Benchmark and monitoring utilities
+- ✅ Test page: `/test-pg`
+
+**Required Environment Variables (add to `.env.local`):**
+```bash
+# Supabase Configuration (Required for PostgreSQL features)
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key_here
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
+```
+
+**Migration Commands:**
+```bash
+# Dry run (preview what would be migrated)
+npm run migrate:dry-run
+
+# Full migration from Redis to PostgreSQL
+npm run migrate
+
+# Migrate specific city only
+npx ts-node app/lib/migration/redis-to-postgres.ts --city=Wien
+
+# Generate TypeScript types from Supabase schema
+npm run supabase:types
+```
+
+**Phase 2 Roadmap (Future):**
+- Automated scrapers with cron jobs
+- Vector embeddings with pgvector for semantic search
+- Real-time event updates
+- Advanced analytics dashboard
+
 ### Environment Variables
 
 Create a `.env.local` file in the root directory and add your configuration:
