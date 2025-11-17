@@ -239,7 +239,7 @@ export default function TestPostgreSQLPage() {
                 <div style={{ fontSize: '0.9rem', color: '#666' }}>
                   <p><strong>Category:</strong> {event.category}</p>
                   <p><strong>City:</strong> {event.city}</p>
-                  <p><strong>Date:</strong> {nformatEventDate(event.start_date_time)
+                  <p><strong>Date:</strong> {formatEventDate(event.start_date_time)}</p>
                   {event.custom_venue_name && (
                     <p><strong>Venue:</strong> {event.custom_venue_name}</p>
                   )}
