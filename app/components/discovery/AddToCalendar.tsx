@@ -10,26 +10,54 @@ import { downloadICS, getGoogleCalendarURL, getOutlookCalendarURL, getYahooCalen
 interface AddToCalendarProps {
   event: {
     title: string;
-    start_date_time: string;
+    start_date_time?: string;
+    date?: string;
+    time?: string;
     end_date_time?: string;
     custom_venue_name?: string;
+    venue?: string;
     description?: string;
     id: string;
   };
   className?: string;
+  size?: 'sm' | 'md' | 'lg';
 }
 
-export function AddToCalendar({ event, className = '' }: AddToCalendarProps) {
+export function AddToCalendar({ event, className = '', size = 'md' }: AddToCalendarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Parse date/time from either start_date_time or separate date/time fields
+  const getStartDate = () => {
+    if (event.start_date_time) {
+      return new Date(event.start_date_time);
+    }
+    if (event.date) {
+      const timeStr = event.time || '19:00';
+      return new Date(`${event.date}T${timeStr}:00`);
+    }
+    return new Date();
+  };
+
   const calendarEvent = {
     title: event.title,
-    description: event.description || `Event at ${event.custom_venue_name || 'TBA'}`,
-    location: event.custom_venue_name || '',
-    startDate: new Date(event.start_date_time),
+    description: event.description || `Event at ${event.custom_venue_name || event.venue || 'TBA'}`,
+    location: event.custom_venue_name || event.venue || '',
+    startDate: getStartDate(),
     endDate: event.end_date_time ? new Date(event.end_date_time) : undefined,
     url: typeof window !== 'undefined' ? `${window.location.origin}/event/${event.id}` : undefined,
+  };
+
+  const sizeClasses = {
+    sm: 'p-1.5',
+    md: 'p-2',
+    lg: 'p-3'
+  };
+
+  const iconSizes = {
+    sm: 'w-4 h-4',
+    md: 'w-5 h-5',
+    lg: 'w-6 h-6'
   };
 
   // Close dropdown when clicking outside
@@ -67,21 +95,21 @@ export function AddToCalendar({ event, className = '' }: AddToCalendarProps) {
   };
 
   return (
-    <div className={`relative ${className}`} ref={dropdownRef}>
+    <div className="relative inline-block" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
+        className={`${sizeClasses[size]} rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${className}`}
         aria-label="Add to calendar"
         aria-expanded={isOpen}
+        title="Add to calendar"
       >
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className={iconSizes[size]} fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
-        Add to Calendar
       </button>
 
       {isOpen && (
-        <div className="absolute z-50 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="absolute z-50 mt-2 w-56 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden right-0">
           <button
             onClick={handleGoogleCalendar}
             className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-3"

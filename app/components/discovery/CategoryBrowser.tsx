@@ -19,11 +19,15 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: 'music', name: 'Music', icon: '🎵' },
   { id: 'theater', name: 'Theater', icon: '🎭' },
   { id: 'art', name: 'Art', icon: '🎨' },
-  { id: 'food', name: 'Food & Drink', icon: '🍽️' },
+  { id: 'food', name: 'Food', icon: '🍽️' },
   { id: 'sports', name: 'Sports', icon: '⚽' },
   { id: 'nightlife', name: 'Nightlife', icon: '🌃' },
   { id: 'culture', name: 'Culture', icon: '🏛️' },
   { id: 'family', name: 'Family', icon: '👨‍👩‍👧‍👦' },
+  { id: 'comedy', name: 'Comedy', icon: '😂' },
+  { id: 'concerts', name: 'Concerts', icon: '🎤' },
+  { id: 'cinema', name: 'Cinema', icon: '🎬' },
+  { id: 'exhibitions', name: 'Exhibitions', icon: '🖼️' },
 ];
 
 interface CategoryBrowserProps {

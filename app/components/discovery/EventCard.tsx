@@ -1,0 +1,212 @@
+/**
+ * Discovery Event Card Component
+ * Matches the design from city pages with icons and proper date/time display
+ */
+
+'use client';
+
+import React from 'react';
+import Link from 'next/link';
+import { AddToCalendar } from './AddToCalendar';
+import { ShareButtons } from './ShareButtons';
+import { FavoriteButton } from './FavoriteButton';
+
+interface EventCardProps {
+  event: {
+    id: string;
+    title: string;
+    category?: string;
+    date?: string;
+    time?: string;
+    venue?: string;
+    address?: string;
+    description?: string;
+    price?: string;
+    imageUrl?: string;
+    source?: string;
+    start_date_time?: string;
+    end_date_time?: string;
+    price_min?: number | null;
+    price_max?: number | null;
+    is_free?: boolean;
+    custom_venue_name?: string;
+  };
+  city?: string;
+}
+
+// Helper function to format date in German format
+function formatGermanDate(dateStr: string): string {
+  try {
+    const date = new Date(dateStr);
+    const options: Intl.DateTimeFormatOptions = { 
+      weekday: 'short', 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric' 
+    };
+    return date.toLocaleDateString('de-DE', options);
+  } catch {
+    return dateStr;
+  }
+}
+
+// Helper to parse time from ISO datetime or separate time field
+function getEventTime(event: any): string | null {
+  if (event.time) return event.time;
+  if (event.start_date_time) {
+    try {
+      const date = new Date(event.start_date_time);
+      return date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+// Helper to get display date
+function getEventDate(event: any): string {
+  if (event.date) return event.date;
+  if (event.start_date_time) {
+    try {
+      const date = new Date(event.start_date_time);
+      return date.toISOString().split('T')[0];
+    } catch {
+      return '';
+    }
+  }
+  return '';
+}
+
+export function EventCard({ event, city = 'Wien' }: EventCardProps) {
+  const venue = event.custom_venue_name || event.venue || '';
+  const eventDate = getEventDate(event);
+  const eventTime = getEventTime(event);
+  const displayDate = eventDate ? formatGermanDate(eventDate) : '';
+  
+  // Price display
+  let priceDisplay = 'Preis auf Anfrage';
+  if (event.is_free) {
+    priceDisplay = 'Kostenlos';
+  } else if (event.price) {
+    priceDisplay = event.price;
+  } else if (event.price_min !== null && event.price_min !== undefined) {
+    if (event.price_max && event.price_max !== event.price_min) {
+      priceDisplay = `€${event.price_min} - €${event.price_max}`;
+    } else {
+      priceDisplay = `ab €${event.price_min}`;
+    }
+  }
+
+  return (
+    <div className="dark-event-card">
+      {/* Event Image */}
+      {event.imageUrl && (
+        <div 
+          className="dark-event-card-image"
+          style={{
+            backgroundImage: `url(${event.imageUrl})`
+          }}
+        />
+      )}
+
+      {/* Event Content */}
+      <div className="dark-event-content">
+        {/* Category Badge */}
+        {event.category && (
+          <span className="dark-event-category">
+            {event.category}
+          </span>
+        )}
+
+        {/* Title (clickable) */}
+        <Link href={`/event/${event.id}`}>
+          <h3 className="dark-event-title hover:text-indigo-400 transition-colors cursor-pointer">
+            {event.title}
+          </h3>
+        </Link>
+
+        {/* Event Details with Icons */}
+        <div className="dark-event-details">
+          {/* Date */}
+          {displayDate && (
+            <div className="dark-event-detail">
+              <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span>{displayDate}</span>
+            </div>
+          )}
+
+          {/* Time */}
+          {eventTime && (
+            <div className="dark-event-detail">
+              <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{eventTime} Uhr</span>
+            </div>
+          )}
+
+          {/* Venue (clickable to Google Maps) */}
+          {venue && (
+            <div className="dark-event-detail">
+              <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue + (event.address ? ', ' + event.address : ''))}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="dark-event-venue-link"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {venue}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: '4px', opacity: 0.6, display: 'inline' }}>
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                  <polyline points="15 3 21 3 21 9"></polyline>
+                  <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+              </a>
+            </div>
+          )}
+        </div>
+
+        {/* Description */}
+        {event.description && (
+          <p className="dark-event-description">
+            {event.description}
+          </p>
+        )}
+
+        {/* Price */}
+        <div className="dark-event-price">
+          {priceDisplay}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="mt-4 flex items-center gap-2 flex-wrap">
+          <FavoriteButton eventId={event.id} size="sm" />
+          <AddToCalendar event={event} size="sm" />
+          <ShareButtons 
+            event={event} 
+            url={`https://www.where2go.at/event/${event.id}`}
+            size="sm"
+          />
+        </div>
+      </div>
+
+      {/* Source Badge */}
+      {event.source && (
+        <div className="dark-event-source-badge">
+          {event.source === 'rss' ? 'RSS' :
+           event.source === 'ai' ? 'KI' :
+           event.source === 'ra' ? 'API' :
+           event.source === 'cache' ? 'Cache' :
+           event.source}
+        </div>
+      )}
+    </div>
+  );
+}
