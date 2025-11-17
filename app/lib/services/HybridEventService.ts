@@ -40,7 +40,6 @@ export class HybridEventService {
     }
   }> {
     const { enableRedisFallback = true, backgroundImport = false } = options
-    let source: 'postgresql' | 'redis' | 'hybrid' = 'postgresql'
     const meta = { pgCount: 0, redisCount: 0 }
 
     // 1. Try PostgreSQL first
@@ -63,18 +62,22 @@ export class HybridEventService {
       
       if (redisEvents && Array.isArray(redisEvents) && redisEvents.length > 0) {
         meta.redisCount = redisEvents.length
-        source = 'hybrid'
 
         // 3. Optional: Import Redis events to PostgreSQL in background
         if (backgroundImport) {
           this.importRedisEventsToPostgres(redisEvents, params.city).catch(err => {
-            console.error('[HybridEventService] Background import failed:', err)
+            try {
+              console.error('[HybridEventService] Background import failed:', err)
+            } catch (logErr) {
+              // Defensive: if console.error fails, write to stderr
+              process.stderr && process.stderr.write('[HybridEventService] Logging failed: ' + String(logErr) + '\n')
+            }
           })
         }
 
         return {
           events: redisEvents,
-          source,
+          source: 'hybrid',
           fromCache: true,
           meta
         }

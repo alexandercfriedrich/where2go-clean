@@ -229,7 +229,12 @@ export default function TestPostgreSQLPage() {
                     <p><strong>Price:</strong> {event.price_info}</p>
                   )}
                   {event.description && (
-                    <p><strong>Description:</strong> {event.description.substring(0, 200)}...</p>
+                    <p>
+                      <strong>Description:</strong>{" "}
+                      {event.description.length > 200
+                        ? event.description.substring(0, 200) + "..."
+                        : event.description}
+                    </p>
                   )}
                   {event.website_url && (
                     <p>

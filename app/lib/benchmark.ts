@@ -91,8 +91,6 @@ async function benchmarkSearchEvents(
   })
 
   // Redis doesn't support full-text search, so we'll mark it as N/A
-  const redisMs = 0
-
   return {
     testName: `Search events: "${searchTerm}" in ${city}`,
     postgresqlMs: Math.round(pgBench.timeMs * 100) / 100,

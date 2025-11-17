@@ -82,17 +82,60 @@ export async function PATCH(
 
     const body = await request.json()
     
-    // Validate that body is not empty
-    if (!body || Object.keys(body).length === 0) {
+    // Define fields that are allowed to be updated
+    const ALLOWED_UPDATE_FIELDS = [
+      'title',
+      'description',
+      'short_description',
+      'category',
+      'subcategory',
+      'tags',
+      'custom_venue_name',
+      'custom_venue_address',
+      'venue_id',
+      'start_date_time',
+      'end_date_time',
+      'timezone',
+      'is_all_day',
+      'is_free',
+      'price_min',
+      'price_max',
+      'price_currency',
+      'price_info',
+      'website_url',
+      'booking_url',
+      'ticket_url',
+      'source_url',
+      'image_urls',
+      'video_url',
+      'source',
+      'source_api',
+      'external_id',
+      'is_verified',
+      'is_featured',
+      'is_cancelled',
+      'published_at'
+    ]
+    
+    // Filter body to only include allowed fields
+    const filteredBody: Record<string, any> = {}
+    for (const [key, value] of Object.entries(body)) {
+      if (ALLOWED_UPDATE_FIELDS.includes(key)) {
+        filteredBody[key] = value
+      }
+    }
+    
+    // Validate that filteredBody is not empty
+    if (Object.keys(filteredBody).length === 0) {
       return NextResponse.json(
-        { success: false, error: 'Update data required' },
+        { success: false, error: 'No valid update fields provided' },
         { status: 400 }
       )
     }
 
     // Add updated_at timestamp
     const updateData = {
-      ...body,
+      ...filteredBody,
       updated_at: new Date().toISOString()
     }
 

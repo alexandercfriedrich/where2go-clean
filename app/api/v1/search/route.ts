@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { EventRepository } from '@/lib/repositories/EventRepository'
 import { supabase } from '@/lib/supabase/client'
 
 export const runtime = 'nodejs'
@@ -60,12 +59,15 @@ export async function GET(request: NextRequest) {
       )
     }
 
+    // Sanitize search term for SQL LIKE wildcards
+    const sanitizedTerm = searchTerm.replace(/[%_]/g, '\\$&')
+
     // Build query
     let query = supabase
       .from('events')
       .select('*')
       .eq('city', city)
-      .or(`title.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%`)
+      .or(`title.ilike.%${sanitizedTerm}%,description.ilike.%${sanitizedTerm}%`)
       .order('start_date_time', { ascending: true })
       .limit(limit)
 
@@ -76,6 +78,13 @@ export async function GET(request: NextRequest) {
 
     // Apply date range filters if provided
     if (dateFrom) {
+      // Validate date format
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateFrom)) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid dateFrom format. Expected YYYY-MM-DD' },
+          { status: 400 }
+        )
+      }
       const startOfDay = `${dateFrom}T00:00:00.000Z`
       query = query.gte('start_date_time', startOfDay)
     } else {
@@ -84,6 +93,13 @@ export async function GET(request: NextRequest) {
     }
 
     if (dateTo) {
+      // Validate date format
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(dateTo)) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid dateTo format. Expected YYYY-MM-DD' },
+          { status: 400 }
+        )
+      }
       const endOfDay = `${dateTo}T23:59:59.999Z`
       query = query.lte('start_date_time', endOfDay)
     }

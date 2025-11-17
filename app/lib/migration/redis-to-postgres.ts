@@ -16,7 +16,6 @@
 import { eventsCache, getRedisClient } from '../cache'
 import { EventRepository } from '../repositories/EventRepository'
 import type { EventData } from '../types'
-import { EVENT_CATEGORIES } from '../eventCategories'
 
 interface MigrationStats {
   totalKeysScanned: number
@@ -63,26 +62,6 @@ function parseArgs(): MigrationOptions {
 }
 
 /**
- * Generate date range for scanning (default: last 7 days + next 30 days)
- */
-function generateDateRange(from?: string, to?: string): string[] {
-  const dates: string[] = []
-  const startDate = from ? new Date(from) : new Date()
-  startDate.setDate(startDate.getDate() - 7) // Include past 7 days
-
-  const endDate = to ? new Date(to) : new Date()
-  endDate.setDate(endDate.getDate() + 30) // Include next 30 days
-
-  const current = new Date(startDate)
-  while (current <= endDate) {
-    dates.push(current.toISOString().split('T')[0])
-    current.setDate(current.getDate() + 1)
-  }
-
-  return dates
-}
-
-/**
  * Extract city, date, and category from Redis cache key
  * Format: "city_YYYY-MM-DD_category"
  */
@@ -90,13 +69,12 @@ function parseRedisKey(key: string): { city: string; date: string; category: str
   // Remove prefix if present
   const cleanKey = key.replace(/^events:v[0-9]+:/, '')
   
-  // Split by underscore
-  const parts = cleanKey.split('_')
-  if (parts.length < 3) return null
-
-  const date = parts[1]
-  const category = parts.slice(2).join('_')
-  const city = parts[0]
+  // Use regex to extract city, date, and category
+  // Format: city (can have underscores) + '_' + YYYY-MM-DD + '_' + category (can have underscores)
+  const match = cleanKey.match(/^(.+?)_(\d{4}-\d{2}-\d{2})_(.+)$/)
+  if (!match) return null
+  
+  const [, city, date, category] = match
 
   // Validate date format
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null
@@ -119,28 +97,37 @@ async function scanRedisKeys(options: MigrationOptions): Promise<string[]> {
       const result: any = await redis.scan(cursor, { match: 'events:v*:*', count: 100 })
       
       // Handle both tuple and object responses
+      let nextCursor: number | string | undefined
+      let foundKeys: string[] = []
+      
       if (Array.isArray(result) && result.length === 2) {
-        cursor = typeof result[0] === 'string' ? parseInt(result[0], 10) : result[0]
-        const foundKeys = result[1] || []
-        
-        for (const key of foundKeys) {
-          const parsed = parseRedisKey(key)
-          if (!parsed) continue
-
-          // Apply city filter if specified
-          if (options.cityFilter && parsed.city.toLowerCase() !== options.cityFilter.toLowerCase()) {
-            continue
-          }
-
-          // Apply date filters if specified
-          if (options.dateFrom && parsed.date < options.dateFrom) continue
-          if (options.dateTo && parsed.date > options.dateTo) continue
-
-          keys.push(key)
-        }
+        nextCursor = typeof result[0] === 'string' ? parseInt(result[0], 10) : result[0]
+        foundKeys = result[1] || []
+      } else if (result && typeof result === 'object' && 'cursor' in result && 'keys' in result) {
+        nextCursor = typeof result.cursor === 'string' ? parseInt(result.cursor, 10) : result.cursor
+        foundKeys = result.keys || []
       } else {
+        // Unexpected result format, break the loop
         break
       }
+      
+      for (const key of foundKeys) {
+        const parsed = parseRedisKey(key)
+        if (!parsed) continue
+
+        // Apply city filter if specified
+        if (options.cityFilter && parsed.city.toLowerCase() !== options.cityFilter.toLowerCase()) {
+          continue
+        }
+
+        // Apply date filters if specified
+        if (options.dateFrom && parsed.date < options.dateFrom) continue
+        if (options.dateTo && parsed.date > options.dateTo) continue
+
+        keys.push(key)
+      }
+      
+      cursor = nextCursor ?? 0
     } catch (error) {
       console.error('[Migration] Error scanning Redis keys:', error)
       break
@@ -190,8 +177,12 @@ async function migrate(options: MigrationOptions): Promise<MigrationStats> {
     stats.citiesProcessed.add(city)
 
     try {
+      // Reconstruct logical key for eventsCache.get()
+      // The scanned key includes the prefix, but eventsCache.get() will add it again
+      const logicalKey = `${city}_${date}_${category}`
+      
       // Fetch events from Redis
-      const events = await eventsCache.get<EventData[]>(key)
+      const events = await eventsCache.get<EventData[]>(logicalKey)
       
       if (!events || !Array.isArray(events) || events.length === 0) {
         continue

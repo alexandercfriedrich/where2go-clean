@@ -125,7 +125,15 @@ export class EventMetrics {
 
   /**
    * Get database statistics from PostgreSQL
-   * TODO: Implement once we have more data
+   * 
+   * Note: Current implementation fetches all rows for aggregation, which is inefficient
+   * for large datasets. In Phase 2, consider implementing RPC functions in Supabase:
+   * 
+   * CREATE FUNCTION get_events_by_city() RETURNS TABLE(city TEXT, count BIGINT) AS $$
+   *   SELECT city, COUNT(*) FROM events GROUP BY city;
+   * $$ LANGUAGE SQL;
+   * 
+   * Then call via: supabase.rpc('get_events_by_city')
    */
   static async getDatabaseStats(): Promise<{
     totalEvents: number
@@ -144,27 +152,35 @@ export class EventMetrics {
         .from('venues')
         .select('*', { count: 'exact', head: true })
 
-      // Get events by city (using type assertion for simplicity)
+      // Get events by city
+      // Note: This fetches all rows. For large datasets, use RPC with GROUP BY
       const { data: cityData } = await supabase
         .from('events')
-        .select('city') as any
+        .select('city')
 
       const eventsByCity: Record<string, number> = {}
-      for (const row of cityData || []) {
-        if (row && row.city) {
-          eventsByCity[row.city] = (eventsByCity[row.city] || 0) + 1
+      if (cityData && Array.isArray(cityData)) {
+        for (const row of cityData) {
+          const cityRow = row as { city?: string }
+          if (cityRow && cityRow.city) {
+            eventsByCity[cityRow.city] = (eventsByCity[cityRow.city] || 0) + 1
+          }
         }
       }
 
       // Get events by category
+      // Note: This fetches all rows. For large datasets, use RPC with GROUP BY
       const { data: categoryData } = await supabase
         .from('events')
-        .select('category') as any
+        .select('category')
 
       const eventsByCategory: Record<string, number> = {}
-      for (const row of categoryData || []) {
-        if (row && row.category) {
-          eventsByCategory[row.category] = (eventsByCategory[row.category] || 0) + 1
+      if (categoryData && Array.isArray(categoryData)) {
+        for (const row of categoryData) {
+          const categoryRow = row as { category?: string }
+          if (categoryRow && categoryRow.category) {
+            eventsByCategory[categoryRow.category] = (eventsByCategory[categoryRow.category] || 0) + 1
+          }
         }
       }
 

@@ -36,7 +36,10 @@ export class VenueRepository {
       .single()
 
     if (error) {
-      // Not found is expected, don't log
+      // Not found is expected (PGRST116), but log other errors
+      if (error.code !== 'PGRST116') {
+        console.error('[VenueRepository] Error fetching venue by name:', error)
+      }
       return null
     }
 

@@ -62,7 +62,7 @@ npm run migrate:dry-run
 npm run migrate
 
 # Migrate specific city only
-npx ts-node app/lib/migration/redis-to-postgres.ts --city=Wien
+npm run migrate -- --city=Wien
 
 # Generate TypeScript types from Supabase schema
 npm run supabase:types

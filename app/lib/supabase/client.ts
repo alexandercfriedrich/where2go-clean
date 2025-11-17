@@ -5,8 +5,9 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-// Helper to check if we're in a build context (Next.js build time)
-const isBuildTime = process.env.NEXT_PHASE === 'phase-production-build'
+// Helper to check if we're in a build context
+// More reliable than checking NEXT_PHASE as it works across different build scenarios
+const isBuildTime = typeof window === 'undefined' && (!supabaseUrl || !supabaseAnonKey)
 
 // Client-side Supabase client
 // Use dummy values during build time to allow compilation
