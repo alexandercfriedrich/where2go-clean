@@ -119,7 +119,7 @@ export default function AdminPage() {
 
       // New ImporterStats shape from /api/admin/cache-warmup
       if (data?.stats) {
-        const s = data.stats || {};
+        const s = data.stats;
         const imported = typeof s.totalImported === 'number' ? s.totalImported : 0;
         const updated = typeof s.totalUpdated === 'number' ? s.totalUpdated : 0;
         const failed = typeof s.totalFailed === 'number' ? s.totalFailed : 0;
