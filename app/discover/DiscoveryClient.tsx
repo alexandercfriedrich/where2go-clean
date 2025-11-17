@@ -9,6 +9,9 @@ import React, { useState, useEffect } from 'react';
 import { ThemeProvider } from '@/components/ui/ThemeProvider';
 import { SectionHeader } from '@/components/discovery/SectionHeader';
 import { Badge } from '@/components/discovery/Badge';
+import { DiscoveryNav } from '@/components/discovery/DiscoveryNav';
+import { LocationBar } from '@/components/discovery/LocationBar';
+import { CategoryBrowser } from '@/components/discovery/CategoryBrowser';
 import { getCategoryColor } from '../../lib/events/category-utils';
 
 interface DiscoveryClientProps {
@@ -44,13 +47,23 @@ export default function DiscoveryClient({
   return (
     <ThemeProvider>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+        {/* Navigation */}
+        <DiscoveryNav />
+        
+        {/* Location Bar */}
+        <LocationBar 
+          initialCity={city}
+          onCityChange={(newCity) => console.log('City changed:', newCity)}
+          onDateFilterChange={(filter) => console.log('Date filter:', filter)}
+        />
+
         {/* Hero Section */}
         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+            <h1 className="text-3xl md:text-5xl font-bold mb-4">
               Discover Events in {city}
             </h1>
-            <p className="text-xl text-indigo-100 mb-8">
+            <p className="text-lg md:text-xl text-indigo-100 mb-8">
               Your personalized guide to the best events happening now
             </p>
             
@@ -67,6 +80,15 @@ export default function DiscoveryClient({
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          {/* Category Browser */}
+          <section className="mb-16">
+            <SectionHeader
+              title="Browse by Category"
+              subtitle="Explore events that match your interests"
+            />
+            <CategoryBrowser onCategoryClick={(cat) => console.log('Category:', cat)} />
+          </section>
+
           {/* For You Section */}
           {initialPersonalizedEvents.length > 0 && (
             <section className="mb-16">
