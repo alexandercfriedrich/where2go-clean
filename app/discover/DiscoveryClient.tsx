@@ -6,12 +6,14 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { ThemeProvider } from '@/components/ui/ThemeProvider';
 import { SectionHeader } from '@/components/discovery/SectionHeader';
 import { Badge } from '@/components/discovery/Badge';
 import { DiscoveryNav } from '@/components/discovery/DiscoveryNav';
 import { LocationBar } from '@/components/discovery/LocationBar';
 import { CategoryBrowser } from '@/components/discovery/CategoryBrowser';
+import { SearchBar } from '@/components/discovery/SearchBar';
 import { getCategoryColor } from '../../lib/events/category-utils';
 
 interface DiscoveryClientProps {
@@ -28,10 +30,39 @@ export default function DiscoveryClient({
   city,
 }: DiscoveryClientProps) {
   const [mounted, setMounted] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [filteredEvents, setFilteredEvents] = useState({
+    personalized: initialPersonalizedEvents,
+    trending: initialTrendingEvents,
+    weekend: initialWeekendEvents,
+  });
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Filter events by category
+  useEffect(() => {
+    if (!selectedCategory) {
+      setFilteredEvents({
+        personalized: initialPersonalizedEvents,
+        trending: initialTrendingEvents,
+        weekend: initialWeekendEvents,
+      });
+    } else {
+      setFilteredEvents({
+        personalized: initialPersonalizedEvents.filter(
+          (e: any) => e.category.toLowerCase() === selectedCategory.toLowerCase()
+        ),
+        trending: initialTrendingEvents.filter(
+          (e: any) => e.category.toLowerCase() === selectedCategory.toLowerCase()
+        ),
+        weekend: initialWeekendEvents.filter(
+          (e: any) => e.category.toLowerCase() === selectedCategory.toLowerCase()
+        ),
+      });
+    }
+  }, [selectedCategory, initialPersonalizedEvents, initialTrendingEvents, initialWeekendEvents]);
 
   if (!mounted) {
     return (
@@ -67,13 +98,9 @@ export default function DiscoveryClient({
               Your personalized guide to the best events happening now
             </p>
             
-            {/* Simple Search Bar */}
+            {/* Enhanced Search Bar */}
             <div className="max-w-2xl">
-              <input
-                type="text"
-                placeholder="Search events, venues, or categories..."
-                className="w-full px-6 py-4 rounded-lg text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-white"
-              />
+              <SearchBar placeholder="Search events, venues, or categories..." />
             </div>
           </div>
         </div>
@@ -86,11 +113,29 @@ export default function DiscoveryClient({
               title="Browse by Category"
               subtitle="Explore events that match your interests"
             />
-            <CategoryBrowser onCategoryClick={(cat) => console.log('Category:', cat)} />
+            <CategoryBrowser 
+              onCategoryClick={(cat) => {
+                setSelectedCategory(selectedCategory === cat ? null : cat);
+              }}
+              selectedCategory={selectedCategory || undefined}
+            />
+            {selectedCategory && (
+              <div className="mt-4 flex items-center gap-2">
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  Filtered by: <strong>{selectedCategory}</strong>
+                </span>
+                <button
+                  onClick={() => setSelectedCategory(null)}
+                  className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
+                >
+                  Clear filter
+                </button>
+              </div>
+            )}
           </section>
 
           {/* For You Section */}
-          {initialPersonalizedEvents.length > 0 && (
+          {filteredEvents.personalized.length > 0 && (
             <section className="mb-16">
               <SectionHeader
                 title="For You"
@@ -98,7 +143,7 @@ export default function DiscoveryClient({
                 action={{ label: 'See all', href: '/discover/for-you' }}
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {initialPersonalizedEvents.slice(0, 8).map((event) => (
+                {filteredEvents.personalized.slice(0, 8).map((event) => (
                   <EventCard key={event.id} event={event} />
                 ))}
               </div>
@@ -106,7 +151,7 @@ export default function DiscoveryClient({
           )}
 
           {/* Trending Section */}
-          {initialTrendingEvents.length > 0 && (
+          {filteredEvents.trending.length > 0 && (
             <section className="mb-16">
               <SectionHeader
                 title="Trending Now"
@@ -114,7 +159,7 @@ export default function DiscoveryClient({
                 action={{ label: 'See all', href: '/discover/trending' }}
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {initialTrendingEvents.slice(0, 8).map((event) => (
+                {filteredEvents.trending.slice(0, 8).map((event) => (
                   <EventCard key={event.id} event={event} />
                 ))}
               </div>
@@ -122,7 +167,7 @@ export default function DiscoveryClient({
           )}
 
           {/* Weekend Section */}
-          {initialWeekendEvents.length > 0 && (
+          {filteredEvents.weekend.length > 0 && (
             <section className="mb-16">
               <SectionHeader
                 title="This Weekend"
@@ -130,7 +175,7 @@ export default function DiscoveryClient({
                 action={{ label: 'See all', href: '/discover/weekend' }}
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {initialWeekendEvents.map((event) => (
+                {filteredEvents.weekend.map((event) => (
                   <EventCard key={event.id} event={event} />
                 ))}
               </div>
@@ -138,15 +183,17 @@ export default function DiscoveryClient({
           )}
 
           {/* Fallback message */}
-          {initialPersonalizedEvents.length === 0 &&
-            initialTrendingEvents.length === 0 &&
-            initialWeekendEvents.length === 0 && (
+          {filteredEvents.personalized.length === 0 &&
+            filteredEvents.trending.length === 0 &&
+            filteredEvents.weekend.length === 0 && (
               <div className="text-center py-16">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-                  No events found
+                  {selectedCategory ? 'No events found in this category' : 'No events found'}
                 </h2>
                 <p className="text-gray-600 dark:text-gray-400">
-                  Check back soon for upcoming events in {city}
+                  {selectedCategory 
+                    ? 'Try selecting a different category or clear the filter' 
+                    : `Check back soon for upcoming events in ${city}`}
                 </p>
               </div>
             )}
@@ -171,8 +218,14 @@ function EventCard({ event }: { event: any }) {
     minute: '2-digit',
   });
 
+  // Generate event URL
+  const eventUrl = `/event/${event.id}`;
+
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300 cursor-pointer">
+    <Link 
+      href={eventUrl}
+      className="block bg-white dark:bg-gray-800 rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300"
+    >
       {/* Image placeholder */}
       <div 
         className="h-48 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600"
@@ -221,6 +274,6 @@ function EventCard({ event }: { event: any }) {
           </p>
         ) : null}
       </div>
-    </div>
+    </Link>
   );
 }
