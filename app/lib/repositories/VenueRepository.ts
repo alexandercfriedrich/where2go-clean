@@ -33,17 +33,14 @@ export class VenueRepository {
       .select('*')
       .eq('name', name)
       .eq('city', city)
-      .single()
+      .maybeSingle()
 
     if (error) {
-      // Not found is expected (PGRST116), but log other errors
-      if (error.code !== 'PGRST116') {
-        console.error('[VenueRepository] Error fetching venue by name:', error)
-      }
+      console.error('[VenueRepository] Error fetching venue by name:', error)
       return null
     }
 
-    return data
+    return data || null
   }
 
   /**
@@ -156,15 +153,23 @@ export class VenueRepository {
    * Returns the venue ID (existing or newly created)
    */
   static async upsertVenue(venue: DbVenueInsert): Promise<string | null> {
-    // Try to find existing venue by name and city
-    const existing = await this.getVenueByName(venue.name, venue.city)
-    
-    if (existing) {
-      return existing.id
+    // Use true upsert operation with name+city as conflict resolution
+    // Based on testing: spaces IN the onConflict column list are required for success
+    // ignoreDuplicates: false means UPDATE on conflict (not just skip)
+    const { data, error } = await (supabaseAdmin as any)
+      .from('venues')
+      .upsert(venue, {
+        onConflict: 'name, city',
+        ignoreDuplicates: false
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('[VenueRepository] Upsert error:', error)
+      return null
     }
 
-    // Create new venue
-    const created = await this.createVenue(venue)
-    return created?.id || null
+    return data?.id || null
   }
 }
