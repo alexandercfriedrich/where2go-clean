@@ -7,16 +7,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { EVENT_CATEGORIES } from '../../lib/eventCategories';
 
 interface FilterSheetProps {
   isOpen: boolean;
   onClose: () => void;
 }
-
-const CATEGORIES = [
-  'Music', 'Theater', 'Art', 'Food', 'Sports', 'Nightlife', 
-  'Culture', 'Family', 'Comedy', 'Concerts', 'Cinema', 'Exhibitions'
-];
 
 export function FilterSheet({ isOpen, onClose }: FilterSheetProps) {
   const router = useRouter();
@@ -131,7 +127,7 @@ export function FilterSheet({ isOpen, onClose }: FilterSheetProps) {
               Categories
             </h3>
             <div className="grid grid-cols-2 gap-2">
-              {CATEGORIES.map((category) => (
+              {EVENT_CATEGORIES.map((category) => (
                 <button
                   key={category}
                   onClick={() => toggleCategory(category)}

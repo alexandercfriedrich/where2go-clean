@@ -26,22 +26,16 @@ export function DiscoveryNav() {
           {/* Navigation Links */}
           <div className="hidden md:flex items-center space-x-8">
             <Link
-              href="/discover"
+              href="/"
               className="text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors"
             >
               Discover
             </Link>
             <Link
-              href="/"
+              href="/search"
               className="text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors"
             >
               Search
-            </Link>
-            <Link
-              href="/categories"
-              className="text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors"
-            >
-              Categories
             </Link>
           </div>
 

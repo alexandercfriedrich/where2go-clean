@@ -48,15 +48,17 @@ export default function DiscoveryClient({
         weekend: initialWeekendEvents,
       });
     } else {
+      const { matchesCategory } = require('@/lib/events/category-utils');
+      
       setFilteredEvents({
         personalized: initialPersonalizedEvents.filter(
-          (e: any) => e.category.toLowerCase() === selectedCategory.toLowerCase()
+          (e: any) => e.category && matchesCategory(e.category, selectedCategory)
         ),
         trending: initialTrendingEvents.filter(
-          (e: any) => e.category.toLowerCase() === selectedCategory.toLowerCase()
+          (e: any) => e.category && matchesCategory(e.category, selectedCategory)
         ),
         weekend: initialWeekendEvents.filter(
-          (e: any) => e.category.toLowerCase() === selectedCategory.toLowerCase()
+          (e: any) => e.category && matchesCategory(e.category, selectedCategory)
         ),
       });
     }

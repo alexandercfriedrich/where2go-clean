@@ -99,19 +99,23 @@ export function EventCard({ event, city = 'Wien' }: EventCardProps) {
   }
 
   return (
-    <div className="dark-event-card">
-      {/* Event Image */}
-      {event.imageUrl && (
+    <Link href={`/event/${event.id}`} className="block">
+      <div className="dark-event-card">
+        {/* Event Image */}
         <div 
           className="dark-event-card-image"
           style={{
-            backgroundImage: `url(${event.imageUrl})`
+            backgroundImage: event.imageUrl 
+              ? `url(${event.imageUrl})` 
+              : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            minHeight: '240px',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center'
           }}
         />
-      )}
 
-      {/* Event Content */}
-      <div className="dark-event-content">
+        {/* Event Content */}
+        <div className="dark-event-content">
         {/* Category Badge */}
         {event.category && (
           <span className="dark-event-category">
@@ -119,12 +123,10 @@ export function EventCard({ event, city = 'Wien' }: EventCardProps) {
           </span>
         )}
 
-        {/* Title (clickable) */}
-        <Link href={`/event/${event.id}`}>
-          <h3 className="dark-event-title hover:text-indigo-400 transition-colors cursor-pointer">
-            {event.title}
-          </h3>
-        </Link>
+        {/* Title */}
+        <h3 className="dark-event-title hover:text-indigo-400 transition-colors cursor-pointer">
+          {event.title}
+        </h3>
 
         {/* Event Details with Icons */}
         <div className="dark-event-details">
@@ -186,7 +188,7 @@ export function EventCard({ event, city = 'Wien' }: EventCardProps) {
         </div>
 
         {/* Action Buttons */}
-        <div className="mt-4 flex items-center gap-2 flex-wrap">
+        <div className="mt-4 flex items-center gap-2 flex-wrap" onClick={(e) => e.preventDefault()}>
           <FavoriteButton eventId={event.id} size="sm" />
           <AddToCalendar event={event} size="sm" />
           <ShareButtons 
@@ -195,18 +197,19 @@ export function EventCard({ event, city = 'Wien' }: EventCardProps) {
             size="sm"
           />
         </div>
-      </div>
-
-      {/* Source Badge */}
-      {event.source && (
-        <div className="dark-event-source-badge">
-          {event.source === 'rss' ? 'RSS' :
-           event.source === 'ai' ? 'KI' :
-           event.source === 'ra' ? 'API' :
-           event.source === 'cache' ? 'Cache' :
-           event.source}
         </div>
-      )}
-    </div>
+
+        {/* Source Badge */}
+        {event.source && (
+          <div className="dark-event-source-badge">
+            {event.source === 'rss' ? 'RSS' :
+             event.source === 'ai' ? 'KI' :
+             event.source === 'ra' ? 'API' :
+             event.source === 'cache' ? 'Cache' :
+             event.source}
+          </div>
+        )}
+      </div>
+    </Link>
   );
 }
