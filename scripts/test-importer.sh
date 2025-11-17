@@ -30,12 +30,14 @@ if [ -n "$ADMIN_WARMUP_SECRET" ]; then
   sleep 10
   
   echo "Testing GET endpoint (documentation)..."
-  curl -s http://localhost:3000/api/admin/cache-warmup | jq '.' || echo "Server not ready yet"
+  curl -s http://localhost:3000/api/admin/cache-warmup \
+    -u admin:password | jq '.' || echo "Server not ready yet"
   echo ""
   
   echo "Testing POST endpoint with dry-run..."
   curl -X POST -s \
     "http://localhost:3000/api/admin/cache-warmup?dryRun=true&limit=5&fromDate=2025-11-17&toDate=2025-11-18" \
+    -u admin:password \
     -H "Authorization: Bearer $ADMIN_WARMUP_SECRET" \
     | jq '.' || echo "Server not ready yet"
   echo ""

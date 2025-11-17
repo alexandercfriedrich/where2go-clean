@@ -239,8 +239,10 @@ npm test
 
 ### Common Issues
 
-**1. "ADMIN_WARMUP_SECRET not configured"**
-- Set the environment variable in your `.env.local` or hosting platform
+**1. "ADMIN_WARMUP_SECRET not configured" or "Invalid Bearer token"**
+- This error only occurs if the `ADMIN_WARMUP_SECRET` environment variable is set, but the request does not provide the correct Bearer token.
+- The `ADMIN_WARMUP_SECRET` is optional: if you do not set it, authentication is handled solely by middleware Basic Auth (ADMIN_USER/ADMIN_PASS).
+- If you wish to enable the additional Bearer token security layer, set the environment variable in your `.env.local` or hosting platform.
 - Generate a secure random string: `openssl rand -base64 32`
 
 **2. "Supabase configuration error"**

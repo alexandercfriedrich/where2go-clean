@@ -30,6 +30,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { importWienInfoEvents } from '@/lib/importers/wienInfoImporter';
 import { validateSupabaseConfig } from '@/lib/supabase/client';
+import { timingSafeEqual } from 'crypto';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes for large imports
@@ -46,10 +47,30 @@ export async function POST(request: NextRequest) {
     const authHeader = request.headers.get('authorization');
     const adminSecret = process.env.ADMIN_WARMUP_SECRET;
     
-    // If ADMIN_WARMUP_SECRET is set, verify Bearer token
+    // If ADMIN_WARMUP_SECRET is set, verify Bearer token using constant-time comparison
     if (adminSecret) {
-      if (authHeader !== `Bearer ${adminSecret}`) {
+      const expectedAuth = `Bearer ${adminSecret}`;
+      // Use constant-time comparison to prevent timing attacks
+      if (!authHeader || authHeader.length !== expectedAuth.length) {
         console.warn('[ADMIN:WARMUP] Invalid Bearer token');
+        return NextResponse.json(
+          { error: 'Unauthorized - Invalid Bearer token' },
+          { status: 401 }
+        );
+      }
+      
+      try {
+        const authBuffer = Buffer.from(authHeader, 'utf8');
+        const expectedBuffer = Buffer.from(expectedAuth, 'utf8');
+        if (!timingSafeEqual(authBuffer, expectedBuffer)) {
+          console.warn('[ADMIN:WARMUP] Invalid Bearer token');
+          return NextResponse.json(
+            { error: 'Unauthorized - Invalid Bearer token' },
+            { status: 401 }
+          );
+        }
+      } catch (error) {
+        console.warn('[ADMIN:WARMUP] Bearer token comparison failed');
         return NextResponse.json(
           { error: 'Unauthorized - Invalid Bearer token' },
           { status: 401 }

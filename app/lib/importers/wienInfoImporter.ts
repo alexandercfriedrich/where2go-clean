@@ -19,8 +19,18 @@ import type { EventData } from '@/lib/types';
 import type { Database } from '@/lib/supabase/types';
 import pThrottle from 'p-throttle';
 import pRetry from 'p-retry';
+import { randomUUID } from 'crypto';
 
 type DbVenueInsert = Database['public']['Tables']['venues']['Insert'];
+
+// Constants
+const DEFAULT_CITY = 'Wien';
+
+// Create throttle at module level to persist across calls and properly limit requests
+const throttle = pThrottle({
+  limit: 2,
+  interval: 1000
+});
 
 export interface ImporterOptions {
   /**
@@ -151,7 +161,9 @@ export async function importWienInfoEvents(
   try {
     // Fetch events from Wien.info API
     // Since the API doesn't support traditional pagination with offset/page,
-    // we fetch all events up to the limit in a single request
+    // we fetch all events up to the limit in a single request.
+    // Note: The stats.pagesProcessed field exists for future pagination support,
+    // but currently only 1 page is ever processed.
     const result = await fetchEventsWithRetry(fromISO, toISO, limit, debug);
     
     if (result.error || !result.events || result.events.length === 0) {
@@ -179,7 +191,7 @@ export async function importWienInfoEvents(
         console.log(`[WIEN-IMPORTER] Processing batch ${i + 1}/${batches.length} (${batch.length} events)`);
       }
       
-      const batchResult = await processBatch(batch, dryRun, debug);
+      const batchResult = await processBatch(batch, dryRun, debug, DEFAULT_CITY);
       
       stats.totalImported += batchResult.imported;
       stats.totalUpdated += batchResult.updated;
@@ -213,6 +225,7 @@ export async function importWienInfoEvents(
 
 /**
  * Fetch events with retry logic using p-retry
+ * Uses module-level throttle to properly limit API requests to 2 per second
  */
 async function fetchEventsWithRetry(
   fromISO: string,
@@ -220,13 +233,8 @@ async function fetchEventsWithRetry(
   limit: number,
   debug: boolean
 ): Promise<{ events?: EventData[]; error?: string; debugInfo?: any }> {
-  // Throttle API requests: max 2 requests per second
-  const throttled = pThrottle({
-    limit: 2,
-    interval: 1000
-  });
-  
-  const throttledFetch = throttled(async () => {
+  // Use module-level throttle that persists across calls
+  const throttledFetch = throttle(async () => {
     return await fetchWienInfoEvents({
       fromISO,
       toISO,
@@ -267,7 +275,8 @@ async function fetchEventsWithRetry(
 async function processBatch(
   events: EventData[],
   dryRun: boolean,
-  debug: boolean
+  debug: boolean,
+  city: string = DEFAULT_CITY
 ): Promise<{
   imported: number;
   updated: number;
@@ -299,15 +308,15 @@ async function processBatch(
         if (debug) {
           console.log(`[WIEN-IMPORTER][DRY-RUN] Would upsert venue: ${venueName}`);
         }
-        // In dry-run, generate a fake ID
-        venueMap.set(venueName, `venue-${venueName.toLowerCase().replace(/\s+/g, '-')}`);
+        // In dry-run, generate a unique ID using UUID to prevent collisions
+        venueMap.set(venueName, `venue-${randomUUID()}`);
         result.venuesProcessed++;
       } else {
         // Upsert venue
         const venueData: DbVenueInsert = {
           name: venueName,
           address: venueAddress || null,
-          city: 'Wien',
+          city: city,
           country: 'Austria',
           website: null, // Wien.info doesn't provide venue-specific websites in event data
           latitude: null,
@@ -346,7 +355,7 @@ async function processBatch(
   } else {
     // Bulk insert/upsert events
     try {
-      const insertResult = await EventRepository.bulkInsertEvents(events, 'Wien');
+      const insertResult = await EventRepository.bulkInsertEvents(events, city);
       
       if (insertResult.success) {
         result.imported = insertResult.inserted;
