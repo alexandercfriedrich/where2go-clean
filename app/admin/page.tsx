@@ -114,20 +114,32 @@ export default function AdminPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Cache warmup failed');
+        throw new Error(data?.error || 'Cache warmup failed');
       }
 
-      if (data.success && data.stats) {
-        const { totalEvents, daysProcessed, categoriesUpdated, duration } = data.stats;
+      // New ImporterStats shape from /api/admin/cache-warmup
+      if (data?.stats) {
+        const s = data.stats || {};
+        const imported = typeof s.totalImported === 'number' ? s.totalImported : 0;
+        const updated = typeof s.totalUpdated === 'number' ? s.totalUpdated : 0;
+        const failed = typeof s.totalFailed === 'number' ? s.totalFailed : 0;
+        const venues = typeof s.venuesProcessed === 'number' ? s.venuesProcessed : 0;
+        const pages = typeof s.pagesProcessed === 'number' ? s.pagesProcessed : 1;
+        const durationSec = typeof s.duration === 'number' ? (s.duration / 1000).toFixed(1) : '–';
+        const errorsCount = Array.isArray(s.errors) ? s.errors.length : 0;
+
+        const headline = data.success === false ? '⚠️' : '✅';
         setWarmupMessage(
-          `✅ Success! Cached ${totalEvents} events across ${daysProcessed} days ` +
-          `in ${(duration / 1000).toFixed(1)}s. Categories: ${categoriesUpdated.length}`
+          `${headline} Import complete. Events: ${imported} (updated: ${updated}, failed: ${failed}), ` +
+          `Venues: ${venues}, Pages: ${pages}, Duration: ${durationSec}s, Errors: ${errorsCount}`
         );
-      } else {
+      } else if (data?.message) {
         setWarmupMessage('✅ ' + data.message);
+      } else {
+        setWarmupMessage('✅ Done.');
       }
     } catch (err: any) {
-      setWarmupMessage('❌ Error: ' + err.message);
+      setWarmupMessage('❌ Error: ' + (err?.message || 'Unknown error'));
     } finally {
       setWarmupLoading(false);
     }

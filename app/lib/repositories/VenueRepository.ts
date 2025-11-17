@@ -33,17 +33,14 @@ export class VenueRepository {
       .select('*')
       .eq('name', name)
       .eq('city', city)
-      .single()
+      .maybeSingle()
 
     if (error) {
-      // Not found is expected (PGRST116), but log other errors
-      if (error.code !== 'PGRST116') {
-        console.error('[VenueRepository] Error fetching venue by name:', error)
-      }
+      console.error('[VenueRepository] Error fetching venue by name:', error)
       return null
     }
 
-    return data
+    return data || null
   }
 
   /**
