@@ -93,28 +93,49 @@ npm run import:wien
 The importer is also exposed via a secured API endpoint at `/api/admin/cache-warmup`.
 
 #### Authentication
-Set environment variable:
+
+The endpoint is protected by **middleware Basic Auth** (required) and optionally by a **Bearer token** (if configured).
+
+**Required: Basic Auth (enforced by middleware)**
+```bash
+# Set these in your environment or .env.local
+ADMIN_USER=your-admin-username
+ADMIN_PASS=your-admin-password
+```
+
+**Optional: Bearer Token (additional security layer)**
 ```bash
 ADMIN_WARMUP_SECRET=your-secure-random-secret-here
 ```
 
+If `ADMIN_WARMUP_SECRET` is set, you must provide both Basic Auth AND Bearer token.  
+If `ADMIN_WARMUP_SECRET` is not set, only Basic Auth is required.
+
 #### GET - Documentation
 ```bash
-curl http://localhost:3000/api/admin/cache-warmup
+curl http://localhost:3000/api/admin/cache-warmup \
+  -u admin:password
 ```
 
 #### POST - Run Import
 
-**Dry-run:**
+**Basic Auth only (when ADMIN_WARMUP_SECRET is not set):**
 ```bash
 curl -X POST "http://localhost:3000/api/admin/cache-warmup?dryRun=true" \
+  -u admin:password
+```
+
+**With Bearer Token (when ADMIN_WARMUP_SECRET is set):**
+```bash
+curl -X POST "http://localhost:3000/api/admin/cache-warmup?dryRun=true" \
+  -u admin:password \
   -H "Authorization: Bearer YOUR_SECRET"
 ```
 
 **With custom parameters:**
 ```bash
 curl -X POST "http://localhost:3000/api/admin/cache-warmup?fromDate=2025-11-17&toDate=2025-12-31&limit=5000&batchSize=100" \
-  -H "Authorization: Bearer YOUR_SECRET"
+  -u admin:password
 ```
 
 ### 3. Programmatic Usage

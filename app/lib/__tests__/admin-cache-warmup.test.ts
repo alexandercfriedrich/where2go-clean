@@ -43,7 +43,7 @@ describe('Admin Cache Warmup API', () => {
   });
 
   describe('POST endpoint - Authentication', () => {
-    it('should reject requests without authorization header', async () => {
+    it('should reject requests without authorization header when ADMIN_WARMUP_SECRET is set', async () => {
       const request = new NextRequest('http://localhost:3000/api/admin/cache-warmup', {
         method: 'POST'
       });
@@ -53,10 +53,10 @@ describe('Admin Cache Warmup API', () => {
 
       expect(response.status).toBe(401);
       expect(data).toHaveProperty('error');
-      expect(data.error).toBe('Unauthorized');
+      expect(data.error).toContain('Invalid Bearer token');
     });
 
-    it('should reject requests with invalid authorization token', async () => {
+    it('should reject requests with invalid authorization token when ADMIN_WARMUP_SECRET is set', async () => {
       const request = new NextRequest('http://localhost:3000/api/admin/cache-warmup', {
         method: 'POST',
         headers: {
@@ -69,25 +69,27 @@ describe('Admin Cache Warmup API', () => {
 
       expect(response.status).toBe(401);
       expect(data).toHaveProperty('error');
-      expect(data.error).toBe('Unauthorized');
+      expect(data.error).toContain('Invalid Bearer token');
     });
 
-    it('should return 500 when ADMIN_WARMUP_SECRET is not configured', async () => {
+    it('should succeed when ADMIN_WARMUP_SECRET is not configured (relies on middleware auth)', async () => {
       delete process.env.ADMIN_WARMUP_SECRET;
 
-      const request = new NextRequest('http://localhost:3000/api/admin/cache-warmup', {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer test-secret-123'
+      const request = new NextRequest(
+        'http://localhost:3000/api/admin/cache-warmup?dryRun=true&limit=5&fromDate=2025-11-17&toDate=2025-11-18',
+        {
+          method: 'POST'
         }
-      });
+      );
 
       const response = await POST(request);
       const data = await response.json();
 
-      expect(response.status).toBe(500);
-      expect(data).toHaveProperty('error');
-      expect(data.error).toContain('not configured');
+      // Should succeed without Bearer token when ADMIN_WARMUP_SECRET is not set
+      // (middleware Basic Auth would be enforced separately)
+      expect(response.status).toBe(200);
+      expect(data).toHaveProperty('success');
+      expect(data.success).toBe(true);
     });
   });
 

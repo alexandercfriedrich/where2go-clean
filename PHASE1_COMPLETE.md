@@ -277,8 +277,8 @@ This decision ensures:
 
 2. **`app/api/admin/cache-warmup/route.ts`** (Modified)
    - Replaced Redis-only warmup with Supabase importer
-   - POST endpoint secured with `ADMIN_WARMUP_SECRET` environment variable
-   - Bearer token authentication via `Authorization` header
+   - POST endpoint protected by middleware Basic Auth (required)
+   - Optional Bearer token authentication via `ADMIN_WARMUP_SECRET` (if set)
    - Query parameters: `dryRun`, `fromDate`, `toDate`, `limit`, `batchSize`
    - Validation for date formats (YYYY-MM-DD) and numeric limits
    - Returns detailed import statistics
@@ -293,7 +293,11 @@ This decision ensures:
 ### Environment Variables
 
 ```bash
-# Required for admin warmup endpoint
+# Required for middleware Basic Auth (protects all /api/admin routes)
+ADMIN_USER=your-admin-username
+ADMIN_PASS=your-admin-password
+
+# Optional: Additional Bearer token security for warmup endpoint
 ADMIN_WARMUP_SECRET=your-secure-random-secret-here
 
 # Already configured (required for Supabase)
@@ -315,16 +319,21 @@ npm run import:wien
 
 #### API Endpoint (Admin)
 ```bash
-# Dry-run via API
+# Dry-run via API (Basic Auth only, if ADMIN_WARMUP_SECRET not set)
 curl -X POST "https://your-domain.com/api/admin/cache-warmup?dryRun=true" \
+  -u admin:password
+
+# Dry-run via API (with Bearer token, if ADMIN_WARMUP_SECRET is set)
+curl -X POST "https://your-domain.com/api/admin/cache-warmup?dryRun=true" \
+  -u admin:password \
   -H "Authorization: Bearer YOUR_ADMIN_WARMUP_SECRET"
 
 # Production import with custom date range
 curl -X POST "https://your-domain.com/api/admin/cache-warmup?fromDate=2025-11-17&toDate=2025-12-31&limit=5000" \
-  -H "Authorization: Bearer YOUR_ADMIN_WARMUP_SECRET"
+  -u admin:password
 
 # Get endpoint documentation
-curl https://your-domain.com/api/admin/cache-warmup
+curl https://your-domain.com/api/admin/cache-warmup -u admin:password
 ```
 
 ### Import Statistics Example

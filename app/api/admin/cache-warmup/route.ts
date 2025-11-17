@@ -2,7 +2,10 @@
  * Admin Cache Warmup API Endpoint
  * 
  * Secured endpoint to trigger wien.info event import into Supabase.
- * Requires ADMIN_WARMUP_SECRET environment variable for authentication.
+ * 
+ * Authentication:
+ * - Primary: Middleware Basic Auth (ADMIN_USER/ADMIN_PASS) - Always required
+ * - Optional: Bearer token (ADMIN_WARMUP_SECRET) - Additional security layer
  * 
  * POST /api/admin/cache-warmup
  * 
@@ -14,11 +17,12 @@
  * - batchSize: number (optional) - Batch size for processing (default: 100)
  * 
  * Headers:
- * - Authorization: Bearer <ADMIN_WARMUP_SECRET>
+ * - Authorization: Basic <base64(ADMIN_USER:ADMIN_PASS)> - Required (enforced by middleware)
+ * - Authorization: Bearer <ADMIN_WARMUP_SECRET> - Optional (if env var is set)
  * 
  * Response:
  * - 200: Success with import statistics
- * - 401: Unauthorized (missing or invalid secret)
+ * - 401: Unauthorized (missing or invalid credentials)
  * - 400: Bad request (invalid parameters)
  * - 500: Server error
  */
@@ -36,27 +40,23 @@ export const maxDuration = 300; // 5 minutes for large imports
  */
 export async function POST(request: NextRequest) {
   try {
-    // 1. Verify authorization
+    // 1. Verify authorization (optional Bearer token)
+    // Note: This endpoint is already protected by middleware Basic Auth
+    // The ADMIN_WARMUP_SECRET provides an optional additional layer of security
     const authHeader = request.headers.get('authorization');
     const adminSecret = process.env.ADMIN_WARMUP_SECRET;
     
-    if (!adminSecret) {
-      console.error('[ADMIN:WARMUP] ADMIN_WARMUP_SECRET not configured');
-      return NextResponse.json(
-        { 
-          error: 'Admin warmup endpoint is not configured. Set ADMIN_WARMUP_SECRET environment variable.' 
-        },
-        { status: 500 }
-      );
+    // If ADMIN_WARMUP_SECRET is set, verify Bearer token
+    if (adminSecret) {
+      if (authHeader !== `Bearer ${adminSecret}`) {
+        console.warn('[ADMIN:WARMUP] Invalid Bearer token');
+        return NextResponse.json(
+          { error: 'Unauthorized - Invalid Bearer token' },
+          { status: 401 }
+        );
+      }
     }
-    
-    if (authHeader !== `Bearer ${adminSecret}`) {
-      console.warn('[ADMIN:WARMUP] Unauthorized access attempt');
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    // If ADMIN_WARMUP_SECRET is not set, rely on middleware Basic Auth (already enforced)
     
     // 2. Validate Supabase configuration
     try {
@@ -187,7 +187,10 @@ export async function GET(request: NextRequest) {
     endpoint: '/api/admin/cache-warmup',
     description: 'Admin endpoint to trigger wien.info event import into Supabase',
     method: 'POST',
-    authentication: 'Bearer token in Authorization header (ADMIN_WARMUP_SECRET)',
+    authentication: {
+      required: 'Basic Auth via middleware (ADMIN_USER/ADMIN_PASS)',
+      optional: 'Bearer token (ADMIN_WARMUP_SECRET env var)'
+    },
     queryParameters: {
       dryRun: 'boolean (optional) - Run without writing to database',
       fromDate: 'string (optional) - Start date in YYYY-MM-DD format',
@@ -198,7 +201,7 @@ export async function GET(request: NextRequest) {
     example: {
       url: '/api/admin/cache-warmup?dryRun=true&fromDate=2025-11-17&toDate=2025-12-17',
       headers: {
-        'Authorization': 'Bearer YOUR_ADMIN_WARMUP_SECRET'
+        'Authorization': 'Basic <base64(username:password)>'
       }
     }
   });
