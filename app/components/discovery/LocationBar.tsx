@@ -7,6 +7,7 @@
 
 import React, { useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { FilterSheet } from './FilterSheet';
 
 interface LocationBarProps {
   initialCity?: string;
@@ -22,6 +23,7 @@ export function LocationBar({
   const [selectedCity, setSelectedCity] = useState(initialCity);
   const [selectedDateFilter, setSelectedDateFilter] = useState('all');
   const [showCityDropdown, setShowCityDropdown] = useState(false);
+  const [showFilterSheet, setShowFilterSheet] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -118,7 +120,10 @@ export function LocationBar({
           </div>
 
           {/* Filters Button */}
-          <button className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex-shrink-0">
+          <button 
+            onClick={() => setShowFilterSheet(true)}
+            className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors flex-shrink-0"
+          >
             <svg className="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
             </svg>
@@ -128,6 +133,9 @@ export function LocationBar({
           </button>
         </div>
       </div>
+
+      {/* Filter Sheet */}
+      <FilterSheet isOpen={showFilterSheet} onClose={() => setShowFilterSheet(false)} />
     </div>
   );
 }
