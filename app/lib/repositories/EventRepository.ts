@@ -133,7 +133,7 @@ export class EventRepository {
       // Type assertion needed due to Supabase SDK type inference limitations
       const { data, error } = await supabaseAdmin
         .from('events')
-        .upsert(dbEvents as any, { onConflict: 'title,start_date_time,city' })
+        .upsert(dbEvents as any, { onConflict: 'title, start_date_time, city' })
         .select()
 
       if (error) {
@@ -235,7 +235,7 @@ export class EventRepository {
       // Type assertion needed due to Supabase SDK type inference limitations
       const { data, error } = await supabaseAdmin
         .from('events')
-        .upsert(dbEvents as any, { onConflict: 'title,start_date_time,city' })
+        .upsert(dbEvents as any, { onConflict: 'title, start_date_time, city' })
         .select()
 
       if (error) {
