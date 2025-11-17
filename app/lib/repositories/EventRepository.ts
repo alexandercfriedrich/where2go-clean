@@ -139,9 +139,10 @@ export class EventRepository {
 
     try {
       // Type assertion needed due to Supabase SDK type inference limitations
+      // Use constraint name 'unique_event' from migration 001_create_events_schema.sql line 77
       const { data, error } = await supabaseAdmin
         .from('events')
-        .upsert(uniqueDbEvents as any, { onConflict: 'title,start_date_time,city' })
+        .upsert(uniqueDbEvents as any, { onConflict: 'unique_event' })
         .select()
 
       if (error) {
@@ -249,9 +250,10 @@ export class EventRepository {
 
     try {
       // Type assertion needed due to Supabase SDK type inference limitations
+      // Use constraint name 'unique_event' from migration 001_create_events_schema.sql line 77
       const { data, error } = await supabaseAdmin
         .from('events')
-        .upsert(uniqueDbEvents as any, { onConflict: 'title,start_date_time,city' })
+        .upsert(uniqueDbEvents as any, { onConflict: 'unique_event' })
         .select()
 
       if (error) {
