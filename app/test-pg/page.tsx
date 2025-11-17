@@ -28,6 +28,24 @@ interface ApiResponse {
   error?: string
 }
 
+// Helper function to safely format event dates
+const formatEventDate = (dateString: string | null): string => {
+  if (!dateString) return 'Datum nicht verfügbar';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'Ungültiges Datum';
+    return date.toLocaleDateString('de-DE', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch {
+    return 'Ungültiges Datum';
+  }
+};
+
 export default function TestPostgreSQLPage() {
   const [city, setCity] = useState('Wien')
   const [date, setDate] = useState('')
@@ -221,7 +239,7 @@ export default function TestPostgreSQLPage() {
                 <div style={{ fontSize: '0.9rem', color: '#666' }}>
                   <p><strong>Category:</strong> {event.category}</p>
                   <p><strong>City:</strong> {event.city}</p>
-                  <p><strong>Date:</strong> {new Date(event.start_date_time).toLocaleString()}</p>
+                  <p><strong>Date:</strong> {nformatEventDate(event.start_date_time)
                   {event.custom_venue_name && (
                     <p><strong>Venue:</strong> {event.custom_venue_name}</p>
                   )}
