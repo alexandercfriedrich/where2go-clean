@@ -153,15 +153,22 @@ export class VenueRepository {
    * Returns the venue ID (existing or newly created)
    */
   static async upsertVenue(venue: DbVenueInsert): Promise<string | null> {
-    // Try to find existing venue by name and city
-    const existing = await this.getVenueByName(venue.name, venue.city)
-    
-    if (existing) {
-      return existing.id
+    // Use true upsert operation with name+city as conflict resolution
+    // ignoreDuplicates: false means UPDATE on conflict (not just skip)
+    const { data, error } = await (supabaseAdmin as any)
+      .from('venues')
+      .upsert(venue, {
+        onConflict: 'name,city',
+        ignoreDuplicates: false
+      })
+      .select()
+      .single()
+
+    if (error) {
+      console.error('[VenueRepository] Upsert error:', error)
+      return null
     }
 
-    // Create new venue
-    const created = await this.createVenue(venue)
-    return created?.id || null
+    return data?.id || null
   }
 }
