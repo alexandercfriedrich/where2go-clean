@@ -5,7 +5,6 @@ import type { Database } from '@/lib/supabase/types'
 export const runtime = 'nodejs'
 
 type DbEvent = Database['public']['Tables']['events']['Row']
-type DbEventUpdate = Database['public']['Tables']['events']['Update']
 
 /**
  * GET /api/v1/events/[id]
@@ -91,18 +90,21 @@ export async function PATCH(
       )
     }
 
-    // Update timestamps
-    const updates: DbEventUpdate = {
+    // Add updated_at timestamp
+    const updateData = {
       ...body,
       updated_at: new Date().toISOString()
     }
 
-    const { data, error } = await supabaseAdmin
+    // Use type assertion to work around Supabase SDK limitations at build time
+    const result = await (supabaseAdmin as any)
       .from('events')
-      .update(updates)
+      .update(updateData)
       .eq('id', id)
       .select()
       .single()
+
+    const { data, error } = result
 
     if (error) {
       if (error.code === 'PGRST116') {

@@ -96,7 +96,8 @@ export class VenueRepository {
    * Create a new venue
    */
   static async createVenue(venue: DbVenueInsert): Promise<DbVenue | null> {
-    const { data, error } = await supabaseAdmin
+    // Type assertion needed due to Supabase SDK type inference limitations
+    const { data, error } = await (supabaseAdmin as any)
       .from('venues')
       .insert(venue)
       .select()
@@ -114,7 +115,8 @@ export class VenueRepository {
    * Update an existing venue
    */
   static async updateVenue(id: string, updates: DbVenueUpdate): Promise<DbVenue | null> {
-    const { data, error } = await supabaseAdmin
+    // Type assertion needed due to Supabase SDK type inference limitations
+    const { data, error } = await (supabaseAdmin as any)
       .from('venues')
       .update(updates)
       .eq('id', id)

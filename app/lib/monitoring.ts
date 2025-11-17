@@ -144,24 +144,28 @@ export class EventMetrics {
         .from('venues')
         .select('*', { count: 'exact', head: true })
 
-      // Get events by city
+      // Get events by city (using type assertion for simplicity)
       const { data: cityData } = await supabase
         .from('events')
-        .select('city')
+        .select('city') as any
 
       const eventsByCity: Record<string, number> = {}
       for (const row of cityData || []) {
-        eventsByCity[row.city] = (eventsByCity[row.city] || 0) + 1
+        if (row && row.city) {
+          eventsByCity[row.city] = (eventsByCity[row.city] || 0) + 1
+        }
       }
 
       // Get events by category
       const { data: categoryData } = await supabase
         .from('events')
-        .select('category')
+        .select('category') as any
 
       const eventsByCategory: Record<string, number> = {}
       for (const row of categoryData || []) {
-        eventsByCategory[row.category] = (eventsByCategory[row.category] || 0) + 1
+        if (row && row.category) {
+          eventsByCategory[row.category] = (eventsByCategory[row.category] || 0) + 1
+        }
       }
 
       return {

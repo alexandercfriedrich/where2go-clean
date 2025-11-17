@@ -13,7 +13,7 @@
  *   ts-node app/lib/migration/redis-to-postgres.ts --dry-run --city=Berlin
  */
 
-import { eventsCache } from '../cache'
+import { eventsCache, getRedisClient } from '../cache'
 import { EventRepository } from '../repositories/EventRepository'
 import type { EventData } from '../types'
 import { EVENT_CATEGORIES } from '../eventCategories'
@@ -108,32 +108,38 @@ function parseRedisKey(key: string): { city: string; date: string; category: str
  * Scan Redis for event keys matching criteria
  */
 async function scanRedisKeys(options: MigrationOptions): Promise<string[]> {
-  const redis = eventsCache.getRedisClient()
+  const redis = getRedisClient()
   const keys: string[] = []
   
   // Use SCAN to iterate through keys (safer for large datasets)
-  let cursor = 0
+  let cursor: number | string = 0
   
   do {
     try {
-      const result = await redis.scan(cursor, { match: 'events:v*:*', count: 100 })
-      cursor = result[0]
-      const foundKeys = result[1] || []
+      const result: any = await redis.scan(cursor, { match: 'events:v*:*', count: 100 })
       
-      for (const key of foundKeys) {
-        const parsed = parseRedisKey(key)
-        if (!parsed) continue
+      // Handle both tuple and object responses
+      if (Array.isArray(result) && result.length === 2) {
+        cursor = typeof result[0] === 'string' ? parseInt(result[0], 10) : result[0]
+        const foundKeys = result[1] || []
+        
+        for (const key of foundKeys) {
+          const parsed = parseRedisKey(key)
+          if (!parsed) continue
 
-        // Apply city filter if specified
-        if (options.cityFilter && parsed.city.toLowerCase() !== options.cityFilter.toLowerCase()) {
-          continue
+          // Apply city filter if specified
+          if (options.cityFilter && parsed.city.toLowerCase() !== options.cityFilter.toLowerCase()) {
+            continue
+          }
+
+          // Apply date filters if specified
+          if (options.dateFrom && parsed.date < options.dateFrom) continue
+          if (options.dateTo && parsed.date > options.dateTo) continue
+
+          keys.push(key)
         }
-
-        // Apply date filters if specified
-        if (options.dateFrom && parsed.date < options.dateFrom) continue
-        if (options.dateTo && parsed.date > options.dateTo) continue
-
-        keys.push(key)
+      } else {
+        break
       }
     } catch (error) {
       console.error('[Migration] Error scanning Redis keys:', error)
@@ -281,4 +287,5 @@ if (require.main === module) {
   main()
 }
 
-export { migrate, MigrationOptions, MigrationStats }
+export { migrate }
+export type { MigrationOptions, MigrationStats }
