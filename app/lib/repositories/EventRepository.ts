@@ -129,11 +129,19 @@ export class EventRepository {
     const errors: string[] = []
     const dbEvents = events.map(e => this.eventDataToDbInsert(e, city))
 
+    // Deduplicate events by (title, start_date_time, city) - keep last occurrence
+    const seen = new Map<string, DbEventInsert>()
+    for (const event of dbEvents) {
+      const key = `${event.title}|${event.start_date_time}|${event.city}`
+      seen.set(key, event)
+    }
+    const uniqueDbEvents = Array.from(seen.values())
+
     try {
       // Type assertion needed due to Supabase SDK type inference limitations
       const { data, error } = await supabaseAdmin
         .from('events')
-        .upsert(dbEvents as any, { onConflict: 'title, start_date_time, city' })
+        .upsert(uniqueDbEvents as any, { onConflict: 'title, start_date_time, city' })
         .select()
 
       if (error) {
@@ -231,11 +239,19 @@ export class EventRepository {
   ): Promise<{ success: boolean; upserted: number }> {
     const dbEvents = events.map(e => this.eventDataToDbInsert(e, city))
 
+    // Deduplicate events by (title, start_date_time, city) - keep last occurrence
+    const seen = new Map<string, DbEventInsert>()
+    for (const event of dbEvents) {
+      const key = `${event.title}|${event.start_date_time}|${event.city}`
+      seen.set(key, event)
+    }
+    const uniqueDbEvents = Array.from(seen.values())
+
     try {
       // Type assertion needed due to Supabase SDK type inference limitations
       const { data, error } = await supabaseAdmin
         .from('events')
-        .upsert(dbEvents as any, { onConflict: 'title, start_date_time, city' })
+        .upsert(uniqueDbEvents as any, { onConflict: 'title, start_date_time, city' })
         .select()
 
       if (error) {
