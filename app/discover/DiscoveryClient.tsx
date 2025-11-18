@@ -29,6 +29,7 @@ export default function DiscoveryClient({
 }: DiscoveryClientProps) {
   const [mounted, setMounted] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedDateFilter, setSelectedDateFilter] = useState<string>('all');
   const [filteredEvents, setFilteredEvents] = useState({
     personalized: initialPersonalizedEvents,
     trending: initialTrendingEvents,
@@ -39,18 +40,64 @@ export default function DiscoveryClient({
     setMounted(true);
   }, []);
 
-  // Filter events by category
-  useEffect(() => {
-    if (!selectedCategory) {
-      setFilteredEvents({
-        personalized: initialPersonalizedEvents,
-        trending: initialTrendingEvents,
-        weekend: initialWeekendEvents,
-      });
-    } else {
-      const { matchesCategory } = require('../../lib/events/category-utils');
+  // Helper function to filter events by date
+  const filterEventsByDate = (events: any[], filter: string) => {
+    if (filter === 'all') return events;
+    
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    return events.filter((event: any) => {
+      const eventDate = event.start_date_time 
+        ? new Date(event.start_date_time)
+        : event.date 
+          ? new Date(event.date)
+          : null;
       
-      setFilteredEvents({
+      if (!eventDate) return false;
+      
+      switch (filter) {
+        case 'today':
+          return eventDate.toDateString() === today.toDateString();
+          
+        case 'this-week':
+          const weekEnd = new Date(today);
+          weekEnd.setDate(weekEnd.getDate() + 7);
+          return eventDate >= today && eventDate < weekEnd;
+          
+        case 'weekend':
+          const nextSaturday = new Date(today);
+          nextSaturday.setDate(nextSaturday.getDate() + ((6 - today.getDay() + 7) % 7));
+          const nextMonday = new Date(nextSaturday);
+          nextMonday.setDate(nextMonday.getDate() + 2);
+          return eventDate >= nextSaturday && eventDate < nextMonday;
+          
+        case 'next-week':
+          const nextWeekStart = new Date(today);
+          nextWeekStart.setDate(nextWeekStart.getDate() + 7);
+          const nextWeekEnd = new Date(nextWeekStart);
+          nextWeekEnd.setDate(nextWeekEnd.getDate() + 7);
+          return eventDate >= nextWeekStart && eventDate < nextWeekEnd;
+          
+        default:
+          return true;
+      }
+    });
+  };
+
+  // Filter events by category and date
+  useEffect(() => {
+    const { matchesCategory } = require('../../lib/events/category-utils');
+    
+    let categoryFiltered = {
+      personalized: initialPersonalizedEvents,
+      trending: initialTrendingEvents,
+      weekend: initialWeekendEvents,
+    };
+    
+    // Apply category filter
+    if (selectedCategory) {
+      categoryFiltered = {
         personalized: initialPersonalizedEvents.filter(
           (e: any) => e.category && matchesCategory(e.category, selectedCategory)
         ),
@@ -60,9 +107,16 @@ export default function DiscoveryClient({
         weekend: initialWeekendEvents.filter(
           (e: any) => e.category && matchesCategory(e.category, selectedCategory)
         ),
-      });
+      };
     }
-  }, [selectedCategory, initialPersonalizedEvents, initialTrendingEvents, initialWeekendEvents]);
+    
+    // Apply date filter
+    setFilteredEvents({
+      personalized: filterEventsByDate(categoryFiltered.personalized, selectedDateFilter),
+      trending: filterEventsByDate(categoryFiltered.trending, selectedDateFilter),
+      weekend: filterEventsByDate(categoryFiltered.weekend, selectedDateFilter),
+    });
+  }, [selectedCategory, selectedDateFilter, initialPersonalizedEvents, initialTrendingEvents, initialWeekendEvents]);
 
   if (!mounted) {
     return (
@@ -85,7 +139,7 @@ export default function DiscoveryClient({
         <LocationBar 
           initialCity={city}
           onCityChange={(newCity) => console.log('City changed:', newCity)}
-          onDateFilterChange={(filter) => console.log('Date filter:', filter)}
+          onDateFilterChange={(filter) => setSelectedDateFilter(filter)}
         />
 
         {/* Hero Section */}
