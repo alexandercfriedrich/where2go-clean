@@ -1,19 +1,18 @@
 /**
- * Main Homepage - Discovery Experience
+ * Discovery Homepage - Main Page Component
  * Server Component for initial data fetching
  */
 
 import { Metadata } from 'next';
-import DiscoveryClient from './discover/DiscoveryClient';
-import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents } from '../lib/events/queries';
+import DiscoveryClient from './DiscoveryClient';
+import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents } from '../../lib/events/queries';
 
 export const metadata: Metadata = {
-  title: 'Where2Go - Entdecke Events in deiner Stadt!',
-  description: 'Entdecke personalisierte Events, Trending-Veranstaltungen und Weekend-Highlights in Wien und vielen weiteren Städten.',
-  keywords: ['events', 'veranstaltungen', 'konzerte', 'theater', 'nightlife', 'wien', 'berlin', 'münchen'],
+  title: 'Discover Events in Wien | Where2Go',
+  description: 'Discover personalized events, trending happenings, and weekend activities in Wien',
 };
 
-export default async function HomePage() {
+export default async function DiscoverPage() {
   // Fetch initial data server-side
   const city = 'Wien';
   
