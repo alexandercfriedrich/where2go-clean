@@ -139,12 +139,12 @@ export class EventRepository {
 
     try {
       // Type assertion needed due to Supabase SDK type inference limitations
-      // Based on testing: spaces after commas in the onConflict column list are required for success
+      // Based on testing: NO spaces in the onConflict column list (e.g., 'title,start_date_time,city')
       // ignoreDuplicates: false means UPDATE on conflict (true would mean INSERT only, skip duplicates)
       const { data, error } = await supabaseAdmin
         .from('events')
         .upsert(uniqueDbEvents as any, { 
-          onConflict: 'title, start_date_time, city',
+          onConflict: 'title,start_date_time,city',
           ignoreDuplicates: false 
         })
         .select()
@@ -254,12 +254,12 @@ export class EventRepository {
 
     try {
       // Type assertion needed due to Supabase SDK type inference limitations
-      // Based on testing: spaces after commas in the onConflict column list are required for success
+      // Based on testing: NO spaces in the onConflict column list (e.g., 'title,start_date_time,city')
       // ignoreDuplicates: false means UPDATE on conflict (true would mean INSERT only, skip duplicates)
       const { data, error } = await supabaseAdmin
         .from('events')
         .upsert(uniqueDbEvents as any, { 
-          onConflict: 'title, start_date_time, city',
+          onConflict: 'title,start_date_time,city',
           ignoreDuplicates: false 
         })
         .select()
