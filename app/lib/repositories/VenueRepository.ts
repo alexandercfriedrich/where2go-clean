@@ -155,13 +155,13 @@ export class VenueRepository {
    */
   static async upsertVenue(venue: DbVenueInsert): Promise<string | null> {
     // Use true upsert operation with name+city as conflict resolution
-    // Based on testing: spaces IN the onConflict column list are required for success
+    // Based on testing: spaces after commas in the onConflict column list are required for success
     // ignoreDuplicates: false means UPDATE on conflict (not just skip)
     // NOTE: Supabase upsert expects an array, not a single object
     const { data, error } = await (supabaseAdmin as any)
       .from('venues')
       .upsert([venue], {
-        onConflict: 'name,city',
+        onConflict: 'name, city',
         ignoreDuplicates: false
       })
       .select()
