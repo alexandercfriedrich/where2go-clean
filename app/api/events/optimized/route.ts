@@ -240,16 +240,31 @@ export async function POST(request: NextRequest) {
 
           console.log(`[OptimizedAPI:Stream] Complete: ${normalizedFinal.length} events`);
 
-                    // Write events to PostgreSQL asynchronously
-                    if (normalizedFinal.length > 0) {
-                                  try {
-                                                  await EventRepository.bulkInsertEvents(normalizedFinal, city);
-                                                  console.log(`[OptimizedAPI:PostgreSQL] Wrote ${normalizedFinal.length} events to Supabase`);
-                                                } catch (error) {
-                                                  console.error('[OptimizedAPI:PostgreSQL] Failed to write events:', error);
-                                                  // Don't throw - events are already cached in Redis
-                                                }
-                                }
+          // Write events to PostgreSQL with batching and deduplication
+          if (normalizedFinal.length > 0) {
+            try {
+              const result = await EventRepository.insertEventsInBatches(
+                normalizedFinal,
+                city,
+                50, // batch size
+                date // date for fetching existing events for deduplication
+              );
+              
+              console.log(`[OptimizedAPI:PostgreSQL] Batch insert complete:`, {
+                total: normalizedFinal.length,
+                inserted: result.inserted,
+                duplicatesRemoved: result.duplicatesRemoved,
+                success: result.success
+              });
+              
+              if (!result.success && result.errors.length > 0) {
+                console.error('[OptimizedAPI:PostgreSQL] Batch insert had errors:', result.errors);
+              }
+            } catch (error) {
+              console.error('[OptimizedAPI:PostgreSQL] Failed to write events:', error);
+              // Don't throw - events are already cached in Redis
+            }
+          }
 
           // Close the stream
           controller.close();
