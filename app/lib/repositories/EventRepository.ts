@@ -144,7 +144,7 @@ export class EventRepository {
       const { data, error } = await supabaseAdmin
         .from('events')
         .upsert(uniqueDbEvents as any, { 
-          onConflict: 'title, start_date_time, city',
+          onConflict: 'title,start_date_time,city',
           ignoreDuplicates: false 
         })
         .select()
@@ -259,7 +259,7 @@ export class EventRepository {
       const { data, error } = await supabaseAdmin
         .from('events')
         .upsert(uniqueDbEvents as any, { 
-          onConflict: 'title, start_date_time, city',
+          onConflict: 'title,start_date_time,city',
           ignoreDuplicates: false 
         })
         .select()
