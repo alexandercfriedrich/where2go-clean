@@ -159,7 +159,7 @@ export class VenueRepository {
     const { data, error } = await (supabaseAdmin as any)
       .from('venues')
       .upsert(venue, {
-        onConflict: 'name, city',
+        onConflict: 'name,city',
         ignoreDuplicates: false
       })
       .select()
