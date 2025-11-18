@@ -97,9 +97,10 @@ export class VenueRepository {
    */
   static async createVenue(venue: DbVenueInsert): Promise<DbVenue | null> {
     // Type assertion needed due to Supabase SDK type inference limitations
+    // NOTE: Supabase insert expects an array, not a single object
     const { data, error } = await (supabaseAdmin as any)
       .from('venues')
-      .insert(venue)
+      .insert([venue])
       .select()
       .single()
 
@@ -156,9 +157,10 @@ export class VenueRepository {
     // Use true upsert operation with name+city as conflict resolution
     // Based on testing: spaces IN the onConflict column list are required for success
     // ignoreDuplicates: false means UPDATE on conflict (not just skip)
+    // NOTE: Supabase upsert expects an array, not a single object
     const { data, error } = await (supabaseAdmin as any)
       .from('venues')
-      .upsert(venue, {
+      .upsert([venue], {
         onConflict: 'name,city',
         ignoreDuplicates: false
       })
