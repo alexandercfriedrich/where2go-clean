@@ -97,9 +97,10 @@ export class VenueRepository {
    */
   static async createVenue(venue: DbVenueInsert): Promise<DbVenue | null> {
     // Type assertion needed due to Supabase SDK type inference limitations
+    // NOTE: Supabase REST API expects an array for insert, even for single objects
     const { data, error } = await (supabaseAdmin as any)
       .from('venues')
-      .insert(venue)
+      .insert([venue])
       .select()
       .single()
 
@@ -151,22 +152,29 @@ export class VenueRepository {
   /**
    * Upsert venue (insert or update based on name + city uniqueness)
    * Returns the venue ID (existing or newly created)
+   * 
+   * Note: Since the database doesn't have a unique constraint on (name, city),
+   * we manually check for existence first, then insert if needed.
    */
   static async upsertVenue(venue: DbVenueInsert): Promise<string | null> {
-    // Use true upsert operation with name+city as conflict resolution
-    // Based on testing: spaces IN the onConflict column list are required for success
-    // ignoreDuplicates: false means UPDATE on conflict (not just skip)
+    // First, check if venue already exists
+    const existing = await this.getVenueByName(venue.name, venue.city);
+    
+    if (existing) {
+      // Venue exists, return its ID
+      return existing.id;
+    }
+    
+    // Venue doesn't exist, create it
+    // NOTE: Supabase REST API expects an array for insert, even for single objects
     const { data, error } = await (supabaseAdmin as any)
       .from('venues')
-      .upsert(venue, {
-        onConflict: 'name,city',
-        ignoreDuplicates: false
-      })
+      .insert([venue])
       .select()
       .single()
 
     if (error) {
-      console.error('[VenueRepository] Upsert error:', error)
+      console.error('[VenueRepository] Insert error:', error)
       return null
     }
 

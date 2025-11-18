@@ -37,8 +37,26 @@ export class EventRepository {
   private static eventDataToDbInsert(event: EventData, city: string): DbEventInsert {
     // Combine date and time for proper ISO timestamp
     const startDateTime = this.parseDateTime(event.date, event.time) || new Date().toISOString();
-    // Parse endTime if available
-    const endDateTime = this.parseDateTime(event.date, event.endTime);
+    
+    // Parse endTime if available, handling events that go past midnight
+    let endDateTime = this.parseDateTime(event.date, event.endTime);
+    
+    // If endTime exists and is before startTime, it means the event goes into the next day
+    if (endDateTime && event.endTime && event.time) {
+      const endTimeValue = event.endTime.split(':').map(Number);
+      const startTimeValue = event.time.split(':').map(Number);
+      
+      // Compare times: if end time is earlier than start time, add a day
+      if (endTimeValue[0] < startTimeValue[0] || 
+          (endTimeValue[0] === startTimeValue[0] && endTimeValue[1] < startTimeValue[1])) {
+        // Add one day to the end date
+        const endDate = new Date(event.date);
+        endDate.setDate(endDate.getDate() + 1);
+        const nextDay = endDate.toISOString().split('T')[0];
+        endDateTime = this.parseDateTime(nextDay, event.endTime);
+      }
+    }
+    
     return {
       title: event.title,
       description: event.description || null,
@@ -139,7 +157,7 @@ export class EventRepository {
 
     try {
       // Type assertion needed due to Supabase SDK type inference limitations
-      // Based on testing: spaces IN the onConflict column list are required for success
+      // Based on testing: NO spaces in the onConflict column list (e.g., 'title,start_date_time,city')
       // ignoreDuplicates: false means UPDATE on conflict (true would mean INSERT only, skip duplicates)
       const { data, error } = await supabaseAdmin
         .from('events')
@@ -254,7 +272,7 @@ export class EventRepository {
 
     try {
       // Type assertion needed due to Supabase SDK type inference limitations
-      // Based on testing: spaces IN the onConflict column list are required for success
+      // Based on testing: NO spaces in the onConflict column list (e.g., 'title,start_date_time,city')
       // ignoreDuplicates: false means UPDATE on conflict (true would mean INSERT only, skip duplicates)
       const { data, error } = await supabaseAdmin
         .from('events')
