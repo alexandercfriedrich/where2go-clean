@@ -23,6 +23,7 @@ interface EventCardProps {
     description?: string;
     price?: string;
     imageUrl?: string;
+    image_urls?: string[]; // Array of images from database
     source?: string;
     start_date_time?: string;
     end_date_time?: string;
@@ -84,6 +85,11 @@ export function EventCard({ event, city = 'Wien' }: EventCardProps) {
   const eventTime = getEventTime(event);
   const displayDate = eventDate ? formatGermanDate(eventDate) : '';
   
+  // Get first image from image_urls array or use imageUrl field
+  const eventImage = (event as any).image_urls && (event as any).image_urls.length > 0
+    ? (event as any).image_urls[0]
+    : event.imageUrl;
+  
   // Price display
   let priceDisplay = 'Preis auf Anfrage';
   if (event.is_free) {
@@ -98,15 +104,28 @@ export function EventCard({ event, city = 'Wien' }: EventCardProps) {
     }
   }
 
+  // Map source to display text
+  const sourceDisplay = event.source === 'rss' ? 'RSS' :
+    event.source === 'ai' ? 'KI' :
+    event.source === 'ra' ? 'API' :
+    event.source === 'wien-info' ? 'Wien.info' :
+    event.source === 'cache' ? 'Cache' :
+    event.source || 'Event';
+
   return (
     <Link href={`/event/${event.id}`} className="block">
       <div className="dark-event-card">
+        {/* Source Badge - Always Visible */}
+        <div className="dark-event-source-badge">
+          {sourceDisplay}
+        </div>
+
         {/* Event Image */}
         <div 
           className="dark-event-card-image"
           style={{
-            backgroundImage: event.imageUrl 
-              ? `url(${event.imageUrl})` 
+            backgroundImage: eventImage 
+              ? `url(${eventImage})` 
               : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             minHeight: '240px',
             backgroundSize: 'cover',
@@ -198,17 +217,6 @@ export function EventCard({ event, city = 'Wien' }: EventCardProps) {
           />
         </div>
         </div>
-
-        {/* Source Badge */}
-        {event.source && (
-          <div className="dark-event-source-badge">
-            {event.source === 'rss' ? 'RSS' :
-             event.source === 'ai' ? 'KI' :
-             event.source === 'ra' ? 'API' :
-             event.source === 'cache' ? 'Cache' :
-             event.source}
-          </div>
-        )}
       </div>
     </Link>
   );
