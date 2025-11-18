@@ -74,10 +74,10 @@ export default function DiscoveryClient({
           let daysUntilSaturday: number;
           
           if (dayOfWeek === 6) {
-            // Today is Saturday - include today and tomorrow
+            // Today is Saturday - include today and tomorrow (Sunday)
             daysUntilSaturday = 0;
           } else if (dayOfWeek === 0) {
-            // Today is Sunday - include today only, next Saturday is 6 days away
+            // Today is Sunday - show next weekend (next Saturday is 6 days away)
             daysUntilSaturday = 6;
           } else {
             // Monday to Friday - calculate days until Saturday

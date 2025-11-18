@@ -31,6 +31,8 @@ interface EventCardProps {
     price_max?: number | null;
     is_free?: boolean;
     custom_venue_name?: string;
+    website?: string;
+    bookingLink?: string;
   };
   city?: string;
 }
