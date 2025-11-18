@@ -1,19 +1,19 @@
 'use client';
 import { useEffect, useRef, useState, CSSProperties } from 'react';
 import Link from 'next/link';
-import { EVENT_CATEGORY_SUBCATEGORIES, normalizeCategory } from './lib/eventCategories';
-import { useTranslation } from './lib/useTranslation';
-import { startJobPolling, deduplicateEvents as dedupFront } from './lib/polling';
-import SchemaOrg from './components/SchemaOrg';
-import SEOFooter from './components/SEOFooter';
-import EventCardSkeleton from './components/EventCardSkeleton';
-import OptimizedSearch from './components/OptimizedSearch';
-import { generateEventListSchema, generateEventMicrodata, generateCanonicalUrl } from './lib/schemaOrg';
+import { EVENT_CATEGORY_SUBCATEGORIES, normalizeCategory } from '../lib/eventCategories';
+import { useTranslation } from '../lib/useTranslation';
+import { startJobPolling, deduplicateEvents as dedupFront } from '../lib/polling';
+import SchemaOrg from '../components/SchemaOrg';
+import SEOFooter from '../components/SEOFooter';
+import EventCardSkeleton from '../components/EventCardSkeleton';
+import OptimizedSearch from '../components/OptimizedSearch';
+import { generateEventListSchema, generateEventMicrodata, generateCanonicalUrl } from '../lib/schemaOrg';
 
-import { FAQSection } from './components/FAQSection';
-import { homepageFAQs } from './data/faqDatabase';
-import { getAllGuides } from './data/guideContent';
-import { getCategoryIcon } from './components/CategoryIcons';
+import { FAQSection } from '../components/FAQSection';
+import { homepageFAQs } from '../data/faqDatabase';
+import { getAllGuides } from '../data/guideContent';
+import { getCategoryIcon } from '../components/CategoryIcons';
 
 interface EventData {
   title: string;

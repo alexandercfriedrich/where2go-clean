@@ -48,7 +48,7 @@ export default function DiscoveryClient({
         weekend: initialWeekendEvents,
       });
     } else {
-      const { matchesCategory } = require('@/lib/events/category-utils');
+      const { matchesCategory } = require('../../lib/events/category-utils');
       
       setFilteredEvents({
         personalized: initialPersonalizedEvents.filter(
