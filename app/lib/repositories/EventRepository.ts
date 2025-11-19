@@ -293,4 +293,171 @@ export class EventRepository {
       return { success: false, upserted: 0 }
     }
   }
+
+  /**
+   * Fetch existing events for deduplication check
+   * Only fetches events from same date and city to minimize data transfer
+   * Returns events in EventData format for compatibility with deduplication logic
+   * 
+   * @param date - Date string in YYYY-MM-DD format
+   * @param city - City name
+   * @returns Array of EventData objects from the database
+   */
+  static async fetchRelevantExistingEvents(
+    date: string,
+    city: string
+  ): Promise<EventData[]> {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    // Use a type-safe query with explicit type annotation
+    const { data, error } = await supabase
+      .from('events')
+      .select('id, title, city, start_date_time, source, category, custom_venue_name')
+      .eq('city', city)
+      .gte('start_date_time', startOfDay.toISOString())
+      .lte('start_date_time', endOfDay.toISOString()) as {
+        data: Array<{
+          id: string;
+          title: string;
+          city: string;
+          start_date_time: string;
+          source: string;
+          category: string;
+          custom_venue_name: string | null;
+        }> | null;
+        error: any;
+      };
+    
+    if (error) {
+      console.error('[EventRepository:Dedup] Error fetching existing events:', error);
+      return [];
+    }
+    
+    if (!data || data.length === 0) {
+      return [];
+    }
+    
+    // Convert DB events to EventData format for deduplication
+    return data.map(dbEvent => {
+      // Extract date and time from ISO timestamp
+      const startDateTime = dbEvent.start_date_time || '';
+      const dateMatch = startDateTime.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+      const eventDate = dateMatch ? dateMatch[1] : startDateTime.split('T')[0] || '';
+      const time = dateMatch ? dateMatch[2] : '';
+
+      return {
+        title: dbEvent.title || '',
+        category: dbEvent.category || '',
+        date: eventDate,
+        time: time,
+        venue: dbEvent.custom_venue_name || '',
+        price: '',
+        website: '',
+        city: dbEvent.city || '',
+        source: (dbEvent.source || 'ai') as 'cache' | 'ai' | 'rss' | 'ra' | string
+      };
+    });
+  }
+
+  /**
+   * Insert events in batches to prevent timeout
+   * Uses fuzzy deduplication to filter out duplicates before insertion
+   * 
+   * @param events - Events to insert
+   * @param city - City name for the events
+   * @param batchSize - Number of events per batch (default: 50)
+   * @param date - Optional date to fetch existing events for deduplication
+   * @returns Result with success status and count of inserted events
+   */
+  static async insertEventsInBatches(
+    events: EventData[],
+    city: string,
+    batchSize: number = 50,
+    date?: string
+  ): Promise<{ success: boolean; inserted: number; duplicatesRemoved: number; errors: string[] }> {
+    const errors: string[] = [];
+    
+    // If date is provided, fetch existing events and perform fuzzy deduplication
+    let eventsToInsert = events;
+    let duplicatesRemoved = 0;
+    
+    if (date) {
+      try {
+        // Import deduplication function
+        const { deduplicateEvents } = await import('../eventDeduplication');
+        
+        const existingEvents = await this.fetchRelevantExistingEvents(date, city);
+        console.log(`[EventRepository:Dedup] Found ${existingEvents.length} existing events for ${date} in ${city}`);
+        
+        eventsToInsert = deduplicateEvents(events, existingEvents);
+        duplicatesRemoved = events.length - eventsToInsert.length;
+        
+        console.log(`[EventRepository:Dedup] ${events.length} total → ${eventsToInsert.length} unique (removed ${duplicatesRemoved} duplicates)`);
+      } catch (error) {
+        console.error('[EventRepository:Dedup] Error during deduplication:', error);
+        // Continue with all events if deduplication fails
+        errors.push(`Deduplication error: ${error}`);
+      }
+    }
+    
+    if (eventsToInsert.length === 0) {
+      console.log('[EventRepository:Batch] No unique events to insert');
+      return { success: true, inserted: 0, duplicatesRemoved, errors: [] };
+    }
+    
+    // Convert to DB format
+    const dbEvents = eventsToInsert.map(e => this.eventDataToDbInsert(e, city));
+    
+    // Deduplicate events by (title, start_date_time, city) - keep last occurrence
+    const seen = new Map<string, DbEventInsert>();
+    for (const event of dbEvents) {
+      const key = `${event.title}|${event.start_date_time}|${event.city}`;
+      seen.set(key, event);
+    }
+    const uniqueDbEvents = Array.from(seen.values());
+    
+    // Insert in batches
+    const totalBatches = Math.ceil(uniqueDbEvents.length / batchSize);
+    let totalInserted = 0;
+    
+    for (let i = 0; i < uniqueDbEvents.length; i += batchSize) {
+      const batch = uniqueDbEvents.slice(i, i + batchSize);
+      const batchNumber = Math.floor(i / batchSize) + 1;
+      
+      console.log(`[EventRepository:Batch] Writing batch ${batchNumber}/${totalBatches} (${batch.length} events)`);
+      
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('events')
+          .upsert(batch as any, {
+            onConflict: 'title,start_date_time,city',
+            ignoreDuplicates: false
+          })
+          .select();
+        
+        if (error) {
+          errors.push(`Batch ${batchNumber} failed: ${error.message}`);
+          console.error(`[EventRepository:Batch] Batch ${batchNumber} failed:`, error);
+        } else {
+          totalInserted += data?.length || 0;
+        }
+      } catch (error) {
+        errors.push(`Batch ${batchNumber} exception: ${error}`);
+        console.error(`[EventRepository:Batch] Batch ${batchNumber} exception:`, error);
+      }
+    }
+    
+    console.log(`[EventRepository:Batch] Successfully wrote ${totalInserted} events in ${totalBatches} batches`);
+    
+    return {
+      success: errors.length === 0,
+      inserted: totalInserted,
+      duplicatesRemoved,
+      errors
+    };
+  }
 }
