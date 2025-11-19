@@ -13,6 +13,7 @@ import { LocationBar } from '@/components/discovery/LocationBar';
 import { CategoryBrowser } from '@/components/discovery/CategoryBrowser';
 import { SearchBar } from '@/components/discovery/SearchBar';
 import { EventCard } from '@/components/discovery/EventCard';
+import { VenueStats } from '@/components/VenueStats';
 
 interface DiscoveryClientProps {
   initialTrendingEvents: any[];
@@ -286,6 +287,5 @@ export default function DiscoveryClient({
 }
 
 function VenueStatsSection({ city }: { city: string }) {
-  const { VenueStats } = require('@/components/VenueStats');
   return <VenueStats city={city} limit={15} layout="grid" />;
 }

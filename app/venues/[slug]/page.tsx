@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase/client';
 import { EventCard } from '@/components/EventCard';
+import { formatEventDate, transformVenueEventToEventData } from '@/lib/utils';
 
 interface VenuePageProps {
   params: {
@@ -15,6 +16,7 @@ export async function generateMetadata({
   params,
 }: VenuePageProps): Promise<Metadata> {
   try {
+    // Type assertion needed: Supabase RPC functions are not in the generated types
     const { data } = await (supabase as any)
       .rpc('get_venue_with_events', { p_venue_slug: params.slug, p_source: null })
       .single();
@@ -43,7 +45,9 @@ export async function generateMetadata({
 // Generate static params for top venues
 export async function generateStaticParams() {
   try {
-    const { data } = await supabase.from('venues').select('venue_slug').limit(30);
+    // Use get_top_venues RPC to get venues sorted by event count
+    const { data } = await (supabase as any)
+      .rpc('get_top_venues', { p_city: 'Wien', p_limit: 30, p_source: null });
 
     return (data as any)?.map((v: any) => ({ slug: v.venue_slug })) || [];
   } catch (error) {
@@ -56,6 +60,7 @@ export default async function VenuePage({ params }: VenuePageProps) {
   let venueData: any;
 
   try {
+    // Type assertion needed: Supabase RPC functions are not in the generated types
     const { data, error } = await (supabase as any)
       .rpc('get_venue_with_events', {
         p_venue_slug: params.slug,
@@ -73,21 +78,6 @@ export default async function VenuePage({ params }: VenuePageProps) {
   }
 
   const { venue, stats, upcoming_events } = venueData;
-
-  // Format date helper
-  const formatEventDate = (date: string) => {
-    try {
-      const d = new Date(date);
-      return d.toLocaleDateString('de-DE', {
-        weekday: 'short',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      });
-    } catch {
-      return date;
-    }
-  };
 
   return (
     <div className="min-h-screen bg-[#0a0f1a] text-white">
@@ -278,20 +268,7 @@ export default async function VenuePage({ params }: VenuePageProps) {
               {upcoming_events.map((event: any) => (
                 <EventCard
                   key={event.id}
-                  event={{
-                    ...event,
-                    date: event.start_date_time
-                      ? new Date(event.start_date_time).toISOString().split('T')[0]
-                      : event.date || '',
-                    time: event.start_date_time
-                      ? new Date(event.start_date_time).toTimeString().slice(0, 5)
-                      : event.time || '00:00',
-                    venue: venue.name,
-                    address: venue.full_address,
-                    price: event.price_info || 'Preis auf Anfrage',
-                    website: event.ticket_url || venue.website || '',
-                    imageUrl: event.image_urls?.[0] || event.imageUrl,
-                  }}
+                  event={transformVenueEventToEventData(event, venue)}
                   city={venue.city}
                   formatEventDate={formatEventDate}
                 />

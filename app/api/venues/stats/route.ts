@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase/client';
 
+export const runtime = 'nodejs';
 export const revalidate = 3600; // Cache 1 hour
 
 export async function GET(request: NextRequest) {
@@ -10,6 +11,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '15'), 50);
     const source = searchParams.get('source') || null;
 
+    // Type assertion needed: Supabase RPC functions are not in the generated types
     const { data, error } = await (supabase as any).rpc('get_top_venues', {
       p_city: city,
       p_limit: limit,
