@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { scrapeAndStoreVenue, batchScrapeAndStoreVenues } from '@/app/lib/db/venueStore';
+import { scrapeAndStoreVenue, batchScrapeAndStoreVenues } from '@/lib/db/venueStore';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

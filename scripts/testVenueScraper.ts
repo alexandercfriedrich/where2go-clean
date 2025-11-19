@@ -11,7 +11,7 @@ import {
  * Test URLs for venue scraping
  * These should be real Wien.info event URLs
  */
-const TEST_URLS = [
+const TEST_URLS: string[] = [
   'https://www.wien.info/de/shopping-mode-genuss/events/beispiel-event-1',
   // Add more test URLs here
 ];

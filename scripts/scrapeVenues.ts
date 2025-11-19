@@ -7,7 +7,7 @@ import { scrapeAndStoreVenue, batchScrapeAndStoreVenues } from '../app/lib/db/ve
  * Example event URLs to scrape
  * Replace these with actual Wien.info event URLs
  */
-const EXAMPLE_EVENT_URLS = [
+const EXAMPLE_EVENT_URLS: string[] = [
   // Add Wien.info event URLs here
   // Example: 'https://www.wien.info/de/locations/beispiel-location'
 ];
