@@ -49,19 +49,15 @@ export function VenueStats({
   }
 
   if (error) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-red-500">Fehler beim Laden der Venues: {error}</p>
-      </div>
-    );
+    // Silently hide the section if the database function doesn't exist yet
+    // This allows graceful degradation when the feature is not fully deployed
+    console.warn('Venue stats not available:', error);
+    return null;
   }
 
   if (venues.length === 0) {
-    return (
-      <div className="text-center py-8">
-        <p className="text-gray-500 dark:text-gray-400">Keine Venues gefunden.</p>
-      </div>
-    );
+    // Don't show anything if there are no venues
+    return null;
   }
 
   return (
