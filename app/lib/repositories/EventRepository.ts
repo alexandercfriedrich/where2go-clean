@@ -135,13 +135,18 @@ export class EventRepository {
       category: dbEvent.category,
       date: date,
       time: time,
-      // Note: venue field is not populated from venue_id - requires join with venues table
-      venue: '',
+      // Use custom_venue_name if available
+      venue: dbEvent.custom_venue_name || '',
+      address: dbEvent.custom_venue_address || undefined,
       price: priceStr,
       website: dbEvent.source_url || '',
+      bookingLink: dbEvent.booking_url || undefined,
       source: dbEvent.source as 'cache' | 'ai' | 'rss' | 'ra' | string,
       city: dbEvent.city,
-      imageUrl: dbEvent.image_urls?.[0]
+      imageUrl: dbEvent.image_urls?.[0],
+      latitude: dbEvent.latitude || undefined,
+      longitude: dbEvent.longitude || undefined,
+      slug: dbEvent.slug || undefined,
     }
   }
 

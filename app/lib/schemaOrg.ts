@@ -213,14 +213,14 @@ export function generateMicrodataProps(property: string, content?: string): Reco
 /**
  * Generates a canonical URL for an event
  * Format: {baseUrl}/events/{citySlug}/{slug}
- * Uses the new event detail page URL structure
+ * Uses the database slug if available, otherwise generates one
  */
 export function generateCanonicalUrl(event: EventData, baseUrl: string = 'https://www.where2go.at'): string {
   // Import is at top of file, but we need the function here
-  // Use the same slug generation logic as the event detail pages
   const { generateEventSlug, normalizeCitySlug } = require('./slugGenerator');
   
-  const eventSlug = generateEventSlug({
+  // Use database slug if available, otherwise generate from event data
+  const eventSlug = event.slug || generateEventSlug({
     title: event.title,
     venue: event.venue,
     date: event.date

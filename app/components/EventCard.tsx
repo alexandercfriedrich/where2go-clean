@@ -32,21 +32,16 @@ export function EventCard({ event: ev, city = 'wien', formatEventDate }: EventCa
   const microdataAttrs = generateEventMicrodata(ev);
   const canonicalUrl = generateCanonicalUrl(ev);
   
-  // Generate slug for event detail page link
-  const eventSlug = generateEventSlug({
+  const citySlug = normalizeCitySlug(city);
+  const categorySlug = superCat.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
+  
+  // Event detail page URL: Use database slug if available, otherwise generate from event data
+  const eventSlug = ev.slug || generateEventSlug({
     title: ev.title,
     venue: ev.venue,
     date: ev.date
   });
-  
-  const citySlug = normalizeCitySlug(city);
-  const categorySlug = superCat.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
-  
-  // Event detail page URL
-  const eventDetailUrl = `/events/${citySlug}/${eventSlug}`;
-
-  // Determine link: use event detail page if slug exists, otherwise fallback to website or placeholder
-  const eventLink = ev.slug ? `/events/${citySlug}/${ev.slug}` : (ev.website || '#');
+  const eventDetailUrl = ev.slug ? `/events/${citySlug}/${ev.slug}` : (ev.website || '#');
   const isInternalLink = !!ev.slug;
 
   return (
