@@ -6,7 +6,12 @@ import {
   generateJsonLdScript,
   generateEventMicrodata,
   generateCanonicalUrl,
-  generateEventJsonLd
+  generateEventJsonLd,
+  generateLocalBusinessSchema,
+  generateViennaPlaceSchema,
+  generateFAQPageSchema,
+  generateHowToSchema,
+  generateBreadcrumbSchema
 } from '../schemaOrg';
 import { EventData } from '../types';
 
@@ -453,6 +458,229 @@ describe('Schema.org Utilities', () => {
       
       expect(jsonLd['@type']).toBe('Event');
       expect(jsonLd.name).toBe('Test Event');
+    });
+  });
+});
+
+describe('New Schema.org Utilities', () => {
+  describe('generateLocalBusinessSchema', () => {
+    it('should generate valid LocalBusiness schema', () => {
+      const venue = {
+        name: 'Arena Wien',
+        address: 'Baumgasse 80, 1030 Wien',
+        latitude: 48.1903,
+        longitude: 16.4112,
+        url: 'https://arena.wien',
+        description: 'Legendary concert venue in Vienna'
+      };
+      
+      const schema = generateLocalBusinessSchema(venue) as any;
+      
+      expect(schema['@context']).toBe('https://schema.org');
+      expect(schema['@type']).toBe('LocalBusiness');
+      expect(schema.name).toBe('Arena Wien');
+      expect(schema.areaServed).toBeDefined();
+      expect(schema.areaServed['@type']).toBe('City');
+      expect(schema.areaServed.name).toBe('Wien');
+      expect(schema.address).toBeDefined();
+      expect(schema.address.streetAddress).toBe('Baumgasse 80, 1030 Wien');
+      expect(schema.geo).toBeDefined();
+      expect(schema.geo.latitude).toBe(48.1903);
+      expect(schema.geo.longitude).toBe(16.4112);
+    });
+
+    it('should work with minimal venue data', () => {
+      
+      const venue = {
+        name: 'Simple Venue'
+      };
+      
+      const schema = generateLocalBusinessSchema(venue) as any;
+      
+      expect(schema.name).toBe('Simple Venue');
+      expect(schema.areaServed).toBeDefined();
+      expect(schema.address).toBeUndefined();
+      expect(schema.geo).toBeUndefined();
+    });
+  });
+
+  describe('generateViennaPlaceSchema', () => {
+    it('should generate valid City/Place schema for Vienna', () => {
+      
+      const schema = generateViennaPlaceSchema() as any;
+      
+      expect(schema['@context']).toBe('https://schema.org');
+      expect(schema['@type']).toBe('City');
+      expect(schema.name).toBe('Wien');
+      expect(schema.alternateName).toBe('Vienna');
+      expect(schema.geo).toBeDefined();
+      expect(schema.geo.latitude).toBe(48.2082);
+      expect(schema.geo.longitude).toBe(16.3738);
+      expect(schema.address.addressCountry).toBe('AT');
+    });
+  });
+
+  describe('generateFAQPageSchema', () => {
+    it('should generate valid FAQPage schema', () => {
+      
+      const faqs = [
+        {
+          question: 'What can I do today in Vienna?',
+          answer: 'You can find concerts, theater shows, club nights and more on Where2Go.'
+        },
+        {
+          question: 'How do I search for events?',
+          answer: 'Use the search bar and filters to find events by category, date, and location.'
+        }
+      ];
+      
+      const schema = generateFAQPageSchema(faqs) as any;
+      
+      expect(schema['@context']).toBe('https://schema.org');
+      expect(schema['@type']).toBe('FAQPage');
+      expect(schema.mainEntity).toHaveLength(2);
+      expect(schema.mainEntity[0]['@type']).toBe('Question');
+      expect(schema.mainEntity[0].name).toBe('What can I do today in Vienna?');
+      expect(schema.mainEntity[0].acceptedAnswer['@type']).toBe('Answer');
+      expect(schema.mainEntity[0].acceptedAnswer.text).toBeTruthy();
+    });
+
+    it('should handle empty FAQ list', () => {
+      
+      const schema = generateFAQPageSchema([]) as any;
+      
+      expect(schema.mainEntity).toHaveLength(0);
+    });
+  });
+
+  describe('generateHowToSchema', () => {
+    it('should generate valid HowTo schema', () => {
+      
+      const steps = [
+        { name: 'Select your city', text: 'Choose Vienna from the city selector' },
+        { name: 'Pick a date', text: 'Select today, tomorrow, or a specific date' },
+        { name: 'Browse events', text: 'Scroll through the event listings' }
+      ];
+      
+      const schema = generateHowToSchema('How to find events', steps, 'A guide to finding events') as any;
+      
+      expect(schema['@context']).toBe('https://schema.org');
+      expect(schema['@type']).toBe('HowTo');
+      expect(schema.name).toBe('How to find events');
+      expect(schema.description).toBe('A guide to finding events');
+      expect(schema.step).toHaveLength(3);
+      expect(schema.step[0]['@type']).toBe('HowToStep');
+      expect(schema.step[0].position).toBe(1);
+      expect(schema.step[0].name).toBe('Select your city');
+    });
+
+    it('should use title as description if not provided', () => {
+      
+      const steps = [{ name: 'Step 1', text: 'Do something' }];
+      
+      const schema = generateHowToSchema('My Guide', steps) as any;
+      
+      expect(schema.description).toBe('My Guide');
+    });
+  });
+
+  describe('generateBreadcrumbSchema', () => {
+    it('should generate valid BreadcrumbList schema', () => {
+      
+      const breadcrumbs = [
+        { name: 'Home', url: '/' },
+        { name: 'Events', url: '/events' },
+        { name: 'Vienna', url: '/events/vienna' }
+      ];
+      
+      const schema = generateBreadcrumbSchema(breadcrumbs) as any;
+      
+      expect(schema['@context']).toBe('https://schema.org');
+      expect(schema['@type']).toBe('BreadcrumbList');
+      expect(schema.itemListElement).toHaveLength(3);
+      expect(schema.itemListElement[0]['@type']).toBe('ListItem');
+      expect(schema.itemListElement[0].position).toBe(1);
+      expect(schema.itemListElement[0].name).toBe('Home');
+      expect(schema.itemListElement[0].item).toBe('https://www.where2go.at/');
+    });
+
+    it('should handle absolute URLs', () => {
+      
+      const breadcrumbs = [
+        { name: 'Home', url: 'https://example.com/' }
+      ];
+      
+      const schema = generateBreadcrumbSchema(breadcrumbs) as any;
+      
+      expect(schema.itemListElement[0].item).toBe('https://example.com/');
+    });
+  });
+
+  describe('Enhanced Event Schema with GEO', () => {
+    it('should include GeoCoordinates in location', () => {
+      
+      const event: any = {
+        title: 'Concert with Location',
+        category: 'Music',
+        date: '2025-01-20',
+        time: '19:30',
+        venue: 'Arena Wien',
+        price: '25€',
+        website: 'https://example.com',
+        address: 'Baumgasse 80, 1030 Wien',
+        city: 'Wien',
+        latitude: 48.1903,
+        longitude: 16.4112
+      };
+      
+      const schema = generateEventSchema(event) as any;
+      
+      expect(schema.location.geo).toBeDefined();
+      expect(schema.location.geo['@type']).toBe('GeoCoordinates');
+      expect(schema.location.geo.latitude).toBe(48.1903);
+      expect(schema.location.geo.longitude).toBe(16.4112);
+    });
+
+    it('should include areaServed for local SEO', () => {
+      
+      const event: EventData = {
+        title: 'Local Event',
+        category: 'Music',
+        date: '2025-01-20',
+        time: '19:30',
+        venue: 'Test Venue',
+        price: '25€',
+        website: 'https://example.com',
+        city: 'Wien'
+      };
+      
+      const schema = generateEventSchema(event) as any;
+      
+      expect(schema.location.areaServed).toBeDefined();
+      expect(schema.location.areaServed['@type']).toBe('City');
+      expect(schema.location.areaServed.name).toBe('Wien');
+      expect(schema.location.areaServed.addressCountry).toBe('AT');
+    });
+
+    it('should include address with city and country', () => {
+      
+      const event: EventData = {
+        title: 'Event with Address',
+        category: 'Music',
+        date: '2025-01-20',
+        time: '19:30',
+        venue: 'Test Venue',
+        price: '25€',
+        website: 'https://example.com',
+        address: 'Test Street 123',
+        city: 'Wien'
+      };
+      
+      const schema = generateEventSchema(event) as any;
+      
+      expect(schema.location.address).toBeDefined();
+      expect(schema.location.address.addressLocality).toBe('Wien');
+      expect(schema.location.address.addressCountry).toBe('AT');
     });
   });
 });

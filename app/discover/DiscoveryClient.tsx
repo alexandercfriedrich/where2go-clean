@@ -13,6 +13,10 @@ import { LocationBar } from '@/components/discovery/LocationBar';
 import { CategoryBrowser } from '@/components/discovery/CategoryBrowser';
 import { SearchBar } from '@/components/discovery/SearchBar';
 import { EventCard } from '@/components/discovery/EventCard';
+import { FAQSection } from '@/components/FAQSection';
+import { HowToSection } from '@/components/HowToSection';
+import { DateFilterLinks } from '@/components/discovery/DateFilterLinks';
+import { discoverPageFAQs, discoverPageHowTo } from '@/lib/content/discoverPageContent';
 import { VenueStats } from '@/components/VenueStats';
 
 interface DiscoveryClientProps {
@@ -185,8 +189,15 @@ export default function DiscoveryClient({
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          {/* Date Filter Links */}
+          <DateFilterLinks
+            city={city}
+            selectedFilter={selectedDateFilter}
+            onFilterChange={setSelectedDateFilter}
+          />
+
           {/* Category Browser */}
-          <section className="mb-16">
+          <section className="mb-16" aria-label="Browse events by category">
             <SectionHeader
               title="Browse by Category"
               subtitle="Explore events that match your interests"
@@ -214,7 +225,7 @@ export default function DiscoveryClient({
 
           {/* For You Section */}
           {filteredEvents.personalized.length > 0 && (
-            <section className="mb-16">
+            <section className="mb-16" aria-label="Personalized event recommendations">
               <SectionHeader
                 title="For You"
                 subtitle="Personalized recommendations based on your interests"
@@ -230,7 +241,7 @@ export default function DiscoveryClient({
 
           {/* Trending Section */}
           {filteredEvents.trending.length > 0 && (
-            <section className="mb-16">
+            <section className="mb-16" aria-label="Trending events">
               <SectionHeader
                 title="Trending Now"
                 subtitle="Popular events everyone is talking about"
@@ -246,7 +257,7 @@ export default function DiscoveryClient({
 
           {/* Weekend Section */}
           {filteredEvents.weekend.length > 0 && (
-            <section className="mb-16">
+            <section className="mb-16" aria-label="Weekend events">
               <SectionHeader
                 title="This Weekend"
                 subtitle="Plan your perfect weekend"
@@ -280,6 +291,23 @@ export default function DiscoveryClient({
                 </p>
               </div>
             )}
+
+          {/* HowTo Section */}
+          <div className="max-w-4xl mx-auto">
+            <HowToSection
+              title={discoverPageHowTo.title}
+              description={discoverPageHowTo.description}
+              steps={discoverPageHowTo.steps}
+            />
+          </div>
+
+          {/* FAQ Section */}
+          <div className="max-w-4xl mx-auto">
+            <FAQSection
+              faqs={discoverPageFAQs}
+              title="Häufig gestellte Fragen zu Events in Wien"
+            />
+          </div>
         </div>
       </div>
     </ThemeProvider>
