@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { generateEventMicrodata, generateCanonicalUrl } from '@/lib/schemaOrg';
-import { generateEventSlug } from '@/lib/slugGenerator';
+import { generateEventSlug, normalizeCitySlug } from '@/lib/slugGenerator';
 import { EVENT_CATEGORY_SUBCATEGORIES } from '@/lib/eventCategories';
 import type { EventData } from '@/lib/types';
 
@@ -39,7 +39,7 @@ export function EventCard({ event: ev, city = 'wien', formatEventDate }: EventCa
     date: ev.date
   });
   
-  const citySlug = city.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-');
+  const citySlug = normalizeCitySlug(city);
   const categorySlug = superCat.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
   
   // Event detail page URL

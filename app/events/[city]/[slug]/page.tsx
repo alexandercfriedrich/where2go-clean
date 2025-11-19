@@ -9,6 +9,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase/client';
 import { generateEventSchema, generateBreadcrumbSchema } from '@/lib/schemaOrg';
+import { normalizeCitySlug } from '@/lib/slugGenerator';
 import SchemaOrg from '@/components/SchemaOrg';
 import type { EventData } from '@/lib/types';
 import type { Database } from '@/lib/supabase/types';
@@ -92,7 +93,11 @@ async function getEventBySlug(city: string, slug: string): Promise<EventData | n
     .single();
 
   if (error || !data) {
-    console.error('Error fetching event:', error);
+    if (process.env.NODE_ENV === 'development') {
+      console.error('Error fetching event:', error);
+    } else {
+      console.error('Error fetching event:', error?.message || 'Unknown error');
+    }
     return null;
   }
 
@@ -129,7 +134,7 @@ export async function generateMetadata({ params }: EventPageProps): Promise<Meta
   const title = `${event.title} | ${event.venue} ${event.city}`;
   const description = event.description 
     ? event.description.substring(0, 155) + '...'
-    : `${event.title} am ${formatGermanDate(event.date)} um ${event.time} Uhr im ${event.venue}. Alle Infos und Tickets.`;
+    : `${event.title} am ${formatGermanDate(event.date)}${event.time ? ` um ${event.time} Uhr` : ''} im ${event.venue}. Alle Infos und Tickets.`;
 
   return {
     title: title,
@@ -171,10 +176,12 @@ export async function generateStaticParams() {
 
     if (!data) return [];
     
-    return data.map((e: { city: string; slug: string | null }) => ({
-      city: e.city.toLowerCase(),
-      slug: e.slug!
-    }));
+    return data
+      .filter((e: { city: string; slug: string | null }) => e.slug !== null)
+      .map((e: { city: string; slug: string | null }) => ({
+        city: e.city.toLowerCase(),
+        slug: e.slug as string
+      }));
   } catch (error) {
     console.error('Error generating static params:', error);
     return [];
@@ -193,14 +200,13 @@ export default async function EventPage({ params }: EventPageProps) {
 
   // Generate Schema.org structured data
   const eventSchema = generateEventSchema(event, BASE_URL);
+  const citySlug = normalizeCitySlug(params.city);
   const breadcrumbSchema = generateBreadcrumbSchema([
     { name: 'Home', url: '/' },
     { name: 'Events', url: '/discover' },
-    { name: params.city, url: `/${params.city.toLowerCase()}` },
+    { name: params.city, url: `/${citySlug}` },
     { name: event.title, url: `/events/${params.city}/${params.slug}` },
   ], BASE_URL);
-
-  const citySlug = params.city.toLowerCase();
 
   return (
     <>
@@ -308,14 +314,19 @@ export default async function EventPage({ params }: EventPageProps) {
                   <div>
                     <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.6)', marginBottom: '4px' }}>Datum & Uhrzeit</div>
                     <div style={{ color: '#FFFFFF', fontWeight: 600 }}>
-                      <span itemProp="startDate" content={`${event.date}T${event.time || '19:00'}:00`}>
+                      <span itemProp="startDate" content={`${event.date}T${event.time || '00:00'}:00`}>
                         {formatGermanDate(event.date)}
                       </span>
                     </div>
-                    {event.time && (
+                    {event.time && event.time !== '00:00' && (
                       <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '14px' }}>
                         {event.time} Uhr
                         {event.endTime && ` - ${event.endTime} Uhr`}
+                      </div>
+                    )}
+                    {(!event.time || event.time === '00:00') && (
+                      <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '14px' }}>
+                        ganztags
                       </div>
                     )}
                     {event.endTime && <meta itemProp="endDate" content={`${event.date}T${event.endTime}:00`} />}

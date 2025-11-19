@@ -57,8 +57,21 @@ export function generateEventSlug(event: {
   const parts = [titleSlug, venueSlug, dateSlug].filter(Boolean);
   const fullSlug = parts.join('-');
   
-  // Limit to 150 characters for practical URL length
-  return fullSlug.substring(0, 150);
+  // Limit to 150 characters, but ensure we keep the date intact
+  if (fullSlug.length <= 150) {
+    return fullSlug;
+  }
+  
+  // If too long, truncate but preserve the date at the end
+  // Date is 10 chars, need 1 char for hyphen = 11 chars reserved
+  const maxLengthBeforeDate = 150 - 11;
+  const slugWithoutDate = [titleSlug, venueSlug].filter(Boolean).join('-');
+  const truncatedSlug = slugWithoutDate.substring(0, maxLengthBeforeDate);
+  
+  // Remove trailing hyphen if present after truncation
+  const cleanedSlug = truncatedSlug.replace(/-+$/, '');
+  
+  return `${cleanedSlug}-${dateSlug}`;
 }
 
 /**
@@ -98,4 +111,27 @@ export function isValidSlug(slug: string): boolean {
 export function extractDateFromSlug(slug: string): string | null {
   const dateMatch = slug.match(/(\d{4}-\d{2}-\d{2})$/);
   return dateMatch ? dateMatch[1] : null;
+}
+
+/**
+ * Normalize city name to URL-safe slug
+ * Used for consistent city slug generation across the application
+ * 
+ * @param city - City name to normalize
+ * @returns URL-safe city slug
+ * 
+ * @example
+ * normalizeCitySlug("Wien") // "wien"
+ * normalizeCitySlug("Köln") // "koln"
+ */
+export function normalizeCitySlug(city: string): string {
+  return city
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special chars
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Remove duplicate hyphens
+    .trim()
+    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
 }

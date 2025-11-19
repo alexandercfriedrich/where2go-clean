@@ -7,7 +7,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { generateEventSlug } from '@/lib/slugGenerator';
+import { generateEventSlug, normalizeCitySlug } from '@/lib/slugGenerator';
 import { AddToCalendar } from './AddToCalendar';
 import { ShareButtons } from './ShareButtons';
 import { FavoriteButton } from './FavoriteButton';
@@ -106,7 +106,7 @@ export function EventCard({ event, city = 'Wien' }: EventCardProps) {
     date: eventDate
   });
   
-  const citySlug = city.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-');
+  const citySlug = normalizeCitySlug(city);
   
   // Event detail page URL
   const eventDetailUrl = `/events/${citySlug}/${eventSlug}`;
