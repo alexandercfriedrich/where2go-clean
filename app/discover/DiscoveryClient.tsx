@@ -259,6 +259,11 @@ export default function DiscoveryClient({
             </section>
           )}
 
+          {/* Top Venues Section */}
+          <section className="mb-16">
+            <VenueStatsSection city={city} />
+          </section>
+
           {/* Fallback message */}
           {filteredEvents.personalized.length === 0 &&
             filteredEvents.trending.length === 0 &&
@@ -278,4 +283,9 @@ export default function DiscoveryClient({
       </div>
     </ThemeProvider>
   );
+}
+
+function VenueStatsSection({ city }: { city: string }) {
+  const { VenueStats } = require('@/components/VenueStats');
+  return <VenueStats city={city} limit={15} layout="grid" />;
 }
