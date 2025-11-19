@@ -206,3 +206,58 @@ function calculateDistanceSimple(
 function toRad(degrees: number): number {
   return degrees * (Math.PI / 180);
 }
+
+/**
+ * Get upcoming events for the next N days (for Schema.org EventList)
+ */
+export async function getUpcomingEvents(
+  days: number = 7,
+  params: EventQueryParams = {}
+) {
+  const { city = 'Wien', limit = 100 } = params;
+  
+  const now = new Date();
+  const endDate = new Date();
+  endDate.setDate(now.getDate() + days);
+  
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .eq('city', city)
+    .gte('start_date_time', now.toISOString())
+    .lte('start_date_time', endDate.toISOString())
+    .eq('is_cancelled', false)
+    .order('start_date_time', { ascending: true })
+    .limit(limit);
+
+  if (error) {
+    console.error('Error fetching upcoming events:', error);
+    return [];
+  }
+
+  return data || [];
+}
+
+/**
+ * Convert Supabase event to EventData format for Schema.org
+ */
+export function convertToEventData(event: any): any {
+  const startDate = event.start_date_time ? new Date(event.start_date_time) : null;
+  
+  return {
+    title: event.title || event.name || 'Event',
+    category: event.category || 'Event',
+    date: startDate ? startDate.toISOString().split('T')[0] : '',
+    time: startDate ? startDate.toTimeString().split(' ')[0].substring(0, 5) : '00:00',
+    venue: event.venue || event.location || 'Wien',
+    price: event.price_info || event.price || 'Preis auf Anfrage',
+    website: event.url || event.website || '',
+    address: event.address || '',
+    description: event.description || '',
+    bookingLink: event.ticket_url || event.booking_url || '',
+    city: event.city || 'Wien',
+    imageUrl: event.image_url || event.imageUrl || '',
+    latitude: event.latitude,
+    longitude: event.longitude,
+  };
+}

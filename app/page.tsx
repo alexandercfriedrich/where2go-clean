@@ -5,8 +5,10 @@
 
 import { Metadata } from 'next';
 import DiscoveryClient from './discover/DiscoveryClient';
-import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents } from '../lib/events/queries';
+import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getUpcomingEvents, convertToEventData } from '../lib/events/queries';
 import { discoverPageMetadata } from './lib/content/discoverPageContent';
+import SchemaOrg from './components/SchemaOrg';
+import { generateEventListSchema, generateBreadcrumbSchema } from './lib/schemaOrg';
 
 export const metadata: Metadata = {
   title: discoverPageMetadata.title,
@@ -53,19 +55,35 @@ export default async function HomePage() {
   const city = 'Wien';
   
   try {
-    const [trendingEvents, weekendEvents, personalizedEvents] = await Promise.all([
+    const [trendingEvents, weekendEvents, personalizedEvents, upcomingEvents] = await Promise.all([
       getTrendingEvents({ city, limit: 12 }),
       getWeekendEvents({ city, limit: 8 }),
       getPersonalizedEvents({ city, limit: 20 }),
+      getUpcomingEvents(7, { city, limit: 100 }),
+    ]);
+
+    // Convert upcoming events to EventData format for schema
+    const upcomingEventsData = upcomingEvents.map(convertToEventData);
+    
+    // Generate schemas
+    const today = new Date().toISOString().split('T')[0];
+    const eventListSchema = generateEventListSchema(upcomingEventsData, city, today);
+    const breadcrumbSchema = generateBreadcrumbSchema([
+      { name: 'Home', url: '/' },
+      { name: 'Discover Events', url: '/discover' },
     ]);
 
     return (
-      <DiscoveryClient
-        initialTrendingEvents={trendingEvents}
-        initialWeekendEvents={weekendEvents}
-        initialPersonalizedEvents={personalizedEvents}
-        city={city}
-      />
+      <>
+        <SchemaOrg schema={eventListSchema} />
+        <SchemaOrg schema={breadcrumbSchema} />
+        <DiscoveryClient
+          initialTrendingEvents={trendingEvents}
+          initialWeekendEvents={weekendEvents}
+          initialPersonalizedEvents={personalizedEvents}
+          city={city}
+        />
+      </>
     );
   } catch (error) {
     console.error('Error fetching discovery data:', error);
