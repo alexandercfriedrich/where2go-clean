@@ -31,6 +31,8 @@ interface EventCardProps {
     price_max?: number | null;
     is_free?: boolean;
     custom_venue_name?: string;
+    website?: string;
+    bookingLink?: string;
   };
   city?: string;
 }
@@ -53,11 +55,22 @@ function formatGermanDate(dateStr: string): string {
 
 // Helper to parse time from ISO datetime or separate time field
 function getEventTime(event: any): string | null {
-  if (event.time) return event.time;
+  if (event.time) {
+    // Check if time should be treated as all-day
+    if (event.time === '00:00' || event.time === '01:00' || event.time === 'ganztags') {
+      return null; // Will display as "ganztags"
+    }
+    return event.time;
+  }
   if (event.start_date_time) {
     try {
       const date = new Date(event.start_date_time);
-      return date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      const timeStr = date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      // Treat midnight and 1 AM as all-day events
+      if (timeStr === '00:00' || timeStr === '01:00') {
+        return null; // Will display as "ganztags"
+      }
+      return timeStr;
     } catch {
       return null;
     }
@@ -160,14 +173,14 @@ export function EventCard({ event, city = 'Wien' }: EventCardProps) {
           )}
 
           {/* Time */}
-          {eventTime && (
-            <div className="dark-event-detail">
-              <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <span>{eventTime} Uhr</span>
-            </div>
-          )}
+          <div className="dark-event-detail">
+            <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span {...(!eventTime && { 'aria-label': 'Ganztägige Veranstaltung' })}>
+              {eventTime ? `${eventTime} Uhr` : 'ganztags'}
+            </span>
+          </div>
 
           {/* Venue (clickable to Google Maps) */}
           {venue && (
@@ -206,8 +219,43 @@ export function EventCard({ event, city = 'Wien' }: EventCardProps) {
           {priceDisplay}
         </div>
 
+        {/* Info and Ticket Links */}
+        <div className="mt-4 flex items-center gap-2 flex-wrap">
+          {/* Mehr Info button - always displayed */}
+          <a
+            href={event.website || `/event/${event.id}`}
+            {...(event.website && { target: "_blank", rel: "noopener noreferrer" })}
+            className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#FF6B35] hover:bg-[#e55a2b] text-white text-sm font-medium rounded-md transition-colors"
+            onClick={(e) => e.stopPropagation()}
+          >
+            Mehr Info
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+              <polyline points="15 3 21 3 21 9"></polyline>
+              <line x1="10" y1="14" x2="21" y2="3"></line>
+            </svg>
+          </a>
+          {/* Ticket button - only when bookingLink is available */}
+          {event.bookingLink && (
+            <a
+              href={event.bookingLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Tickets
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </a>
+          )}
+        </div>
+
         {/* Action Buttons */}
-        <div className="mt-4 flex items-center gap-2 flex-wrap" onClick={(e) => e.preventDefault()}>
+        <div className="mt-2 flex items-center gap-2 flex-wrap" onClick={(e) => e.preventDefault()}>
           <FavoriteButton eventId={event.id} size="sm" />
           <AddToCalendar event={event} size="sm" />
           <ShareButtons 

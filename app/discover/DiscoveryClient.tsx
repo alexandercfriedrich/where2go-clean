@@ -56,28 +56,51 @@ export default function DiscoveryClient({
       
       if (!eventDate) return false;
       
+      // Normalize event date to midnight for comparison
+      const eventDateOnly = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+      
       switch (filter) {
         case 'today':
-          return eventDate.toDateString() === today.toDateString();
+          return eventDateOnly.getTime() === today.getTime();
           
         case 'this-week':
           const weekEnd = new Date(today);
           weekEnd.setDate(weekEnd.getDate() + 7);
-          return eventDate >= today && eventDate < weekEnd;
+          return eventDateOnly >= today && eventDateOnly < weekEnd;
           
         case 'weekend':
-          const nextSaturday = new Date(today);
-          nextSaturday.setDate(nextSaturday.getDate() + ((6 - today.getDay() + 7) % 7));
-          const nextMonday = new Date(nextSaturday);
-          nextMonday.setDate(nextMonday.getDate() + 2);
-          return eventDate >= nextSaturday && eventDate < nextMonday;
+          // Calculate next weekend (Friday, Saturday, and Sunday)
+          const dayOfWeek = today.getDay();
+          let daysUntilFriday: number;
+          
+          if (dayOfWeek === 5) {
+            // Today is Friday - include today, tomorrow, and day after
+            daysUntilFriday = 0;
+          } else if (dayOfWeek === 6) {
+            // Today is Saturday - include today and tomorrow
+            daysUntilFriday = -1; // Go back to Friday
+          } else if (dayOfWeek === 0) {
+            // Today is Sunday - go back to Friday to include all weekend days (Friday, Saturday, Sunday)
+            daysUntilFriday = -2;
+          } else {
+            // Monday to Thursday - calculate days until Friday
+            daysUntilFriday = 5 - dayOfWeek;
+          }
+          
+          const nextFriday = new Date(today);
+          nextFriday.setDate(today.getDate() + daysUntilFriday);
+          
+          const nextMonday = new Date(nextFriday);
+          nextMonday.setDate(nextFriday.getDate() + 3); // Friday + 3 = Monday
+          
+          return eventDateOnly >= nextFriday && eventDateOnly < nextMonday;
           
         case 'next-week':
           const nextWeekStart = new Date(today);
           nextWeekStart.setDate(nextWeekStart.getDate() + 7);
           const nextWeekEnd = new Date(nextWeekStart);
           nextWeekEnd.setDate(nextWeekEnd.getDate() + 7);
-          return eventDate >= nextWeekStart && eventDate < nextWeekEnd;
+          return eventDateOnly >= nextWeekStart && eventDateOnly < nextWeekEnd;
           
         default:
           return true;
