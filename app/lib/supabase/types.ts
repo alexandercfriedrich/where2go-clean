@@ -78,6 +78,7 @@ export type Database = {
           is_cancelled: boolean
           view_count: number
           popularity_score: number
+          slug: string | null
           created_at: string
           updated_at: string
           published_at: string | null
@@ -121,6 +122,7 @@ export type Database = {
           is_cancelled?: boolean
           view_count?: number
           popularity_score?: number
+          slug?: string | null
           created_at?: string
           updated_at?: string
           published_at?: string | null
@@ -164,6 +166,7 @@ export type Database = {
           is_cancelled?: boolean
           view_count?: number
           popularity_score?: number
+          slug?: string | null
           created_at?: string
           updated_at?: string
           published_at?: string | null

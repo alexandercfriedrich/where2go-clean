@@ -212,35 +212,23 @@ export function generateMicrodataProps(property: string, content?: string): Reco
 
 /**
  * Generates a canonical URL for an event
- * Format: {baseUrl}/{citySlug}/event/{date}/{normalized-title}
- * Uses city-first routing consistent with the app's routing structure
+ * Format: {baseUrl}/events/{citySlug}/{slug}
+ * Uses the new event detail page URL structure
  */
 export function generateCanonicalUrl(event: EventData, baseUrl: string = 'https://www.where2go.at'): string {
-  // Normalize title: lowercase, NFKD normalization for diacritics, replace spaces with hyphens, remove special chars
-  const normalizedTitle = event.title
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .trim();
-
-  // Use city from event or fallback to venue, then 'unknown' as last resort
-  const cityRaw = event.city || event.venue || 'unknown';
-  const citySlug = cityRaw
-    .toLowerCase()
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .trim();
-
-  // Ensure date is in YYYY-MM-DD format
-  const date = event.date ? event.date.slice(0, 10) : 'unknown-date';
-
-  return `${baseUrl}/${citySlug}/event/${date}/${normalizedTitle}`;
+  // Import is at top of file, but we need the function here
+  // Use the same slug generation logic as the event detail pages
+  const { generateEventSlug, normalizeCitySlug } = require('./slugGenerator');
+  
+  const eventSlug = generateEventSlug({
+    title: event.title,
+    venue: event.venue,
+    date: event.date
+  });
+  
+  const citySlug = normalizeCitySlug(event.city || event.venue || 'unknown');
+  
+  return `${baseUrl}/events/${citySlug}/${eventSlug}`;
 }
 
 /**

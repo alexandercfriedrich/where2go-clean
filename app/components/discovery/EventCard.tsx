@@ -7,6 +7,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { generateEventSlug, normalizeCitySlug } from '@/lib/slugGenerator';
 import { AddToCalendar } from './AddToCalendar';
 import { ShareButtons } from './ShareButtons';
 import { FavoriteButton } from './FavoriteButton';
@@ -98,6 +99,18 @@ export function EventCard({ event, city = 'Wien' }: EventCardProps) {
   const eventTime = getEventTime(event);
   const displayDate = eventDate ? formatGermanDate(eventDate) : '';
   
+  // Generate slug for event detail page link
+  const eventSlug = generateEventSlug({
+    title: event.title,
+    venue: venue,
+    date: eventDate
+  });
+  
+  const citySlug = normalizeCitySlug(city);
+  
+  // Event detail page URL
+  const eventDetailUrl = `/events/${citySlug}/${eventSlug}`;
+  
   // Get first image from image_urls array or use imageUrl field
   const eventImage = (event as any).image_urls && (event as any).image_urls.length > 0
     ? (event as any).image_urls[0]
@@ -126,7 +139,7 @@ export function EventCard({ event, city = 'Wien' }: EventCardProps) {
     event.source || 'Event';
 
   return (
-    <Link href={`/event/${event.id}`} className="block">
+    <Link href={eventDetailUrl} className="block">
       <div className="dark-event-card">
         {/* Source Badge - Always Visible */}
         <div className="dark-event-source-badge">
