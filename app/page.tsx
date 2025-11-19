@@ -62,7 +62,7 @@ export default async function HomePage() {
       getUpcomingEvents(7, { city, limit: 100 }),
     ]);
 
-    // Convert upcoming events to EventData format for schema
+    // Convert upcoming events from Supabase format to EventData format
     const upcomingEventsData = upcomingEvents.map(convertToEventData);
     
     // Generate schemas

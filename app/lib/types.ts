@@ -27,6 +27,10 @@ export interface EventData {
   
   // Optional image URL for event cards (e.g., from Wien.info)
   imageUrl?: string;
+  
+  // Optional geographic coordinates for GEO targeting
+  latitude?: number;
+  longitude?: number;
 }
 
 // Antwort eines Perplexity-Requests, wie vom Aggregator erwartet

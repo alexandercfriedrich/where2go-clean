@@ -76,7 +76,7 @@ export function HowToSection({ title, description, steps }: HowToSectionProps) {
               itemType="https://schema.org/HowToStep"
               style={{
                 background: 'linear-gradient(135deg, #2A2A2A 0%, #1F1F1F 100%)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
                 borderRadius: '12px',
                 padding: '20px',
                 display: 'flex',

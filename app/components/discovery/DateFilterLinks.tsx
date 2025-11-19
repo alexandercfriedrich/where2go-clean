@@ -31,8 +31,9 @@ export function DateFilterLinks({ city, selectedFilter, onFilterChange }: DateFi
         {filters.map((filter) => {
           const isActive = selectedFilter === filter.id;
           return (
-            <button
+            <Link
               key={filter.id}
+              href={filter.href}
               onClick={(e) => {
                 e.preventDefault();
                 onFilterChange(filter.id);
@@ -44,11 +45,11 @@ export function DateFilterLinks({ city, selectedFilter, onFilterChange }: DateFi
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                 }
               `}
-              aria-pressed={isActive}
+              aria-current={isActive ? 'page' : undefined}
               aria-label={`Zeige Events für ${filter.label}`}
             >
               {filter.label}
-            </button>
+            </Link>
           );
         })}
       </div>

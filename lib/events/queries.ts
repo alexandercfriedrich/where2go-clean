@@ -4,6 +4,7 @@
  */
 
 import { supabase } from '@/lib/supabase/client';
+import { EventData } from '@/lib/types';
 
 export interface EventQueryParams {
   city?: string;
@@ -241,7 +242,7 @@ export async function getUpcomingEvents(
 /**
  * Convert Supabase event to EventData format for Schema.org
  */
-export function convertToEventData(event: any): any {
+export function convertToEventData(event: any): EventData {
   const startDate = event.start_date_time ? new Date(event.start_date_time) : null;
   
   return {
@@ -250,7 +251,7 @@ export function convertToEventData(event: any): any {
     date: startDate ? startDate.toISOString().split('T')[0] : '',
     time: startDate ? startDate.toTimeString().split(' ')[0].substring(0, 5) : '00:00',
     venue: event.venue || event.location || 'Wien',
-    price: event.price_info || event.price || 'Preis auf Anfrage',
+    price: event.price_info || event.price || 'Preis auf Anfrage', // TODO: Externalize to i18n
     website: event.url || event.website || '',
     address: event.address || '',
     description: event.description || '',

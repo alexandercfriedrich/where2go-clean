@@ -35,10 +35,15 @@ export function generateEventSchema(event: EventData, baseUrl: string = 'https:/
     location: {
       '@type': 'Place',
       name: event.venue
-    },
-    eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
-    eventStatus: 'https://schema.org/EventScheduled'
+    }
   };
+
+  // Add event attendance mode and status (can be overridden by event properties in the future)
+  schema.eventAttendanceMode = event.eventType === 'online' 
+    ? 'https://schema.org/OnlineEventAttendanceMode'
+    : 'https://schema.org/OfflineEventAttendanceMode';
+  
+  schema.eventStatus = 'https://schema.org/EventScheduled'; // Can be extended to handle cancelled/postponed events
 
   // Add endDate if endTime is available
   if (event.endTime) {
@@ -55,25 +60,23 @@ export function generateEventSchema(event: EventData, baseUrl: string = 'https:/
     };
   }
 
-  // Add GeoCoordinates if available (from EventData or default to Vienna)
-  // @ts-ignore - latitude/longitude may be added to EventData in the future
+  // Add GeoCoordinates if available
   if (event.latitude && event.longitude) {
-    // @ts-ignore
     schema.location.geo = {
       '@type': 'GeoCoordinates',
-      // @ts-ignore
       latitude: event.latitude,
-      // @ts-ignore
       longitude: event.longitude
     };
   }
 
-  // Add areaServed for local SEO
-  schema.location.areaServed = {
-    '@type': 'City',
-    name: event.city || 'Wien',
-    addressCountry: 'AT'
-  };
+  // Add areaServed for local SEO only when city is provided
+  if (event.city) {
+    schema.location.areaServed = {
+      '@type': 'City',
+      name: event.city,
+      addressCountry: 'AT'
+    };
+  }
 
   // Add description if available
   if (event.description) {
