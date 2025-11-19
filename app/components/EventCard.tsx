@@ -45,6 +45,10 @@ export function EventCard({ event: ev, city = 'wien', formatEventDate }: EventCa
   // Event detail page URL
   const eventDetailUrl = `/events/${citySlug}/${eventSlug}`;
 
+  // Determine link: use event detail page if slug exists, otherwise fallback to website or placeholder
+  const eventLink = ev.slug ? `/events/${citySlug}/${ev.slug}` : (ev.website || '#');
+  const isInternalLink = !!ev.slug;
+
   return (
     <Link 
       href={eventDetailUrl}
