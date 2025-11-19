@@ -192,3 +192,47 @@ export interface DayBucket {
   index: { [category: string]: string[] }; // sorted unique eventIds per category
   updatedAt: string; // ISO timestamp
 }
+
+// Venue types for venue discovery and detail pages
+export interface VenueStats {
+  venue_id: string;
+  venue_slug: string;
+  name: string;
+  full_address: string;
+  city: string;
+  total_events: number;
+  upcoming_events: number;
+  next_event_date?: string;
+  categories: string[];
+  sources: string[];
+}
+
+export interface Venue {
+  id: string;
+  slug: string;
+  name: string;
+  full_address: string;
+  street?: string;
+  street_number?: string;
+  postal_code?: string;
+  city: string;
+  country?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  latitude?: number;
+  longitude?: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface VenueDetail {
+  venue: Venue;
+  stats: {
+    total_events: number;
+    upcoming_events: number;
+    categories: string[];
+    sources: string[];
+  };
+  upcoming_events: EventData[];
+}
