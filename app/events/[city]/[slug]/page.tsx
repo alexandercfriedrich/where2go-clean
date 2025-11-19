@@ -87,7 +87,7 @@ async function getEventBySlug(city: string, slug: string): Promise<EventData | n
   const { data, error } = await supabase
     .from('events')
     .select('*')
-    .eq('city', city)
+    .ilike('city', city)  // Changed from .eq() to .ilike() for case-insensitive match
     .eq('slug', slug)
     .eq('is_cancelled', false)
     .single();
@@ -179,7 +179,7 @@ export async function generateStaticParams() {
     return data
       .filter((e: { city: string; slug: string | null }) => e.slug !== null)
       .map((e: { city: string; slug: string | null }) => ({
-        city: e.city.toLowerCase(),
+        city: normalizeCitySlug(e.city),  // Normalize city name for URL consistency
         slug: e.slug as string
       }));
   } catch (error) {
