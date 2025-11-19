@@ -111,28 +111,31 @@ describe('Discovery Page - Date Filter Logic', () => {
           return eventDateOnly >= today && eventDateOnly < weekEnd;
           
         case 'weekend':
-          // Calculate next weekend (Saturday and Sunday)
+          // Calculate next weekend (Friday, Saturday, and Sunday)
           const dayOfWeek = today.getDay();
-          let daysUntilSaturday: number;
+          let daysUntilFriday: number;
           
-          if (dayOfWeek === 6) {
+          if (dayOfWeek === 5) {
+            // Today is Friday - include today, tomorrow, and day after
+            daysUntilFriday = 0;
+          } else if (dayOfWeek === 6) {
             // Today is Saturday - include today and tomorrow
-            daysUntilSaturday = 0;
+            daysUntilFriday = -1; // Go back to Friday
           } else if (dayOfWeek === 0) {
-            // Today is Sunday - include today only, next Saturday is 6 days away
-            daysUntilSaturday = 6;
+            // Today is Sunday - include today only (Friday was 2 days ago)
+            daysUntilFriday = -2;
           } else {
-            // Monday to Friday - calculate days until Saturday
-            daysUntilSaturday = 6 - dayOfWeek;
+            // Monday to Thursday - calculate days until Friday
+            daysUntilFriday = 5 - dayOfWeek;
           }
           
-          const nextSaturday = new Date(today);
-          nextSaturday.setDate(today.getDate() + daysUntilSaturday);
+          const nextFriday = new Date(today);
+          nextFriday.setDate(today.getDate() + daysUntilFriday);
           
-          const nextMonday = new Date(nextSaturday);
-          nextMonday.setDate(nextSaturday.getDate() + 2); // Saturday + 2 = Monday
+          const nextMonday = new Date(nextFriday);
+          nextMonday.setDate(nextFriday.getDate() + 3); // Friday + 3 = Monday
           
-          return eventDateOnly >= nextSaturday && eventDateOnly < nextMonday;
+          return eventDateOnly >= nextFriday && eventDateOnly < nextMonday;
           
         case 'next-week':
           const nextWeekStart = new Date(today);
@@ -148,7 +151,7 @@ describe('Discovery Page - Date Filter Logic', () => {
   }
 
   describe('Weekend Filter', () => {
-    it('should include Saturday and Sunday when called from Tuesday', () => {
+    it('should include Friday, Saturday and Sunday when called from Tuesday', () => {
       const tuesday = new Date('2025-11-18T10:00:00'); // Tuesday
       const events = [
         { date: '2025-11-18', title: 'Tuesday' },
@@ -159,11 +162,11 @@ describe('Discovery Page - Date Filter Logic', () => {
       ];
 
       const filtered = filterEventsByDate(events, 'weekend', tuesday);
-      expect(filtered.length).toBe(2);
-      expect(filtered.map(e => e.title)).toEqual(['Saturday', 'Sunday']);
+      expect(filtered.length).toBe(3);
+      expect(filtered.map(e => e.title)).toEqual(['Friday', 'Saturday', 'Sunday']);
     });
 
-    it('should include Saturday and Sunday when called from Saturday', () => {
+    it('should include Friday, Saturday and Sunday when called from Saturday', () => {
       const saturday = new Date('2025-11-22T10:00:00'); // Saturday
       const events = [
         { date: '2025-11-21', title: 'Friday' },
@@ -173,35 +176,39 @@ describe('Discovery Page - Date Filter Logic', () => {
       ];
 
       const filtered = filterEventsByDate(events, 'weekend', saturday);
-      expect(filtered.length).toBe(2);
-      expect(filtered.map(e => e.title)).toEqual(['Saturday', 'Sunday']);
+      expect(filtered.length).toBe(3);
+      expect(filtered.map(e => e.title)).toEqual(['Friday', 'Saturday', 'Sunday']);
     });
 
-    it('should include Sunday when called from Sunday', () => {
+    it('should include Friday, Saturday and Sunday when called from Sunday', () => {
       const sunday = new Date('2025-11-23T10:00:00'); // Sunday
       const events = [
+        { date: '2025-11-21', title: 'Friday' },
         { date: '2025-11-22', title: 'Saturday' },
         { date: '2025-11-23', title: 'Sunday' },
         { date: '2025-11-24', title: 'Monday' },
+        { date: '2025-11-28', title: 'Next Friday' },
         { date: '2025-11-29', title: 'Next Saturday' },
         { date: '2025-11-30', title: 'Next Sunday' },
       ];
 
       const filtered = filterEventsByDate(events, 'weekend', sunday);
-      // When called on Sunday, it should include next weekend (Sat+Sun)
-      expect(filtered.length).toBe(2);
-      expect(filtered.map(e => e.title)).toEqual(['Next Saturday', 'Next Sunday']);
+      // When called on Sunday, it should include current Friday, Saturday, Sunday
+      expect(filtered.length).toBe(3);
+      expect(filtered.map(e => e.title)).toEqual(['Friday', 'Saturday', 'Sunday']);
     });
 
-    it('should not include Friday in weekend filter', () => {
-      const tuesday = new Date('2025-11-18T10:00:00');
+    it('should include Friday when called from Friday', () => {
+      const friday = new Date('2025-11-21T10:00:00');
       const events = [
         { date: '2025-11-21', title: 'Friday' },
         { date: '2025-11-22', title: 'Saturday' },
+        { date: '2025-11-23', title: 'Sunday' },
       ];
 
-      const filtered = filterEventsByDate(events, 'weekend', tuesday);
-      expect(filtered.map(e => e.title)).not.toContain('Friday');
+      const filtered = filterEventsByDate(events, 'weekend', friday);
+      expect(filtered.length).toBe(3);
+      expect(filtered.map(e => e.title)).toContain('Friday');
     });
 
     it('should not include Monday in weekend filter', () => {
