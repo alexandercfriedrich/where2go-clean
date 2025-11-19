@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { generateEventMicrodata, generateCanonicalUrl } from '@/lib/schemaOrg';
+import { generateEventSlug } from '@/lib/slugGenerator';
 import { EVENT_CATEGORY_SUBCATEGORIES } from '@/lib/eventCategories';
 import type { EventData } from '@/lib/types';
 
@@ -30,24 +31,39 @@ export function EventCard({ event: ev, city = 'wien', formatEventDate }: EventCa
   // Generate microdata attributes for Schema.org
   const microdataAttrs = generateEventMicrodata(ev);
   const canonicalUrl = generateCanonicalUrl(ev);
-
+  
+  // Generate slug for event detail page link
+  const eventSlug = generateEventSlug({
+    title: ev.title,
+    venue: ev.venue,
+    date: ev.date
+  });
+  
   const citySlug = city.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-');
   const categorySlug = superCat.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
+  
+  // Event detail page URL
+  const eventDetailUrl = `/events/${citySlug}/${eventSlug}`;
 
   return (
-    <div 
-      className={`event-card ${ev.imageUrl ? 'event-card-with-image' : ''}`}
-      {...microdataAttrs}
-      style={{
-        background: 'rgba(255, 255, 255, 0.03)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        borderRadius: '12px',
-        padding: '20px',
-        marginBottom: '16px',
-        transition: 'all 0.3s ease',
-      }}
+    <Link 
+      href={eventDetailUrl}
+      style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}
     >
-      <link itemProp="url" href={canonicalUrl} />
+      <div 
+        className={`event-card ${ev.imageUrl ? 'event-card-with-image' : ''}`}
+        {...microdataAttrs}
+        style={{
+          background: 'rgba(255, 255, 255, 0.03)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: '12px',
+          padding: '20px',
+          marginBottom: '16px',
+          transition: 'all 0.3s ease',
+          cursor: 'pointer',
+        }}
+      >
+        <link itemProp="url" href={canonicalUrl} />
       <meta itemProp="eventStatus" content="https://schema.org/EventScheduled" />
       <meta itemProp="eventAttendanceMode" content="https://schema.org/OfflineEventAttendanceMode" />
       
@@ -178,35 +194,6 @@ export function EventCard({ event: ev, city = 'wien', formatEventDate }: EventCa
           </div>
         )}
 
-        {ev.website && (
-          <div style={{ marginTop: '12px' }}>
-            <a
-              href={ev.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 16px',
-                background: '#FF6B35',
-                color: '#FFFFFF',
-                borderRadius: '6px',
-                textDecoration: 'none',
-                fontSize: '14px',
-                fontWeight: 600,
-              }}
-            >
-              Mehr Infos
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                <polyline points="15 3 21 3 21 9"></polyline>
-                <line x1="10" y1="14" x2="21" y2="3"></line>
-              </svg>
-            </a>
-          </div>
-        )}
-
         {ev.source && (
           <div style={{ marginTop: '12px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.5)' }}>
             Quelle: {ev.source}
@@ -214,5 +201,6 @@ export function EventCard({ event: ev, city = 'wien', formatEventDate }: EventCa
         )}
       </div>
     </div>
+    </Link>
   );
 }
