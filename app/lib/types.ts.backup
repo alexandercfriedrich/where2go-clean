@@ -2,7 +2,6 @@
 
 // Event-Daten, wie sie in der UI und Aggregation verwendet werden
 export interface EventData {
-  // Legacy fields (for backwards compatibility)
   title: string;
   category: string;
   date: string; // YYYY-MM-DD
@@ -28,69 +27,6 @@ export interface EventData {
   
   // Optional image URL for event cards (e.g., from Wien.info)
   imageUrl?: string;
-
-  // ===== EXTENDED FIELDS FOR DATABASE INTEGRATION =====
-  // These fields map to Supabase events table schema
-  id?: string;
-  
-  // Enhanced description fields
-  short_description?: string;
-  
-  // Categorization
-  subcategory?: string;
-  tags?: string[];
-  
-  // Location (enhanced)
-  country?: string;
-  latitude?: number;
-  longitude?: number;
-  
-  // Venue linking - IMPORTANT for database integration
-  venue_id?: string;  // Foreign Key to venues table
-  custom_venue_name?: string;  // Fallback venue name
-  custom_venue_address?: string;  // Fallback address
-  
-  // Date/Time (enhanced)
-  start_date_time?: string;  // ISO 8601 timestamp
-  end_date_time?: string;
-  timezone?: string;
-  is_all_day?: boolean;
-  
-  // Pricing (enhanced)
-  is_free?: boolean;
-  price_min?: number;
-  price_max?: number;
-  price_currency?: string;
-  price_info?: string;
-  
-  // Links (enhanced)
-  website_url?: string;
-  booking_url?: string;
-  ticket_url?: string;
-  source_url?: string;
-  
-  // Media
-  image_urls?: string[];
-  video_url?: string;
-  
-  // Source tracking (enhanced)
-  source_api?: string;
-  external_id?: string;
-  
-  // Status
-  is_verified?: boolean;
-  is_featured?: boolean;
-  is_cancelled?: boolean;
-  
-  // Metrics
-  view_count?: number;
-  popularity_score?: number;
-  
-  // Timestamps
-  created_at?: string;
-  updated_at?: string;
-  published_at?: string;
-  last_validated_at?: string;
 }
 
 // Antwort eines Perplexity-Requests, wie vom Aggregator erwartet
@@ -251,60 +187,4 @@ export interface DayBucket {
   eventsById: { [eventId: string]: EventData };
   index: { [category: string]: string[] }; // sorted unique eventIds per category
   updatedAt: string; // ISO timestamp
-}
-
-// ===== VENUE TYPES (for Wien.info scraper integration) =====
-
-// Venue data structure matching Supabase venues table
-export interface VenueData {
-  id?: string;
-  venue_slug: string;
-  name: string;
-  street?: string;
-  street_number?: string;
-  postal_code?: string;
-  city: string;
-  country: string;
-  full_address?: string;
-  phone?: string;
-  email?: string;
-  website?: string;
-  latitude?: number;
-  longitude?: number;
-  description?: string;
-  accessibility_info?: string;
-  source?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-// Result from venue scraper (before DB insertion)
-export interface VenueScraperResult {
-  name: string;
-  street?: string;
-  street_number?: string;
-  postal_code?: string;
-  city?: string;
-  country?: string;
-  full_address?: string;
-  phone?: string;
-  email?: string;
-  website?: string;
-  latitude?: number;
-  longitude?: number;
-  description?: string;
-  accessibility_info?: string;
-}
-
-// Result from event detail page scraper
-export interface DetailScraperResult {
-  price?: string;
-  priceDetails?: string;
-  ticketUrl?: string;
-  detailedDescription?: string;
-  organizer?: string;
-  accessibility?: string;
-  phoneNumber?: string;
-  email?: string;
-  error?: string;
 }
