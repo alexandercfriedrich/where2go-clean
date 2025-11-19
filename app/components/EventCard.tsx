@@ -34,6 +34,10 @@ export function EventCard({ event: ev, city = 'wien', formatEventDate }: EventCa
   const citySlug = city.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-');
   const categorySlug = superCat.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
 
+  // Determine link: use event detail page if slug exists, otherwise external website
+  const eventLink = ev.slug ? `/events/${citySlug}/${ev.slug}` : ev.website;
+  const isInternalLink = !!ev.slug;
+
   return (
     <div 
       className={`event-card ${ev.imageUrl ? 'event-card-with-image' : ''}`}
@@ -178,32 +182,55 @@ export function EventCard({ event: ev, city = 'wien', formatEventDate }: EventCa
           </div>
         )}
 
-        {ev.website && (
+        {(ev.website || ev.slug) && (
           <div style={{ marginTop: '12px' }}>
-            <a
-              href={ev.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 16px',
-                background: '#FF6B35',
-                color: '#FFFFFF',
-                borderRadius: '6px',
-                textDecoration: 'none',
-                fontSize: '14px',
-                fontWeight: 600,
-              }}
-            >
-              Mehr Infos
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                <polyline points="15 3 21 3 21 9"></polyline>
-                <line x1="10" y1="14" x2="21" y2="3"></line>
-              </svg>
-            </a>
+            {isInternalLink ? (
+              <Link
+                href={eventLink}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 16px',
+                  background: '#FF6B35',
+                  color: '#FFFFFF',
+                  borderRadius: '6px',
+                  textDecoration: 'none',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                }}
+              >
+                Event Details
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </Link>
+            ) : (
+              <a
+                href={eventLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 16px',
+                  background: '#FF6B35',
+                  color: '#FFFFFF',
+                  borderRadius: '6px',
+                  textDecoration: 'none',
+                  fontSize: '14px',
+                  fontWeight: 600,
+                }}
+              >
+                Mehr Infos
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                  <polyline points="15 3 21 3 21 9"></polyline>
+                  <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+              </a>
+            )}
           </div>
         )}
 

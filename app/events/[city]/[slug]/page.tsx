@@ -74,13 +74,13 @@ export async function generateMetadata({ params }: EventPageProps): Promise<Meta
 // Generate static params for top events (optional - can be removed for fully dynamic)
 export async function generateStaticParams() {
   try {
-    // Pre-render only upcoming featured events for faster initial load
+    // Pre-render top 100 upcoming featured events for faster initial load
     const { data: events } = await supabase
       .from('events')
       .select('slug, city')
       .gte('start_date_time', new Date().toISOString())
       .eq('is_featured', true)
-      .limit(50);
+      .limit(100);
 
     if (!events) return [];
 
@@ -174,7 +174,7 @@ export default async function EventDetailPage({ params }: EventPageProps) {
       <SchemaOrg schema={eventSchema} />
       <SchemaOrg schema={breadcrumbSchema} />
 
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
+      <div className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Breadcrumb Navigation */}
         <nav className="mb-6 text-sm">
           <ol className="flex items-center space-x-2 text-gray-400">
@@ -194,16 +194,19 @@ export default async function EventDetailPage({ params }: EventPageProps) {
           </ol>
         </nav>
 
-        {/* Hero Section with Image */}
-        {dbEvent.image_urls && dbEvent.image_urls.length > 0 && (
-          <div className="mb-8 rounded-lg overflow-hidden">
-            <img
-              src={dbEvent.image_urls[0]}
-              alt={dbEvent.title}
-              className="w-full h-64 md:h-96 object-cover"
-            />
-          </div>
-        )}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content Area */}
+          <div className="lg:col-span-2">
+            {/* Hero Section with Image */}
+            {dbEvent.image_urls && dbEvent.image_urls.length > 0 && (
+              <div className="mb-8 rounded-lg overflow-hidden">
+                <img
+                  src={dbEvent.image_urls[0]}
+                  alt={dbEvent.title}
+                  className="w-full h-64 md:h-96 object-cover"
+                />
+              </div>
+            )}
 
         {/* Event Header */}
         <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6 mb-6">
@@ -307,38 +310,86 @@ export default async function EventDetailPage({ params }: EventPageProps) {
           </div>
         )}
 
-        {/* Action Buttons */}
-        <div className="flex gap-4 mb-8">
-          {dbEvent.website_url && (
-            <a
-              href={dbEvent.website_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors text-center"
-            >
-              🌐 Website besuchen
-            </a>
-          )}
-          {(dbEvent.booking_url || dbEvent.ticket_url) && (
-            <a
-              href={(dbEvent.booking_url || dbEvent.ticket_url) || ''}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition-colors text-center"
-            >
-              🎫 Tickets kaufen
-            </a>
-          )}
-        </div>
+            {/* Back Link */}
+            <div className="text-center mt-8">
+              <Link
+                href={`/${params.city}`}
+                className="inline-block text-gray-400 hover:text-white transition-colors"
+              >
+                ← Zurück zu allen Events in {dbEvent.city}
+              </Link>
+            </div>
+          </div>
 
-        {/* Back Link */}
-        <div className="text-center">
-          <Link
-            href={`/${params.city}`}
-            className="inline-block text-gray-400 hover:text-white transition-colors"
-          >
-            ← Zurück zu allen Events in {dbEvent.city}
-          </Link>
+          {/* Sticky CTA Sidebar */}
+          <div className="lg:col-span-1">
+            <div className="sticky top-8 space-y-4">
+              {/* Quick Info Card */}
+              <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6">
+                <h3 className="text-lg font-bold text-white mb-4">Event Info</h3>
+                
+                {/* Price */}
+                <div className="mb-4">
+                  <p className="text-sm text-gray-400 mb-1">Preis</p>
+                  <p className="text-xl font-bold text-white">
+                    {dbEvent.is_free ? 'Gratis' : (dbEvent.price_info || 'Preis auf Anfrage')}
+                  </p>
+                </div>
+
+                {/* Date */}
+                <div className="mb-4">
+                  <p className="text-sm text-gray-400 mb-1">Datum</p>
+                  <p className="text-white">{formattedDate}</p>
+                </div>
+
+                {/* Time */}
+                {formattedTime && (
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-400 mb-1">Uhrzeit</p>
+                    <p className="text-white">
+                      {formattedTime}
+                      {formattedEndTime && ` - ${formattedEndTime}`}
+                    </p>
+                  </div>
+                )}
+
+                {/* Venue */}
+                <div>
+                  <p className="text-sm text-gray-400 mb-1">Ort</p>
+                  <p className="text-white">{dbEvent.custom_venue_name || 'Veranstaltungsort'}</p>
+                  {dbEvent.custom_venue_address && (
+                    <p className="text-sm text-gray-300 mt-1">{dbEvent.custom_venue_address}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              {(dbEvent.website_url || dbEvent.booking_url || dbEvent.ticket_url) && (
+                <div className="space-y-3">
+                  {(dbEvent.booking_url || dbEvent.ticket_url) && (
+                    <a
+                      href={(dbEvent.booking_url || dbEvent.ticket_url) || ''}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full bg-orange-500 hover:bg-orange-600 text-white font-semibold py-4 px-6 rounded-lg transition-colors text-center"
+                    >
+                      🎫 Tickets kaufen
+                    </a>
+                  )}
+                  {dbEvent.website_url && (
+                    <a
+                      href={dbEvent.website_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block w-full bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-6 rounded-lg transition-colors text-center"
+                    >
+                      🌐 Website besuchen
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

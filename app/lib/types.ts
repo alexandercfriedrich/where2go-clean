@@ -31,6 +31,9 @@ export interface EventData {
   // Optional geographic coordinates for GEO targeting
   latitude?: number;
   longitude?: number;
+  
+  // Optional slug for event detail pages
+  slug?: string;
 }
 
 // Antwort eines Perplexity-Requests, wie vom Aggregator erwartet
