@@ -13,6 +13,9 @@ import { LocationBar } from '@/components/discovery/LocationBar';
 import { CategoryBrowser } from '@/components/discovery/CategoryBrowser';
 import { SearchBar } from '@/components/discovery/SearchBar';
 import { EventCard } from '@/components/discovery/EventCard';
+import { FAQSection } from '@/components/FAQSection';
+import { HowToSection } from '@/components/HowToSection';
+import { discoverPageFAQs, discoverPageHowTo } from '@/lib/content/discoverPageContent';
 
 interface DiscoveryClientProps {
   initialTrendingEvents: any[];
@@ -274,6 +277,23 @@ export default function DiscoveryClient({
                 </p>
               </div>
             )}
+
+          {/* HowTo Section */}
+          <div className="max-w-4xl mx-auto">
+            <HowToSection
+              title={discoverPageHowTo.title}
+              description={discoverPageHowTo.description}
+              steps={discoverPageHowTo.steps}
+            />
+          </div>
+
+          {/* FAQ Section */}
+          <div className="max-w-4xl mx-auto">
+            <FAQSection
+              faqs={discoverPageFAQs}
+              title="Häufig gestellte Fragen zu Events in Wien"
+            />
+          </div>
         </div>
       </div>
     </ThemeProvider>

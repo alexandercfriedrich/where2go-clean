@@ -9,7 +9,7 @@ import 'react-quill-new/dist/quill.snow.css';
 import DesignCssLoader from './components/DesignCssLoader';
 import SchemaOrg from './components/SchemaOrg';
 import MainFooter from './components/MainFooter';
-import { generateWebSiteSchema } from './lib/schemaOrg';
+import { generateWebSiteSchema, generateViennaPlaceSchema } from './lib/schemaOrg';
 
 export const metadata: Metadata = {
   title: 'Where2Go - Entdecke Events in deiner Stadt!',
@@ -19,9 +19,15 @@ export const metadata: Metadata = {
   creator: 'Where2Go',
   publisher: 'Where2Go',
   robots: { index: true, follow: true },
+  alternates: {
+    canonical: 'https://www.where2go.at',
+    languages: {
+      'de-AT': 'https://www.where2go.at',
+    },
+  },
   openGraph: {
     type: 'website',
-    locale: 'de_DE',
+    locale: 'de_AT',
     url: 'https://www.where2go.at',
     title: 'Where2Go - Alle Events. Weltweit. Eine Plattform.',
     description: 'Finde Events in deiner Stadt',
@@ -30,16 +36,24 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
   },
+  other: {
+    'geo.region': 'AT-9',
+    'geo.placename': 'Wien',
+    'geo.position': '48.2082;16.3738',
+    'ICBM': '48.2082, 16.3738',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const websiteSchema = generateWebSiteSchema();
+  const viennaPlaceSchema = generateViennaPlaceSchema();
   
   return (
-    <html lang="de">
+    <html lang="de-AT">
       <head>
         {/* Schema.org structured data for SEO */}
         <SchemaOrg schema={websiteSchema} />
+        <SchemaOrg schema={viennaPlaceSchema} />
         
         {/* Google tag (gtag.js) */}
         <Script

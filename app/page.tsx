@@ -6,11 +6,46 @@
 import { Metadata } from 'next';
 import DiscoveryClient from './discover/DiscoveryClient';
 import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents } from '../lib/events/queries';
+import { discoverPageMetadata } from './lib/content/discoverPageContent';
 
 export const metadata: Metadata = {
-  title: 'Where2Go - Entdecke Events in deiner Stadt!',
-  description: 'Entdecke personalisierte Events, Trending-Veranstaltungen und Weekend-Highlights in Wien und vielen weiteren Städten.',
-  keywords: ['events', 'veranstaltungen', 'konzerte', 'theater', 'nightlife', 'wien', 'berlin', 'münchen'],
+  title: discoverPageMetadata.title,
+  description: discoverPageMetadata.description,
+  keywords: discoverPageMetadata.keywords,
+  alternates: {
+    canonical: 'https://www.where2go.at',
+    languages: {
+      'de-AT': 'https://www.where2go.at',
+    },
+  },
+  openGraph: {
+    title: discoverPageMetadata.openGraph.title,
+    description: discoverPageMetadata.openGraph.description,
+    locale: discoverPageMetadata.openGraph.locale,
+    type: discoverPageMetadata.openGraph.type,
+    siteName: discoverPageMetadata.openGraph.siteName,
+    url: 'https://www.where2go.at',
+    images: [
+      {
+        url: 'https://www.where2go.at/og-image.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'Where2Go - Entdecke Events in Wien',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: discoverPageMetadata.openGraph.title,
+    description: discoverPageMetadata.openGraph.description,
+    images: ['https://www.where2go.at/og-image.jpg'],
+  },
+  other: {
+    'geo.region': 'AT-9',
+    'geo.placename': 'Wien',
+    'geo.position': '48.2082;16.3738',
+    'ICBM': '48.2082, 16.3738',
+  },
 };
 
 export default async function HomePage() {
