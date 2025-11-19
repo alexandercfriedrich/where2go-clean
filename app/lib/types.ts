@@ -22,6 +22,11 @@ export interface EventData {
   cacheUntil?: string; // ISO string bis wann Event gecached werden darf
   parsingWarning?: string | string[]; // Warnings from parsing/validation
 
+  // Venue linking - for Supabase integration
+  venue_id?: string; // Foreign Key zu venues table
+  custom_venue_name?: string; // Fallback venue name
+  custom_venue_address?: string; // Fallback address
+
   // Herkunftsmarker für Badges
   source?: 'cache' | 'ai' | 'rss' | 'ra' | string;
   
@@ -187,4 +192,57 @@ export interface DayBucket {
   eventsById: { [eventId: string]: EventData };
   index: { [category: string]: string[] }; // sorted unique eventIds per category
   updatedAt: string; // ISO timestamp
+}
+
+// Venue Types - for Wien.info venue scraper integration
+export interface VenueData {
+  id?: string;
+  venue_slug: string;
+  name: string;
+  street?: string;
+  street_number?: string;
+  postal_code?: string;
+  city: string;
+  country: string;
+  full_address?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  latitude?: number;
+  longitude?: number;
+  description?: string;
+  accessibility_info?: string;
+  source?: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface VenueScraperResult {
+  name: string;
+  street?: string;
+  street_number?: string;
+  postal_code?: string;
+  city?: string;
+  country?: string;
+  full_address?: string;
+  phone?: string;
+  email?: string;
+  website?: string;
+  latitude?: number;
+  longitude?: number;
+  description?: string;
+  accessibility_info?: string;
+}
+
+// Detail Scraper Result - for Wien.info detail page scraping
+export interface DetailScraperResult {
+  price?: string;
+  priceDetails?: string;
+  ticketUrl?: string;
+  detailedDescription?: string;
+  organizer?: string;
+  accessibility?: string;
+  phoneNumber?: string;
+  email?: string;
+  error?: string;
 }
