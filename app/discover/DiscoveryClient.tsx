@@ -13,6 +13,7 @@ import { LocationBar } from '@/components/discovery/LocationBar';
 import { CategoryBrowser } from '@/components/discovery/CategoryBrowser';
 import { SearchBar } from '@/components/discovery/SearchBar';
 import { EventCard } from '@/components/discovery/EventCard';
+import { VenueStats } from '@/components/VenueStats';
 
 interface DiscoveryClientProps {
   initialTrendingEvents: any[];
@@ -259,6 +260,11 @@ export default function DiscoveryClient({
             </section>
           )}
 
+          {/* Top Venues Section */}
+          <section className="mb-16">
+            <VenueStatsSection city={city} />
+          </section>
+
           {/* Fallback message */}
           {filteredEvents.personalized.length === 0 &&
             filteredEvents.trending.length === 0 &&
@@ -278,4 +284,8 @@ export default function DiscoveryClient({
       </div>
     </ThemeProvider>
   );
+}
+
+function VenueStatsSection({ city }: { city: string }) {
+  return <VenueStats city={city} limit={15} layout="grid" />;
 }
