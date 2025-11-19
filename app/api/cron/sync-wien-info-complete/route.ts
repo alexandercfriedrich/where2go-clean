@@ -1,18 +1,28 @@
 // app/api/cron/sync-wien-info-complete/route.ts
 
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchWienInfoEvents } from '@/app/lib/sources/wienInfo';
-import { batchScrapeWienInfoDetails } from '@/app/lib/sources/wienInfoDetailScraper';
-import { batchScrapeVenues } from '@/app/lib/sources/wienInfoVenueScraper';
-import { batchUpsertVenues } from '@/app/lib/venueStore';
+import { fetchWienInfoEvents } from '@/lib/sources/wienInfo';
+import { batchScrapeWienInfoDetails } from '@/lib/sources/wienInfoDetailScraper';
+import { batchScrapeVenues } from '@/lib/sources/wienInfoVenueScraper';
+import { batchUpsertVenues } from '@/lib/venueStore';
 import { createClient } from '@supabase/supabase-js';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-const supabase = createClient(supabaseUrl, supabaseServiceKey);
+/**
+ * Helper: Get Supabase client (lazy initialization)
+ */
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Missing Supabase environment variables');
+  }
+  
+  return createClient(supabaseUrl, supabaseServiceKey);
+}
 
 /**
  * Helper: Extract minimum price from price string
@@ -152,6 +162,7 @@ export async function POST(request: NextRequest) {
     // ===== STEP 6: Upsert Events into Database =====
     console.log('\n[STEP 6] Upserting events into database...');
     
+    const supabase = getSupabaseClient();
     const { data: upsertedEvents, error: upsertError } = await supabase
       .from('events')
       .upsert(

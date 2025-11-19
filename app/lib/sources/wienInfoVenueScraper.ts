@@ -1,7 +1,7 @@
 // lib/sources/wienInfoVenueScraper.ts
 
 import * as cheerio from 'cheerio';
-import type { VenueScraperResult } from '@/app/lib/types';
+import type { VenueScraperResult } from '@/lib/types';
 
 /**
  * Generates a URL-safe slug from venue name

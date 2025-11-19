@@ -1,19 +1,24 @@
 // app/lib/venueStore.ts
 
 import { createClient } from '@supabase/supabase-js';
-import type { VenueData, VenueScraperResult } from '@/app/lib/types';
-import { generateVenueSlug } from '@/app/lib/sources/wienInfoVenueScraper';
+import type { VenueData, VenueScraperResult } from '@/lib/types';
+import { generateVenueSlug } from '@/lib/sources/wienInfoVenueScraper';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+/**
+ * Get or create Supabase client (lazy initialization)
+ */
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!supabaseUrl || !supabaseServiceKey) {
-  throw new Error('Missing Supabase environment variables');
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error('Missing Supabase environment variables (NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)');
+  }
+
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { persistSession: false }
+  });
 }
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: { persistSession: false }
-});
 
 /**
  * Upserts a venue into database
@@ -23,6 +28,7 @@ export async function upsertVenue(
   venueData: VenueScraperResult
 ): Promise<string | null> {
   try {
+    const supabase = getSupabaseClient();
     const venueSlug = generateVenueSlug(venueData.name);
     
     const venueRecord: Partial<VenueData> = {
@@ -73,6 +79,7 @@ export async function upsertVenue(
  */
 export async function getVenueByName(venueName: string): Promise<VenueData | null> {
   try {
+    const supabase = getSupabaseClient();
     const venueSlug = generateVenueSlug(venueName);
     
     const { data, error } = await supabase
@@ -127,6 +134,7 @@ export async function batchUpsertVenues(
  */
 export async function getVenuesByCity(city: string = 'Wien'): Promise<VenueData[]> {
   try {
+    const supabase = getSupabaseClient();
     const { data, error } = await supabase
       .from('venues')
       .select('*')

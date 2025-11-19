@@ -1,7 +1,7 @@
 // app/lib/sources/wienInfoDetailScraper.ts
 
 import * as cheerio from 'cheerio';
-import type { DetailScraperResult } from '@/app/lib/types';
+import type { DetailScraperResult } from '@/lib/types';
 
 /**
  * Cleans and normalizes price text
