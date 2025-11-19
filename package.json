@@ -13,7 +13,9 @@
     "migrate:dry-run": "ts-node app/lib/migration/redis-to-postgres.ts --dry-run",
     "supabase:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_REF > app/lib/supabase/types.ts",
     "import:wien": "ts-node -e \"import('./app/lib/importers/wienInfoImporter.ts').then(m => m.importWienInfoEvents({ debug: true })).then(stats => console.log('Import complete:', stats))\"",
-    "import:wien:dry-run": "ts-node -e \"import('./app/lib/importers/wienInfoImporter.ts').then(m => m.importWienInfoEvents({ dryRun: true, debug: true })).then(stats => console.log('Dry-run complete:', stats))\""
+    "import:wien:dry-run": "ts-node -e \"import('./app/lib/importers/wienInfoImporter.ts').then(m => m.importWienInfoEvents({ dryRun: true, debug: true })).then(stats => console.log('Dry-run complete:', stats))\"",
+    "test:venue": "tsx scripts/testVenueIntegration.ts",
+    "test:venue-db": "TEST_DATABASE=true tsx scripts/testVenueIntegration.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",

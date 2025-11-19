@@ -389,6 +389,18 @@ function normalizeWienInfoEvent(
 
   const { date: primaryDate, time } = pickDateTimeWithinWindow(wienInfoEvent, fromISO, toISO);
 
+  // Create proper ISO 8601 timestamp
+  const startDateTime = time && time !== 'ganztags' 
+    ? `${primaryDate}T${time}:00+01:00`
+    : `${primaryDate}T00:00:00+01:00`;
+  
+  let endDateTime: string | undefined = undefined;
+  if (wienInfoEvent.endDate && wienInfoEvent.endDate.includes('T')) {
+    endDateTime = wienInfoEvent.endDate;
+  } else if (wienInfoEvent.end_time && wienInfoEvent.end_time !== '00:00') {
+    endDateTime = `${primaryDate}T${wienInfoEvent.end_time}:00+01:00`;
+  }
+
   let endTime: string | undefined = undefined;
   if (wienInfoEvent.endDate && wienInfoEvent.endDate.includes('T')) {
     const t = wienInfoEvent.endDate.split('T')[1]?.split(/[+Z]/)[0]?.slice(0, 5);
@@ -414,6 +426,10 @@ function normalizeWienInfoEvent(
     || wienInfoEvent.teaserText 
     || '';
   
+  const shortDescription = wienInfoEvent.teaserText 
+    || wienInfoEvent.subtitle?.substring(0, 200)
+    || '';
+  
   // Handle ticket URL
   const bookingLink = wienInfoEvent.ticket_url || undefined;
   
@@ -424,10 +440,11 @@ function normalizeWienInfoEvent(
   const address = wienInfoEvent.address || wienInfoEvent.location || 'Wien, Austria';
 
   return {
+    // Legacy fields (for backwards compatibility)
     title: wienInfoEvent.title,
     category,
     date: primaryDate,
-    time: wienInfoEvent.start_time || time, // Use start_time if available, otherwise use calculated time
+    time: wienInfoEvent.start_time || time,
     venue: wienInfoEvent.location || 'Wien',
     price,
     website: fullUrl,
@@ -437,6 +454,43 @@ function normalizeWienInfoEvent(
     address,
     ...(endTime || wienInfoEvent.end_time ? { endTime: wienInfoEvent.end_time || endTime } : {}),
     ...(imageUrl ? { imageUrl } : {}),
-    ...(bookingLink ? { bookingLink } : {})
-  } as unknown as EventData;
+    ...(bookingLink ? { bookingLink } : {}),
+    
+    // Extended fields for database integration
+    short_description: shortDescription,
+    tags: wienInfoEvent.tags?.map(t => t.toString()) || [],
+    country: 'Austria',
+    latitude: wienInfoEvent.latitude,
+    longitude: wienInfoEvent.longitude,
+    
+    // Venue - will be linked via venue_id later
+    custom_venue_name: wienInfoEvent.location || 'Wien',
+    custom_venue_address: wienInfoEvent.address,
+    
+    // Date/Time (enhanced)
+    start_date_time: startDateTime,
+    end_date_time: endDateTime,
+    timezone: 'Europe/Vienna',
+    is_all_day: time === 'ganztags',
+    
+    // Pricing - will be enhanced by detail scraper
+    price_info: wienInfoEvent.price || '',
+    
+    // Links
+    website_url: fullUrl,
+    source_url: fullUrl,
+    ticket_url: wienInfoEvent.ticket_url,
+    
+    // Media
+    image_urls: imageUrl ? [imageUrl] : [],
+    
+    // Source tracking
+    source_api: 'wien.info/ajax/de/events',
+    external_id: wienInfoEvent.id,
+    
+    // Status
+    is_verified: true,
+    is_featured: false,
+    is_cancelled: false,
+  } as EventData;
 }
