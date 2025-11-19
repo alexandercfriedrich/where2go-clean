@@ -1,6 +1,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { supabase } from '@/lib/supabase/client';
 import { generateEventSchema, generateBreadcrumbSchema } from '@/lib/schemaOrg';
 import SchemaOrg from '@/components/SchemaOrg';
@@ -59,6 +60,9 @@ export async function generateMetadata({ params }: EventPageProps): Promise<Meta
         ] : []
       },
       alternates: {
+        // Canonical URL for slug-based event detail pages
+        // Note: This differs from generateCanonicalUrl() which uses /{city}/event/{date}/{title} format
+        // Slug-based URLs are the canonical URLs for database-stored events with unique slugs
         canonical: `https://www.where2go.at/events/${params.city}/${params.slug}`
       }
     };
@@ -84,10 +88,13 @@ export async function generateStaticParams() {
 
     if (!events) return [];
 
-    return events.map((event: { city: string; slug: string | null }) => ({
-      city: event.city.toLowerCase(),
-      slug: event.slug || ''
-    }));
+    // Filter out events without slugs to prevent build failures
+    return events
+      .filter((event: { city: string; slug: string | null }) => event.slug != null)
+      .map((event: { city: string; slug: string | null }) => ({
+        city: event.city.toLowerCase(),
+        slug: event.slug as string
+      }));
   } catch (error) {
     console.error('Error generating static params:', error);
     return [];
@@ -199,11 +206,14 @@ export default async function EventDetailPage({ params }: EventPageProps) {
           <div className="lg:col-span-2">
             {/* Hero Section with Image */}
             {dbEvent.image_urls && dbEvent.image_urls.length > 0 && (
-              <div className="mb-8 rounded-lg overflow-hidden">
-                <img
+              <div className="mb-8 rounded-lg overflow-hidden relative h-64 md:h-96">
+                <Image
                   src={dbEvent.image_urls[0]}
                   alt={dbEvent.title}
-                  className="w-full h-64 md:h-96 object-cover"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 66vw, 50vw"
+                  priority
                 />
               </div>
             )}
@@ -294,8 +304,10 @@ export default async function EventDetailPage({ params }: EventPageProps) {
           </div>
         )}
 
-        {/* Map (if coordinates available) */}
-        {dbEvent.latitude && dbEvent.longitude && (
+        {/* Map (if coordinates available and valid) */}
+        {dbEvent.latitude && dbEvent.longitude && 
+         Number(dbEvent.latitude) >= -90 && Number(dbEvent.latitude) <= 90 &&
+         Number(dbEvent.longitude) >= -180 && Number(dbEvent.longitude) <= 180 && (
           <div className="bg-white/5 backdrop-blur-sm rounded-lg p-6 mb-6">
             <h2 className="text-2xl font-bold text-white mb-4">Standort</h2>
             <div className="aspect-video rounded-lg overflow-hidden">
@@ -303,7 +315,7 @@ export default async function EventDetailPage({ params }: EventPageProps) {
                 width="100%"
                 height="100%"
                 frameBorder="0"
-                src={`https://www.openstreetmap.org/export/embed.html?bbox=${dbEvent.longitude - 0.01},${dbEvent.latitude - 0.01},${dbEvent.longitude + 0.01},${dbEvent.latitude + 0.01}&layer=mapnik&marker=${dbEvent.latitude},${dbEvent.longitude}`}
+                src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(dbEvent.longitude) - 0.01},${Number(dbEvent.latitude) - 0.01},${Number(dbEvent.longitude) + 0.01},${Number(dbEvent.latitude) + 0.01}&layer=mapnik&marker=${dbEvent.latitude},${dbEvent.longitude}`}
                 style={{ border: 0 }}
               ></iframe>
             </div>

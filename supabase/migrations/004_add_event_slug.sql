@@ -14,6 +14,7 @@ CREATE OR REPLACE FUNCTION generate_event_slug()
 RETURNS TRIGGER AS $$
 DECLARE
   base_slug TEXT;
+  venue_name TEXT;
   date_part TEXT;
   id_suffix TEXT;
   final_slug TEXT;
@@ -26,9 +27,17 @@ BEGIN
   -- Generate base slug from title
   base_slug := slugify(NEW.title);
   
-  -- Add venue if available (use custom_venue_name if venue_id is null)
+  -- Get venue name: prioritize custom_venue_name, then fetch from venues table if venue_id exists
   IF NEW.custom_venue_name IS NOT NULL AND NEW.custom_venue_name != '' THEN
-    base_slug := base_slug || '-' || slugify(NEW.custom_venue_name);
+    venue_name := NEW.custom_venue_name;
+  ELSIF NEW.venue_id IS NOT NULL THEN
+    -- Fetch venue name from venues table
+    SELECT name INTO venue_name FROM venues WHERE id = NEW.venue_id;
+  END IF;
+  
+  -- Add venue to slug if available
+  IF venue_name IS NOT NULL AND venue_name != '' THEN
+    base_slug := base_slug || '-' || slugify(venue_name);
   END IF;
   
   -- Extract date from start_date_time (YYYY-MM-DD format)

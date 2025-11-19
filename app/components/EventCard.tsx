@@ -34,8 +34,8 @@ export function EventCard({ event: ev, city = 'wien', formatEventDate }: EventCa
   const citySlug = city.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-');
   const categorySlug = superCat.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
 
-  // Determine link: use event detail page if slug exists, otherwise external website
-  const eventLink = ev.slug ? `/events/${citySlug}/${ev.slug}` : ev.website;
+  // Determine link: use event detail page if slug exists, otherwise fallback to website or placeholder
+  const eventLink = ev.slug ? `/events/${citySlug}/${ev.slug}` : (ev.website || '#');
   const isInternalLink = !!ev.slug;
 
   return (

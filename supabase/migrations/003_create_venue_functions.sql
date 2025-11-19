@@ -4,7 +4,7 @@
 
 -- Helper function to create URL-friendly slugs from venue names
 -- Mirrors the slugify function in app/lib/hotCityStore.ts
-CREATE OR REPLACE FUNCTION slugify(text TEXT)
+CREATE OR REPLACE FUNCTION slugify(input_text TEXT)
 RETURNS TEXT AS $$
 BEGIN
   RETURN LOWER(
@@ -12,8 +12,8 @@ BEGIN
       REGEXP_REPLACE(
         REGEXP_REPLACE(
           REGEXP_REPLACE(
-            text,
-            '[^\w\s-]', '', 'g'  -- Remove special chars
+            input_text,
+            '[^a-zA-Z0-9\s-]', '', 'g'  -- Remove special chars (ASCII only, matches JS slugify)
           ),
           '[\s_-]+', '-', 'g'    -- Replace spaces and underscores with hyphens
         ),
