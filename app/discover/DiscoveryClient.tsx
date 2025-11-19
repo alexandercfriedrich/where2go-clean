@@ -80,7 +80,7 @@ export default function DiscoveryClient({
             // Today is Saturday - include today and tomorrow
             daysUntilFriday = -1; // Go back to Friday
           } else if (dayOfWeek === 0) {
-            // Today is Sunday - include today only (Friday was 2 days ago)
+            // Today is Sunday - go back to Friday to include all weekend days (Friday, Saturday, Sunday)
             daysUntilFriday = -2;
           } else {
             // Monday to Thursday - calculate days until Friday

@@ -224,8 +224,7 @@ export function EventCard({ event, city = 'Wien' }: EventCardProps) {
           {/* Mehr Info button - always displayed */}
           <a
             href={event.website || `/event/${event.id}`}
-            target="_blank"
-            rel="noopener noreferrer"
+            {...(event.website && { target: "_blank", rel: "noopener noreferrer" })}
             className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#FF6B35] hover:bg-[#e55a2b] text-white text-sm font-medium rounded-md transition-colors"
             onClick={(e) => e.stopPropagation()}
           >
