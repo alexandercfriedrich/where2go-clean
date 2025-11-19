@@ -51,16 +51,16 @@ BEGIN
       v.name,
       v.address,
       v.city,
-      COUNT(*) FILTER (WHERE e.id IS NOT NULL) AS total_count,
+      COUNT(e.id) AS total_count,
       COUNT(*) FILTER (WHERE e.start_date_time >= NOW()) AS upcoming_count,
       MIN(e.start_date_time) FILTER (WHERE e.start_date_time >= NOW()) AS next_event,
       ARRAY_AGG(DISTINCT e.category) FILTER (WHERE e.category IS NOT NULL) AS event_categories,
       ARRAY_AGG(DISTINCT e.source) FILTER (WHERE e.source IS NOT NULL) AS event_sources
     FROM venues v
-    LEFT JOIN events e ON v.id = e.venue_id
+    INNER JOIN events e ON v.id = e.venue_id
     WHERE 
       v.city = p_city
-      AND (p_source IS NULL OR e.source = p_source OR e.id IS NULL)
+      AND (p_source IS NULL OR e.source = p_source)
       AND (e.is_cancelled IS NULL OR e.is_cancelled = false)
     GROUP BY v.id, v.name, v.address, v.city
     HAVING COUNT(*) FILTER (WHERE e.start_date_time >= NOW()) > 0
