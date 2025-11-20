@@ -148,11 +148,11 @@ export default function AdminPage() {
   };
 
   const handleVenueScraper = async () => {
-    if (!confirm('Start venue event scraper? This will fetch events from all configured venues and may take several minutes.')) return;
+    if (!confirm('Start venue event scraper? This will trigger a GitHub Actions workflow to fetch events from all configured venues.')) return;
 
     try {
       setScraperLoading(true);
-      setScraperMessage('Running venue scrapers...');
+      setScraperMessage('Triggering GitHub Actions workflow...');
 
       const response = await fetch('/api/admin/venue-scrapers', {
         method: 'POST',
@@ -164,28 +164,22 @@ export default function AdminPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data?.error || 'Venue scraper failed');
+        throw new Error(data?.message || data?.error || 'Failed to trigger venue scraper');
       }
 
-      // Parse stats from venue-scrapers API
-      if (data?.stats) {
-        const s = data.stats;
-        const totalEvents = typeof s.totalEvents === 'number' ? s.totalEvents : 0;
-        const inserted = typeof s.inserted === 'number' ? s.inserted : 0;
-        const updated = typeof s.updated === 'number' ? s.updated : 0;
-        const errors = typeof s.errors === 'number' ? s.errors : 0;
-        const venuesScraped = Array.isArray(s.venues) ? s.venues.length : 0;
-
-        const headline = data.success === false ? '⚠️' : '✅';
+      // Display success message with workflow URL
+      if (data?.triggered) {
+        const workflowLink = data.workflowUrl 
+          ? ` <a href="${data.workflowUrl}" target="_blank" style="text-decoration: underline; color: inherit;">View workflow →</a>`
+          : '';
+        
         setScraperMessage(
-          `${headline} Scraper complete. Total Events: ${totalEvents}, ` +
-          `Inserted: ${inserted}, Updated: ${updated}, Errors: ${errors}, ` +
-          `Venues: ${venuesScraped}`
+          `✅ ${data.message}. The scraper is now running in GitHub Actions.${workflowLink}`
         );
       } else if (data?.message) {
         setScraperMessage('✅ ' + data.message);
       } else {
-        setScraperMessage('✅ Done.');
+        setScraperMessage('✅ Workflow triggered successfully.');
       }
     } catch (err: any) {
       setScraperMessage('❌ Error: ' + (err?.message || 'Unknown error'));
@@ -415,9 +409,9 @@ export default function AdminPage() {
           color: scraperMessage.startsWith('✅') ? '#155724' : '#721c24',
           border: scraperMessage.startsWith('✅') ? '1px solid #c3e6cb' : '1px solid #f5c6cb',
           fontSize: '14px'
-        }}>
-          {scraperMessage}
-        </div>
+        }}
+        dangerouslySetInnerHTML={{ __html: scraperMessage }}
+      />
       )}
 
       <div style={{ marginBottom: '30px' }}>

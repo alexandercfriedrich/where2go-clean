@@ -1,7 +1,7 @@
 /**
  * Admin Venue Scrapers API Endpoint
  * 
- * Secured endpoint to trigger venue event scrapers.
+ * Secured endpoint to trigger venue event scrapers via GitHub Actions.
  * 
  * Authentication:
  * - Primary: Middleware Basic Auth (ADMIN_USER/ADMIN_PASS) - Always required
@@ -18,7 +18,7 @@
  * - Authorization: Bearer <ADMIN_WARMUP_SECRET> - Optional (if env var is set)
  * 
  * Response:
- * - 200: Success with scraping statistics
+ * - 200: Success - GitHub Action workflow triggered
  * - 401: Unauthorized (missing or invalid credentials)
  * - 400: Bad request (invalid parameters)
  * - 500: Server error
@@ -27,77 +27,79 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateSupabaseConfig } from '@/lib/supabase/client';
 import { timingSafeEqual } from 'crypto';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import path from 'path';
-
-const execAsync = promisify(exec);
 
 export const runtime = 'nodejs';
-export const maxDuration = 300; // 5 minutes for large scrapes
+export const maxDuration = 60; // 1 minute timeout for API call
 
 /**
- * Run venue scrapers via Python
+ * Trigger GitHub Actions workflow to run venue scrapers
  */
-async function runVenueScraper(venues: string[] | null, dryRun: boolean): Promise<any> {
-  const projectRoot = process.cwd();
-  const scraperPath = path.join(projectRoot, 'website-scrapers', 'run_all_scrapers.py');
+async function triggerGitHubAction(venues: string[] | null, dryRun: boolean): Promise<any> {
+  const githubToken = process.env.GITHUB_TOKEN;
+  const githubRepo = process.env.GITHUB_REPOSITORY || 'alexandercfriedrich/where2go-clean';
   
-  // Build command
-  let command = `python3 ${scraperPath}`;
-  
-  if (dryRun) {
-    command += ' --dry-run';
+  if (!githubToken) {
+    throw new Error(
+      'GITHUB_TOKEN environment variable is not set. ' +
+      'Please configure a GitHub Personal Access Token with workflow permissions.'
+    );
   }
   
-  if (venues && venues.length > 0) {
-    command += ` --venues ${venues.join(' ')}`;
+  // Parse owner and repo from GITHUB_REPOSITORY (format: owner/repo)
+  const [owner, repo] = githubRepo.split('/');
+  
+  console.log('[ADMIN:VENUE-SCRAPERS] Triggering GitHub Action workflow');
+  console.log('[ADMIN:VENUE-SCRAPERS] Repository:', githubRepo);
+  console.log('[ADMIN:VENUE-SCRAPERS] Venues:', venues || 'all');
+  console.log('[ADMIN:VENUE-SCRAPERS] Dry Run:', dryRun);
+  
+  // Trigger repository_dispatch event
+  const response = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/dispatches`,
+    {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/vnd.github.v3+json',
+        'Authorization': `Bearer ${githubToken}`,
+        'Content-Type': 'application/json',
+        'User-Agent': 'Where2Go-Admin'
+      },
+      body: JSON.stringify({
+        event_type: 'trigger-venue-scrapers',
+        client_payload: {
+          venues: venues ? venues.join(',') : '',
+          dry_run: dryRun,
+          triggered_by: 'admin-ui',
+          timestamp: new Date().toISOString()
+        }
+      })
+    }
+  );
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('[ADMIN:VENUE-SCRAPERS] GitHub API error:', response.status, errorText);
+    throw new Error(
+      `Failed to trigger GitHub Action: ${response.status} ${response.statusText}. ` +
+      `Error: ${errorText}`
+    );
   }
   
-  console.log('[ADMIN:VENUE-SCRAPERS] Running command:', command);
+  console.log('[ADMIN:VENUE-SCRAPERS] GitHub Action triggered successfully');
   
-  try {
-    const { stdout, stderr } = await execAsync(command, {
-      cwd: projectRoot,
-      maxBuffer: 10 * 1024 * 1024, // 10MB buffer for large outputs
-      timeout: 280000, // 280 seconds (less than maxDuration)
-      env: {
-        ...process.env,
-        PYTHONUNBUFFERED: '1'
-      }
-    });
-    
-    // Parse output for statistics
-    const output = stdout + stderr;
-    
-    // Extract summary statistics from output
-    const stats: any = {
-      output,
-      venues: venues || ['all'],
-      dryRun,
-      success: !output.toLowerCase().includes('error') && !output.toLowerCase().includes('failed')
-    };
-    
-    // Try to extract event counts from output
-    const eventMatches = output.match(/Total Events:\s+(\d+)/i);
-    const insertedMatches = output.match(/Inserted:\s+(\d+)/i);
-    const updatedMatches = output.match(/Updated:\s+(\d+)/i);
-    const errorMatches = output.match(/Errors:\s+(\d+)/i);
-    
-    if (eventMatches) stats['totalEvents'] = parseInt(eventMatches[1]);
-    if (insertedMatches) stats['inserted'] = parseInt(insertedMatches[1]);
-    if (updatedMatches) stats['updated'] = parseInt(updatedMatches[1]);
-    if (errorMatches) stats['errors'] = parseInt(errorMatches[1]);
-    
-    return stats;
-  } catch (error: any) {
-    console.error('[ADMIN:VENUE-SCRAPERS] Scraper error:', error);
-    throw new Error(`Scraper execution failed: ${error.message}`);
-  }
+  return {
+    success: true,
+    triggered: true,
+    venues: venues || ['all'],
+    dryRun,
+    message: 'GitHub Actions workflow triggered successfully',
+    workflowUrl: `https://github.com/${owner}/${repo}/actions/workflows/venue-scrapers.yml`
+  };
 }
 
+
 /**
- * POST handler - trigger venue scrapers
+ * POST handler - trigger venue scrapers via GitHub Actions
  */
 export async function POST(request: NextRequest) {
   try {
@@ -170,39 +172,26 @@ export async function POST(request: NextRequest) {
       venues: venues || 'all'
     });
     
-    // 4. Run the scrapers
-    const stats = await runVenueScraper(venues, dryRun);
+    // 4. Trigger GitHub Actions workflow
+    const result = await triggerGitHubAction(venues, dryRun);
     
     // 5. Return results
-    if (dryRun) {
-      return NextResponse.json({
-        success: true,
-        dryRun: true,
-        message: 'Dry-run completed successfully (no data written to database)',
-        stats
-      });
-    }
-    
-    if (stats.success) {
-      return NextResponse.json({
-        success: true,
-        message: 'Venue scrapers completed successfully',
-        stats
-      });
-    } else {
-      return NextResponse.json({
-        success: false,
-        message: 'Venue scrapers completed with errors',
-        stats
-      }, { status: 207 }); // 207 Multi-Status for partial success
-    }
+    return NextResponse.json({
+      success: true,
+      message: result.message,
+      triggered: result.triggered,
+      venues: result.venues,
+      dryRun: result.dryRun,
+      workflowUrl: result.workflowUrl,
+      note: 'Scraper is running in GitHub Actions. Check the workflow URL for progress and results.'
+    });
     
   } catch (error: any) {
     console.error('[ADMIN:VENUE-SCRAPERS] Unexpected error:', error);
     return NextResponse.json(
       {
         success: false,
-        error: 'Internal server error',
+        error: 'Failed to trigger venue scrapers',
         message: error.message,
         stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
       },
@@ -226,8 +215,9 @@ export async function GET(request: NextRequest) {
   
   return NextResponse.json({
     endpoint: '/api/admin/venue-scrapers',
-    description: 'Admin endpoint to trigger venue event scrapers',
+    description: 'Admin endpoint to trigger venue event scrapers via GitHub Actions',
     method: 'POST',
+    implementation: 'Triggers a GitHub Actions workflow to run Python scrapers',
     authentication: {
       required: 'Basic Auth via middleware (ADMIN_USER/ADMIN_PASS)',
       optional: 'Bearer token (ADMIN_WARMUP_SECRET env var)'
@@ -236,12 +226,17 @@ export async function GET(request: NextRequest) {
       dryRun: 'boolean (optional) - Run without writing to database',
       venues: 'string (optional) - Comma-separated venue keys (default: all)',
     },
+    environmentVariables: {
+      GITHUB_TOKEN: 'Required - GitHub Personal Access Token with workflow permissions',
+      GITHUB_REPOSITORY: 'Optional - Repository in format owner/repo (default: alexandercfriedrich/where2go-clean)'
+    },
     availableVenues,
     example: {
       url: '/api/admin/venue-scrapers?dryRun=true&venues=grelle-forelle,flex',
       headers: {
         'Authorization': 'Basic <base64(username:password)>'
       }
-    }
+    },
+    workflowFile: '.github/workflows/venue-scrapers.yml'
   });
 }
