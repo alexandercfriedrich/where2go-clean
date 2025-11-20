@@ -168,6 +168,294 @@ VENUE_CONFIGS = {
         },
     },
     
+    'babenberger-passage': {
+        'venue_name': 'Babenberger Passage',
+        'venue_address': 'Babenbergerstraße 5, 1010 Wien',
+        'base_url': 'https://www.babenbergerpassage.at',
+        'events_url': 'https://www.babenbergerpassage.at/events/',
+        'category': 'Clubs/Discos',
+        'subcategory': 'Mixed',
+        
+        'list_selectors': {
+            'event_container': 'div.event, article',
+            'title': 'h2, h3',
+            'date': '.date',
+            'link': 'a',
+        },
+    },
+    
+    'cabaret-fledermaus': {
+        'venue_name': 'Cabaret Fledermaus',
+        'venue_address': 'Spiegelgasse 2, 1010 Wien',
+        'base_url': 'https://www.fledermaus.at',
+        'events_url': 'https://www.fledermaus.at/programm/',
+        'category': 'Bars',
+        'subcategory': 'Live Music',
+        
+        'list_selectors': {
+            'event_container': 'div.event, article',
+            'title': 'h2, h3',
+            'date': '.date',
+            'link': 'a',
+        },
+    },
+    
+    'camera-club': {
+        'venue_name': 'Camera Club',
+        'venue_address': 'Neubaugasse 2, 1070 Wien',
+        'base_url': 'https://camera-club.at',
+        'events_url': 'https://camera-club.at',
+        'category': 'Clubs/Discos',
+        'subcategory': 'Electronic',
+        
+        'list_selectors': {
+            'event_container': 'div.event, article',
+            'title': 'h2, h3',
+            'date': '.date',
+            'link': 'a',
+        },
+    },
+    
+    'celeste': {
+        'venue_name': 'Celeste',
+        'venue_address': 'Hamburgerstraße 18, 1050 Wien',
+        'base_url': 'https://www.celeste.co.at',
+        'events_url': 'https://www.celeste.co.at/events/',
+        'category': 'Clubs/Discos',
+        'subcategory': 'Electronic',
+        
+        'list_selectors': {
+            'event_container': 'div.event, article',
+            'title': 'h2, h3',
+            'date': '.date',
+            'link': 'a',
+        },
+    },
+    
+    'chelsea': {
+        'venue_name': 'Chelsea',
+        'venue_address': 'Lerchenfelder Gürtel 29-31, 1080 Wien',
+        'base_url': 'https://chelsea.co.at',
+        'events_url': 'https://chelsea.co.at/programm/',
+        'category': 'Clubs/Discos',
+        'subcategory': 'Mixed',
+        
+        'list_selectors': {
+            'event_container': 'div.event, article',
+            'title': 'h2, h3',
+            'date': '.date',
+            'link': 'a',
+        },
+    },
+    
+    'club-u': {
+        'venue_name': 'Club U',
+        'venue_address': 'Karlsplatz 5, 1010 Wien',
+        'base_url': 'https://club-u.at',
+        'events_url': 'https://club-u.at/events/',
+        'category': 'Clubs/Discos',
+        'subcategory': 'Mixed',
+        
+        'list_selectors': {
+            'event_container': 'div.event, article',
+            'title': 'h2, h3',
+            'date': '.date',
+            'link': 'a',
+        },
+    },
+    
+    'donau': {
+        'venue_name': 'Donau',
+        'venue_address': 'Donaukanal, Karl-Schweighofer-Gasse 8, 1070 Wien',
+        'base_url': 'https://www.donautechno.com',
+        'events_url': 'https://www.donautechno.com/events/',
+        'category': 'Clubs/Discos',
+        'subcategory': 'Techno',
+        
+        'list_selectors': {
+            'event_container': 'div.event, article',
+            'title': 'h2, h3',
+            'date': '.date',
+            'link': 'a',
+        },
+    },
+    
+    'flucc': {
+        'venue_name': 'Flucc / Flucc Wanne',
+        'venue_address': 'Praterstern 5, 1020 Wien',
+        'base_url': 'https://www.flucc.at',
+        'events_url': 'https://www.flucc.at/programm/',
+        'category': 'Clubs/Discos',
+        'subcategory': 'Mixed',
+        
+        'list_selectors': {
+            'event_container': 'div.event, article',
+            'title': 'h2, h3',
+            'date': '.date',
+            'link': 'a',
+        },
+    },
+    
+    'o-der-klub': {
+        'venue_name': 'O - der Klub',
+        'venue_address': 'Albertinapassage, 1010 Wien',
+        'base_url': 'https://www.albertinapassage.at',
+        'events_url': 'https://www.albertinapassage.at/events/',
+        'category': 'Clubs/Discos',
+        'subcategory': 'Electronic',
+        
+        'list_selectors': {
+            'event_container': 'div.event, article',
+            'title': 'h2, h3',
+            'date': '.date',
+            'link': 'a',
+        },
+    },
+    
+    'ponyhof': {
+        'venue_name': 'Ponyhof',
+        'venue_address': 'Burggasse 104, 1070 Wien',
+        'base_url': 'https://ponyhof-official.at',
+        'events_url': 'https://ponyhof-official.at/events/',
+        'category': 'Clubs/Discos',
+        'subcategory': 'Mixed',
+        
+        'list_selectors': {
+            'event_container': 'div.event, article',
+            'title': 'h2, h3',
+            'date': '.date',
+            'link': 'a',
+        },
+    },
+    
+    'prater-dome': {
+        'venue_name': 'Prater DOME',
+        'venue_address': 'Riesenradplatz 7, 1020 Wien',
+        'base_url': 'https://www.praterdome.com',
+        'events_url': 'https://www.praterdome.com/events/',
+        'category': 'Clubs/Discos',
+        'subcategory': 'Electronic',
+        
+        'list_selectors': {
+            'event_container': 'div.event, article',
+            'title': 'h2, h3',
+            'date': '.date',
+            'link': 'a',
+        },
+    },
+    
+    'praterstrasse': {
+        'venue_name': 'Praterstrasse',
+        'venue_address': 'Praterstraße 38, 1020 Wien',
+        'base_url': 'https://praterstrasse.wien',
+        'events_url': 'https://praterstrasse.wien/events/',
+        'category': 'Clubs/Discos',
+        'subcategory': 'Electronic',
+        
+        'list_selectors': {
+            'event_container': 'div.event, article',
+            'title': 'h2, h3',
+            'date': '.date',
+            'link': 'a',
+        },
+    },
+    
+    'sass-music-club': {
+        'venue_name': 'SASS Music Club',
+        'venue_address': 'Karlsplatz 1, 1010 Wien',
+        'base_url': 'https://www.sassvienna.com',
+        'events_url': 'https://www.sassvienna.com/events/',
+        'category': 'Bars',
+        'subcategory': 'Live Music',
+        
+        'list_selectors': {
+            'event_container': 'div.event, article',
+            'title': 'h2, h3',
+            'date': '.date',
+            'link': 'a',
+        },
+    },
+    
+    'tanzcafe-jenseits': {
+        'venue_name': 'Tanzcafé Jenseits',
+        'venue_address': 'Nelkengasse 3, 1060 Wien',
+        'base_url': 'https://www.tanzcafe-jenseits.at',
+        'events_url': 'https://www.tanzcafe-jenseits.at/',
+        'category': 'Bars',
+        'subcategory': 'Dance',
+        
+        'list_selectors': {
+            'event_container': 'div.event, article',
+            'title': 'h2, h3',
+            'date': '.date',
+            'link': 'a',
+        },
+    },
+    
+    'the-loft': {
+        'venue_name': 'The Loft',
+        'venue_address': 'Donaukanal, Lerchenfelder Gürtel 37, 1160 Wien',
+        'base_url': 'https://www.theloft.at',
+        'events_url': 'https://www.theloft.at/events/',
+        'category': 'Clubs/Discos',
+        'subcategory': 'Electronic',
+        
+        'list_selectors': {
+            'event_container': 'div.event, article',
+            'title': 'h2, h3',
+            'date': '.date',
+            'link': 'a',
+        },
+    },
+    
+    'vieipee': {
+        'venue_name': 'VIEiPEE',
+        'venue_address': 'Mariahilfer Straße 1, 1060 Wien',
+        'base_url': 'https://www.vieipee.at',
+        'events_url': 'https://www.vieipee.at/events/',
+        'category': 'Clubs/Discos',
+        'subcategory': 'Mixed',
+        
+        'list_selectors': {
+            'event_container': 'div.event, article',
+            'title': 'h2, h3',
+            'date': '.date',
+            'link': 'a',
+        },
+    },
+    
+    'why-not': {
+        'venue_name': 'Why Not',
+        'venue_address': 'Tiefer Graben 22, 1010 Wien',
+        'base_url': 'https://www.why-not.at',
+        'events_url': 'https://www.why-not.at/events/',
+        'category': 'Clubs/Discos',
+        'subcategory': 'Mixed',
+        
+        'list_selectors': {
+            'event_container': 'div.event, article',
+            'title': 'h2, h3',
+            'date': '.date',
+            'link': 'a',
+        },
+    },
+    
+    'rhiz': {
+        'venue_name': 'rhiz',
+        'venue_address': 'Lerchenfeldergürtel, Stadtbahnbogen 37-38, 1080 Wien',
+        'base_url': 'https://rhiz.wien',
+        'events_url': 'https://rhiz.wien/programm/',
+        'category': 'Clubs/Discos',
+        'subcategory': 'Electronic',
+        
+        'list_selectors': {
+            'event_container': 'div.event, article',
+            'title': 'h2, h3',
+            'date': '.date',
+            'link': 'a',
+        },
+    },
+    
     # Template for adding new venues
     '_template': {
         'venue_name': 'Venue Name',
