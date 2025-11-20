@@ -146,7 +146,10 @@ class GrelleForelleScraper:
                 'description': None,
                 'image_url': None,
                 'detail_url': None,
-                'ticket_url': None
+                'ticket_url': None,
+                'price': None,
+                'artists': [],
+                'age_restriction': None
             }
             
             # Get detail page URL - try different selectors
@@ -212,67 +215,219 @@ class GrelleForelleScraper:
             return None
     
     def _enrich_event_from_detail_page(self, event_data: Dict):
-        """Fetch detail page and enrich event data"""
+        """Fetch detail page and enrich event data with all available information"""
         try:
+            if self.debug:
+                self.log(f"  Fetching detail page: {event_data['detail_url']}", "debug")
+            
             soup = self.fetch_page(event_data['detail_url'])
             if not soup:
                 return
             
-            # Find main content area
+            # Get full page text for searching
+            page_text = soup.get_text()
+            page_text_lower = page_text.lower()
+            
+            # 1. Extract full title from h1 if better than image alt
+            title_elem = soup.find('h1', class_='entry-title')
+            if title_elem:
+                full_title = title_elem.get_text(strip=True)
+                if full_title and len(full_title) > len(event_data.get('title', '')):
+                    event_data['title'] = full_title
+            
+            # 2. Find main content area
             content = soup.find('div', class_='entry-content')
             if not content:
+                if self.debug:
+                    self.log(f"  ⚠ No content area found", "debug")
                 return
             
-            # Extract description from paragraphs
-            paragraphs = content.find_all('p')
-            if paragraphs:
-                desc_parts = []
-                for p in paragraphs[:5]:  # First 5 paragraphs
-                    text = p.get_text(strip=True)
-                    if text and len(text) > 20:  # Skip short paragraphs
-                        desc_parts.append(text)
-                if desc_parts:
-                    event_data['description'] = ' '.join(desc_parts)[:1000]  # Limit to 1000 chars
+            # 3. Extract ALL text content as description (better approach)
+            # Get all paragraphs and text blocks
+            desc_parts = []
             
-            # Look for time information
-            time_patterns = [
-                r'(\d{1,2}):(\d{2})',  # HH:MM
-                r'(\d{1,2})\s*uhr',     # XX Uhr
-                r'einlass[:\s]+(\d{1,2})',  # Einlass: XX
+            # Get all <p> tags
+            for p in content.find_all('p'):
+                text = p.get_text(strip=True)
+                # Filter out very short text and common navigation elements
+                if text and len(text) > 10 and not text.lower().startswith(('home', 'back', 'weiter')):
+                    desc_parts.append(text)
+            
+            # Get all text from divs if no paragraphs found
+            if not desc_parts:
+                for div in content.find_all('div', recursive=False):
+                    text = div.get_text(strip=True)
+                    if text and len(text) > 10:
+                        desc_parts.append(text)
+            
+            # Combine all description parts
+            if desc_parts:
+                # Join with double newline for better readability
+                full_description = '\n\n'.join(desc_parts)
+                # Store full description (no limit - we want ALL info)
+                event_data['description'] = full_description
+                
+                if self.debug:
+                    self.log(f"  ✓ Description: {len(full_description)} chars", "debug")
+            
+            # 4. Extract time information (multiple approaches)
+            if not event_data.get('time'):
+                time_patterns = [
+                    # Specific patterns for Grelle Forelle
+                    (r'opens\s+doors?\s+at\s+(\d{1,2}):(\d{2})', 'doors'),  # "opens doors at 23:00"
+                    (r'einlass[:\s]+(\d{1,2}):(\d{2})', 'einlass'),  # "Einlass: 23:00"
+                    (r'start[:\s]+(\d{1,2}):(\d{2})', 'start'),  # "Start: 23:00"
+                    (r'beginn[:\s]+(\d{1,2}):(\d{2})', 'beginn'),  # "Beginn: 23:00"
+                    (r'(\d{1,2}):(\d{2})\s*uhr', 'uhr'),  # "23:00 Uhr"
+                    (r'(\d{1,2}):(\d{2})', 'general'),  # Any time format HH:MM
+                ]
+                
+                for pattern, source in time_patterns:
+                    match = re.search(pattern, page_text_lower)
+                    if match:
+                        try:
+                            groups = match.groups()
+                            if len(groups) >= 2:
+                                hour, minute = int(groups[0]), int(groups[1])
+                                if 0 <= hour <= 23 and 0 <= minute <= 59:
+                                    event_data['time'] = f"{hour:02d}:{minute:02d}"
+                                    if self.debug:
+                                        self.log(f"  ✓ Time from {source}: {event_data['time']}", "debug")
+                                    break
+                        except (ValueError, IndexError):
+                            continue
+            
+            # 5. Extract price information
+            price_patterns = [
+                r'(?:€|EUR|Euro)\s*(\d+(?:[.,]\d{2})?)',  # €15 or EUR 15.00
+                r'(\d+(?:[.,]\d{2})?)\s*(?:€|EUR|Euro)',  # 15€ or 15.00 EUR
+                r'(?:eintritt|entry|price|preis)[:\s]+(?:€|EUR)?\s*(\d+(?:[.,]\d{2})?)',  # Eintritt: €15
+                r'(?:ab|from)\s+(?:€|EUR)?\s*(\d+(?:[.,]\d{2})?)',  # ab €15
             ]
             
-            page_text = soup.get_text().lower()
-            for pattern in time_patterns:
-                match = re.search(pattern, page_text)
+            for pattern in price_patterns:
+                match = re.search(pattern, page_text_lower)
                 if match:
-                    if ':' in pattern:
-                        hour, minute = match.groups()
-                        event_data['time'] = f"{int(hour):02d}:{int(minute):02d}"
-                    else:
-                        hour = match.group(1)
-                        event_data['time'] = f"{int(hour):02d}:00"
-                    break
+                    try:
+                        price = match.group(1).replace(',', '.')
+                        event_data['price'] = f"ab €{price}"
+                        if self.debug:
+                            self.log(f"  ✓ Price: {event_data['price']}", "debug")
+                        break
+                    except:
+                        continue
             
-            # Look for ticket/booking links
-            ticket_keywords = ['ticket', 'karte', 'buy', 'kaufen', 'eventbrite', 'ticketmaster']
+            # Check for "free entry" keywords
+            if any(kw in page_text_lower for kw in ['free entry', 'eintritt frei', 'freier eintritt', 'gratis']):
+                event_data['price'] = 'Free / Gratis'
+                if self.debug:
+                    self.log(f"  ✓ Price: Free", "debug")
+            
+            # 6. Look for ALL ticket/booking links (not just first)
+            ticket_keywords = ['ticket', 'karte', 'buy', 'kaufen', 'eventbrite', 'ticketmaster', 'linkt.ree']
+            ticket_links = []
+            
             for link in soup.find_all('a', href=True):
-                href = link['href'].lower()
+                href = link['href']
                 text = link.get_text().lower()
-                if any(kw in href or kw in text for kw in ticket_keywords):
-                    event_data['ticket_url'] = link['href']
+                
+                # Check if this is a ticket link
+                if any(kw in href.lower() or kw in text for kw in ticket_keywords):
+                    # Avoid internal navigation links
+                    if not href.startswith('#') and 'grelleforelle.com' not in href:
+                        ticket_links.append(href)
+            
+            # Use the first valid ticket link
+            if ticket_links:
+                event_data['ticket_url'] = ticket_links[0]
+                if self.debug:
+                    self.log(f"  ✓ Ticket URL: {event_data['ticket_url']}", "debug")
+            
+            # 7. Extract better/larger image from detail page
+            # Try multiple strategies to find the best image
+            image_candidates = []
+            
+            # Strategy 1: Look for featured/main images
+            for img in soup.find_all('img'):
+                src = img.get('src', '')
+                # Skip logos and small images
+                if any(skip in src.lower() for skip in ['logo', 'icon', 'avatar', 'wp-content/themes']):
+                    continue
+                
+                # Check if it's from wp-content/uploads (actual content images)
+                if 'wp-content/uploads' in src:
+                    # Prefer images without 'thumb' and with dimensions in filename
+                    priority = 0
+                    if 'thumb' not in src:
+                        priority += 2
+                    if any(size in src for size in ['-1024x', '-800x', '-600x', 'full']):
+                        priority += 3
+                    elif any(size in src for size in ['-400x', '-300x']):
+                        priority += 1
+                    
+                    image_candidates.append((priority, src))
+            
+            # Sort by priority and use best image
+            if image_candidates:
+                image_candidates.sort(reverse=True)
+                best_image = image_candidates[0][1]
+                
+                # Only update if it's different from current
+                if best_image != event_data.get('image_url'):
+                    # Try to get full-size version
+                    full_size_url = re.sub(r'-\d+x\d+', '', best_image)
+                    event_data['image_url'] = full_size_url
+                    if self.debug:
+                        self.log(f"  ✓ Better image: {full_size_url}", "debug")
+            
+            # 8. Extract lineup/artists (if mentioned in description)
+            # This helps with searchability
+            artists = []
+            artist_sections = ['mainfloor', 'kitchen', 'lineup', 'line-up', 'line up']
+            
+            for section in artist_sections:
+                if section in page_text_lower:
+                    # Find text after section marker
+                    idx = page_text_lower.find(section)
+                    if idx != -1:
+                        # Get next 200 chars after section name
+                        section_text = page_text[idx:idx+300]
+                        # Look for capitalized words (artist names)
+                        artist_matches = re.findall(r'\b[A-Z][A-Za-z\s&]{2,30}\b', section_text)
+                        artists.extend(artist_matches[:10])  # Max 10 per section
+            
+            if artists:
+                # Remove duplicates and store
+                unique_artists = list(dict.fromkeys(artists))
+                event_data['artists'] = unique_artists[:20]  # Max 20 total
+                if self.debug:
+                    self.log(f"  ✓ Artists: {len(unique_artists)} found", "debug")
+            
+            # 9. Extract age restrictions
+            age_patterns = [
+                r'(\d+)\+',  # 18+
+                r'ab\s+(\d+)',  # ab 18
+                r'mindestalter[:\s]+(\d+)',  # Mindestalter: 18
+            ]
+            
+            for pattern in age_patterns:
+                match = re.search(pattern, page_text_lower)
+                if match:
+                    age = match.group(1)
+                    event_data['age_restriction'] = f"{age}+"
+                    if self.debug:
+                        self.log(f"  ✓ Age restriction: {age}+", "debug")
                     break
             
-            # Try to find better image on detail page (right side)
-            detail_img = soup.find('img', class_=lambda x: x and 'featured' in x.lower())
-            if detail_img and detail_img.get('src'):
-                # Use detail page image if it's different and larger
-                detail_img_url = detail_img.get('src')
-                if detail_img_url and 'thumb' not in detail_img_url:
-                    event_data['image_url'] = detail_img_url
-            
+            if self.debug:
+                self.log(f"  ✓ Detail page enrichment complete", "debug")
+                
         except Exception as e:
             if self.debug:
-                self.log(f"Error enriching from detail page: {e}", "warning")
+                self.log(f"  ✗ Error enriching from detail page: {e}", "warning")
+            import traceback
+            if self.debug:
+                traceback.print_exc()
     
     def scrape_events(self) -> List[Dict]:
         """Scrape all upcoming events from Grelle Forelle"""
