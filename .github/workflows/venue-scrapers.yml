@@ -1,0 +1,123 @@
+name: Venue Scrapers
+
+on:
+  # Allow manual trigger from GitHub UI
+  workflow_dispatch:
+    inputs:
+      venues:
+        description: 'Comma-separated venue keys (leave empty for all venues)'
+        required: false
+        type: string
+      dry_run:
+        description: 'Dry run mode (no database writes)'
+        required: false
+        type: boolean
+        default: false
+  
+  # Allow API trigger via repository_dispatch
+  repository_dispatch:
+    types: [trigger-venue-scrapers]
+  
+  # Optional: Schedule to run daily at 3 AM UTC
+  # schedule:
+  #   - cron: '0 3 * * *'
+
+jobs:
+  run-scrapers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    permissions:
+      contents: read
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f website-scrapers/requirements.txt ]; then
+            pip install -r website-scrapers/requirements.txt
+          else
+            # Install common scraping dependencies
+            pip install requests beautifulsoup4 lxml python-dateutil
+          fi
+      
+      - name: Set environment variables
+        run: |
+          echo "SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" >> $GITHUB_ENV
+          echo "SUPABASE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> $GITHUB_ENV
+      
+      - name: Parse input parameters
+        id: params
+        run: |
+          # Get venues from workflow_dispatch or repository_dispatch
+          VENUES="${{ github.event.inputs.venues }}"
+          if [ -z "$VENUES" ]; then
+            VENUES="${{ github.event.client_payload.venues }}"
+          fi
+          
+          # Get dry_run flag
+          DRY_RUN="${{ github.event.inputs.dry_run }}"
+          if [ -z "$DRY_RUN" ]; then
+            DRY_RUN="${{ github.event.client_payload.dry_run }}"
+          fi
+          
+          echo "venues=$VENUES" >> $GITHUB_OUTPUT
+          echo "dry_run=$DRY_RUN" >> $GITHUB_OUTPUT
+      
+      - name: Run venue scrapers
+        id: scrape
+        run: |
+          cd website-scrapers
+          
+          # Build command
+          CMD="python3 run_all_scrapers.py"
+          
+          # Add dry-run flag if specified
+          if [ "${{ steps.params.outputs.dry_run }}" = "true" ]; then
+            CMD="$CMD --dry-run"
+            echo "Running in DRY-RUN mode"
+          fi
+          
+          # Add venues if specified
+          if [ -n "${{ steps.params.outputs.venues }}" ]; then
+            # Convert comma-separated to space-separated
+            VENUES=$(echo "${{ steps.params.outputs.venues }}" | tr ',' ' ')
+            CMD="$CMD --venues $VENUES"
+            echo "Scraping venues: $VENUES"
+          else
+            echo "Scraping ALL venues"
+          fi
+          
+          # Run the scraper
+          echo "Executing: $CMD"
+          $CMD
+        continue-on-error: true
+      
+      - name: Check scraper results
+        run: |
+          if [ "${{ steps.scrape.outcome }}" = "failure" ]; then
+            echo "⚠️ Scraper completed with errors"
+            exit 1
+          else
+            echo "✅ Scraper completed successfully"
+          fi
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Venue Scraper Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Venues**: ${{ steps.params.outputs.venues || 'all' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Dry Run**: ${{ steps.params.outputs.dry_run || 'false' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ steps.scrape.outcome }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered by**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Triggered at**: $(date -u)" >> $GITHUB_STEP_SUMMARY

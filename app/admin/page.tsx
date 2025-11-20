@@ -11,6 +11,8 @@ export default function AdminPage() {
   const [isCreating, setIsCreating] = useState(false);
   const [warmupLoading, setWarmupLoading] = useState(false);
   const [warmupMessage, setWarmupMessage] = useState<string | null>(null);
+  const [scraperLoading, setScraperLoading] = useState(false);
+  const [scraperMessage, setScraperMessage] = useState<string | null>(null);
 
   useEffect(() => {
     loadCities();
@@ -142,6 +144,47 @@ export default function AdminPage() {
       setWarmupMessage('❌ Error: ' + (err?.message || 'Unknown error'));
     } finally {
       setWarmupLoading(false);
+    }
+  };
+
+  const handleVenueScraper = async () => {
+    if (!confirm('Start venue event scraper? This will trigger a GitHub Actions workflow to fetch events from all configured venues.')) return;
+
+    try {
+      setScraperLoading(true);
+      setScraperMessage('Triggering GitHub Actions workflow...');
+
+      const response = await fetch('/api/admin/venue-scrapers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.message || data?.error || 'Failed to trigger venue scraper');
+      }
+
+      // Display success message with workflow URL
+      if (data?.triggered) {
+        const workflowLink = data.workflowUrl 
+          ? ` <a href="${data.workflowUrl}" target="_blank" style="text-decoration: underline; color: inherit;">View workflow →</a>`
+          : '';
+        
+        setScraperMessage(
+          `✅ ${data.message}. The scraper is now running in GitHub Actions.${workflowLink}`
+        );
+      } else if (data?.message) {
+        setScraperMessage('✅ ' + data.message);
+      } else {
+        setScraperMessage('✅ Workflow triggered successfully.');
+      }
+    } catch (err: any) {
+      setScraperMessage('❌ Error: ' + (err?.message || 'Unknown error'));
+    } finally {
+      setScraperLoading(false);
     }
   };
 
@@ -329,6 +372,14 @@ export default function AdminPage() {
           >
             {warmupLoading ? '⏳ Warming up...' : '🔥 Wien.info Warmup'}
           </button>
+          <button 
+            className="btn btn-secondary" 
+            onClick={handleVenueScraper}
+            disabled={scraperLoading}
+            style={{ marginRight: '10px' }}
+          >
+            {scraperLoading ? '⏳ Scraping...' : '🎯 Venue Scraper'}
+          </button>
           <button className="btn btn-primary" onClick={handleCreateCity}>
             Add New City
           </button>
@@ -347,6 +398,20 @@ export default function AdminPage() {
         }}>
           {warmupMessage}
         </div>
+      )}
+
+      {scraperMessage && (
+        <div style={{
+          padding: '15px',
+          marginBottom: '20px',
+          borderRadius: '5px',
+          backgroundColor: scraperMessage.startsWith('✅') ? '#d4edda' : '#f8d7da',
+          color: scraperMessage.startsWith('✅') ? '#155724' : '#721c24',
+          border: scraperMessage.startsWith('✅') ? '1px solid #c3e6cb' : '1px solid #f5c6cb',
+          fontSize: '14px'
+        }}
+        dangerouslySetInnerHTML={{ __html: scraperMessage }}
+      />
       )}
 
       <div style={{ marginBottom: '30px' }}>
