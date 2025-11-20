@@ -298,6 +298,7 @@ async function processBatch(
   for (const event of events) {
     const venueName = event.venue?.trim();
     const venueAddress = event.address?.trim();
+    const eventSource = event.source || 'unknown';
     
     if (!venueName || venueMap.has(venueName)) {
       continue; // Skip if no venue or already processed
@@ -319,7 +320,7 @@ async function processBatch(
           full_address: venueAddress || null,
           city: city,
           country: 'Austria',
-          source: 'wien.info',
+          source: eventSource,
           website: null, // Wien.info doesn't provide venue-specific websites in event data
           latitude: null,
           longitude: null
