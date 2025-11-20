@@ -41,8 +41,8 @@ export function EventCard({ event: ev, city = 'wien', formatEventDate }: EventCa
     venue: ev.venue,
     date: ev.date
   });
-  const eventDetailUrl = ev.slug ? `/events/${citySlug}/${ev.slug}` : (ev.website || '#');
-  const isInternalLink = !!ev.slug;
+  const eventDetailUrl = `/events/${citySlug}/${eventSlug}`;
+  const isInternalLink = true;
 
   return (
     <Link 
