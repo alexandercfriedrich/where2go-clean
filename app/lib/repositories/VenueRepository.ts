@@ -5,6 +5,19 @@ type DbVenue = Database['public']['Tables']['venues']['Row']
 type DbVenueInsert = Database['public']['Tables']['venues']['Insert']
 type DbVenueUpdate = Database['public']['Tables']['venues']['Update']
 
+/**
+ * Generate URL-friendly slug from venue name
+ * Matches the slugify function in database (supabase/migrations/003_create_venue_functions.sql)
+ */
+function slugifyVenueName(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-zA-Z0-9\s-]/g, '') // Remove special chars (ASCII only, matches DB)
+    .replace(/[\s_-]+/g, '-') // Replace spaces and underscores with hyphens
+    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+}
+
 export class VenueRepository {
   /**
    * Get venue by ID
@@ -157,8 +170,14 @@ export class VenueRepository {
    * we manually check for existence first, then insert if needed.
    */
   static async upsertVenue(venue: DbVenueInsert): Promise<string | null> {
+    // Ensure venue_slug is set (create new object to avoid mutating input)
+    const venueWithSlug = {
+      ...venue,
+      venue_slug: venue.venue_slug || slugifyVenueName(venue.name)
+    };
+    
     // First, check if venue already exists
-    const existing = await this.getVenueByName(venue.name, venue.city);
+    const existing = await this.getVenueByName(venueWithSlug.name, venueWithSlug.city);
     
     if (existing) {
       // Venue exists, return its ID
@@ -169,7 +188,7 @@ export class VenueRepository {
     // NOTE: Supabase REST API expects an array for insert, even for single objects
     const { data, error } = await (supabaseAdmin as any)
       .from('venues')
-      .insert([venue])
+      .insert([venueWithSlug])
       .select()
       .single()
 
