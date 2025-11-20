@@ -13,9 +13,6 @@ import { upsertDayEvents } from '@/lib/dayCache';
 import { buildWienInfoUrl, getWienInfoF1IdsForCategories } from '@/event_mapping_wien_info';
 import { fetchWienInfoEvents } from '@/lib/sources/wienInfo';
 
-// Optional: Resident Advisor RSS
-import { fetchResidentAdvisorRss } from '@/lib/sources/residentAdvisor';
-
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
@@ -277,48 +274,6 @@ export async function POST(request: NextRequest) {
           console.warn('Failed to upsert Wien.info events to day-bucket:', error);
         }
       }
-    }
-
-    // 3) Optional: Resident Advisor RSS (also cached per category if enabled in sources)
-    try {
-      const raSites = Array.isArray(additionalSources)
-        ? additionalSources.filter((s: any) => typeof s.url === 'string' && /ra\.co|residentadvisor\.net/i.test(s.url))
-        : [];
-
-      if (raSites.length && !disableCache) {
-        const raEventsAll: EventData[] = [];
-        for (const site of raSites) {
-          const events = await fetchResidentAdvisorRss({ url: site.url, city, date: date.slice(0, 10) });
-          raEventsAll.push(...events);
-        }
-
-        if (raEventsAll.length) {
-          allCachedEvents = eventAggregator.deduplicateEvents([...allCachedEvents, ...raEventsAll]);
-
-          const ttlRss = computeTTLSecondsForEvents(raEventsAll);
-          const grouped: Record<string, EventData[]> = {};
-          for (const ev of raEventsAll) {
-            if (!ev.category) continue;
-            (grouped[ev.category] ||= []).push(ev);
-          }
-          for (const cat of Object.keys(grouped)) {
-            await eventsCache.setEventsByCategory(city, date, cat, grouped[cat], ttlRss);
-            cacheInfo[cat] = {
-              fromCache: cacheInfo[cat]?.fromCache ?? false,
-              eventCount: (cacheInfo[cat]?.eventCount || 0) + grouped[cat].length
-            };
-          }
-          
-          // Also upsert RSS events into day-bucket cache
-          try {
-            await upsertDayEvents(city, date, raEventsAll);
-          } catch (error) {
-            console.warn('Failed to upsert RSS events to day-bucket:', error);
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('RSS fetch failed:', (e as any)?.message || e);
     }
 
     // If no missing categories remain, return immediately

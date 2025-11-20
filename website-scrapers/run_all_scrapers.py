@@ -1,0 +1,92 @@
+#!/usr/bin/env python3
+"""
+Run all configured venue scrapers sequentially.
+
+Usage:
+    python website-scrapers/run_all_scrapers.py [--dry-run] [--debug]
+"""
+
+import sys
+import os
+import argparse
+
+# Add current directory to path
+sys.path.insert(0, os.path.dirname(__file__))
+
+from generic_scraper import GenericVenueScraper
+from venue_configs import get_venue_config, list_venues
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Run all venue scrapers')
+    parser.add_argument('--dry-run', action='store_true', help='Run without saving to database')
+    parser.add_argument('--debug', action='store_true', help='Enable debug output')
+    parser.add_argument('--venues', nargs='+', help='Specific venues to scrape (default: all)')
+    args = parser.parse_args()
+    
+    # Get venues to scrape
+    if args.venues:
+        venues_to_scrape = args.venues
+    else:
+        venues_to_scrape = list_venues()
+    
+    print("=" * 70)
+    print(f"Running scrapers for {len(venues_to_scrape)} venues")
+    print("=" * 70)
+    
+    results = {}
+    
+    for venue_key in venues_to_scrape:
+        print(f"\n{'=' * 70}")
+        print(f"Venue: {venue_key}")
+        print('=' * 70)
+        
+        config = get_venue_config(venue_key)
+        if not config:
+            print(f"❌ Unknown venue: {venue_key}")
+            results[venue_key] = {'success': False, 'error': 'Unknown venue'}
+            continue
+        
+        try:
+            scraper = GenericVenueScraper(config, dry_run=args.dry_run, debug=args.debug)
+            result = scraper.run()
+            results[venue_key] = result
+        except Exception as e:
+            print(f"❌ Error running scraper for {venue_key}: {e}")
+            results[venue_key] = {'success': False, 'error': str(e)}
+    
+    # Print summary
+    print(f"\n{'=' * 70}")
+    print("SUMMARY")
+    print('=' * 70)
+    
+    total_events = 0
+    total_inserted = 0
+    total_updated = 0
+    total_errors = 0
+    
+    for venue_key, result in results.items():
+        if result.get('success'):
+            events = result.get('events_count', 0)
+            stats = result.get('stats', {})
+            total_events += events
+            total_inserted += stats.get('inserted', 0)
+            total_updated += stats.get('updated', 0)
+            total_errors += stats.get('errors', 0)
+            
+            print(f"  ✓ {venue_key:20s} - {events} events")
+        else:
+            print(f"  ✗ {venue_key:20s} - {result.get('error', 'Failed')}")
+    
+    print(f"\n{'=' * 70}")
+    print(f"  Total Events:  {total_events}")
+    print(f"  Inserted:      {total_inserted}")
+    print(f"  Updated:       {total_updated}")
+    print(f"  Errors:        {total_errors}")
+    print('=' * 70)
+    
+    return 0 if total_errors == 0 else 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

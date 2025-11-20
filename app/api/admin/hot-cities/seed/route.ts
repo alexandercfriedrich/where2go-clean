@@ -280,15 +280,6 @@ const seedCities: HotCity[] = [
         description: 'Tourist events and attractions',
         priority: 7,
         isActive: true
-      },
-      {
-        id: generateWebsiteId(),
-        name: 'Resident Advisor Berlin',
-        url: 'https://ra.co/events/de/berlin',
-        categories: ['DJ Sets/Electronic', 'Clubs/Discos'],
-        description: 'Electronic music events listing',
-        priority: 8,
-        isActive: true
       }
     ],
     createdAt: new Date(),
