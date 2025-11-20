@@ -1,0 +1,13 @@
+# Python dependencies for venue scrapers
+# Used by GitHub Actions workflow: .github/workflows/venue-scrapers.yml
+
+# Web scraping
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+lxml>=5.0.0
+
+# Date/time parsing
+python-dateutil>=2.8.0
+
+# Supabase database integration
+supabase>=2.0.0
