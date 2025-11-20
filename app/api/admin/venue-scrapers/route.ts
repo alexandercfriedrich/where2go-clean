@@ -93,7 +93,7 @@ async function triggerGitHubAction(venues: string[] | null, dryRun: boolean): Pr
     venues: venues || ['all'],
     dryRun,
     message: 'GitHub Actions workflow triggered successfully',
-    workflowUrl: `https://github.com/${owner}/${repo}/actions/workflows/venue-scrapers.yml`
+    workflowUrl: `https://github.com/${owner}/${repo}/actions`
   };
 }
 

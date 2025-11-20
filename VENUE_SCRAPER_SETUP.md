@@ -92,10 +92,11 @@ All 25 Vienna venues are supported:
 ## Monitoring & Logs
 
 ### View Workflow Execution
-1. Click the workflow URL in the success message, OR
-2. Go to GitHub → Actions → Venue Scrapers
-3. Click on a specific workflow run
-4. View the "run-scrapers" job logs
+1. Click the "View workflow →" link in the success message (opens GitHub Actions page), OR
+2. Go to GitHub → Actions tab
+3. Look for "Venue Scrapers" workflow runs
+4. Click on a specific workflow run to view details
+5. View the "run-scrapers" job logs
 
 ### Check Results
 - The workflow displays a summary at the end
