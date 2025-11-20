@@ -25,7 +25,7 @@ export type Database = {
         }
         Insert: {
           id?: string
-          venue_slug: string
+          venue_slug?: string
           name: string
           street?: string | null
           street_number?: string | null
