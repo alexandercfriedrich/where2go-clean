@@ -138,15 +138,18 @@ VENUE_CONFIGS = {
         
         'list_selectors': {
             # Monatsbasierte Struktur mit h3-Headers
-            'month_header': 'h3',  # z.B. "SEPTEMBER"
             'event_container': 'div.event-item, li.program-event, p',
             'title': 'h4, .event-name, strong',
             'date': 'span.date, time',  # Format: "15.09"
             'link': 'a[href*="ticket"], a.event-link',
         },
         
+        # NOTE: Custom selectors for future implementation
+        'month_header': 'h3',  # z.B. "SEPTEMBER" (not currently used by generic_scraper.py)
+        
         'use_detail_pages': False,
         'date_format': 'DD.MM',  # Nur Tag.Monat, Jahr aus Section-Header
+        # NOTE: parsing_strategy is for future implementation - generic_scraper.py doesn't use this yet
         'parsing_strategy': 'grouped_by_month',  # Events gruppiert nach Monaten
     },
     
@@ -256,10 +259,16 @@ VENUE_CONFIGS = {
         
         'list_selectors': {
             # Statisches Programm auf Hauptseite
-            'program_section': 'div.program, section#program, div.content',
-            'day_title': 'h4, h3',  # z.B. "FRIday"
-            'description': 'p',  # z.B. "ROTATING SPECIAL PROGRAMME"
+            # NOTE: These custom selectors are for future implementation
+            # generic_scraper.py expects standard fields like event_container, title, date
+            'event_container': 'div.program, section#program',  # Fallback container
+            'title': 'h4, h3',  # Day titles
+            'description': 'p',  # Program descriptions
         },
+        
+        # Custom selectors for static program parsing (not currently used)
+        'program_section': 'div.program, section#program, div.content',
+        'day_title': 'h4, h3',
         
         # Alternative: Events via externe Quellen
         'alternative_sources': {
@@ -296,11 +305,11 @@ VENUE_CONFIGS = {
         
         # Wiederkehrende Events (jeden Mo/Do/Fr/Sa/So)
         'recurring_events': {
-            'Montag': 'MERCY - 80\'s, Wave, Synthie Pop',
-            'Donnerstag': 'COOL FOR CATS - Rock\'n\'Roll, 50\'s',
+            'Montag': "MERCY - 80's, Wave, Synthie Pop",
+            'Donnerstag': "COOL FOR CATS - Rock'n'Roll, 50's",
             'Freitag': 'CLASSIC - Die Kultnacht',
             'Samstag': 'BOOGIE NIGHT (jeden 4. Sa im Monat)',
-            'Sonntag': 'FREAK OUT - 60\'s & 70\'s',
+            'Sonntag': "FREAK OUT - 60's & 70's",
         },
         
         'use_detail_pages': False,
@@ -363,6 +372,8 @@ VENUE_CONFIGS = {
         
         # Celeste hat einzigartige Struktur: Alle Infos in einer Zelle, Pipe-separiert
         # Beispiel: "EMMA RELEASE Party 28-11 | 20:00-06:00| Club LD Smash & GHC |live"
+        # NOTE: parsing_strategy and regex_patterns are for future implementation
+        # generic_scraper.py doesn't currently use these fields
         'parsing_strategy': 'single_cell_pipe_separated',
         
         'regex_patterns': {
@@ -389,6 +400,7 @@ VENUE_CONFIGS = {
         'subcategory': 'Mixed',
         
         # ⚠️ WICHTIG: Chelsea hat separate Pages für Concerts und Clubs
+        # NOTE: additional_urls is for future implementation - generic_scraper.py only uses events_url
         'additional_urls': {
             'clubs': 'https://www.chelsea.co.at/clubs.php',  # Club Events
             'concerts': 'https://www.chelsea.co.at/concerts.php',  # Concert Events
@@ -400,12 +412,15 @@ VENUE_CONFIGS = {
             'date': 'td:first-child',  # Format: "So, 27.07."
             'title': 'td:nth-child(2), strong',  # Band/Event Name
             'description': 'td:nth-child(2)',  # Volle Beschreibung
+            # NOTE: price, doors_time, show_time are custom fields not extracted by generic_scraper.py
+            # These need to be moved to detail_selectors or scraper needs updating
             'price': 'td:nth-child(2)',  # z.B. "VVK: 28,-/AK: 32,-"
             'doors_time': 'td:nth-child(2)',  # z.B. "Doors: 20h"
             'show_time': 'td:nth-child(2)',  # z.B. "Show: 21h"
         },
         
         # Chelsea hat sehr detaillierte Event-Beschreibungen in Tabellenzellen
+        # NOTE: parsing_strategy is for future implementation - generic_scraper.py doesn't use this yet
         'parsing_strategy': 'table_with_inline_data',
         
         'use_detail_pages': False,  # Alle Infos auf List-Page
@@ -461,12 +476,16 @@ VENUE_CONFIGS = {
             # Minimale Website-Struktur
             'event_container': 'div.event, section.events',
             'date': '.date',
-            'dj': '.dj-name',
+            # NOTE: 'dj' is a custom field not extracted by generic_scraper.py
+            'title': '.dj-name',  # Use as title fallback
         },
+        
+        # Custom selectors for future implementation
+        'dj': '.dj-name',  # DJ name (not currently extracted)
         
         # Donau hat primär Social Media für Event-Ankündigungen
         'alternative_sources': {
-            'instagram': '@donautechno',  # Haupt-Quelle
+            'instagram': '@donautechno',  # Hauptquelle
             'facebook': 'Donautechno',
             'wien_info': 'https://www.wien.info/de/essen-trinken/bars-clubs/szenetreffs/donau-344696',
         },
@@ -500,6 +519,7 @@ VENUE_CONFIGS = {
             'time': 'span.tribe-event-time, .event-time',
             'image': 'img.tribe-events-event-image, .event-image img',
             'link': 'a.tribe-event-url, a[href*="/events/"]',
+            # NOTE: 'location' is a custom field not extracted by generic_scraper.py
             'location': '.tribe-events-venue, .event-location',  # DECK oder WANNE
         },
         
@@ -531,6 +551,7 @@ VENUE_CONFIGS = {
             'time': 'span.event-time',
             'image': 'img.event-image',
             'link': 'a[href*="/event/"]',
+            # NOTE: 'event_series' is a custom field not extracted by generic_scraper.py
             'event_series': '.event-series',  # z.B. "SIGNAL", "Super Disco"
         },
         
@@ -569,6 +590,7 @@ VENUE_CONFIGS = {
         'closure_reason': 'Finanzielle Schwierigkeiten',
         
         # Hinweis: Diese Config sollte NICHT aktiv scrapen!
+        # NOTE: scraping_enabled is checked by run_all_scrapers.py to skip closed venues
         'scraping_enabled': False,
         
         # Info aus Closure-Announcement
@@ -599,6 +621,7 @@ VENUE_CONFIGS = {
             'time': '.event-time',  # Üblicherweise 23:00
             'image': 'img.event-image',
             'link': 'a[href*="/event/"]',
+            # NOTE: 'series' is a custom field not extracted by generic_scraper.py
             'series': '.event-series',  # z.B. "F I R S T", "SURREAL"
         },
         
@@ -756,10 +779,11 @@ VENUE_CONFIGS = {
             'title': 'h3, .event-title',
             'date': '.event-date',  # z.B. "Do. 20.11.2025"
             'time': '.event-time',  # z.B. "19:30"
+            'link': 'a[href*="/programm/"]',
+            # NOTE: Custom fields below are not extracted by generic_scraper.py from list pages
             'location': '.event-location',  # "Oben", "Unten", "Wohnzimmer"
             'price': '.event-price',  # z.B. "€ 24/26"
             'ticket_status': '.event-status',  # VVK, Abendkassa, Frei
-            'link': 'a[href*="/programm/"]',
         },
         
         # The Loft hat mehrere Räume
@@ -881,9 +905,10 @@ VENUE_CONFIGS = {
             'title': 'h2, h3.event-title',
             'date': 'time.event-date, .date',
             'time': 'span.event-time',
-            'event_type': '.event-type',  # "Live", "Club", etc.
             'image': 'img.event-image',
             'link': 'a[href*="/programm/event/"]',
+            # NOTE: Custom fields below are not extracted by generic_scraper.py
+            'event_type': '.event-type',  # "Live", "Club", etc.
             'ticket_status': '.ticket-status',  # VVK, Abendkassa
         },
         

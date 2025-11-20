@@ -47,6 +47,12 @@ def main():
             results[venue_key] = {'success': False, 'error': 'Unknown venue'}
             continue
         
+        # Skip venues where scraping is disabled (e.g., closed venues)
+        if config.get('scraping_enabled') is False:
+            print(f"⚠️  Skipping {venue_key}: scraping disabled (venue {config.get('status', 'inactive')})")
+            results[venue_key] = {'success': False, 'error': 'Scraping disabled', 'skipped': True}
+            continue
+        
         try:
             scraper = GenericVenueScraper(config, dry_run=args.dry_run, debug=args.debug)
             result = scraper.run()
@@ -64,9 +70,13 @@ def main():
     total_inserted = 0
     total_updated = 0
     total_errors = 0
+    skipped = 0
     
     for venue_key, result in results.items():
-        if result.get('success'):
+        if result.get('skipped'):
+            skipped += 1
+            print(f"  ⊘ {venue_key:20s} - Skipped ({result.get('error', 'Disabled')})")
+        elif result.get('success'):
             events = result.get('events_count', 0)
             stats = result.get('stats', {})
             total_events += events
@@ -83,6 +93,8 @@ def main():
     print(f"  Inserted:      {total_inserted}")
     print(f"  Updated:       {total_updated}")
     print(f"  Errors:        {total_errors}")
+    if skipped > 0:
+        print(f"  Skipped:       {skipped}")
     print('=' * 70)
     
     return 0 if total_errors == 0 else 1
