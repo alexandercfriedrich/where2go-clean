@@ -33,3 +33,10 @@ Thumbs.db
 # Lock files
 package-lock.json
 yarn.lock
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
