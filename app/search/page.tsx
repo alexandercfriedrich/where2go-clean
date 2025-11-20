@@ -23,6 +23,7 @@ interface EventData {
   venue: string;
   price: string;
   website: string;
+  slug?: string;    // ✅ HINZUGEFÜGT
   endTime?: string;
   address?: string;
   ticketPrice?: string;
@@ -32,6 +33,7 @@ interface EventData {
   ageRestrictions?: string;
   source?: 'cache' | 'ai' | 'rss' | 'ra' | string;
   imageUrl?: string;
+  city?: string;    // ✅ HINZUGEFÜGT (falls noch nicht vorhanden)
 }
 
 const ALL_SUPER_CATEGORIES = Object.keys(EVENT_CATEGORY_SUBCATEGORIES);
@@ -109,7 +111,7 @@ export default function Home() {
   // New multi-select filters
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedVenues, setSelectedVenues] = useState<string[]>([]);
-  const [hoveredVenue, setHoveredVenue] = useState<string | null>(null); // Point 5: Track hovered venue for "nur" button
+  const [hoveredVenue, setHoveredVenue] = useState<string | null>(null);
   const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
   // Mobile: Sidebar Toggle
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -305,8 +307,6 @@ export default function Home() {
   }
 
   // Initial: Cache-only für Wien (heute) laden – keine neue Suche
-  // Uses new cache-day endpoint for better performance and validity filtering
-  // Falls back to legacy /api/events/cache if cache-day fails
   async function preloadDefaultEventsFromCache() {
     try {
       const today = todayISO();
@@ -450,11 +450,10 @@ export default function Home() {
         }
       });
       
-      // Initialize all filters as selected but keep categories collapsed (Point 4)
+      // Initialize all filters as selected but keep categories collapsed
       if (selectedCategories.length === 0) {
         setSelectedCategories(Array.from(categorySet));
       }
-      // Don't auto-expand categories on initial load
       
       if (selectedVenues.length === 0) {
         setSelectedVenues(Array.from(venueSet));
@@ -462,8 +461,7 @@ export default function Home() {
     }
   }, [events, searchSubmitted]);
 
-  // Point 3: Reset filters when new events load (new search or cache load)
-  // All categories should be checked, all collapsed
+  // Reset filters when new events load (new search or cache load)
   useEffect(() => {
     if (events.length > 0) {
       // Reset to show all events (empty filter = all selected)
@@ -474,7 +472,7 @@ export default function Home() {
       const allVenues = events.map(e => e.venue).filter(Boolean);
       setSelectedVenues(Array.from(new Set(allVenues)));
     }
-  }, [events.length]); // Trigger when event count changes
+  }, [events.length]);
 
   const displayedEvents = (() => {
     const dateFiltered = events.filter(matchesSelectedDate);
@@ -547,32 +545,6 @@ export default function Home() {
     return venues;
   };
 
-  const eventIcon = (cat: string) => {
-    const iconProps = { width:16, height:16, strokeWidth:2 };
-    switch (cat) {
-      case 'DJ Sets/Electronic':
-      case 'Clubs/Discos':
-        return (
-          <svg {...iconProps as any} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
-          </svg>
-        );
-      case 'Live-Konzerte':
-        return (
-          <svg {...iconProps as any} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M12 3v18"/><path d="M8 21l4-7 4 7"/><path d="M8 3l4 7 4-7"/>
-          </svg>
-        );
-      default:
-        return (
-          <svg {...iconProps as any} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/>
-            <line x1="7" y1="7" x2="7.01" y2="7"/>
-          </svg>
-        );
-    }
-  };
-
   const renderPrice = (ev: EventData) => {
     const p = ev.ticketPrice || ev.price;
     const text = p ? formatPriceDisplay(p) : 'Keine Preisinfos';
@@ -597,16 +569,6 @@ export default function Home() {
     return <span className="price-chip">{text}</span>;
   };
 
-  const renderSourceBadge = (src?: string) => {
-    const label =
-      src === 'rss' ? 'RSS' :
-      src === 'ai'  ? 'KI'  :
-      src === 'ra'  ? 'API' :
-      src === 'cache' ? 'Cache' : null;
-    if (!label) return null;
-    return <span className={`src-badge src-${src}`}>{label}</span>;
-  };
-
   return (
     <div className="min-h-screen">
       {/* Schema.org structured data for SEO - only when events are available */}
@@ -626,9 +588,6 @@ export default function Home() {
           </div>
         </div>
       </header>
-
-      {/* TL;DR Box - Homepage Highlights */}
-
 
       <section className="search-section">
         <div className="container">
@@ -786,7 +745,7 @@ export default function Home() {
               {getPageTitle()}
             </h1>
             
-            {/* Date Navigation Buttons - Feature 6 */}
+            {/* Date Navigation Buttons */}
             <nav className="date-nav-row" aria-label="Zeitraum wählen">
               <button 
                 className={`date-nav-btn ${timePeriod === 'heute' ? 'active' : ''}`}
@@ -810,23 +769,20 @@ export default function Home() {
           </>
         )}
         
-        {/* Point 5: Category Filter Row - Show whenever there are events, not just when searchSubmitted */}
+        {/* Category Filter Row - Show whenever there are events */}
         {events.length > 0 && (
           <>            
-            {/* Category Filter Row - Feature 7 */}
             <div className="category-filter-row-container">
               <div className="category-filter-row">
-                {/* Toggle All/None button - Point 4 */}
+                {/* Toggle All/None button */}
                 <button
                   className={`category-filter-btn ${resultsPageCategoryFilter.length === 0 ? 'active' : ''}`}
                   onClick={() => {
                     if (resultsPageCategoryFilter.length === 0) {
-                      // Currently showing all - switch to "Keine Filter" (clear all)
                       setResultsPageCategoryFilter(ALL_SUPER_CATEGORIES);
                       setSelectedVenues([]);
                       setExpandedCategories([]);
                     } else {
-                      // Currently filtered - switch to "Alle Events" (show all)
                       setResultsPageCategoryFilter([]);
                       const allVenues = events.map(e => e.venue).filter(Boolean);
                       setSelectedVenues(Array.from(new Set(allVenues)));
@@ -852,16 +808,12 @@ export default function Home() {
                       onClick={() => {
                         if (isDisabled) return;
                         
-                        // Sync with vertical sidebar
                         if (resultsPageCategoryFilter.length === 0) {
-                          // Currently showing all - deselect this one category
                           setResultsPageCategoryFilter(ALL_SUPER_CATEGORIES.filter(c => c !== cat));
                         } else if (resultsPageCategoryFilter.includes(cat)) {
-                          // Currently selected - deselect it
                           const newFilter = resultsPageCategoryFilter.filter(c => c !== cat);
                           setResultsPageCategoryFilter(newFilter.length === ALL_SUPER_CATEGORIES.length - 1 ? [] : newFilter);
                         } else {
-                          // Currently not selected - select it
                           const newFilter = [...resultsPageCategoryFilter, cat];
                           setResultsPageCategoryFilter(newFilter.length === ALL_SUPER_CATEGORIES.length ? [] : newFilter);
                         }
@@ -884,7 +836,7 @@ export default function Home() {
         )}
 
         <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
-          {/* Left sidebar: Category-Venue hierarchy - Point 11: Always show when events are displayed */}
+          {/* Left sidebar: Category-Venue hierarchy */}
           {events.length > 0 && Object.keys(getCategoryCounts()).length > 0 && (
             <aside className="venue-filter-sidebar">
               <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '20px', color: '#000' }}>Filters & Categories</h3>
@@ -927,15 +879,12 @@ export default function Home() {
                           }}
                           onChange={(e) => {
                             e.stopPropagation();
-                            // Sync with horizontal filters
                             if (e.target.checked) {
-                              // Add to results page filter (or remove all to show all)
                               if (resultsPageCategoryFilter.length > 0) {
                                 setResultsPageCategoryFilter(prev => [...prev, category]);
                               }
                               setSelectedVenues(prev => [...new Set([...prev, ...categoryVenues])]);
                             } else {
-                              // Remove from results page filter
                               setResultsPageCategoryFilter(prev => 
                                 prev.length === 0 
                                   ? ALL_SUPER_CATEGORIES.filter(c => c !== category)
@@ -975,6 +924,8 @@ export default function Home() {
                                 key={venue} 
                                 className="venue-filter-item"
                                 style={{ marginBottom: '6px', position: 'relative' }}
+                                onMouseEnter={() => setHoveredVenue(venue)}
+                                onMouseLeave={() => setHoveredVenue(null)}
                               >
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '13px', padding: '4px 0' }}>
                                   <input
@@ -994,19 +945,14 @@ export default function Home() {
                                   </span>
                                   <span style={{ fontSize: '11px', color: '#999' }}>({count})</span>
                                   
-                                  {/* Point 5: "nur" button on hover */}
+                                  {/* "nur" button on hover */}
                                   {hoveredVenue === venue && (
                                     <button
                                       onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        // Show only events from this venue
                                         setSelectedVenues([venue]);
-                                        // Filter categories to only those with this venue
-                                        const venueCategory = Object.entries(getVenuesByCategory(category)).find(([v]) => v === venue);
-                                        if (venueCategory) {
-                                          setResultsPageCategoryFilter([category]);
-                                        }
+                                        setResultsPageCategoryFilter([category]);
                                       }}
                                       style={{
                                         padding: '2px 8px',
@@ -1092,152 +1038,165 @@ export default function Home() {
                 const microdataAttrs = generateEventMicrodata(ev);
                 const canonicalUrl = generateCanonicalUrl(ev);
 
-                return (
-                  <div 
-                    key={key} 
-                    className={`event-card ${ev.imageUrl ? 'event-card-with-image' : ''}`}
-                    {...microdataAttrs}
-                  >
-                    <link itemProp="url" href={canonicalUrl} />
-                    <meta itemProp="eventStatus" content="https://schema.org/EventScheduled" />
-                    <meta itemProp="eventAttendanceMode" content="https://schema.org/OfflineEventAttendanceMode" />
-                    {ev.imageUrl && (
-                      <>
-                        <meta itemProp="image" content={ev.imageUrl} />
-                        <div 
-                          className="event-card-image"
-                          style={{
-                            backgroundImage: `url(${ev.imageUrl})`
-                          }}
-                        />
-                      </>
-                    )}
-                    <div className="event-content">
-                    {superCat && (
-                      <a 
-                        href={`/${city.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-')}/${superCat.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')}/${timePeriod === 'heute' ? 'heute' : timePeriod === 'morgen' ? 'morgen' : timePeriod === 'kommendes-wochenende' ? 'wochenende' : formatDateForAPI()}`}
-                        className="event-category-badge"
-                      >
-                        {superCat}
-                      </a>
-                    )}
-                    
-                    <h3 className="event-title" itemProp="name">
-                      {ev.title}
-                    </h3>
+                // ✅ Event detail URL with database slug
+                const detailUrl = ev.slug 
+                  ? `/events/${(ev.city || city).toLowerCase()}/${ev.slug}` 
+                  : (ev.website || '#');
 
-                    <div className="event-meta-line">
-                      <meta itemProp="startDate" content={`${ev.date}T${ev.time || '00:00'}:00`} />
-                      {ev.endTime && <meta itemProp="endDate" content={`${ev.date}T${ev.endTime}:00`} />}
-                      <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                        <line x1="16" y1="2" x2="16" y2="6"/>
-                        <line x1="8" y1="2" x2="8" y2="6"/>
-                        <line x1="3" y1="10" x2="21" y2="10"/>
-                      </svg>
-                      <span className="event-date">{formatEventDate(ev.date)}</span>
-                      {formattedTime && (
+                return (
+                  <Link 
+                    href={detailUrl}
+                    key={key}
+                    style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}
+                  >
+                    <div 
+                      className={`event-card ${ev.imageUrl ? 'event-card-with-image' : ''}`}
+                      {...microdataAttrs}
+                    >
+                      <link itemProp="url" href={canonicalUrl} />
+                      <meta itemProp="eventStatus" content="https://schema.org/EventScheduled" />
+                      <meta itemProp="eventAttendanceMode" content="https://schema.org/OfflineEventAttendanceMode" />
+                      {ev.imageUrl && (
                         <>
-                          <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/>
-                          </svg>
-                          <span className="event-time">{formattedTime}</span>
+                          <meta itemProp="image" content={ev.imageUrl} />
+                          <div 
+                            className="event-card-image"
+                            style={{
+                              backgroundImage: `url(${ev.imageUrl})`
+                            }}
+                          />
                         </>
                       )}
-                    </div>
-
-                    <div className="event-meta-line" itemProp="location" itemScope itemType="https://schema.org/Place">
-                      <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-                      </svg>
-                      <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((ev.venue || '') + (ev.address ? ', ' + ev.address : ''))}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="venue-link"
-                        itemProp="name"
-                      >
-                        {ev.venue}
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: '4px', opacity: 0.6 }}>
-                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                          <polyline points="15 3 21 3 21 9"></polyline>
-                          <line x1="10" y1="14" x2="21" y2="3"></line>
-                        </svg>
-                      </a>
-                      {ev.address && (
-                        <meta itemProp="address" content={ev.address} />
+                      <div className="event-content">
+                      {superCat && (
+                        <a 
+                          href={`/${city.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-')}/${superCat.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')}/${timePeriod === 'heute' ? 'heute' : timePeriod === 'morgen' ? 'morgen' : timePeriod === 'kommendes-wochenende' ? 'wochenende' : formatDateForAPI()}`}
+                          className="event-category-badge"
+                        >
+                          {superCat}
+                        </a>
                       )}
-                    </div>
+                      
+                      <h3 className="event-title" itemProp="name">
+                        {ev.title}
+                      </h3>
 
-                    {ev.eventType && (
                       <div className="event-meta-line">
+                        <meta itemProp="startDate" content={`${ev.date}T${ev.time || '00:00'}:00`} />
+                        {ev.endTime && <meta itemProp="endDate" content={`${ev.date}T${ev.endTime}:00`} />}
                         <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                          <path d="M20 9V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2"/>
-                          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V9s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
-                          <line x1="4" y1="22" x2="4" y2="15"/>
-                          <line x1="20" y1="22" x2="20" y2="15"/>
+                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                          <line x1="16" y1="2" x2="16" y2="6"/>
+                          <line x1="8" y1="2" x2="8" y2="6"/>
+                          <line x1="3" y1="10" x2="21" y2="10"/>
                         </svg>
-                        <span>{ev.eventType}</span>
+                        <span className="event-date">{formatEventDate(ev.date)}</span>
+                        {formattedTime && (
+                          <>
+                            <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                              <circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/>
+                            </svg>
+                            <span className="event-time">{formattedTime}</span>
+                          </>
+                        )}
                       </div>
-                    )}
 
-                    {ev.ageRestrictions && (
-                      <div className="event-meta-line">
+                      <div className="event-meta-line" itemProp="location" itemScope itemType="https://schema.org/Place">
                         <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                          <circle cx="12" cy="12" r="10"/>
-                          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
                         </svg>
-                        <span>{ev.ageRestrictions}</span>
-                      </div>
-                    )}
-
-                    {ev.description && (
-                      <div className="event-description" itemProp="description">{ev.description}</div>
-                    )}
-
-                    <div className="event-cta-row">
-                      {renderPrice(ev)}
-                      {ev.website ? (
                         <a
-                          href={ev.website}
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((ev.venue || '') + (ev.address ? ', ' + ev.address : ''))}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="btn-outline with-icon"
+                          className="venue-link"
+                          itemProp="name"
+                          onClick={(e) => e.stopPropagation()}
                         >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                          {ev.venue}
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: '4px', opacity: 0.6 }}>
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                            <polyline points="15 3 21 3 21 9"></polyline>
+                            <line x1="10" y1="14" x2="21" y2="3"></line>
                           </svg>
-                          Mehr Info
                         </a>
-                      ) : <span />}
-                      {ev.bookingLink ? (
-                        <a
-                          href={ev.bookingLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn-outline tickets with-icon"
-                        >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/>
-                            <path d="M13 7v2M13 11v2M13 15v2"/>
-                          </svg>
-                          Tickets
-                        </a>
-                      ) : <span />}
-                    </div>
-                    
-                    {/* Source Badge - bottom-right corner */}
-                    {ev.source && (
-                      <div className="event-source-badge">
-                        {ev.source === 'rss' ? 'RSS' :
-                         ev.source === 'ai' ? 'KI' :
-                         ev.source === 'ra' ? 'API' :
-                         ev.source === 'cache' ? 'Cache' :
-                         ev.source}
+                        {ev.address && (
+                          <meta itemProp="address" content={ev.address} />
+                        )}
                       </div>
-                    )}
+
+                      {ev.eventType && (
+                        <div className="event-meta-line">
+                          <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M20 9V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v2"/>
+                            <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V9s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+                            <line x1="4" y1="22" x2="4" y2="15"/>
+                            <line x1="20" y1="22" x2="20" y2="15"/>
+                          </svg>
+                          <span>{ev.eventType}</span>
+                        </div>
+                      )}
+
+                      {ev.ageRestrictions && (
+                        <div className="event-meta-line">
+                          <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <circle cx="12" cy="12" r="10"/>
+                            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                          </svg>
+                          <span>{ev.ageRestrictions}</span>
+                        </div>
+                      )}
+
+                      {ev.description && (
+                        <div className="event-description" itemProp="description">{ev.description}</div>
+                      )}
+
+                      <div className="event-cta-row">
+                        {renderPrice(ev)}
+                        {ev.website ? (
+                          <a
+                            href={ev.website}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn-outline with-icon"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                            </svg>
+                            Mehr Info
+                          </a>
+                        ) : <span />}
+                        {ev.bookingLink ? (
+                          <a
+                            href={ev.bookingLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn-outline tickets with-icon"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v2z"/>
+                              <path d="M13 7v2M13 11v2M13 15v2"/>
+                            </svg>
+                            Tickets
+                          </a>
+                        ) : <span />}
+                      </div>
+                      
+                      {/* Source Badge - bottom-right corner */}
+                      {ev.source && (
+                        <div className="event-source-badge">
+                          {ev.source === 'rss' ? 'RSS' :
+                           ev.source === 'ai' ? 'KI' :
+                           ev.source === 'ra' ? 'API' :
+                           ev.source === 'cache' ? 'Cache' :
+                           ev.source}
+                        </div>
+                      )}
+                      </div>
                     </div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
@@ -1252,7 +1211,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* Beliebte Event-Guides Section - NEU */}
+      {/* Beliebte Event-Guides Section */}
       {!searchSubmitted && (
         <section style={{ padding: '48px 16px', background: 'linear-gradient(135deg, #1A1A1A 0%, #2A2A2A 100%)' }}>
           <div className="container" style={{ maxWidth: '1200px', margin: '0 auto' }}>
@@ -1283,7 +1242,6 @@ export default function Home() {
               marginBottom: '32px'
             }}>
               {getAllGuides().map((guide) => {
-                // Extract city slug from guide data
                 const citySlug = guide.city.toLowerCase()
                   .normalize('NFKD')
                   .replace(/[\u0300-\u036f]/g, '')
@@ -1360,7 +1318,7 @@ export default function Home() {
         </section>
       )}
 
-      {/* FAQ Section - Homepage */}
+      {/* FAQ Section */}
       {!searchSubmitted && (
         <section style={{ padding: '24px 16px' }}>
           <div className="container" style={{ maxWidth: '1200px', margin: '0 auto' }}>
@@ -1369,10 +1327,9 @@ export default function Home() {
         </section>
       )}
 
-      {/* SEO Footer - only on homepage */}
       <SEOFooter />
 
-      {/* Global overrides incl. calendar fix */}
+      {/* Global styles */}
       <style jsx global>{`
         .header-inner.header-centered {
           position: relative;
@@ -1396,34 +1353,31 @@ export default function Home() {
           }
         }
 
-        /* Event Card Image Styles - Feature 1 */
         .event-card {
           height: auto;
           min-height: 300px;
+          position: relative;
         }
         .event-card-image {
           width: 100%;
-          padding-top: 56.25%; /* 16:9 aspect ratio */
+          padding-top: 56.25%;
           background-size: cover;
           background-position: center;
           background-repeat: no-repeat;
         }
         
-        /* Enhanced 3D Shadow - Feature 4 */
         .event-card {
           box-shadow: 0 2px 4px rgba(0,0,0,0.1), 
                       0 8px 16px rgba(0,0,0,0.2), 
                       0 16px 32px rgba(0,0,0,0.15);
         }
         .event-card:hover {
-          /* No hover effect per requirements */
           transform: none;
           box-shadow: 0 2px 4px rgba(0,0,0,0.1), 
                       0 8px 16px rgba(0,0,0,0.2), 
                       0 16px 32px rgba(0,0,0,0.15);
         }
         
-        /* Source Badge - Feature 5 */
         .event-source-badge {
           position: absolute;
           top: 0;
@@ -1439,21 +1393,18 @@ export default function Home() {
           z-index: 10;
         }
         
-        /* Venue Link with External Icon - Feature 3 */
         .venue-link {
           display: inline-flex;
           align-items: center;
           gap: 2px;
         }
         
-        /* Ticket Button Icon - Feature 2 */
         .btn-outline.tickets {
           display: inline-flex;
           align-items: center;
           gap: 6px;
         }
         
-        /* Category Badge Link - Feature 8 */
         .event-category-badge {
           display: inline-block;
           font-size: 12px;
@@ -1470,7 +1421,6 @@ export default function Home() {
           text-decoration: underline;
         }
         
-        /* Date Navigation Row - Feature 6 */
         .date-nav-row {
           display: flex;
           gap: 12px;
@@ -1498,7 +1448,6 @@ export default function Home() {
           border-color: #4A90E2;
         }
         
-        /* Category Filter Row - Feature 7 */
         .category-filter-row-container {
           margin: 16px 0;
           overflow-x: auto;
@@ -1557,7 +1506,6 @@ export default function Home() {
           opacity: 0.8;
         }
         
-        /* Event Count Text */
         .event-count-text {
           margin: 12px 0 24px 0;
           color: #6b7280;
@@ -1565,7 +1513,6 @@ export default function Home() {
           font-weight: 500;
         }
         
-        /* Results Page Title */
         .results-page-title {
           font-size: 28px;
           font-weight: 700;
@@ -1775,17 +1722,6 @@ export default function Home() {
           .results-filter-bar { flex-direction:column; align-items:flex-start; gap:8px; }
         }
 
-        .src-badge {
-          display:inline-block; margin-left:8px; font-size:11px; line-height:1; padding:3px 6px;
-          border-radius:999px; border:1px solid rgba(0,0,0,0.18);
-          background:#f7f7f7; color:#444; vertical-align:middle;
-        }
-        .src-badge.src-ai    { background:#1f2937; color:#fff; border-color:#1f2937; }
-        .src-badge.src-rss   { background:#f59e0b; color:#111; border-color:#d97706; }
-        .src-badge.src-ra    { background:#0ea5e9; color:#fff; border-color:#0284c7; }
-        .src-badge.src-cache { background:#e5e7eb; color:#111; border-color:#d1d5db; }
-
-        /* Calendar dropdown fix */
         .select-with-dropdown { position: relative; }
         .date-dropdown {
           position: absolute;
@@ -1798,29 +1734,10 @@ export default function Home() {
           border-radius: 10px;
           box-shadow: 0 12px 28px rgba(0,0,0,0.12);
           padding: 12px;
-          min-width: 560px; /* two 7-col grids side by side */
+          min-width: 560px;
         }
         @media (max-width: 640px) {
           .date-dropdown { position: fixed; left: 12px; right: 12px; top: 20%; min-width: unset; }
-        }
-
-        /* Kategorien-Dropdown Panel */
-        .category-dropdown-panel {
-          margin-top: 20px;
-          margin-bottom: 20px;
-          background: #fff;
-          border: 1px solid #e5e7eb;
-          border-radius: 12px;
-          box-shadow: 0 12px 28px rgba(0,0,0,0.12);
-          padding: 16px;
-          width: 100%;
-          max-width: 920px;
-        }
-        @media (max-width: 640px) {
-          .category-dropdown-panel { 
-            margin-top: 16px;
-            margin-bottom: 16px;
-          }
         }
 
         .calendar { width: 100%; }
@@ -1870,7 +1787,6 @@ export default function Home() {
         .cal-day--sel { background: #404040; color: #fff; border-color: #404040; font-weight: 600; }
         .cal-day--disabled { opacity: .4; cursor: not-allowed; background: rgba(0,0,0,0.03); }
 
-        /* Spacing for meta rows */
         .event-meta-line { line-height: 1.5; }
       `}</style>
     </div>
