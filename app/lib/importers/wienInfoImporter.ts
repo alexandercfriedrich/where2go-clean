@@ -314,10 +314,12 @@ async function processBatch(
       } else {
         // Upsert venue
         const venueData: DbVenueInsert = {
+          venue_slug: venueName.toLowerCase().trim().replace(/[^\w\s-]/g, '').replace(/[\s_-]+/g, '-').replace(/^-+|-+$/g, ''),
           name: venueName,
-          address: venueAddress || null,
+          full_address: venueAddress || null,
           city: city,
           country: 'Austria',
+          source: 'wien.info',
           website: null, // Wien.info doesn't provide venue-specific websites in event data
           latitude: null,
           longitude: null

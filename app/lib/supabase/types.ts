@@ -4,37 +4,64 @@ export type Database = {
       venues: {
         Row: {
           id: string
+          venue_slug: string
           name: string
-          address: string | null
+          street: string | null
+          street_number: string | null
+          postal_code: string | null
           city: string
           country: string
+          full_address: string | null
+          phone: string | null
+          email: string | null
+          website: string | null
           latitude: number | null
           longitude: number | null
-          website: string | null
+          description: string | null
+          accessibility_info: string | null
+          source: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
+          venue_slug: string
           name: string
-          address?: string | null
+          street?: string | null
+          street_number?: string | null
+          postal_code?: string | null
           city: string
           country?: string
+          full_address?: string | null
+          phone?: string | null
+          email?: string | null
+          website?: string | null
           latitude?: number | null
           longitude?: number | null
-          website?: string | null
+          description?: string | null
+          accessibility_info?: string | null
+          source?: string | null
           created_at?: string
           updated_at?: string
         }
         Update: {
           id?: string
+          venue_slug?: string
           name?: string
-          address?: string | null
+          street?: string | null
+          street_number?: string | null
+          postal_code?: string | null
           city?: string
           country?: string
+          full_address?: string | null
+          phone?: string | null
+          email?: string | null
+          website?: string | null
           latitude?: number | null
           longitude?: number | null
-          website?: string | null
+          description?: string | null
+          accessibility_info?: string | null
+          source?: string | null
           created_at?: string
           updated_at?: string
         }
