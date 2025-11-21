@@ -239,6 +239,7 @@ export class EventAggregator {
       description: this.extractField(raw, ['description', 'details', 'info']),
       bookingLink: this.extractField(raw, ['bookingLink', 'ticketLink', 'tickets', 'booking']),
       ageRestrictions: this.extractField(raw, ['ageRestrictions', 'age', 'ageLimit', 'restrictions']),
+      imageUrl: this.extractField(raw, ['imageUrl', 'image_url', 'imageURL', 'image', 'poster', 'thumbnail']),
     };
   }
 
@@ -380,6 +381,7 @@ export class EventAggregator {
         eventType: existing.eventType || ev.eventType,
         ageRestrictions: existing.ageRestrictions || ev.ageRestrictions,
         description: existing.description || ev.description,
+        imageUrl: existing.imageUrl || ev.imageUrl,
         source: existing.source || ev.source
       });
     }
@@ -414,6 +416,7 @@ export class EventAggregator {
             eventType: base.eventType || list[j].eventType,
             ageRestrictions: base.ageRestrictions || list[j].ageRestrictions,
             description: base.description || list[j].description,
+            imageUrl: base.imageUrl || list[j].imageUrl,
             source: base.source || list[j].source
           };
           used.add(j);
