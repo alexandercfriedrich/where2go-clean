@@ -58,8 +58,9 @@ export class EventRepository {
     }
     
     // NOTE: Do NOT generate slug in TypeScript - let the database trigger handle it
-    // The database trigger (generate_event_slug) adds a UUID suffix for uniqueness
-    // This ensures all slugs are unique and prevents constraint violations
+    // The database trigger (generate_event_slug in supabase/migrations/004_add_event_slug.sql)
+    // adds a UUID suffix for uniqueness. This ensures all slugs are unique and prevents
+    // duplicate key violations on the idx_events_slug_unique constraint.
     // Format: {title}-{venue}-{date}-{8-char-uuid-suffix}
     
     return {

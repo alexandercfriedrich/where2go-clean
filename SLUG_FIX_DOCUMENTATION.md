@@ -182,4 +182,4 @@ All tests should pass ✅
 
 **Fixed by**: GitHub Copilot  
 **Date**: 2025-11-21  
-**Commit**: 8420717
+**Commits**: 8420717 (fix), f7b58fa (documentation)
