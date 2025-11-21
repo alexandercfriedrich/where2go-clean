@@ -1,7 +1,6 @@
 import { supabase, supabaseAdmin } from '../supabase/client'
 import type { Database } from '../supabase/types'
 import type { EventData } from '../types'
-import { generateEventSlug } from '../slugGenerator'
 
 type DbEvent = Database['public']['Tables']['events']['Row']
 type DbEventInsert = Database['public']['Tables']['events']['Insert']
@@ -58,12 +57,10 @@ export class EventRepository {
       }
     }
     
-    // Generate slug for SEO-friendly URLs
-    const slug = generateEventSlug({
-      title: event.title,
-      venue: event.venue,
-      date: event.date
-    });
+    // NOTE: Do NOT generate slug in TypeScript - let the database trigger handle it
+    // The database trigger (generate_event_slug) adds a UUID suffix for uniqueness
+    // This ensures all slugs are unique and prevents constraint violations
+    // Format: {title}-{venue}-{date}-{8-char-uuid-suffix}
     
     return {
       title: event.title,
@@ -84,7 +81,7 @@ export class EventRepository {
       tags: event.eventType ? [event.eventType] : null,
       source: event.source || 'ai',
       source_url: event.website || null,
-      slug: slug,
+      slug: null, // Let database trigger generate unique slug with UUID suffix
       published_at: new Date().toISOString()
     };
   }
