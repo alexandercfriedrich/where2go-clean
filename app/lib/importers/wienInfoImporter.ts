@@ -17,6 +17,7 @@ import { VenueRepository } from '@/lib/repositories/VenueRepository';
 import { EventRepository } from '@/lib/repositories/EventRepository';
 import type { EventData } from '@/lib/types';
 import type { Database } from '@/lib/supabase/types';
+import { supabaseAdmin } from '@/lib/supabase/client';
 import pThrottle from 'p-throttle';
 import pRetry from 'p-retry';
 import { randomUUID } from 'crypto';
@@ -270,7 +271,10 @@ async function fetchEventsWithRetry(
 }
 
 /**
- * Process a batch of events: upsert venues first, then events
+ * Process a batch of events: upsert venues first, then events, then link them
+ * 
+ * The linking of events to venues is done through the database function link_events_to_venues,
+ * which matches events to venues based on venue name and city.
  */
 async function processBatch(
   events: EventData[],
@@ -363,6 +367,33 @@ async function processBatch(
         result.imported = insertResult.inserted;
         // We can't easily distinguish new vs updated in bulk upsert
         // Just report all as imported
+        
+        // Step 3: Link events to venues using database function
+        // This must be done after both venues and events are created
+        try {
+          if (debug) {
+            console.log(`[WIEN-IMPORTER] Calling link_events_to_venues for city: ${city}`);
+          }
+          
+          // Note: Using type assertion because RPC functions are not in the generated Supabase types
+          // This is a known limitation when using custom database functions
+          const { data: linkResult, error: linkError } = await (supabaseAdmin as any).rpc('link_events_to_venues', {
+            p_city: city
+          });
+          
+          if (linkError) {
+            console.error('[WIEN-IMPORTER] Error linking events to venues:', linkError);
+            result.errors.push(`Event-venue linking failed: ${linkError.message}`);
+          } else if (linkResult && linkResult.length > 0) {
+            const { events_linked, events_processed } = linkResult[0];
+            if (debug) {
+              console.log(`[WIEN-IMPORTER] Linked ${events_linked} of ${events_processed} events to venues`);
+            }
+          }
+        } catch (linkError: any) {
+          console.error('[WIEN-IMPORTER] Exception linking events to venues:', linkError);
+          result.errors.push(`Event-venue linking exception: ${linkError.message}`);
+        }
       } else {
         result.failed = events.length;
         result.errors.push(...insertResult.errors);
