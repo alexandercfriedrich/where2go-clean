@@ -19,6 +19,17 @@ DECLARE
   v_events_linked INTEGER := 0;
   v_events_processed INTEGER := 0;
 BEGIN
+  -- First, count total events that are eligible for processing
+  -- This count is taken BEFORE the update to show how many events were candidates
+  SELECT 
+    COUNT(*) INTO v_events_processed
+  FROM events e
+  WHERE 
+    e.venue_id IS NULL
+    AND e.custom_venue_name IS NOT NULL
+    AND e.custom_venue_name != ''
+    AND (p_city IS NULL OR e.city = p_city);
+  
   -- Update events to link them with venues based on name and city match
   WITH matched_venues AS (
     SELECT 
@@ -44,16 +55,6 @@ BEGIN
   SELECT 
     COUNT(*) INTO v_events_linked
   FROM update_result;
-  
-  -- Count total events processed (checked for matching)
-  SELECT 
-    COUNT(*) INTO v_events_processed
-  FROM events e
-  WHERE 
-    e.venue_id IS NULL
-    AND e.custom_venue_name IS NOT NULL
-    AND e.custom_venue_name != ''
-    AND (p_city IS NULL OR e.city = p_city);
   
   RETURN QUERY SELECT v_events_linked, v_events_processed;
 END;

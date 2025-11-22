@@ -375,6 +375,8 @@ async function processBatch(
             console.log(`[WIEN-IMPORTER] Calling link_events_to_venues for city: ${city}`);
           }
           
+          // Note: Using type assertion because RPC functions are not in the generated Supabase types
+          // This is a known limitation when using custom database functions
           const { data: linkResult, error: linkError } = await (supabaseAdmin as any).rpc('link_events_to_venues', {
             p_city: city
           });
