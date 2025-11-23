@@ -51,6 +51,7 @@ class BaseVenueScraper(ABC):
     EVENTS_URL = "https://example.com/events"
     CATEGORY = "Clubs/Discos"
     SUBCATEGORY = "Electronic"
+    VENUE_LOGO_URL = None  # Fallback image if no event image found
     
     def __init__(self, dry_run: bool = False, debug: bool = False):
         self.dry_run = dry_run
@@ -313,6 +314,11 @@ class BaseVenueScraper(ABC):
         # Generate slug
         slug = self._generate_slug(event.get('title', ''), event.get('date', ''))
         
+        # Use venue logo as fallback if no event image
+        image_url = event.get('image_url')
+        if not image_url and self.VENUE_LOGO_URL:
+            image_url = self.VENUE_LOGO_URL
+        
         return {
             'title': event.get('title'),
             'description': event.get('description'),
@@ -328,7 +334,7 @@ class BaseVenueScraper(ABC):
             'is_free': event.get('price', '').lower() in ['free', 'gratis', 'free / gratis'],
             'website_url': event.get('detail_url') or event.get('website'),
             'booking_url': event.get('ticket_url'),
-            'image_urls': [event['image_url']] if event.get('image_url') else None,
+            'image_urls': [image_url] if image_url else None,
             'tags': event.get('artists', [])[:10] if event.get('artists') else None,
             'source': f"{self.VENUE_NAME.lower().replace(' ', '-')}-scraper",
             'source_url': event.get('detail_url') or event.get('website'),

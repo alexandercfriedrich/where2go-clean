@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 SASS Music Club Event Scraper
-Extracts upcoming events from https://sassvienna.com/programm
+Extracts upcoming events from https://sassvienna.com/de/programm
 and saves them to the Supabase database.
 
 Usage:
@@ -26,7 +26,7 @@ class SassScraper(BaseVenueScraper):
     VENUE_NAME = "SASS Music Club"
     VENUE_ADDRESS = "Karlsplatz 1, 1010 Wien"
     BASE_URL = "https://sassvienna.com"
-    EVENTS_URL = "https://sassvienna.com/programm"
+    EVENTS_URL = "https://sassvienna.com/de/programm"
     CATEGORY = "Bars"
     SUBCATEGORY = "Live Music"
     
@@ -40,21 +40,8 @@ class SassScraper(BaseVenueScraper):
         
         events = []
         
-        # SASS has structured program page
-        event_selectors = [
-            'div.event-item',
-            'article.program-item',
-            'div[class*="event"]',
-            'article[class*="event"]'
-        ]
-        
-        event_items = []
-        for selector in event_selectors:
-            items = soup.select(selector)
-            if items:
-                event_items = items
-                self.log(f"Found {len(items)} items using selector: {selector}", "debug" if self.debug else "info")
-                break
+        # SASS has a specific structure: div.events contains div.event items
+        event_items = soup.select('div.events div.event')
         
         self.log(f"Found {len(event_items)} potential events")
         
@@ -77,7 +64,7 @@ class SassScraper(BaseVenueScraper):
         return events
     
     def _parse_event_item(self, item) -> Optional[Dict]:
-        """Parse a single event item"""
+        """Parse a single event item from SASS structure"""
         try:
             event_data = {
                 'title': None,
@@ -91,58 +78,54 @@ class SassScraper(BaseVenueScraper):
                 'artists': [],
             }
             
-            # Extract date (format: "Do 7. Aug")
-            date_selectors = ['div.event-date', '.date']
-            for sel in date_selectors:
-                date_elem = item.select_one(sel)
-                if date_elem:
-                    date_text = date_elem.get_text(strip=True)
-                    parsed_date = self.parse_german_date(date_text)
-                    if parsed_date:
-                        event_data['date'] = parsed_date
-                        break
+            # Extract title from h3 in div.title
+            title_elem = item.select_one('div.title h3')
+            if title_elem:
+                event_data['title'] = title_elem.get_text(strip=True)
             
-            # Extract time (format: "23:00 - 06:00")
-            time_elem = item.select_one('div.event-time')
+            # Extract subtitle/subline if available
+            subline_elem = item.select_one('div.subline h4')
+            if subline_elem:
+                subline = subline_elem.get_text(strip=True)
+                if subline:
+                    event_data['title'] = f"{event_data['title']} {subline}"
+            
+            # Extract link from a.eventlink
+            link_elem = item.select_one('a.eventlink')
+            if link_elem and link_elem.get('href'):
+                href = link_elem['href']
+                if not href.startswith('http'):
+                    href = self.BASE_URL.rstrip('/') + href
+                event_data['detail_url'] = href
+            
+            # Extract date from span.start_date (format: "27. Nov")
+            date_elem = item.select_one('span.start_date')
+            if date_elem:
+                date_text = date_elem.get_text(strip=True)
+                # Convert "Nov" to "November" for better parsing
+                date_text = date_text.replace('Nov', 'November').replace('Dez', 'Dezember').replace('Okt', 'Oktober')
+                event_data['date'] = self.parse_german_date(date_text)
+            
+            # Extract time from span.start_time
+            time_elem = item.select_one('span.start_time')
             if time_elem:
                 time_text = time_elem.get_text(strip=True)
                 event_data['time'] = self.parse_time(time_text)
             
-            # Extract title
-            title_selectors = ['h3', '.event-title']
-            for sel in title_selectors:
-                title_elem = item.select_one(sel)
-                if title_elem:
-                    event_data['title'] = title_elem.get_text(strip=True)
-                    break
-            
             # Extract lineup (DJ names with Instagram handles)
-            lineup_selectors = ['div.lineup', '.artists']
-            for sel in lineup_selectors:
-                lineup_elem = item.select_one(sel)
-                if lineup_elem:
-                    lineup_text = lineup_elem.get_text()
-                    # Extract DJ names
-                    artists = re.findall(r'\b[A-Z][A-Za-z\s&]{2,30}\b', lineup_text)
-                    event_data['artists'] = list(set(artists))[:10]
-                    break
-            
-            # Extract link
-            link_elem = item.select_one('a[href*="/programm/event/"]') or item.find('a', href=True)
-            if link_elem and link_elem.get('href'):
-                href = link_elem['href']
-                if not href.startswith('http'):
-                    href = self.BASE_URL.rstrip('/') + '/' + href.lstrip('/')
-                event_data['detail_url'] = href
-            
-            # Extract image
-            img_elem = item.select_one('img')
-            if img_elem:
-                src = img_elem.get('src') or img_elem.get('data-src')
-                if src:
-                    if not src.startswith('http'):
-                        src = self.BASE_URL.rstrip('/') + '/' + src.lstrip('/')
-                    event_data['image_url'] = src
+            lineup_elem = item.select_one('div.lineup')
+            if lineup_elem:
+                # Get all strong elements (artist names)
+                artists = []
+                for strong in lineup_elem.find_all('strong'):
+                    artist = strong.get_text(strip=True)
+                    if artist:
+                        artists.append(artist)
+                
+                if artists:
+                    event_data['artists'] = artists
+                    # Also add lineup as description preview
+                    event_data['description'] = f"Lineup: {', '.join(artists)}"
             
             return event_data if event_data['title'] else None
             
@@ -164,23 +147,59 @@ class SassScraper(BaseVenueScraper):
             if not soup:
                 return
             
-            # Extract description
-            desc_elem = soup.select_one('.event-description')
-            if desc_elem:
-                event_data['description'] = desc_elem.get_text(strip=True)
+            # Extract full description
+            desc_parts = []
+            for elem in soup.select('.event-description, .content p, article p'):
+                text = elem.get_text(strip=True)
+                if text and len(text) > 20:
+                    desc_parts.append(text)
             
-            # Extract DJ social media links
+            if desc_parts:
+                full_desc = '\n\n'.join(desc_parts[:5])
+                if event_data.get('description'):
+                    event_data['description'] = f"{event_data['description']}\n\n{full_desc}"
+                else:
+                    event_data['description'] = full_desc
+                
+                if self.debug:
+                    self.log(f"  ✓ Description: {len(full_desc)} chars", "debug")
+            
+            # Extract image
+            img_selectors = [
+                'img.event-image',
+                'div.header-image img',
+                'article img',
+                'img[src*="wp-content"]'
+            ]
+            for sel in img_selectors:
+                img_elem = soup.select_one(sel)
+                if img_elem:
+                    src = img_elem.get('src') or img_elem.get('data-src')
+                    if src and 'logo' not in src.lower():
+                        if not src.startswith('http'):
+                            src = self.BASE_URL.rstrip('/') + '/' + src.lstrip('/')
+                        event_data['image_url'] = src
+                        if self.debug:
+                            self.log(f"  ✓ Image: {src[:50]}...", "debug")
+                        break
+            
+            # Extract ticket link
+            for link in soup.find_all('a', href=True):
+                href = link['href']
+                text = link.get_text().lower()
+                if any(kw in href.lower() or kw in text for kw in ['ticket', 'karte', 'buy', 'kaufen']):
+                    event_data['ticket_url'] = href
+                    if self.debug:
+                        self.log(f"  ✓ Ticket URL: {href[:50]}...", "debug")
+                    break
+            
+            # Extract DJ Instagram handles
             social_links = []
             for link in soup.select('a[href*="instagram.com"]'):
                 social_links.append(link['href'])
             
             if social_links and self.debug:
-                self.log(f"  Found {len(social_links)} DJ Instagram links", "debug")
-            
-            # Extract time if not found yet
-            if not event_data.get('time'):
-                page_text = soup.get_text()
-                event_data['time'] = self.parse_time(page_text)
+                self.log(f"  ✓ Found {len(social_links)} Instagram links", "debug")
             
         except Exception as e:
             if self.debug:

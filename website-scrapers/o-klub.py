@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 O - der Klub Event Scraper
-Extracts upcoming events from https://o-klub.at/events/
+Extracts upcoming events from https://o-klub.at/events/#upcoming
 and saves them to the Supabase database.
 
 Usage:
@@ -40,20 +40,8 @@ class OKlubScraper(BaseVenueScraper):
         
         events = []
         
-        # O - der Klub uses modern event card structure
-        event_selectors = [
-            'div.event-card',
-            'article.event',
-            'div[class*="event"]'
-        ]
-        
-        event_items = []
-        for selector in event_selectors:
-            items = soup.select(selector)
-            if items:
-                event_items = items
-                self.log(f"Found {len(items)} items using selector: {selector}", "debug" if self.debug else "info")
-                break
+        # O - der Klub uses Elementor with id="upcoming_listing" for each event
+        event_items = soup.find_all('div', id='upcoming_listing')
         
         self.log(f"Found {len(event_items)} potential events")
         
@@ -76,7 +64,7 @@ class OKlubScraper(BaseVenueScraper):
         return events
     
     def _parse_event_item(self, item) -> Optional[Dict]:
-        """Parse a single event item"""
+        """Parse a single event item from O-Klub structure"""
         try:
             event_data = {
                 'title': None,
@@ -90,53 +78,49 @@ class OKlubScraper(BaseVenueScraper):
                 'artists': [],
             }
             
-            # Extract title
-            title_selectors = ['h2.event-title', 'h3', 'h2']
-            for sel in title_selectors:
-                title_elem = item.select_one(sel)
-                if title_elem:
-                    event_data['title'] = title_elem.get_text(strip=True)
-                    break
+            # Extract title from element with id="event_name"
+            title_elem = item.find(id='event_name')
+            if title_elem:
+                event_data['title'] = title_elem.get_text(strip=True)
+            
+            # Extract day and month from elements with id="day" and id="month"
+            day_elem = item.find(id='day')
+            month_elem = item.find(id='month')
+            
+            if day_elem and month_elem:
+                day = day_elem.get_text(strip=True)
+                month = month_elem.get_text(strip=True)
+                
+                # Construct date string like "28. November"
+                month_mapping = {
+                    'JAN': 'Januar', 'FEB': 'Februar', 'MÄR': 'März', 'MAR': 'März',
+                    'APR': 'April', 'MAI': 'Mai', 'JUN': 'Juni',
+                    'JUL': 'Juli', 'AUG': 'August', 'SEP': 'September',
+                    'OKT': 'Oktober', 'NOV': 'November', 'DEZ': 'Dezember', 'DEC': 'Dezember'
+                }
+                
+                month_full = month_mapping.get(month.upper(), month)
+                date_text = f"{day}. {month_full}"
+                event_data['date'] = self.parse_german_date(date_text)
             
             # Extract link
-            link_elem = item.select_one('a[href*="/event/"]') or item.find('a', href=True)
+            link_elem = item.find('a', href=True)
             if link_elem and link_elem.get('href'):
                 href = link_elem['href']
                 if not href.startswith('http'):
                     href = self.BASE_URL.rstrip('/') + '/' + href.lstrip('/')
                 event_data['detail_url'] = href
             
-            # Extract image
-            img_elem = item.select_one('img.event-image, img')
-            if img_elem:
-                src = img_elem.get('src') or img_elem.get('data-src')
-                if src:
-                    if not src.startswith('http'):
-                        src = self.BASE_URL.rstrip('/') + '/' + src.lstrip('/')
-                    event_data['image_url'] = src
-            
-            # Extract date
-            date_selectors = ['time.event-date', '.event-date', 'time']
-            for sel in date_selectors:
-                date_elem = item.select_one(sel)
-                if date_elem:
-                    date_text = date_elem.get_text(strip=True)
-                    parsed_date = self.parse_german_date(date_text)
-                    if parsed_date:
-                        event_data['date'] = parsed_date
-                        break
-            
-            # Extract time
-            time_elem = item.select_one('span.event-time, .event-time')
-            if time_elem:
-                time_text = time_elem.get_text(strip=True)
-                event_data['time'] = self.parse_time(time_text)
-            
-            # Extract event series (SIGNAL, Super Disco, etc.)
-            series_elem = item.select_one('.event-series')
-            if series_elem:
-                series = series_elem.get_text(strip=True)
-                event_data['artists'] = [series]
+            # Extract background image from style attribute
+            for elem in item.find_all(True):
+                style = elem.get('style', '')
+                if 'background-image' in style:
+                    match = re.search(r'background-image:\s*url\(["\']?(.*?)["\']?\)', style)
+                    if match:
+                        image_url = match.group(1)
+                        if image_url and 'logo' not in image_url.lower():
+                            event_data['image_url'] = image_url
+                            break
             
             return event_data if event_data['title'] else None
             
@@ -160,30 +144,56 @@ class OKlubScraper(BaseVenueScraper):
             
             # Extract description
             desc_parts = []
-            for elem in soup.select('.event-description, .content p'):
+            for elem in soup.select('.event-description, .content p, article p, div.elementor-text-editor p'):
                 text = elem.get_text(strip=True)
-                if text and len(text) > 10:
-                    desc_parts.append(text)
+                if text and len(text) > 20:
+                    if not any(skip in text.lower() for skip in ['cookie', 'impressum', 'datenschutz']):
+                        desc_parts.append(text)
             
             if desc_parts:
-                event_data['description'] = '\n\n'.join(desc_parts)
+                event_data['description'] = '\n\n'.join(desc_parts[:5])
+                if self.debug:
+                    self.log(f"  ✓ Description: {len(event_data['description'])} chars", "debug")
             
             # Extract lineup/artists
-            lineup_elem = soup.select_one('.lineup, .artists')
+            lineup_elem = soup.select_one('.lineup, .artists, div[class*="lineup"]')
             if lineup_elem:
                 lineup_text = lineup_elem.get_text()
                 artists = re.findall(r'\b[A-Z][A-Za-z\s&]{2,30}\b', lineup_text)
                 event_data['artists'] = list(set(artists))[:10]
+                if self.debug:
+                    self.log(f"  ✓ Artists: {len(event_data['artists'])} found", "debug")
             
             # Extract ticket link
-            ticket_elem = soup.select_one('a[href*="ticket"]')
-            if ticket_elem and ticket_elem.get('href'):
-                event_data['ticket_url'] = ticket_elem['href']
+            for link in soup.find_all('a', href=True):
+                href = link['href']
+                text = link.get_text().lower()
+                if any(kw in href.lower() or kw in text for kw in ['ticket', 'karte', 'buy', 'kaufen']):
+                    event_data['ticket_url'] = href
+                    if self.debug:
+                        self.log(f"  ✓ Ticket URL found", "debug")
+                    break
             
             # Extract time if not found yet
             if not event_data.get('time'):
                 page_text = soup.get_text()
                 event_data['time'] = self.parse_time(page_text)
+                if event_data['time'] and self.debug:
+                    self.log(f"  ✓ Time: {event_data['time']}", "debug")
+            
+            # Try to get better image if not found yet
+            if not event_data.get('image_url'):
+                for elem in soup.find_all(True, limit=100):
+                    style = elem.get('style', '')
+                    if 'background-image' in style:
+                        match = re.search(r'background-image:\s*url\(["\']?(.*?)["\']?\)', style)
+                        if match:
+                            image_url = match.group(1)
+                            if image_url and 'logo' not in image_url.lower():
+                                event_data['image_url'] = image_url
+                                if self.debug:
+                                    self.log(f"  ✓ Image from detail: {image_url[:50]}...", "debug")
+                                break
             
         except Exception as e:
             if self.debug:
