@@ -17,6 +17,34 @@ from generic_scraper import GenericVenueScraper
 from venue_configs import get_venue_config, list_venues
 
 
+# Import dedicated scrapers
+def import_scraper(venue_key):
+    """Import dedicated scraper for a venue if it exists"""
+    scraper_map = {
+        'grelle-forelle': ('grelle-forelle', 'GrelleForelleScraper'),
+        'pratersauna': ('pratersauna', 'PratersaunaScraper'),
+        'das-werk': ('das-werk', 'DasWerkScraper'),
+        'o-der-klub': ('o-klub', 'OKlubScraper'),
+        'volksgarten': ('volksgarten', 'VolksgartenScraper'),
+        'flucc': ('flucc-wanne', 'FluccWanneScraper'),
+        'praterstrasse': ('praterstrasse', 'PraterstrasseScraper'),
+        'prater-dome': ('praterdome', 'PraterdomeScraper'),
+        'sass-music-club': ('sass', 'SassScraper'),
+        'babenberger-passage': ('babenberger-passage', 'BabenbergerPassageScraper'),
+    }
+    
+    if venue_key in scraper_map:
+        module_name, class_name = scraper_map[venue_key]
+        try:
+            module = __import__(module_name)
+            return getattr(module, class_name)
+        except (ImportError, AttributeError) as e:
+            print(f"⚠️  Could not import dedicated scraper for {venue_key}: {e}")
+            return None
+    
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser(description='Run all venue scrapers')
     parser.add_argument('--dry-run', action='store_true', help='Run without saving to database')
@@ -54,7 +82,16 @@ def main():
             continue
         
         try:
-            scraper = GenericVenueScraper(config, dry_run=args.dry_run, debug=args.debug)
+            # Try to use dedicated scraper first
+            ScraperClass = import_scraper(venue_key)
+            
+            if ScraperClass:
+                print(f"ℹ Using dedicated scraper for {venue_key}")
+                scraper = ScraperClass(dry_run=args.dry_run, debug=args.debug)
+            else:
+                print(f"ℹ Using generic scraper for {venue_key}")
+                scraper = GenericVenueScraper(config, dry_run=args.dry_run, debug=args.debug)
+            
             result = scraper.run()
             results[venue_key] = result
         except Exception as e:
