@@ -165,7 +165,7 @@ ALLOWED CATEGORIES (use EXACTLY):
 ${buildCategoryListForPrompt()}
 
 REQUIRED FIELDS for each event:
-title, category, date, time, venue, price, website, endTime, address, ticketPrice, eventType, description, bookingLink, ageRestrictions
+title, category, date, time, venue, price, website, endTime, address, ticketPrice, eventType, description, bookingLink, ageRestrictions, imageUrl
 
 RULES:
 - "category" must be EXACTLY one of: ${allowedCategoriesForSchema()}
@@ -206,6 +206,7 @@ Focus areas:
 
 Return comprehensive JSON array covering ALL main categories.
 Include both well-known and hidden gem events.
+Include image URLs (imageUrl field) whenever available from event websites or social media.
 NO explanatory text outside the JSON structure.`;
   }
 
@@ -248,10 +249,11 @@ DIVERSITY WITHIN CATEGORY:
 
 OUTPUT: Return comprehensive JSON array of real ${mainCategory} events.
 Include booking/ticket links where available.
+Include event image URLs (imageUrl field) from venue websites, social media posts, or event platforms.
 NO explanatory text outside the JSON structure.
 
 Example format:
-{"title":"Event Name","category":"${mainCategory}","date":"${date}","time":"19:30","venue":"Venue Name","price":"€15-25","website":"https://example.com","address":"Street Address","description":"Event description"}`;
+{"title":"Event Name","category":"${mainCategory}","date":"${date}","time":"19:30","venue":"Venue Name","price":"€15-25","website":"https://example.com","address":"Street Address","description":"Event description","imageUrl":"https://example.com/image.jpg"}`;
   }
 
   function getCategorySpecificStrategies(category: string, city: string): string {
