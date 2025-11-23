@@ -40,10 +40,11 @@ class PratersaunaScraper(BaseVenueScraper):
         
         events = []
         
-        # Pratersauna uses WordPress Block Editor structure
-        # Look for event containers in multiple possible formats
+        # Pratersauna uses Elementor with loop grid
+        # Events have class 'event' and 'type-event'
         event_selectors = [
-            'div.wp-block-group',
+            'article.event.type-event',
+            'div.e-loop-item',
             'article.event-post',
             'div.event-item',
             'article[class*="post"]'
@@ -93,12 +94,22 @@ class PratersaunaScraper(BaseVenueScraper):
             }
             
             # Extract title - try multiple selectors
-            title_selectors = ['h2', 'h3.event-title', '.wp-block-heading', 'h1']
+            title_selectors = ['h2', 'h3.event-title', '.wp-block-heading', 'h1', '.elementor-heading-title']
             for sel in title_selectors:
                 title_elem = item.select_one(sel)
                 if title_elem:
                     event_data['title'] = title_elem.get_text(strip=True)
                     break
+            
+            # If title is just a date (DD.MM), try to get better title from link or image alt
+            if event_data['title'] and re.match(r'^\d{1,2}\.\d{1,2}$', event_data['title']):
+                # Try to get title from link text or nearby elements
+                for heading in item.select('h2, h3, h4'):
+                    heading_text = heading.get_text(strip=True)
+                    if heading_text and not re.match(r'^\d{1,2}\.\d{1,2}$', heading_text):
+                        # Combine date with better title
+                        event_data['title'] = f"{event_data['title']} - {heading_text}"
+                        break
             
             # Extract link
             link_elem = item.select_one('a[href*="/event/"]') or item.find('a', href=True)
@@ -126,7 +137,7 @@ class PratersaunaScraper(BaseVenueScraper):
                         break
             
             # Extract date - try multiple selectors and formats
-            date_selectors = ['time', '.event-date', 'p.has-text-align-center']
+            date_selectors = ['time', '.event-date', 'p.has-text-align-center', '.elementor-heading-title']
             for sel in date_selectors:
                 date_elem = item.select_one(sel)
                 if date_elem:
@@ -135,6 +146,25 @@ class PratersaunaScraper(BaseVenueScraper):
                     if parsed_date:
                         event_data['date'] = parsed_date
                         break
+            
+            # If date not found and title is in DD.MM format, use that
+            if not event_data['date'] and event_data['title']:
+                match = re.search(r'(\d{1,2})\.(\d{1,2})', event_data['title'])
+                if match:
+                    day = int(match.group(1))
+                    month = int(match.group(2))
+                    from datetime import datetime
+                    current_year = datetime.now().year
+                    current_month = datetime.now().month
+                    # If month has passed, use next year
+                    if month < current_month:
+                        year = current_year + 1
+                    else:
+                        year = current_year
+                    try:
+                        event_data['date'] = f"{year:04d}-{month:02d}-{day:02d}"
+                    except:
+                        pass
             
             # Extract time
             time_elem = item.select_one('.event-time')
