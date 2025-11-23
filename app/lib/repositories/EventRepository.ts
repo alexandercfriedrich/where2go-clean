@@ -474,4 +474,42 @@ export class EventRepository {
       errors
     };
   }
+
+  /**
+   * Link events to venues using the database function
+   * This should be called after every bulk insert operation to ensure events are properly linked
+   * 
+   * @param city - City to filter events by (optional, will process all cities if not provided)
+   * @param context - Context string for logging (e.g., 'Wien.info Importer', 'API Process')
+   * @returns Object with events_linked and events_processed counts, or null on error
+   */
+  static async linkEventsToVenues(
+    city: string | null = null,
+    context: string = 'EventRepository'
+  ): Promise<{ events_linked: number; events_processed: number } | null> {
+    try {
+      console.log(`[${context}] Calling link_events_to_venues for city: ${city || 'all'}`);
+      
+      // Note: Using type assertion because RPC functions are not in the generated Supabase types
+      const { data: linkResult, error: linkError } = await (supabaseAdmin as any).rpc('link_events_to_venues', {
+        p_city: city
+      });
+      
+      if (linkError) {
+        console.error(`[${context}] Error linking events to venues:`, linkError);
+        return null;
+      }
+      
+      if (linkResult && linkResult.length > 0) {
+        const { events_linked, events_processed } = linkResult[0];
+        console.log(`[${context}] Linked ${events_linked} of ${events_processed} events to venues`);
+        return { events_linked, events_processed };
+      }
+      
+      return { events_linked: 0, events_processed: 0 };
+    } catch (error: any) {
+      console.error(`[${context}] Exception linking events to venues:`, error);
+      return null;
+    }
+  }
 }

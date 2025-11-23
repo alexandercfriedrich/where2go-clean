@@ -260,6 +260,11 @@ export async function POST(request: NextRequest) {
               if (!result.success && result.errors.length > 0) {
                 console.error('[OptimizedAPI:PostgreSQL] Batch insert had errors:', result.errors);
               }
+              
+              // Link events to venues after bulk insert
+              if (result.success && result.inserted > 0) {
+                await EventRepository.linkEventsToVenues(city, 'API /events/optimized');
+              }
             } catch (error) {
               console.error('[OptimizedAPI:PostgreSQL] Failed to write events:', error);
               // Don't throw - events are already cached in Redis
