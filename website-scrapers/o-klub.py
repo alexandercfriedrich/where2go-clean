@@ -111,16 +111,26 @@ class OKlubScraper(BaseVenueScraper):
                     href = self.BASE_URL.rstrip('/') + '/' + href.lstrip('/')
                 event_data['detail_url'] = href
             
-            # Extract background image from style attribute
+            # Extract image from data-dce-background-image-url attribute
             for elem in item.find_all(True):
-                style = elem.get('style', '')
-                if 'background-image' in style:
-                    match = re.search(r'background-image:\s*url\(["\']?(.*?)["\']?\)', style)
-                    if match:
-                        image_url = match.group(1)
-                        if image_url and 'logo' not in image_url.lower():
-                            event_data['image_url'] = image_url
-                            break
+                img_url = elem.get('data-dce-background-image-url')
+                if img_url and 'wp-content/uploads' in img_url:
+                    event_data['image_url'] = img_url
+                    if self.debug:
+                        self.log(f"  ✓ Image from data attribute: {img_url[:50]}...", "debug")
+                    break
+            
+            # Fallback: Extract background image from style attribute
+            if not event_data.get('image_url'):
+                for elem in item.find_all(True):
+                    style = elem.get('style', '')
+                    if 'background-image' in style:
+                        match = re.search(r'background-image:\s*url\(["\']?(.*?)["\']?\)', style)
+                        if match:
+                            image_url = match.group(1)
+                            if image_url and 'logo' not in image_url.lower():
+                                event_data['image_url'] = image_url
+                                break
             
             return event_data if event_data['title'] else None
             
