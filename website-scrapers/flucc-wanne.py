@@ -26,7 +26,7 @@ class FluccWanneScraper(BaseVenueScraper):
     VENUE_NAME = "Flucc / Flucc Wanne"
     VENUE_ADDRESS = "Praterstern 5, 1020 Wien"
     BASE_URL = "https://flucc.at"
-    EVENTS_URL = "https://flucc.at/musik/"
+    EVENTS_URL = "https://flucc.at"
     CATEGORY = "Clubs/Discos"
     SUBCATEGORY = "Mixed"
     
@@ -40,29 +40,16 @@ class FluccWanneScraper(BaseVenueScraper):
         
         events = []
         
-        # Flucc uses modern event card structure with The Events Calendar
-        event_selectors = [
-            'article.event',
-            'div.tribe-events-list-widget-events',
-            'article[class*="tribe-events"]',
-            'article[class*="event"]'
-        ]
+        # Flucc uses div.himmel.event-list structure with event links
+        event_links = soup.select('div.himmel.event-list a[href*="/events/"]')
         
-        event_items = []
-        for selector in event_selectors:
-            items = soup.select(selector)
-            if items:
-                event_items = items
-                self.log(f"Found {len(items)} items using selector: {selector}", "debug" if self.debug else "info")
-                break
+        self.log(f"Found {len(event_links)} potential events")
         
-        self.log(f"Found {len(event_items)} potential events")
-        
-        for idx, item in enumerate(event_items, 1):
+        for idx, link in enumerate(event_links, 1):
             if self.debug:
-                self.log(f"Processing event {idx}/{len(event_items)}", "debug")
+                self.log(f"Processing event {idx}/{len(event_links)}", "debug")
             
-            event_data = self._parse_event_item(item)
+            event_data = self._parse_event_link(link)
             
             if event_data and event_data.get('title'):
                 # Visit detail page if available
@@ -76,8 +63,8 @@ class FluccWanneScraper(BaseVenueScraper):
         
         return events
     
-    def _parse_event_item(self, item) -> Optional[Dict]:
-        """Parse a single event item"""
+    def _parse_event_link(self, link) -> Optional[Dict]:
+        """Parse event from link - must visit detail page for full info"""
         try:
             event_data = {
                 'title': None,
@@ -91,80 +78,41 @@ class FluccWanneScraper(BaseVenueScraper):
                 'artists': [],
             }
             
-            # Extract title
-            title_selectors = [
-                'h2.entry-title',
-                'h3.tribe-event-title',
-                'h2',
-                'h3'
-            ]
-            for sel in title_selectors:
-                title_elem = item.select_one(sel)
-                if title_elem:
-                    event_data['title'] = title_elem.get_text(strip=True)
-                    break
+            # Get link href
+            href = link.get('href')
+            if not href.startswith('http'):
+                href = self.BASE_URL.rstrip('/') + href
+            event_data['detail_url'] = href
             
-            # Extract link
-            link_elem = item.select_one('a.tribe-event-url, a[href*="/events/"]') or item.find('a', href=True)
-            if link_elem and link_elem.get('href'):
-                href = link_elem['href']
-                if not href.startswith('http'):
-                    href = self.BASE_URL.rstrip('/') + '/' + href.lstrip('/')
-                event_data['detail_url'] = href
+            # Get basic info from link text
+            link_text = link.get_text(strip=True)
+            # Link text often contains time and title
+            # e.g., "19:00@DeckA_Phan & FRNRKE Album Release Show"
+            time_match = re.search(r'(\d{1,2}:\d{2})', link_text)
+            if time_match:
+                event_data['time'] = time_match.group(1)
             
-            # Extract image
-            img_selectors = [
-                'img.tribe-events-event-image',
-                '.event-image img',
-                'img'
-            ]
-            for sel in img_selectors:
-                img_elem = item.select_one(sel)
-                if img_elem:
-                    src = img_elem.get('src') or img_elem.get('data-src')
-                    if src:
-                        if not src.startswith('http'):
-                            src = self.BASE_URL.rstrip('/') + '/' + src.lstrip('/')
-                        event_data['image_url'] = src
-                        break
+            # Title is after the time and location
+            title_match = re.search(r'@(?:Deck|Wanne)\s*(.+?)(?:LIVE:|$)', link_text)
+            if title_match:
+                event_data['title'] = title_match.group(1).strip()
+            elif '@Deck' in link_text or '@Wanne' in link_text:
+                # Split by location marker
+                parts = re.split(r'@(?:Deck|Wanne)\s*', link_text)
+                if len(parts) > 1:
+                    event_data['title'] = parts[1].strip()
             
-            # Extract date
-            date_selectors = [
-                'time.tribe-event-date-start',
-                '.event-date',
-                'time'
-            ]
-            for sel in date_selectors:
-                date_elem = item.select_one(sel)
-                if date_elem:
-                    date_text = date_elem.get_text(strip=True)
-                    parsed_date = self.parse_german_date(date_text)
-                    if parsed_date:
-                        event_data['date'] = parsed_date
-                        break
+            # Determine location
+            if '@Wanne' in link_text:
+                event_data['artists'] = ['Flucc Wanne']
+            elif '@Deck' in link_text:
+                event_data['artists'] = ['Flucc Deck']
             
-            # Extract time
-            time_selectors = [
-                'span.tribe-event-time',
-                '.event-time'
-            ]
-            for sel in time_selectors:
-                time_elem = item.select_one(sel)
-                if time_elem:
-                    time_text = time_elem.get_text(strip=True)
-                    event_data['time'] = self.parse_time(time_text)
-                    break
+            # Must visit detail page for date and full info
+            if event_data['detail_url']:
+                self._enrich_from_detail_page(event_data)
             
-            # Extract location (DECK or WANNE)
-            location_elem = item.select_one('.tribe-events-venue, .event-location')
-            if location_elem:
-                location = location_elem.get_text(strip=True)
-                if 'wanne' in location.lower():
-                    event_data['artists'] = ['Flucc Wanne']
-                elif 'deck' in location.lower():
-                    event_data['artists'] = ['Flucc Deck']
-            
-            return event_data if event_data['title'] else None
+            return event_data if event_data.get('title') and event_data.get('date') else None
             
         except Exception as e:
             if self.debug:
@@ -184,35 +132,52 @@ class FluccWanneScraper(BaseVenueScraper):
             if not soup:
                 return
             
-            # Extract description
-            desc_selectors = [
-                'div.tribe-events-content',
-                '.event-description',
-                '.entry-content p'
-            ]
-            
-            desc_parts = []
-            for sel in desc_selectors:
-                for elem in soup.select(sel):
-                    text = elem.get_text(strip=True)
-                    if text and len(text) > 10:
-                        desc_parts.append(text)
+            # Extract date from title or page (format: "23.11.2025 - TITLE")
+            title_elem = soup.select_one('title')
+            if title_elem:
+                title_text = title_elem.get_text()
+                # Extract date from format like "23.11.2025 - "
+                date_match = re.search(r'(\d{1,2}\.\d{1,2}\.\d{4})', title_text)
+                if date_match:
+                    event_data['date'] = self.parse_german_date(date_match.group(1))
+                    if self.debug:
+                        self.log(f"  ✓ Date from title: {event_data['date']}", "debug")
                 
-                if desc_parts:
-                    break
+                # Extract better title if current one is incomplete
+                if not event_data.get('title') or len(event_data['title']) < 5:
+                    title_parts = title_text.split(' - ')
+                    if len(title_parts) > 1:
+                        event_data['title'] = title_parts[1].strip()
+            
+            # Extract date/time from more-info div
+            info_elem = soup.select_one('div.more-info')
+            if info_elem:
+                info_text = info_elem.get_text(strip=True)
+                # Format: "So, 23. Nov 202514:00—20:00 Uhr@Deck"
+                if not event_data.get('date'):
+                    event_data['date'] = self.parse_german_date(info_text)
+                if not event_data.get('time'):
+                    event_data['time'] = self.parse_time(info_text)
+            
+            # Extract description
+            desc_parts = []
+            for elem in soup.select('div.event-description p, div.beschreibung p'):
+                text = elem.get_text(strip=True)
+                if text and len(text) > 20:
+                    desc_parts.append(text)
             
             if desc_parts:
-                event_data['description'] = '\n\n'.join(desc_parts)
+                event_data['description'] = '\n\n'.join(desc_parts[:3])
+                if self.debug:
+                    self.log(f"  ✓ Description: {len(event_data['description'])} chars", "debug")
             
-            # Extract ticket link
-            ticket_elem = soup.select_one('a[href*="ticket"]')
-            if ticket_elem and ticket_elem.get('href'):
-                event_data['ticket_url'] = ticket_elem['href']
-            
-            # Extract time if not found yet
-            if not event_data.get('time'):
-                page_text = soup.get_text()
-                event_data['time'] = self.parse_time(page_text)
+            # Extract ticket/info links
+            for link in soup.find_all('a', href=True):
+                href = link['href']
+                text = link.get_text().lower()
+                if any(kw in href.lower() or kw in text for kw in ['ticket', 'karte', 'eventbrite']):
+                    event_data['ticket_url'] = href
+                    break
             
         except Exception as e:
             if self.debug:

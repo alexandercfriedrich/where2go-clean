@@ -1,6 +1,6 @@
 # Venue Scraper Status
 
-## ✅ Vollständig Optimiert (58 Events total)
+## ✅ Fully Optimized (93+ Events total)
 
 ### Grelle Forelle - 17 Events
 - **URL**: https://www.grelleforelle.com/programm/
@@ -36,39 +36,46 @@
 
 ### o-klub (O - der Klub) - 16 Events
 - **URL**: https://o-klub.at/events/#upcoming
-- **Status**: ✅ Titel, Datum, Zeit, Links
+- **Status**: ✅ Titel, Datum, Zeit, Bilder, Links
 - **Features**:
   - Elementor id="upcoming_listing"
   - Tag/Monat separate Elemente
+  - data-dce-background-image-url Bilder
   - Ticket-Links extrahiert
 
-## 🚧 Noch zu optimieren
+### flucc (Flucc / Flucc Wanne) - 35 Events - NEU OPTIMIERT
+- **URL**: https://flucc.at
+- **Status**: ✅ Titel, Datum, Zeit, Links
+- **Features**:
+  - Event links in div.himmel.event-list
+  - Detailseiten-Parsing für vollständige Infos
+  - Datum aus Titel (DD.MM.YYYY Format)
+  - Deck/Wanne Location-Tags
+
+## ⚠️ Eingeschränkt / Hinweise
 
 ### volksgarten
-- **URL**: https://volksgarten.at
-- **Status**: ❌ 0 Events gefunden
-- **Problem**: Struktur muss analysiert werden
-
-### flucc-wanne (Flucc / Flucc Wanne)
-- **URL**: https://flucc.at/musik/
-- **Status**: ❌ 0 Events gefunden
-- **Problem**: The Events Calendar Struktur
+- **URL**: https://www.facebook.com/dervolksgarten/events
+- **Status**: ⚠️ Facebook-Events (nicht direkt scrapbar)
+- **Problem**: Facebook erlaubt kein direktes Scraping
+- **Lösung**: Externe Event-Aggregatoren verwenden oder Facebook Graph API
 
 ### praterstrasse
-- **URL**: https://praterstrasse.wien/en/praterstrasse-tickets-9djnDeMk/
-- **Status**: ❌ 0 Events gefunden
-- **Problem**: Struktur muss analysiert werden
+- **URL**: https://www.praterstrasse.wien/de/praterstrasse-tickets-9djnDeMk/in-C2okbp13/
+- **Status**: ⚠️ Ticket-Plattform
+- **Problem**: Events über externe Ticket-Plattform
+- **Hinweis**: Möglicherweise JavaScript-rendered
 
 ### praterdome (Prater DOME)
 - **URL**: https://praterdome.at/events
 - **Status**: ⚠️ 1 Event (von 42 gefunden)
-- **Problem**: JavaScript-rendered content
+- **Problem**: JavaScript-rendered content, Events laden erst nach
 - **Hinweis**: Seite lädt Events erst mit der Zeit nach
 
 ### babenberger-passage
 - **URL**: https://www.babenbergerpassage.at
 - **Status**: ⚠️ Nur recurring events
-- **Hinweis**: Zeigt nur wiederkehrende Events (Do/Fr/Sa)
+- **Hinweis**: Zeigt nur wiederkehrende Events (Do/Fr/Sa), keine spezifischen Termine
 
 ## Technische Details
 
@@ -76,6 +83,7 @@
 - "Mittwoch 26. November" ✅
 - "26. November - 27. November 2025" ✅
 - "28. Nov" ✅
+- "23.11.2025" ✅
 - DD.MM.YYYY ✅
 - DD/MM ✅
 
@@ -90,3 +98,9 @@
 - Robuste Fehlerbehandlung
 - Debug-Modus für Entwicklung
 - Trockenlauf-Modus für Tests
+
+## Zusammenfassung
+
+**Gesamt**: 93+ Events von 6 vollständig funktionierenden Scrapern
+**Optimierungsrate**: 67% (6/9 Venues voll funktionsfähig)
+**Events pro Venue**: Durchschnitt 15.5 Events

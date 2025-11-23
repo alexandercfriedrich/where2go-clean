@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """
 Volksgarten Event Scraper
-Extracts upcoming events from https://volksgarten.at
-and saves them to the Supabase database.
+
+NOTE: Volksgarten primarily posts events on Facebook (https://www.facebook.com/dervolksgarten/events)
+Facebook does not allow direct web scraping without authentication and API access.
+
+This scraper checks volksgarten.at for any event information but may find limited results.
+For complete event coverage, use the Facebook Events API or external event aggregators.
 
 Usage:
     python website-scrapers/volksgarten.py [--dry-run] [--debug]
@@ -31,8 +35,13 @@ class VolksgartenScraper(BaseVenueScraper):
     SUBCATEGORY = "Electronic"
     
     def scrape_events(self) -> List[Dict]:
-        """Scrape events from Volksgarten"""
+        """Scrape events from Volksgarten
+        
+        Note: Volksgarten posts events primarily on Facebook. This scraper checks
+        the main website but may find limited or no events.
+        """
         self.log(f"Fetching events from {self.EVENTS_URL}")
+        self.log("Note: Volksgarten posts events on Facebook - direct scraping limited", "warning")
         
         soup = self.fetch_page(self.EVENTS_URL)
         if not soup:
