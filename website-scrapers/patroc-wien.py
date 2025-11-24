@@ -47,9 +47,8 @@ class PatrocWienGayScraper(BaseVenueScraper):
         
         events = []
         
-        # Try common event selectors
-        event_items = soup.select('div.event, article.event, div.listing-item, div[class*="event"], article, div[class*="listing"]')
-        event_items = [item for item in event_items if item.get_text(strip=True) and len(item.get_text(strip=True)) > 20]
+        # Patroc uses vevent class (microformat for events)
+        event_items = soup.select('div.vevent')
         
         self.log(f"Found {len(event_items)} potential events on {url}")
         
@@ -79,27 +78,30 @@ class PatrocWienGayScraper(BaseVenueScraper):
                 'description': None,
             }
             
-            # Extract title
-            title_elem = item.select_one('h1, h2, h3, h4, .title, .event-title, .listing-title')
+            # Extract title from .summary
+            title_elem = item.select_one('.summary, strong.summary')
             if title_elem:
                 event_data['title'] = title_elem.get_text(strip=True)
             
-            # Extract date
-            date_elem = item.select_one('.date, .event-date, time, span[class*="date"]')
-            if date_elem:
-                date_text = date_elem.get_text(strip=True)
-                event_data['date'] = self.parse_german_date(date_text)
-                event_data['time'] = self.parse_time(date_text)
+            # Extract date from abbr.dtstart title attribute (ISO format: 2025-11-29)
+            date_elem = item.select_one('abbr.dtstart')
+            if date_elem and date_elem.get('title'):
+                # The title attribute has the date in ISO format (YYYY-MM-DD)
+                event_data['date'] = date_elem.get('title')
             
-            # If no date found, try parsing from full text
+            # If no date found, try parsing from visible date text
             if not event_data.get('date'):
-                full_text = item.get_text()
-                event_data['date'] = self.parse_german_date(full_text)
-                if not event_data.get('time'):
-                    event_data['time'] = self.parse_time(full_text)
+                date_text_elem = item.select_one('.news-date, .dtstart')
+                if date_text_elem:
+                    date_text = date_text_elem.get_text(strip=True)
+                    event_data['date'] = self.parse_german_date(date_text)
             
-            # Extract link
-            link_elem = item.select_one('a[href]')
+            # Extract time if present
+            full_text = item.get_text()
+            event_data['time'] = self.parse_time(full_text)
+            
+            # Extract link from a.url
+            link_elem = item.select_one('a.url, a[href]')
             if link_elem:
                 href = link_elem.get('href')
                 if href:
@@ -107,6 +109,9 @@ class PatrocWienGayScraper(BaseVenueScraper):
                         event_data['detail_url'] = self.BASE_URL + href
                     elif href.startswith('http'):
                         event_data['detail_url'] = href
+                    else:
+                        # Relative URL like "d/event-name.html"
+                        event_data['detail_url'] = self.BASE_URL + '/de/gay/wien/' + href
             
             # Extract image
             img_elem = item.select_one('img')
@@ -118,10 +123,23 @@ class PatrocWienGayScraper(BaseVenueScraper):
                     elif src.startswith('http'):
                         event_data['image_url'] = src
             
-            # Extract description
-            desc_elem = item.select_one('.description, .event-description, p')
+            # Extract description from .description
+            desc_elem = item.select_one('.description, span.description')
             if desc_elem:
                 event_data['description'] = desc_elem.get_text(strip=True)[:500]
+            
+            # Extract location/venue from .location
+            location_elem = item.select_one('.location')
+            if location_elem:
+                location_text = location_elem.get_text(strip=True)
+                # Location is often in format "@ Venue Name (Address)"
+                if '@' in location_text:
+                    location_text = location_text.split('@')[1].strip()
+                # Store in description if not already present
+                if event_data['description']:
+                    event_data['description'] = f"{event_data['description']}\n\nVenue: {location_text}"
+                else:
+                    event_data['description'] = f"Venue: {location_text}"
             
             return event_data if event_data.get('title') else None
             
