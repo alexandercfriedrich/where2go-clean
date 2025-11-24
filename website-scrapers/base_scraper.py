@@ -51,6 +51,7 @@ class BaseVenueScraper(ABC):
     EVENTS_URL = "https://example.com/events"
     CATEGORY = "Clubs/Discos"
     SUBCATEGORY = "Electronic"
+    VENUE_LOGO_URL = None  # Fallback image if no event image found
     
     def __init__(self, dry_run: bool = False, debug: bool = False):
         self.dry_run = dry_run
@@ -112,9 +113,10 @@ class BaseVenueScraper(ABC):
         Parse various German date formats to YYYY-MM-DD
         
         Supports:
-        - DD.MM.YYYY, DD.MM.YY
+        - DD.MM.YYYY, DD.MM.YY, DD.MM
         - DD/MM/YYYY, DD/MM
-        - DD. Month YYYY
+        - DD. Month YYYY, DD. Month
+        - Weekday DD. Month (e.g., "Mittwoch 26. November")
         - Month DD, YYYY
         """
         if not date_text:
@@ -140,22 +142,29 @@ class BaseVenueScraper(ABC):
         
         patterns = [
             # DD.MM.YYYY or DD.MM.YY
-            (r'(\d{1,2})\.(\d{1,2})\.(\d{2,4})', lambda m: (
-                int(m[3]) if len(m[3]) == 4 else 2000 + int(m[3]),
-                int(m[2]),
-                int(m[1])
+            (r'(\d{1,2})\.(\d{1,2})\.(\d{2,4})', lambda g: (
+                int(g[2]) if len(g[2]) == 4 else 2000 + int(g[2]),
+                int(g[1]),
+                int(g[0])
             )),
             # DD/MM/YYYY or DD/MM
-            (r'(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?', lambda m: (
-                int(m[3]) if m[3] else datetime.now().year,
-                int(m[2]),
-                int(m[1])
+            (r'(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?', lambda g: (
+                int(g[2]) if g[2] else None,
+                int(g[1]),
+                int(g[0])
             )),
-            # DD. Month YYYY
-            (r'(\d{1,2})\.\s*(\w+)\s*(\d{4})', lambda m: (
-                int(m[3]),
-                months.get(m[2].lower(), 0),
-                int(m[1])
+            # DD. Month YYYY (e.g., "26. November 2025")
+            (r'(\d{1,2})\.\s*(\w+)\s+(\d{4})', lambda g: (
+                int(g[2]),
+                months.get(g[1].lower(), 0),
+                int(g[0])
+            )),
+            # DD. Month (without year, e.g., "26. November" or "Mittwoch 26. November")
+            # Also handles date ranges like "26. November - 27. November 2025"
+            (r'(\d{1,2})\.\s*(\w+)(?:\s*-\s*\d{1,2}\.\s*\w+\s+(\d{4}))?', lambda g: (
+                int(g[2]) if g[2] else None,  # Year from end of range if present
+                months.get(g[1].lower(), 0),
+                int(g[0])
             )),
         ]
         
@@ -165,6 +174,19 @@ class BaseVenueScraper(ABC):
                 try:
                     groups = match.groups()
                     year, month, day = parser(groups)
+                    
+                    # Determine year if not provided
+                    if year is None:
+                        from datetime import datetime
+                        current_year = datetime.now().year
+                        current_month = datetime.now().month
+                        
+                        # If month has passed, use next year
+                        if month < current_month:
+                            year = current_year + 1
+                        else:
+                            year = current_year
+                    
                     if 1 <= month <= 12 and 1 <= day <= 31 and year >= 2020:
                         return f"{year:04d}-{month:02d}-{day:02d}"
                 except:
@@ -292,6 +314,11 @@ class BaseVenueScraper(ABC):
         # Generate slug
         slug = self._generate_slug(event.get('title', ''), event.get('date', ''))
         
+        # Use venue logo as fallback if no event image
+        image_url = event.get('image_url')
+        if not image_url and self.VENUE_LOGO_URL:
+            image_url = self.VENUE_LOGO_URL
+        
         return {
             'title': event.get('title'),
             'description': event.get('description'),
@@ -307,7 +334,7 @@ class BaseVenueScraper(ABC):
             'is_free': event.get('price', '').lower() in ['free', 'gratis', 'free / gratis'],
             'website_url': event.get('detail_url') or event.get('website'),
             'booking_url': event.get('ticket_url'),
-            'image_urls': [event['image_url']] if event.get('image_url') else None,
+            'image_urls': [image_url] if image_url else None,
             'tags': event.get('artists', [])[:10] if event.get('artists') else None,
             'source': f"{self.VENUE_NAME.lower().replace(' ', '-')}-scraper",
             'source_url': event.get('detail_url') or event.get('website'),
