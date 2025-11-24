@@ -14,8 +14,7 @@ export async function GET(
     // Type assertion needed: Supabase RPC functions are not in the generated types
     const { data, error } = await (supabase as any)
       .rpc('get_venue_with_events', {
-        p_venue_slug: params.slug,
-        p_source: source
+        p_venue_slug: params.slug
       })
       .single();
 
