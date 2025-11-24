@@ -202,6 +202,11 @@ async function migrate(options: MigrationOptions): Promise<MigrationStats> {
       if (result.success) {
         stats.totalEventsImported += result.inserted
         console.log(`   ✅ Imported ${result.inserted} events`)
+        
+        // Link events to venues after bulk insert
+        if (result.inserted > 0) {
+          await EventRepository.linkEventsToVenues(city, 'Redis-to-Postgres Migration');
+        }
       } else {
         const errorMsg = `Failed to import ${city}/${date}/${category}: ${result.errors.join(', ')}`
         stats.errors.push(errorMsg)

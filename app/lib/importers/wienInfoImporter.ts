@@ -270,7 +270,10 @@ async function fetchEventsWithRetry(
 }
 
 /**
- * Process a batch of events: upsert venues first, then events
+ * Process a batch of events: upsert venues first, then events, then link them
+ * 
+ * The linking of events to venues is done through the database function link_events_to_venues,
+ * which matches events to venues based on venue name and city.
  */
 async function processBatch(
   events: EventData[],
@@ -363,6 +366,17 @@ async function processBatch(
         result.imported = insertResult.inserted;
         // We can't easily distinguish new vs updated in bulk upsert
         // Just report all as imported
+        
+        // Step 3: Link events to venues using database function
+        // This must be done after both venues and events are created
+        const linkResult = await EventRepository.linkEventsToVenues(city, 'Wien.info Importer');
+        if (linkResult) {
+          if (debug) {
+            console.log(`[WIEN-IMPORTER] Successfully linked ${linkResult.events_linked} events to venues`);
+          }
+        } else {
+          result.errors.push('Event-venue linking failed - see logs for details');
+        }
       } else {
         result.failed = events.length;
         result.errors.push(...insertResult.errors);

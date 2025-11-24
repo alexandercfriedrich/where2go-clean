@@ -183,11 +183,14 @@ export async function POST(request: NextRequest) {
     // AFTER events are cached to Redis, ALSO save to PostgreSQL (guaranteed to complete)
     waitUntil(
       EventRepository.bulkInsertEvents(runningEvents, city)
-        .then(result => {
+        .then(async result => {
           console.log(`[PostgreSQL] Inserted ${result.inserted} events for ${city}`);
           if (result.errors.length > 0) {
             console.warn('[PostgreSQL] Insert errors:', result.errors);
           }
+          
+          // Link events to venues after bulk insert
+          await EventRepository.linkEventsToVenues(city, 'API /events/process');
         })
         .catch(pgError => {
           // Don't fail the request if PostgreSQL fails
