@@ -1,6 +1,6 @@
 # Venue Scraper Status
 
-## ✅ Fully Optimized (93+ Events total)
+## ✅ Fully Optimized (105+ Events total)
 
 ### Grelle Forelle - 17 Events
 - **URL**: https://www.grelleforelle.com/programm/
@@ -9,6 +9,14 @@
   - Titel, Datum, Zeit, Bild, Beschreibung
   - Ticket-Links, Artists, Age-Restrictions
   - Detailseiten-Parsing implementiert
+
+### Flex - 12 Events - NEU
+- **URL**: https://flex.at/events/list/
+- **Status**: ✅ Titel, Datum, Zeit, Bild, Beschreibung
+- **Features**:
+  - The Events Calendar (WordPress) List View
+  - Datetime attribute parsing (YYYY-MM-DD)
+  - Event images, descriptions
 
 ### das-werk - 10 Events
 - **URL**: https://www.daswerk.org/programm/

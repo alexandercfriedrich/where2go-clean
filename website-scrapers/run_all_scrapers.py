@@ -22,6 +22,7 @@ def import_scraper(venue_key):
     """Import dedicated scraper for a venue if it exists"""
     scraper_map = {
         'grelle-forelle': ('grelle-forelle', 'GrelleForelleScraper'),
+        'flex': ('flex', 'FlexScraper'),
         'pratersauna': ('pratersauna', 'PratersaunaScraper'),
         'das-werk': ('das-werk', 'DasWerkScraper'),
         'o-der-klub': ('o-klub', 'OKlubScraper'),
