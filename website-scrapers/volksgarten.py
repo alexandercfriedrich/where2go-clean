@@ -30,7 +30,7 @@ class VolksgartenScraper(BaseVenueScraper):
     VENUE_NAME = "Volksgarten"
     VENUE_ADDRESS = "Burgring 1, 1010 Wien"
     BASE_URL = "https://volksgarten.at"
-    EVENTS_URL = "https://volksgarten.at"
+    EVENTS_URL = "https://volksgarten.at/programm/"  # Updated to use programm page
     CATEGORY = "Clubs/Discos"
     SUBCATEGORY = "Electronic"
     

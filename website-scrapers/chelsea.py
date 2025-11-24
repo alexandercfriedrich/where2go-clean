@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Chelsea Event Scraper
-Extracts upcoming events from https://www.chelsea.co.at/concerts.php
+Extracts upcoming events from https://www.chelsea.co.at/programm.php
 """
 
 import sys
@@ -17,9 +17,9 @@ class ChelseaScraper(BaseVenueScraper):
     VENUE_NAME = "Chelsea"
     VENUE_ADDRESS = "Lerchenfelder Gürtel, Stadtbahnbogen 29-31, 1080 Wien"
     BASE_URL = "https://www.chelsea.co.at"
-    EVENTS_URL = "https://www.chelsea.co.at/concerts.php"
+    EVENTS_URL = "https://www.chelsea.co.at/programm.php"  # Updated to use main program page
     CATEGORY = "Clubs/Discos"
-    SUBCATEGORY = "Live Music"
+    SUBCATEGORY = "Mixed"
     
     def scrape_events(self) -> List[Dict]:
         self.log(f"Fetching events from {self.EVENTS_URL}")

@@ -24,7 +24,6 @@ def import_scraper(venue_key):
         'grelle-forelle': ('grelle-forelle', 'GrelleForelleScraper'),
         'flex': ('flex', 'FlexScraper'),
         'pratersauna': ('pratersauna', 'PratersaunaScraper'),
-        'b72': ('b72', 'B72Scraper'),
         'das-werk': ('das-werk', 'DasWerkScraper'),
         'u4': ('u4', 'U4Scraper'),
         'o-der-klub': ('o-klub', 'OKlubScraper'),
@@ -42,10 +41,9 @@ def import_scraper(venue_key):
         'cabaret-fledermaus': ('cabaret-fledermaus', 'CabaretFledermausScraper'),
         'club-u': ('club-u', 'ClubUScraper'),
         'ponyhof': ('ponyhof', 'PonyhofScraper'),
-        'tanzcafe-jenseits': ('tanzcafe-jenseits', 'TanzcafeJenseitsScraper'),
         'vieipee': ('vieipee', 'VieipeeScraper'),
-        'why-not': ('why-not', 'WhyNotScraper'),
         'babenberger-passage': ('babenberger-passage', 'BabenbergerPassageScraper'),
+        'patroc-wien-gay': ('patroc-wien', 'PatrocWienGayScraper'),
     }
     
     if venue_key in scraper_map:

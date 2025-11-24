@@ -126,34 +126,6 @@ VENUE_CONFIGS = {
     },
     
     # ============================================================================
-    # VENUE 3: B72
-    # ============================================================================
-    'b72': {
-        'venue_name': 'B72',
-        'venue_address': 'Hernalser Gürtel, Stadtbahnbogen 72-73, 1080 Wien',
-        'base_url': 'https://www.b72.at',
-        'events_url': 'https://www.b72.at/program',  # ✓ KORRIGIERT: /program statt /programm/
-        'category': 'Clubs/Discos',
-        'subcategory': 'Electronic',
-        
-        'list_selectors': {
-            # Monatsbasierte Struktur mit h3-Headers
-            'event_container': 'div.event-item, li.program-event, p',
-            'title': 'h4, .event-name, strong',
-            'date': 'span.date, time',  # Format: "15.09"
-            'link': 'a[href*="ticket"], a.event-link',
-        },
-        
-        # NOTE: Custom selectors for future implementation
-        'month_header': 'h3',  # z.B. "SEPTEMBER" (not currently used by generic_scraper.py)
-        
-        'use_detail_pages': False,
-        'date_format': 'DD.MM',  # Nur Tag.Monat, Jahr aus Section-Header
-        # NOTE: parsing_strategy is for future implementation - generic_scraper.py doesn't use this yet
-        'parsing_strategy': 'grouped_by_month',  # Events gruppiert nach Monaten
-    },
-    
-    # ============================================================================
     # VENUE 4: DAS WERK
     # ============================================================================
     'das-werk': {
@@ -217,30 +189,26 @@ VENUE_CONFIGS = {
     'volksgarten': {
         'venue_name': 'Volksgarten',
         'venue_address': 'Burgring 1, 1010 Wien',
-        'base_url': 'https://volksgarten.at',  # ✓ KORRIGIERT: ohne www
-        'events_url': 'https://volksgarten.at',  # Hauptseite
+        'base_url': 'https://volksgarten.at',
+        'events_url': 'https://volksgarten.at/programm/',  # ✓ UPDATED: Events page
         'category': 'Clubs/Discos',
         'subcategory': 'Electronic',
         
-        # ⚠️ WICHTIG: Volksgarten postet Events hauptsächlich auf Social Media
-        'alternative_sources': {
-            'facebook': 'https://www.facebook.com/dervolksgarten',
-            'instagram': '@volksgarten',
-            'events_at': 'https://events.at/venue/volksgarten-clubdisco',
-        },
-        
         'list_selectors': {
-            # Fallback für Website (sehr wenige Events)
-            'event_container': 'div.event-card, article.event, div.wp-block-group',
-            'title': 'h2, h3.event-title',
-            'date': 'time, .event-date',
-            'image': 'img, figure img',
-            'link': 'a[href*="event"]',
+            'event_container': 'div.event-card, article.event, div.wp-block-group, div.tribe-event',
+            'title': 'h2, h3.event-title, .tribe-event-title',
+            'date': 'time, .event-date, .tribe-event-date',
+            'time': '.event-time, .tribe-event-time',
+            'image': 'img, figure img, .event-image img',
+            'link': 'a[href*="event"], a[href*="/programm/"]',
         },
         
-        'use_detail_pages': False,
-        'primary_source': 'social_media',  # Events primär über Social Media
-        'scraping_strategy': 'external_aggregators',  # Empfehlung: events.at nutzen
+        'detail_selectors': {
+            'description': '.event-description, .tribe-events-content',
+            'ticket_link': 'a[href*="ticket"]',
+        },
+        
+        'use_detail_pages': True,
     },
     
     # ============================================================================
@@ -395,37 +363,26 @@ VENUE_CONFIGS = {
         'venue_name': 'Chelsea',
         'venue_address': 'Lerchenfelder Gürtel 29-31, 1080 Wien',
         'base_url': 'https://www.chelsea.co.at',
-        'events_url': 'https://www.chelsea.co.at/concerts.php',  # ✓ Concerts page
+        'events_url': 'https://www.chelsea.co.at/programm.php',  # ✓ UPDATED: Main program page
         'category': 'Clubs/Discos',
         'subcategory': 'Mixed',
         
-        # ⚠️ WICHTIG: Chelsea hat separate Pages für Concerts und Clubs
-        # NOTE: additional_urls is for future implementation - generic_scraper.py only uses events_url
-        'additional_urls': {
-            'clubs': 'https://www.chelsea.co.at/clubs.php',  # Club Events
-            'concerts': 'https://www.chelsea.co.at/concerts.php',  # Concert Events
-        },
-        
         'list_selectors': {
-            # Tabellenbasierte Struktur mit Event-Informationen
-            'event_container': 'table tr, div.event-row',
-            'date': 'td:first-child',  # Format: "So, 27.07."
-            'title': 'td:nth-child(2), strong',  # Band/Event Name
-            'description': 'td:nth-child(2)',  # Volle Beschreibung
-            # NOTE: price, doors_time, show_time are custom fields not extracted by generic_scraper.py
-            # These need to be moved to detail_selectors or scraper needs updating
-            'price': 'td:nth-child(2)',  # z.B. "VVK: 28,-/AK: 32,-"
-            'doors_time': 'td:nth-child(2)',  # z.B. "Doors: 20h"
-            'show_time': 'td:nth-child(2)',  # z.B. "Show: 21h"
+            'event_container': 'table tr, div.event-row, article.event',
+            'date': 'td:first-child, .date',
+            'title': 'td:nth-child(2) strong, h2, h3.event-title',
+            'description': 'td:nth-child(2), .description',
+            'link': 'a[href*="event"], a[href*="programm"]',
+            'image': 'img, .event-image img',
         },
         
-        # Chelsea hat sehr detaillierte Event-Beschreibungen in Tabellenzellen
-        # NOTE: parsing_strategy is for future implementation - generic_scraper.py doesn't use this yet
-        'parsing_strategy': 'table_with_inline_data',
+        'detail_selectors': {
+            'description': '.event-description',
+            'ticket_link': 'a[href*="ticket"]',
+        },
         
-        'use_detail_pages': False,  # Alle Infos auf List-Page
-        'date_format': 'ddd, DD.MM.',  # z.B. "So, 27.07."
-        'requires_dual_scraping': True,  # Concerts UND Clubs scrapen
+        'use_detail_pages': True,
+        'date_format': 'ddd, DD.MM.',
     },
     
     # ============================================================================
@@ -726,43 +683,6 @@ VENUE_CONFIGS = {
     },
     
     # ============================================================================
-    # VENUE 20: TANZCAFE JENSEITS
-    # ============================================================================
-    'tanzcafe-jenseits': {
-        'venue_name': 'Tanzcafé Jenseits',
-        'venue_address': 'Nelkengasse 3, 1060 Wien',
-        'base_url': 'https://tanzcafejenseits.com',
-        'events_url': 'https://tanzcafejenseits.com',  # Hauptseite
-        'category': 'Bars',
-        'subcategory': 'Dance',
-        
-        # ⚠️ PROBLEM: Tanzcafé Jenseits hat KEINE Event-Liste
-        # Es ist eine klassische Bar mit wiederkehrendem Programm
-        'weekly_program_only': True,
-        
-        'recurring_schedule': {
-            'Dienstag_Samstag': 'Jazz, Swing, Soul, Boogie, Disco (wechselnd)',
-            'Freitag': 'Groovy/Funky',
-            'Samstag': 'Soul, Disco, 80er, Funk, Hip-Hop',
-        },
-        
-        'list_selectors': {
-            # Keine echten Events, nur allgemeine Beschreibungen
-            'description': '.description, p',
-        },
-        
-        # Keine Event-Liste verfügbar
-        'scraping_strategy': 'static_weekly_program',
-        
-        'use_detail_pages': False,
-        'opening_hours': {
-            'tuesday_saturday': '21:00 - 04:00',
-            'sunday_monday': 'geschlossen',
-            'summer': 'Dienstag geschlossen (Juni-September)',
-        },
-    },
-    
-    # ============================================================================
     # VENUE 21: THE LOFT
     # ============================================================================
     'the-loft': {
@@ -848,47 +768,6 @@ VENUE_CONFIGS = {
     },
     
     # ============================================================================
-    # VENUE 23: WHY NOT
-    # ============================================================================
-    'why-not': {
-        'venue_name': 'Why Not',
-        'venue_address': 'Tiefer Graben 22, 1010 Wien',
-        'base_url': 'https://why-not.at',
-        'events_url': 'https://why-not.at',  # Hauptseite
-        'category': 'Clubs/Discos',
-        'subcategory': 'LGBTQ+',  # ✓ Queerer Club seit 45 Jahren
-        
-        # ⚠️ PROBLEM: Why Not hat KEINE Event-Liste auf Website
-        # Primär wiederkehrende Club-Nächte
-        'weekly_program_only': True,
-        
-        'recurring_schedule': {
-            'Freitag': 'Elektronische Musik, Chart Hits',
-            'Samstag': 'Super Disco, Elektronische Musik',
-            'Special_Events': 'Drag Shows, Themen-Partys, Fetisch Events',
-        },
-        
-        'list_selectors': {
-            # Keine Event-Liste, nur statische Beschreibungen
-            'description': '.content, p',
-        },
-        
-        # Why Not fokussiert auf wiederkehrende Partys
-        'scraping_strategy': 'static_weekly_program',
-        
-        'use_detail_pages': False,
-        'opening_hours': {
-            'friday_saturday_holidays': '22:00 - 06:00',
-        },
-        
-        'venue_features': {
-            'queer_club': True,
-            'age_limit': 18,
-            'areas': ['3 Bars', 'Dancefloor', 'Fun Room', 'Men Only Areas'],
-        },
-    },
-    
-    # ============================================================================
     # VENUE 24: RHIZ
     # ============================================================================
     'rhiz': {
@@ -923,6 +802,41 @@ VENUE_CONFIGS = {
         
         'use_detail_pages': True,
         'date_format': 'ddd DDMMYY',  # z.B. "do 100725"
+    },
+    
+    # ============================================================================
+    # VENUE 25: PATROC WIEN GAY
+    # ============================================================================
+    'patroc-wien-gay': {
+        'venue_name': 'Patroc Wien Gay Events',
+        'venue_address': 'Various locations in Wien',
+        'base_url': 'https://www.patroc.com',
+        'events_url': 'https://www.patroc.com/de/gay/wien/',
+        'category': 'Clubs/Discos',
+        'subcategory': 'LGBTQ+',
+        
+        # Patroc aggregates gay events from multiple venues in Vienna
+        'additional_urls': {
+            'clubs': 'https://www.patroc.com/de/gay/wien/clubs.html',
+        },
+        
+        'list_selectors': {
+            'event_container': 'div.event, article.event, div.listing-item, div[class*="event"]',
+            'title': 'h2, h3, .event-title, .listing-title',
+            'date': '.date, .event-date, time',
+            'time': '.time, .event-time',
+            'image': 'img, .event-image img',
+            'link': 'a[href*="/event/"], a[href*="/gay/"]',
+            'description': '.description, .event-description',
+        },
+        
+        'detail_selectors': {
+            'description': '.event-description, .description',
+            'venue': '.venue, .location',
+            'ticket_link': 'a[href*="ticket"]',
+        },
+        
+        'use_detail_pages': True,
     },
     
     # Template for adding new venues
