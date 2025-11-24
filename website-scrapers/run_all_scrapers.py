@@ -147,6 +147,20 @@ def main():
         print(f"  Skipped:       {skipped}")
     print('=' * 70)
     
+    # Link events to venues if not in dry-run mode
+    if not args.dry_run and total_inserted > 0:
+        print(f"\n{'=' * 70}")
+        print("Linking events to venues...")
+        print('=' * 70)
+        try:
+            from link_events_to_venue import link_events_to_venues, init_supabase
+            supabase = init_supabase()
+            if supabase:
+                link_stats = link_events_to_venues(supabase, dry_run=False, debug=args.debug)
+                print(f"\n✓ Linked {link_stats['linked']} events to venues")
+        except Exception as e:
+            print(f"⚠️  Error linking events to venues: {e}")
+    
     return 0 if total_errors == 0 else 1
 
 

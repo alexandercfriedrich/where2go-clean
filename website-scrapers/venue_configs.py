@@ -363,9 +363,14 @@ VENUE_CONFIGS = {
         'venue_name': 'Chelsea',
         'venue_address': 'Lerchenfelder Gürtel 29-31, 1080 Wien',
         'base_url': 'https://www.chelsea.co.at',
-        'events_url': 'https://www.chelsea.co.at/programm.php',  # ✓ UPDATED: Main program page
+        'events_url': 'https://www.chelsea.co.at/concerts.php',  # ✓ Concerts page works
         'category': 'Clubs/Discos',
         'subcategory': 'Mixed',
+        
+        # Chelsea has separate pages for concerts and clubs
+        'additional_urls': {
+            'clubs': 'https://www.chelsea.co.at/clubs.php',
+        },
         
         'list_selectors': {
             'event_container': 'table tr, div.event-row, article.event',
@@ -381,7 +386,7 @@ VENUE_CONFIGS = {
             'ticket_link': 'a[href*="ticket"]',
         },
         
-        'use_detail_pages': True,
+        'use_detail_pages': False,
         'date_format': 'ddd, DD.MM.',
     },
     
