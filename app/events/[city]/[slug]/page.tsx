@@ -88,7 +88,7 @@ async function getEventBySlug(city: string, slug: string): Promise<EventData | n
     .from('events')
     .select('*')
     .ilike('city', city)  // Changed from .eq() to .ilike() for case-insensitive match
-    .eq('slug', slug)
+    .eq('event_slug', slug)
     .eq('is_cancelled', false)
     .single();
 
