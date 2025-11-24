@@ -17,7 +17,7 @@ BEGIN
   SELECT * INTO v_venue
   FROM venues
   WHERE LOWER(venue_slug) = LOWER(p_venue_slug)
-     OR slugify(name) = LOWER(p_venue_slug)
+     OR LOWER(slugify(name)) = LOWER(p_venue_slug)
   LIMIT 1;
   
   -- Return null if venue not found
