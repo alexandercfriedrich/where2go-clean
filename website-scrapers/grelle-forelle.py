@@ -585,6 +585,18 @@ class GrelleForelleScraper:
         if events and not self.dry_run:
             self.log("\nSaving events to database...")
             stats = self.save_to_database(events)
+            
+            # Link events to venues after successful insertion
+            if stats['inserted'] > 0 and self.supabase:
+                print("\n" + "=" * 70)
+                print("Linking events to venues...")
+                print("=" * 70)
+                try:
+                    from link_events_to_venue import link_events_to_venues
+                    link_stats = link_events_to_venues(self.supabase, dry_run=False, debug=self.debug)
+                    self.log(f"✓ Linked {link_stats['linked']} events to venues", "success")
+                except Exception as e:
+                    self.log(f"⚠️  Error linking events to venues: {e}", "warning")
         
         # Print summary
         print("\n" + "=" * 70)
