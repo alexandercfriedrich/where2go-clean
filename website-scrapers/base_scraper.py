@@ -4,7 +4,8 @@ Base Venue Scraper Template
 Provides a flexible framework for creating venue-specific scrapers.
 
 This base class handles:
-- Supabase database integration
+- Unified Pipeline API integration (primary method)
+- Supabase database integration (fallback)
 - Common date/time parsing
 - Event data preparation
 - Duplicate prevention
@@ -23,6 +24,11 @@ from abc import ABC, abstractmethod
 
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+# Check for Unified Pipeline API availability
+UNIFIED_PIPELINE_URL = os.getenv('UNIFIED_PIPELINE_URL')  # e.g., https://your-app.vercel.app/api/admin/events/process
+UNIFIED_PIPELINE_SECRET = os.getenv('ADMIN_WARMUP_SECRET')
+UNIFIED_PIPELINE_AVAILABLE = bool(UNIFIED_PIPELINE_URL and UNIFIED_PIPELINE_SECRET)
 
 try:
     from supabase import create_client, Client
@@ -274,8 +280,149 @@ class BaseVenueScraper(ABC):
         """
         pass
     
+    def save_events(self, events: List[Dict]) -> Dict:
+        """
+        Save events using the best available method:
+        1. Unified Pipeline API (preferred - ensures venue linking and cache sync)
+        2. Direct Supabase (fallback)
+        """
+        if UNIFIED_PIPELINE_AVAILABLE:
+            self.log("Using Unified Pipeline API (recommended)", "info")
+            return self.save_via_unified_pipeline(events)
+        elif self.supabase:
+            self.log("Unified Pipeline not configured, falling back to direct Supabase", "warning")
+            return self.save_to_database(events)
+        else:
+            self.log("No storage method available", "error")
+            return {'inserted': 0, 'updated': 0, 'errors': len(events)}
+    
+    def save_via_unified_pipeline(self, events: List[Dict]) -> Dict:
+        """
+        Save events via the Unified Pipeline API endpoint.
+        
+        This is the preferred method as it ensures:
+        - Proper venue matching/creation
+        - venue_id is always set
+        - Deduplication
+        - Cache synchronization with Upstash Redis
+        """
+        if not UNIFIED_PIPELINE_AVAILABLE:
+            self.log("Unified Pipeline not available", "error")
+            return {'inserted': 0, 'updated': 0, 'errors': len(events)}
+        
+        stats = {'inserted': 0, 'updated': 0, 'errors': 0, 'venues_created': 0}
+        
+        # Convert events to RawEventInput format for the API
+        raw_events = []
+        for event in events:
+            raw_event = self._prepare_event_for_pipeline(event)
+            if raw_event:
+                raw_events.append(raw_event)
+        
+        if not raw_events:
+            self.log("No valid events to send to pipeline", "warning")
+            return stats
+        
+        try:
+            # Prepare API request
+            payload = {
+                'events': raw_events,
+                'options': {
+                    'source': f"{self.VENUE_NAME.lower().replace(' ', '-')}-scraper",
+                    'city': self.CITY,
+                    'dryRun': self.dry_run,
+                    'debug': self.debug,
+                    'syncToCache': True
+                }
+            }
+            
+            # Send to Unified Pipeline API
+            response = requests.post(
+                UNIFIED_PIPELINE_URL,
+                json=payload,
+                headers={
+                    'Authorization': f'Bearer {UNIFIED_PIPELINE_SECRET}',
+                    'Content-Type': 'application/json'
+                },
+                timeout=120  # 2 minutes for large batches
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                pipeline_result = result.get('result', {})
+                
+                stats['inserted'] = pipeline_result.get('eventsInserted', 0)
+                stats['updated'] = pipeline_result.get('eventsUpdated', 0)
+                stats['errors'] = pipeline_result.get('eventsFailed', 0)
+                stats['venues_created'] = pipeline_result.get('venuesCreated', 0)
+                
+                self.log(f"✓ Pipeline processed {stats['inserted']} events, created {stats['venues_created']} venues", "success")
+                
+                if pipeline_result.get('errors'):
+                    for error in pipeline_result['errors'][:5]:  # Show first 5 errors
+                        self.log(f"  ⚠ {error}", "warning")
+            else:
+                error_msg = response.json().get('error', response.text)
+                self.log(f"Pipeline API error ({response.status_code}): {error_msg}", "error")
+                stats['errors'] = len(raw_events)
+                
+        except requests.exceptions.Timeout:
+            self.log("Pipeline API request timed out", "error")
+            stats['errors'] = len(raw_events)
+        except requests.exceptions.RequestException as e:
+            self.log(f"Pipeline API request failed: {e}", "error")
+            stats['errors'] = len(raw_events)
+        except Exception as e:
+            self.log(f"Unexpected error calling Pipeline API: {e}", "error")
+            stats['errors'] = len(raw_events)
+        
+        return stats
+    
+    def _prepare_event_for_pipeline(self, event: Dict) -> Optional[Dict]:
+        """
+        Convert scraped event to RawEventInput format for the Unified Pipeline API.
+        
+        Required fields:
+        - title: string
+        - venue_name: string
+        - start_date_time: ISO string
+        - source: string
+        """
+        if not event.get('title'):
+            return None
+        
+        # Prepare datetime
+        start_datetime = None
+        if event.get('date'):
+            time_str = event.get('time', '23:00')  # Default to 23:00 for club events
+            start_datetime = f"{event['date']}T{time_str}:00.000Z"
+        else:
+            return None  # Skip events without dates
+        
+        # Use venue logo as fallback if no event image
+        image_url = event.get('image_url')
+        if not image_url and self.VENUE_LOGO_URL:
+            image_url = self.VENUE_LOGO_URL
+        
+        return {
+            'title': event.get('title'),
+            'description': event.get('description'),
+            'start_date_time': start_datetime,
+            'end_date_time': event.get('end_datetime'),
+            'venue_name': self.VENUE_NAME,
+            'venue_address': self.VENUE_ADDRESS,
+            'venue_city': self.CITY,
+            'category': self.CATEGORY,
+            'price': event.get('price', 'See event page'),
+            'ticket_url': event.get('ticket_url'),
+            'website_url': event.get('detail_url') or event.get('website'),
+            'image_url': image_url,
+            'source': 'scraper',
+            'source_url': event.get('detail_url') or event.get('website')
+        }
+    
     def save_to_database(self, events: List[Dict]) -> Dict:
-        """Save events to Supabase database"""
+        """Save events directly to Supabase database (fallback method)"""
         if not self.supabase:
             self.log("Supabase not initialized, skipping database save", "warning")
             return {'inserted': 0, 'updated': 0, 'errors': 0}
@@ -375,6 +522,11 @@ class BaseVenueScraper(ABC):
         if self.dry_run:
             self.log("Running in DRY-RUN mode (no database writes)", "warning")
         
+        if UNIFIED_PIPELINE_AVAILABLE:
+            self.log(f"Unified Pipeline API: {UNIFIED_PIPELINE_URL}", "info")
+        else:
+            self.log("Unified Pipeline API not configured, will use direct Supabase", "warning")
+        
         # Scrape events
         events = self.scrape_events()
         
@@ -385,14 +537,14 @@ class BaseVenueScraper(ABC):
         print(f"Scraped {len(future_events)} upcoming events")
         print("=" * 70)
         
-        # Save to database
-        stats = {'inserted': 0, 'updated': 0, 'errors': 0}
+        # Save events using the best available method
+        stats = {'inserted': 0, 'updated': 0, 'errors': 0, 'venues_created': 0}
         if future_events and not self.dry_run:
-            self.log("\nSaving events to database...")
-            stats = self.save_to_database(future_events)
+            self.log("\nSaving events...")
+            stats = self.save_events(future_events)
             
-            # Link events to venues after successful insertion
-            if stats['inserted'] > 0 and self.supabase and LINK_EVENTS_AVAILABLE:
+            # Only link events to venues if using direct Supabase (not needed for pipeline)
+            if not UNIFIED_PIPELINE_AVAILABLE and stats['inserted'] > 0 and self.supabase and LINK_EVENTS_AVAILABLE:
                 print("\n" + "=" * 70)
                 print("Linking events to venues...")
                 print("=" * 70)
@@ -410,6 +562,8 @@ class BaseVenueScraper(ABC):
         print(f"  Inserted:        {stats['inserted']}")
         print(f"  Updated:         {stats['updated']}")
         print(f"  Errors:          {stats['errors']}")
+        if stats.get('venues_created', 0) > 0:
+            print(f"  Venues created:  {stats['venues_created']}")
         print("=" * 70)
         
         # Debug output
