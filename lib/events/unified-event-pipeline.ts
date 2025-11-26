@@ -311,7 +311,7 @@ export async function processEvents(
             tags: event.tags,
             source: event.source,
             external_id: event.source_id,
-            slug: null,                             // Let DB trigger generate unique slug
+            // Let database defaults handle: slug, timezone, is_all_day, is_verified, etc.
             published_at: new Date().toISOString()
           };
 
@@ -319,24 +319,64 @@ export async function processEvents(
           // STEP 3d: UPSERT TO DATABASE
           // ─────────────────────────────────────────────────────
           if (!dryRun) {
-            // Use upsert with conflict on title, start_date_time, city
-            // Type assertion needed due to Supabase SDK type inference limitations
-            // (same pattern used in EventRepository.bulkInsertEvents)
-            const { data, error } = await supabaseAdmin
-              .from('events')
-              .upsert([eventData] as any, {
-                onConflict: 'title,start_date_time,city',
-                ignoreDuplicates: false
-              })
-              .select();
-
-            if (error) {
-              throw new Error(`Database upsert failed: ${error.message}`);
+            // First try to find existing event by source_url or external_id
+            let existingEventId: string | null = null;
+            
+            if (event.source_url) {
+              const { data: existing } = await supabaseAdmin
+                .from('events')
+                .select('id')
+                .eq('source_url', event.source_url)
+                .maybeSingle();
+              if (existing && typeof existing === 'object' && 'id' in existing) {
+                existingEventId = (existing as { id: string }).id;
+              }
+            }
+            
+            if (!existingEventId && event.source_id) {
+              const { data: existing } = await supabaseAdmin
+                .from('events')
+                .select('id')
+                .eq('external_id', event.source_id)
+                .eq('source', event.source)
+                .maybeSingle();
+              if (existing && typeof existing === 'object' && 'id' in existing) {
+                existingEventId = (existing as { id: string }).id;
+              }
             }
 
-            // Upsert was successful - count as inserted/processed
-            // Note: Supabase upsert doesn't easily distinguish between new inserts and updates
-            result.eventsInserted++;
+            let data, error;
+            
+            if (existingEventId) {
+              // Update existing event
+              // Use type assertion to work around Supabase SDK type inference limitations
+              const updateResult = await (supabaseAdmin as any)
+                .from('events')
+                .update(eventData)
+                .eq('id', existingEventId)
+                .select();
+              data = updateResult.data;
+              error = updateResult.error;
+              if (!error) {
+                result.eventsUpdated++;
+              }
+            } else {
+              // Insert new event
+              // Use type assertion to work around Supabase SDK type inference limitations
+              const insertResult = await (supabaseAdmin as any)
+                .from('events')
+                .insert([eventData])
+                .select();
+              data = insertResult.data;
+              error = insertResult.error;
+              if (!error) {
+                result.eventsInserted++;
+              }
+            }
+
+            if (error) {
+              throw new Error(`Database operation failed: ${error.message}`);
+            }
 
             // ─────────────────────────────────────────────────────
             // STEP 3e: COLLECT EVENT FOR CACHE SYNC
