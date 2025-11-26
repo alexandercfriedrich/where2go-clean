@@ -14,17 +14,22 @@
 
 import { supabaseAdmin } from '@/lib/supabase/client';
 import { VenueRepository } from '@/lib/repositories/VenueRepository';
-import { generateEventSlug } from '@/lib/slugGenerator';
 import { deduplicateEvents } from '@/lib/eventDeduplication';
 import { EventRepository } from '@/lib/repositories/EventRepository';
 import type { EventData } from '@/lib/types';
 import type { Database } from '@/lib/supabase/types';
 
 type DbVenueInsert = Database['public']['Tables']['venues']['Insert'];
+type DbEventInsert = Database['public']['Tables']['events']['Insert'];
 
 // ═══════════════════════════════════════════════════════════════
 // TYPE DEFINITIONS
 // ═══════════════════════════════════════════════════════════════
+
+/**
+ * Supported event sources
+ */
+export type EventSource = 'wien.info' | 'ai-search' | 'scraper' | 'community' | 'rss';
 
 /**
  * Raw event input from any source (Wien.info, AI search, Scraper, Community)
@@ -46,7 +51,7 @@ export interface RawEventInput {
   booking_url?: string;
   website_url?: string;
   image_url?: string;
-  source: 'wien.info' | 'ai-search' | 'scraper' | 'community' | 'rss' | string;
+  source: EventSource;
   source_id?: string;                     // External ID (e.g., Wien.info ID)
   source_url?: string;
   latitude?: number;
@@ -205,10 +210,13 @@ export async function processEvents(
       }
       
       // Deduplicate against existing events
+      // deduplicateEvents returns events from eventsAsEventData that are NOT duplicates of existingEvents
       const dedupedEventsData = deduplicateEvents(eventsAsEventData, existingEvents);
+      // Build a set of titles that passed the deduplication check (non-duplicates)
       const dedupedTitles = new Set(dedupedEventsData.map(e => e.title.toLowerCase()));
       
-      // Filter normalized events to keep only non-duplicates
+      // Filter normalized events to keep only those that passed deduplication
+      // (i.e., events whose titles are in dedupedTitles are the unique ones we want to keep)
       eventsToProcess = normalizedEvents.filter(e => 
         dedupedTitles.has(e.title.toLowerCase())
       );
@@ -269,7 +277,7 @@ export async function processEvents(
           // ─────────────────────────────────────────────────────
           // STEP 3c: PREPARE EVENT DATA FOR DATABASE
           // ─────────────────────────────────────────────────────
-          const eventData = {
+          const eventData: DbEventInsert = {
             title: event.title,
             description: event.description,
             category: event.category,
@@ -302,9 +310,11 @@ export async function processEvents(
           // ─────────────────────────────────────────────────────
           if (!dryRun) {
             // Use upsert with conflict on title, start_date_time, city
+            // Type assertion needed due to Supabase SDK type inference limitations
+            // (same pattern used in EventRepository.bulkInsertEvents)
             const { data, error } = await supabaseAdmin
               .from('events')
-              .upsert(eventData as any, {
+              .upsert([eventData] as any, {
                 onConflict: 'title,start_date_time,city',
                 ignoreDuplicates: false
               })
@@ -314,7 +324,8 @@ export async function processEvents(
               throw new Error(`Database upsert failed: ${error.message}`);
             }
 
-            // Count as inserted (upsert doesn't easily distinguish new vs update)
+            // Upsert was successful - count as inserted/processed
+            // Note: Supabase upsert doesn't easily distinguish between new inserts and updates
             result.eventsInserted++;
           } else {
             if (debug) {
@@ -473,7 +484,7 @@ function normalizedToEventData(event: NormalizedEvent): EventData {
     description: event.description || undefined,
     address: event.venue_address || undefined,
     city: event.venue_city,
-    source: event.source as any
+    source: event.source  // EventData accepts string source
   };
 }
 

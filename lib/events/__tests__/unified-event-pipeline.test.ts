@@ -8,7 +8,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { RawEventInput, PipelineResult } from '../unified-event-pipeline';
+import type { RawEventInput, PipelineResult, EventSource } from '../unified-event-pipeline';
 
 // Mock the modules
 vi.mock('@/lib/supabase/client', () => ({
