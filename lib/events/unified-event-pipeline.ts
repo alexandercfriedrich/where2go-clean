@@ -606,12 +606,13 @@ async function matchOrCreateVenue(
     }
 
     // Create new venue
+    // Note: Database schema uses 'address' column (not 'full_address')
+    // Note: 'source' column doesn't exist in venues table
     const venueData: DbVenueInsert = {
       name: venueInfo.name,
-      full_address: venueInfo.address,
+      address: venueInfo.address,
       city: venueInfo.city,
-      country: 'Austria',
-      source: venueInfo.source
+      country: 'Austria'
     };
 
     const venueId = await VenueRepository.upsertVenue(venueData);

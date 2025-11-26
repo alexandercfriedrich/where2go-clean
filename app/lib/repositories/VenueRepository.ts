@@ -170,10 +170,10 @@ export class VenueRepository {
    * we manually check for existence first, then insert if needed.
    */
   static async upsertVenue(venue: DbVenueInsert): Promise<string | null> {
-    // Ensure slug is set (create new object to avoid mutating input)
+    // Ensure venue_slug is set (create new object to avoid mutating input)
     const venueWithSlug = {
       ...venue,
-      slug: venue.slug || slugifyVenueName(venue.name)
+      venue_slug: venue.venue_slug || slugifyVenueName(venue.name)
     };
     
     // First, check if venue already exists
