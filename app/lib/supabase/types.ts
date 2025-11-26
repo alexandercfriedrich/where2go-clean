@@ -4,7 +4,7 @@ export type Database = {
       venues: {
         Row: {
           id: string
-          venue_slug: string
+          slug: string
           name: string
           street: string | null
           street_number: string | null
@@ -25,7 +25,7 @@ export type Database = {
         }
         Insert: {
           id?: string
-          venue_slug?: string
+          slug?: string
           name: string
           street?: string | null
           street_number?: string | null
@@ -46,7 +46,7 @@ export type Database = {
         }
         Update: {
           id?: string
-          venue_slug?: string
+          slug?: string
           name?: string
           street?: string | null
           street_number?: string | null
