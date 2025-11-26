@@ -41,6 +41,12 @@ vi.mock('@/lib/slugGenerator', () => ({
   generateEventSlug: vi.fn(() => 'test-event-slug-2025-01-01')
 }));
 
+vi.mock('@/lib/cache', () => ({
+  eventsCache: {
+    upsertDayEvents: vi.fn().mockResolvedValue(undefined)
+  }
+}));
+
 describe('Unified Event Pipeline', () => {
   beforeEach(() => {
     vi.clearAllMocks();

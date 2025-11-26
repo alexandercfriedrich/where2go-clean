@@ -10,12 +10,14 @@
  * 3. VENUE MATCH/CREATE: Find or create venues, ensuring venue_id is set
  * 4. SLUG GENERATION: Generate SEO-friendly event slugs
  * 5. UPSERT: Insert/update events in database with venue_id linked
+ * 6. CACHE SYNC: Update Upstash Redis day-bucket cache for consistency
  */
 
 import { supabaseAdmin } from '@/lib/supabase/client';
 import { VenueRepository } from '@/lib/repositories/VenueRepository';
 import { deduplicateEvents } from '@/lib/eventDeduplication';
 import { EventRepository } from '@/lib/repositories/EventRepository';
+import { eventsCache } from '@/lib/cache';
 import type { EventData } from '@/lib/types';
 import type { Database } from '@/lib/supabase/types';
 
@@ -75,6 +77,8 @@ export interface PipelineOptions {
   debug?: boolean;
   /** Skip deduplication (use with caution) */
   skipDeduplication?: boolean;
+  /** Sync events to Upstash Redis cache after DB insert (default: true) */
+  syncToCache?: boolean;
 }
 
 /**
@@ -89,6 +93,7 @@ export interface PipelineResult {
   eventsSkippedAsDuplicates: number;
   venuesCreated: number;
   venuesReused: number;
+  eventsCached: number;
   duration: number;
   errors: string[];
 }
@@ -142,7 +147,8 @@ export async function processEvents(
     source,
     city = 'Wien',
     debug = false,
-    skipDeduplication = false
+    skipDeduplication = false,
+    syncToCache = true
   } = options;
 
   const result: PipelineResult = {
@@ -154,9 +160,13 @@ export async function processEvents(
     eventsSkippedAsDuplicates: 0,
     venuesCreated: 0,
     venuesReused: 0,
+    eventsCached: 0,
     duration: 0,
     errors: []
   };
+
+  // Collect events for cache sync (grouped by date)
+  const eventsForCache: Map<string, EventData[]> = new Map();
 
   if (debug) {
     console.log(`[PIPELINE:START] Processing ${rawEvents.length} events from ${source}`);
@@ -327,6 +337,20 @@ export async function processEvents(
             // Upsert was successful - count as inserted/processed
             // Note: Supabase upsert doesn't easily distinguish between new inserts and updates
             result.eventsInserted++;
+
+            // ─────────────────────────────────────────────────────
+            // STEP 3e: COLLECT EVENT FOR CACHE SYNC
+            // ─────────────────────────────────────────────────────
+            if (syncToCache) {
+              const eventDataForCache = normalizedToEventData(event);
+              const eventDate = eventDataForCache.date;
+              if (eventDate) {
+                if (!eventsForCache.has(eventDate)) {
+                  eventsForCache.set(eventDate, []);
+                }
+                eventsForCache.get(eventDate)!.push(eventDataForCache);
+              }
+            }
           } else {
             if (debug) {
               console.log(`[PIPELINE:DRY-RUN] Would upsert event: ${event.title}`);
@@ -366,6 +390,29 @@ export async function processEvents(
       }
     }
 
+    // ═══════════════════════════════════════════════════════════
+    // STEP 5: SYNC TO UPSTASH CACHE (Day-Buckets)
+    // ═══════════════════════════════════════════════════════════
+    if (!dryRun && syncToCache && eventsForCache.size > 0) {
+      if (debug) {
+        console.log(`[PIPELINE:STEP5] Syncing ${eventsForCache.size} days to Upstash cache...`);
+      }
+
+      try {
+        for (const [date, events] of eventsForCache) {
+          await eventsCache.upsertDayEvents(city, date, events);
+          result.eventsCached += events.length;
+          if (debug) {
+            console.log(`[PIPELINE:CACHE] Synced ${events.length} events for ${date}`);
+          }
+        }
+      } catch (cacheError: any) {
+        // Cache sync failure should not fail the pipeline, just log it
+        console.error('[PIPELINE:CACHE:ERROR] Failed to sync to cache:', cacheError);
+        result.errors.push(`Cache sync warning: ${cacheError.message}`);
+      }
+    }
+
     result.success = result.eventsFailed === 0;
 
   } catch (error: any) {
@@ -384,6 +431,7 @@ export async function processEvents(
       duplicates: result.eventsSkippedAsDuplicates,
       venuesCreated: result.venuesCreated,
       venuesReused: result.venuesReused,
+      cached: result.eventsCached,
       duration: `${result.duration}ms`
     });
   }
