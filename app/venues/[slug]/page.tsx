@@ -29,10 +29,10 @@ export async function generateMetadata({
     const { venue, stats } = venueData;
 
     return {
-      title: `${venue.name} - ${stats.upcoming_events} Events | Where2Go Wien`,
-      description: `${venue.name} in Wien: ${stats.upcoming_events} kommende Events. ${venue.full_address}`,
+      title: `${venue.name} - ${stats.upcoming_events || 0} Events | Where2Go Wien`,
+      description: `${venue.name} in Wien: ${stats.upcoming_events || 0} kommende Events. ${venue.full_address}`,
       openGraph: {
-        title: `${venue.name} - ${stats.upcoming_events} Events`,
+        title: `${venue.name} - ${stats.upcoming_events || 0} Events`,
         description: `Entdecke alle Events bei ${venue.name} in Wien`,
       },
     };
@@ -173,14 +173,14 @@ export default async function VenuePage({ params }: VenuePageProps) {
       {/* Stats Cards */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-          <StatCard value={stats.upcoming_events} label="Kommende Events" />
-          <StatCard value={stats.total_events} label="Gesamt Events" />
-          <StatCard value={stats.categories.length} label="Kategorien" />
-          <StatCard value={stats.sources.length} label="Quellen" />
+          <StatCard value={stats.upcoming_events || 0} label="Kommende Events" />
+          <StatCard value={stats.total_events || 0} label="Gesamt Events" />
+          <StatCard value={stats.categories?.length || 0} label="Kategorien" />
+          <StatCard value={stats.sources?.length || 0} label="Quellen" />
         </div>
 
         {/* Data Sources */}
-        {stats.sources && stats.sources.length > 0 && (
+        {stats.sources && Array.isArray(stats.sources) && stats.sources.length > 0 && (
           <div className="mb-12">
             <h2 className="text-xl font-bold mb-4">Datenquellen</h2>
             <div className="flex flex-wrap gap-3">
@@ -201,7 +201,7 @@ export default async function VenuePage({ params }: VenuePageProps) {
         )}
 
         {/* Categories */}
-        {stats.categories && stats.categories.length > 0 && (
+        {stats.categories && Array.isArray(stats.categories) && stats.categories.length > 0 && (
           <div className="mb-12">
             <h2 className="text-xl font-bold mb-4">Event-Kategorien</h2>
             <div className="flex flex-wrap gap-3">
@@ -262,7 +262,7 @@ export default async function VenuePage({ params }: VenuePageProps) {
             Kommende Events ({upcoming_events?.length || 0})
           </h2>
 
-          {upcoming_events && upcoming_events.length > 0 ? (
+          {upcoming_events && Array.isArray(upcoming_events) && upcoming_events.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {upcoming_events.map((event: any) => (
                 <EventCard
