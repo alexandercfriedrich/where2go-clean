@@ -90,6 +90,20 @@ def main():
         
         # Skip venues where scraping is disabled (e.g., closed venues)
         if config.get('scraping_enabled') is False:
+                # Choose dedicated scraper or generic
+    ScraperClass = import_scraper(venue_key)
+
+    if ScraperClass:
+        scraper = ScraperClass(dry_run=False, debug=args.debug)
+    else:
+        scraper = GenericVenueScraper(
+            config=config,
+            dry_run=False,
+            debug=args.debug,
+        )
+
+    scraper.run()
+
             print(f"⚠️  Skipping {venue_key}: scraping disabled (venue {config.get('status', 'inactive')})")
             results[venue_key] = {'success': False, 'error': 'Scraping disabled', 'skipped': True}
             continue
