@@ -52,8 +52,8 @@ jobs:
       
       - name: Set environment variables
         run: |
-          echo "SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}" >> $GITHUB_ENV
-          echo "SUPABASE_KEY=${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" >> $GITHUB_ENV
+          echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> $GITHUB_ENV
+          echo "SUPABASE_KEY=${{ secrets.SUPABASE_KEY }}" >> $GITHUB_ENV
               echo "DRY_RUN=false" >> $GITHUB_ENV
                   echo "UNIFIED_PIPELINE_URL=${{ secrets.UNIFIED_PIPELINE_URL }}" >> $GITHUB_ENV
                       echo "ADMIN_WARMUP_SECRET=${{ secrets.ADMIN_WARMUP_SECRET }}" >> $GITHUB_ENV
