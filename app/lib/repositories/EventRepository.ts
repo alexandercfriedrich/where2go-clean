@@ -477,20 +477,29 @@ export class EventRepository {
    * Link events to venues using the database function
    * This should be called after every bulk insert operation to ensure events are properly linked
    * 
-   * @param city - City to filter events by (optional, will process all cities if not provided)
+   * NOTE: The function signature changed in Nov 2025:
+   * - Removed p_city parameter (city filtering no longer supported)
+   * - Added p_sources and p_sim_match_threshold for fuzzy matching
+   * - Return value is now a single integer, not a table
+   * 
+   * @param sources - Optional array of source names to filter events (null = all sources)
+   * @param similarityThreshold - Similarity threshold for fuzzy matching (0.0-1.0, default 0.7)
    * @param context - Context string for logging (e.g., 'Wien.info Importer', 'API Process')
-   * @returns Object with events_linked and events_processed counts, or null on error
+   * @returns Object with events_linked count, or null on error
    */
   static async linkEventsToVenues(
-    city: string | null = null,
+    sources: string[] | null = null,
+    similarityThreshold: number = 0.7,
     context: string = 'EventRepository'
-  ): Promise<{ events_linked: number; events_processed: number } | null> {
+  ): Promise<{ events_linked: number } | null> {
     try {
-      console.log(`[${context}] Calling link_events_to_venues for city: ${city || 'all'}`);
+      console.log(`[${context}] Calling link_events_to_venues with sources: ${sources || 'all'}, threshold: ${similarityThreshold}`);
       
       // Note: Using type assertion because RPC functions are not in the generated Supabase types
-      const { data: linkResult, error: linkError } = await (supabaseAdmin as any).rpc('link_events_to_venues', {
-        p_city: city
+      // The function now returns a single integer (events_linked), not a table
+      const { data: eventsLinked, error: linkError } = await (supabaseAdmin as any).rpc('link_events_to_venues', {
+        p_sources: sources,
+        p_sim_match_threshold: similarityThreshold
       });
       
       if (linkError) {
@@ -498,13 +507,8 @@ export class EventRepository {
         return null;
       }
       
-      if (linkResult && linkResult.length > 0) {
-        const { events_linked, events_processed } = linkResult[0];
-        console.log(`[${context}] Linked ${events_linked} of ${events_processed} events to venues`);
-        return { events_linked, events_processed };
-      }
-      
-      return { events_linked: 0, events_processed: 0 };
+      console.log(`[${context}] Linked ${eventsLinked} events to venues`);
+      return { events_linked: eventsLinked || 0 };
     } catch (error: any) {
       console.error(`[${context}] Exception linking events to venues:`, error);
       return null;
