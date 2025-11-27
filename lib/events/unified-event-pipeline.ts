@@ -280,9 +280,10 @@ export async function processEvents(
 
           // ─────────────────────────────────────────────────────
           // STEP 3b: SLUG GENERATION
-          // Let the database trigger handle slug generation for uniqueness
-          // We just prepare the basic slug info here
+          // Generate unique event slug: title-date-unique6chars
+          // This ensures uniqueness even for events with same title/date
           // ─────────────────────────────────────────────────────
+          const eventSlug = generateEventSlug(event.title, event.start_date_time);
 
           // ─────────────────────────────────────────────────────
           // STEP 3c: PREPARE EVENT DATA FOR DATABASE
@@ -290,6 +291,7 @@ export async function processEvents(
           const eventData: DbEventInsert = {
             title: event.title,
             description: event.description,
+            slug: eventSlug,                          // ← UNIQUE SLUG: title-date-random6
             category: event.category,
             subcategory: event.subcategory,
             city: event.venue_city,
@@ -311,7 +313,6 @@ export async function processEvents(
             tags: event.tags,
             source: event.source,
             external_id: event.source_id,
-            // Let database defaults handle: slug, timezone, is_all_day, is_verified, etc.
             published_at: new Date().toISOString()
           };
 
@@ -605,28 +606,19 @@ async function matchOrCreateVenue(
       return { id: existingVenue.id, isNew: false };
     }
 
-    // Create new venue
-    // Note: Database schema uses 'address' column (not 'full_address')
-    // Note: 'source' column doesn't exist in venues table
-    // Note: 'slug' is required (NOT NULL constraint)
-    const generatedSlug = venueInfo.name.toLowerCase()
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .trim();
+    // Create new venue with unique slug
+    // Slug format: {name}-{city}-{unique6chars}
+    const venueSlug = `${slugifyText(venueInfo.name)}-${slugifyText(venueInfo.city)}-${generateUniqueId()}`.replace(/-+/g, '-');
     
     const venueData: DbVenueInsert = {
       name: venueInfo.name,
-      slug: generatedSlug || 'venue',  // Required field
+      slug: venueSlug,  // Required field with unique value
       address: venueInfo.address,
       city: venueInfo.city,
       country: 'Austria'
     };
 
-    const venueId = await VenueRepository.upsertVenue(venueData);
+    const venueId = await VenueRepository.upsertVenue(venueData, null);
     
     if (debug && venueId) {
       console.log(`[PIPELINE:VENUE] Created new venue: ${venueInfo.name} (${venueId})`);
@@ -637,6 +629,47 @@ async function matchOrCreateVenue(
     console.error(`[PIPELINE:VENUE:ERROR] Failed to match/create venue ${venueInfo.name}:`, error);
     return { id: null, isNew: false };
   }
+}
+
+/**
+ * Generate a 6-character random alphanumeric suffix for unique slugs
+ */
+function generateUniqueId(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+/**
+ * Generate URL-friendly slug from text
+ */
+function slugifyText(text: string): string {
+  return text
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+    .replace(/[^a-zA-Z0-9\s-]/g, '') // Remove special chars
+    .replace(/[\s_-]+/g, '-') // Replace spaces and underscores with hyphens
+    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+}
+
+/**
+ * Generate unique event slug: title-date-unique6chars
+ * Format: {event-title}-{YYYY-MM-DD}-{6-char-suffix}
+ */
+function generateEventSlug(title: string, startDateTime: string): string {
+  const titleSlug = slugifyText(title);
+  // Extract date from ISO timestamp
+  const dateMatch = startDateTime.match(/^(\d{4}-\d{2}-\d{2})/);
+  const dateSlug = dateMatch ? dateMatch[1] : new Date().toISOString().split('T')[0];
+  const uniqueSuffix = generateUniqueId();
+  
+  return `${titleSlug}-${dateSlug}-${uniqueSuffix}`.replace(/-+/g, '-');
 }
 
 /**

@@ -6,16 +6,42 @@ type DbVenueInsert = Database['public']['Tables']['venues']['Insert']
 type DbVenueUpdate = Database['public']['Tables']['venues']['Update']
 
 /**
- * Generate URL-friendly slug from venue name
- * Matches the slugify function in database (supabase/migrations/003_create_venue_functions.sql)
+ * Generate a 6-character random alphanumeric suffix for unique slugs
  */
-function slugifyVenueName(text: string): string {
+function generateUniqueId(): string {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let result = '';
+  for (let i = 0; i < 6; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+/**
+ * Generate URL-friendly slug from text
+ */
+function slugifyText(text: string): string {
   return text
     .toLowerCase()
     .trim()
-    .replace(/[^a-zA-Z0-9\s-]/g, '') // Remove special chars (ASCII only, matches DB)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+    .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+    .replace(/[^a-zA-Z0-9\s-]/g, '') // Remove special chars
     .replace(/[\s_-]+/g, '-') // Replace spaces and underscores with hyphens
     .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
+}
+
+/**
+ * Generate unique venue slug: name-city-unique6chars
+ * Format: {venue-name}-{city}-{6-char-suffix}
+ */
+function generateVenueSlug(name: string, city: string, postalCode?: string | null): string {
+  const nameSlug = slugifyText(name);
+  const citySlug = slugifyText(city);
+  const suffix = postalCode ? slugifyText(postalCode) : generateUniqueId();
+  
+  return `${nameSlug}-${citySlug}-${suffix}`.replace(/-+/g, '-');
 }
 
 export class VenueRepository {
@@ -168,23 +194,26 @@ export class VenueRepository {
    * 
    * Note: Since the database doesn't have a unique constraint on (name, city),
    * we manually check for existence first, then insert if needed.
+   * 
+   * Slug format: {name}-{city}-{postalCode|6-char-suffix}
    */
-  static async upsertVenue(venue: DbVenueInsert): Promise<string | null> {
-    // Ensure slug is set (required, NOT NULL constraint) and venue_slug for compatibility
-    const generatedSlug = slugifyVenueName(venue.name);
-    const venueWithSlug = {
-      ...venue,
-      slug: venue.slug || generatedSlug,           // Required field
-      venue_slug: venue.venue_slug || generatedSlug // Optional field for compatibility
-    };
-    
+  static async upsertVenue(venue: DbVenueInsert, postalCode?: string | null): Promise<string | null> {
     // First, check if venue already exists
-    const existing = await this.getVenueByName(venueWithSlug.name, venueWithSlug.city);
+    const existing = await this.getVenueByName(venue.name, venue.city);
     
     if (existing) {
       // Venue exists, return its ID
       return existing.id;
     }
+    
+    // Generate unique slug: name-city-postalCode or name-city-uniqueId
+    const generatedSlug = generateVenueSlug(venue.name, venue.city, postalCode);
+    
+    const venueWithSlug = {
+      ...venue,
+      slug: venue.slug || generatedSlug,           // Required field
+      venue_slug: venue.venue_slug || generatedSlug // Optional field for compatibility
+    };
     
     // Venue doesn't exist, create it
     // NOTE: Supabase REST API expects an array for insert, even for single objects
