@@ -18,7 +18,7 @@ export async function generateMetadata({
   try {
     // Type assertion needed: Supabase RPC functions are not in the generated types
     const { data } = await (supabase as any)
-      .rpc('get_venue_with_events', { p_venue_slug: params.slug, p_source: null })
+      .rpc('get_venue_with_events', { p_venue_slug: params.slug })
       .single();
 
     const venueData = data as any;
@@ -47,7 +47,7 @@ export async function generateStaticParams() {
   try {
     // Use get_top_venues RPC to get venues sorted by event count
     const { data } = await (supabase as any)
-      .rpc('get_top_venues', { p_city: 'Wien', p_limit: 30, p_source: null });
+      .rpc('get_top_venues', { p_city: 'Wien', p_limit: 30 });
 
     return (data as any)?.map((v: any) => ({ slug: v.venue_slug })) || [];
   } catch (error) {
@@ -63,8 +63,7 @@ export default async function VenuePage({ params }: VenuePageProps) {
     // Type assertion needed: Supabase RPC functions are not in the generated types
     const { data, error } = await (supabase as any)
       .rpc('get_venue_with_events', {
-        p_venue_slug: params.slug,
-        p_source: null,
+        p_venue_slug: params.slug
       })
       .single();
 
