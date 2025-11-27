@@ -1,4 +1,4 @@
-# Visual Changes Documentation
+# Visual Changes Documentation 
 
 ## Event Card Enhancements
 
