@@ -4,7 +4,8 @@ export type Database = {
       venues: {
         Row: {
           id: string
-          venue_slug: string | null
+          slug: string  // NOT NULL constraint in production DB
+          venue_slug: string | null  // Also exists in production DB
           name: string
           address: string | null
           city: string
@@ -17,6 +18,7 @@ export type Database = {
         }
         Insert: {
           id?: string
+          slug: string  // Required - NOT NULL constraint
           venue_slug?: string | null
           name: string
           address?: string | null
@@ -30,6 +32,7 @@ export type Database = {
         }
         Update: {
           id?: string
+          slug?: string
           venue_slug?: string | null
           name?: string
           address?: string | null

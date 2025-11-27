@@ -608,8 +608,19 @@ async function matchOrCreateVenue(
     // Create new venue
     // Note: Database schema uses 'address' column (not 'full_address')
     // Note: 'source' column doesn't exist in venues table
+    // Note: 'slug' is required (NOT NULL constraint)
+    const generatedSlug = venueInfo.name.toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .trim();
+    
     const venueData: DbVenueInsert = {
       name: venueInfo.name,
+      slug: generatedSlug || 'venue',  // Required field
       address: venueInfo.address,
       city: venueInfo.city,
       country: 'Austria'
