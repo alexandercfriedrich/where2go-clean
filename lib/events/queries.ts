@@ -250,7 +250,7 @@ export function convertToEventData(event: any): EventData {
     category: event.category || 'Event',
     date: startDate ? startDate.toISOString().split('T')[0] : '',
     time: startDate ? startDate.toTimeString().split(' ')[0].substring(0, 5) : '00:00',
-    venue: event.venue || event.location || 'Wien',
+    venue: event.custom_venue_name || event.location || 'Wien',
     price: event.price_info || event.price || 'Preis auf Anfrage', // TODO: Externalize to i18n
     website: event.url || event.website || '',
     address: event.address || '',
