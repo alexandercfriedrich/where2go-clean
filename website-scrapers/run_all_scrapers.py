@@ -87,29 +87,35 @@ def main():
             print(f"❌ Unknown venue: {venue_key}")
             results[venue_key] = {'success': False, 'error': 'Unknown venue'}
             continue
-        
-       # Skip venues where scraping is disabled (e.g., closed venues)
-if config.get('scraping_enabled') is False:
-    print(f"⚠️ Skipping {venue_key}: scraping disabled (venue {config.get('status', 'inactive')})")
-    results[venue_key] = {'success': False, 'error': 'Scraping disabled', 'skipped': True}
-    continue
 
-try:
-    # Try to use dedicated scraper first
-    ScraperClass = import_scraper(venue_key)
+        # Skip venues where scraping is disabled (e.g., closed venues)
+        if config.get('scraping_enabled') is False:
+            print(f"⚠️ Skipping {venue_key}: scraping disabled (venue {config.get('status', 'inactive')})")
+            results[venue_key] = {
+                'success': False,
+                'error': 'Scraping disabled',
+                'skipped': True,
+            }
+            continue
 
-    if ScraperClass:
-        print(f"ℹ Using dedicated scraper for {venue_key}")
-        scraper = ScraperClass(dry_run=False, debug=args.debug)
-    else:
-        print(f"ℹ Using generic scraper for {venue_key}")
-        scraper = GenericVenueScraper(config, dry_run=False, debug=args.debug)
+        try:
+            # Try to use dedicated scraper first
+            ScraperClass = import_scraper(venue_key)
 
-    result = scraper.run()
-    results[venue_key] = result
-except Exception as e:
-    print(f"❌ Error running scraper for {venue_key}: {e}")
-    results[venue_key] = {'success': False, 'error': str(e)}
+            if ScraperClass:
+                print(f"ℹ Using dedicated scraper for {venue_key}")
+                scraper = ScraperClass(dry_run=False, debug=args.debug)
+            else:
+                print(f"ℹ Using generic scraper for {venue_key}")
+                scraper = GenericVenueScraper(config, dry_run=False, debug=args.debug)
+
+            result = scraper.run()
+            results[venue_key] = result
+        except Exception as e:
+            print(f"❌ Error running scraper for {venue_key}: {e}")
+            results[venue_key] = {'success': False, 'error': str(e)}
+
+   
 
     
     # Print summary
