@@ -6,7 +6,7 @@ import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
 import { getJobStore } from '@/lib/jobStore';
 import { EVENT_CATEGORIES, mapToMainCategories, normalizeCategory } from '@/lib/eventCategories';
 import { upsertDayEvents } from '@/lib/dayCache';
-import { EventRepository } from '@/lib/repositories/EventRepository';
+import { processEvents, RawEventInput } from '../../../../lib/events/unified-event-pipeline';
 import { waitUntil } from '@vercel/functions';
 
 export const runtime = 'nodejs';
@@ -180,22 +180,50 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // AFTER events are cached to Redis, ALSO save to PostgreSQL (guaranteed to complete)
+    // AFTER events are cached to Redis, ALSO save to PostgreSQL via unified pipeline (guaranteed to complete)
     waitUntil(
-      EventRepository.bulkInsertEvents(runningEvents, city)
-        .then(async result => {
-          console.log(`[PostgreSQL] Inserted ${result.inserted} events for ${city}`);
-          if (result.errors.length > 0) {
-            console.warn('[PostgreSQL] Insert errors:', result.errors);
+      (async () => {
+        try {
+          // Convert EventData to RawEventInput for unified pipeline
+          const rawEvents: RawEventInput[] = runningEvents
+            .filter(e => e.title && e.venue)
+            .map(e => ({
+              title: e.title,
+              description: e.description,
+              start_date_time: e.date && e.time ? `${e.date}T${e.time}:00.000Z` : e.date ? `${e.date}T00:00:00.000Z` : new Date().toISOString(),
+              end_date_time: e.endTime && e.date ? `${e.date}T${e.endTime}:00.000Z` : undefined,
+              venue_name: e.venue || 'Unknown Venue',
+              venue_address: e.address,
+              venue_city: e.city || city,
+              category: e.category,
+              price: e.price,
+              website_url: e.website,
+              ticket_url: e.bookingLink,
+              image_url: e.imageUrl,
+              source: 'ai-search' as const,
+              source_url: e.website,
+              latitude: e.latitude,
+              longitude: e.longitude
+            }));
+
+          // Process through unified pipeline - handles venue matching, deduplication, and cache sync
+          const pipelineResult = await processEvents(rawEvents, {
+            source: 'ai-search',
+            city: city,
+            dryRun: false,
+            debug: false,
+            syncToCache: false // Already cached above
+          });
+
+          console.log(`[UnifiedPipeline] AI Search: Processed ${pipelineResult.eventsInserted} events, ${pipelineResult.venuesCreated} new venues for ${city}`);
+          if (pipelineResult.errors.length > 0) {
+            console.warn('[UnifiedPipeline] Errors:', pipelineResult.errors);
           }
-          
-          // Link events to venues after bulk insert
-          await EventRepository.linkEventsToVenues(city, 'API /events/process');
-        })
-        .catch(pgError => {
-          // Don't fail the request if PostgreSQL fails
-          console.error('[PostgreSQL] Background insert failed:', pgError);
-        })
+        } catch (pipelineError) {
+          // Don't fail the request if pipeline fails
+          console.error('[UnifiedPipeline] Background processing failed:', pipelineError);
+        }
+      })()
     );
 
     await jobStore.updateJob(jobId, {

@@ -2,6 +2,32 @@
 
 This directory contains custom scrapers for specific venue websites to extract event information.
 
+## Unified Pipeline Integration
+
+**All scrapers now use the Unified Event Pipeline API** for consistent data processing. This ensures:
+- Proper venue matching and creation
+- `venue_id` is always set correctly
+- Consistent deduplication
+- Automatic cache synchronization with Upstash Redis
+
+### Environment Variables for Unified Pipeline (Recommended)
+
+```bash
+# Required for Unified Pipeline API
+export UNIFIED_PIPELINE_URL="https://your-app.vercel.app/api/admin/events/process"
+export ADMIN_WARMUP_SECRET="your_admin_secret"
+```
+
+### Fallback: Direct Supabase
+
+If the Unified Pipeline is not configured, scrapers will fall back to direct Supabase insertion:
+
+```bash
+# Fallback environment variables
+export NEXT_PUBLIC_SUPABASE_URL="your_supabase_url"
+export SUPABASE_SERVICE_ROLE_KEY="your_service_role_key"
+```
+
 ## Grelle Forelle Scraper
 
 Scrapes upcoming events from https://www.grelleforelle.com/programm/
@@ -17,8 +43,8 @@ Scrapes upcoming events from https://www.grelleforelle.com/programm/
   - Event detail page URL
   - Ticket/booking URL
 - Enriches data by visiting detail pages
-- Saves events to Supabase database
-- Prevents duplicates (checks existing events)
+- **Uses Unified Pipeline API** for database operations (ensures venue linking)
+- Prevents duplicates (deduplication handled by pipeline)
 - Supports dry-run mode for testing
 
 ### Requirements
@@ -39,11 +65,11 @@ python website-scrapers/grelle-forelle.py --dry-run
 python website-scrapers/grelle-forelle.py --dry-run --debug
 ```
 
-**Production run (saves to database):**
+**Production run (saves via Unified Pipeline):**
 ```bash
 # Set environment variables first:
-export NEXT_PUBLIC_SUPABASE_URL="your_supabase_url"
-export SUPABASE_SERVICE_ROLE_KEY="your_service_role_key"
+export UNIFIED_PIPELINE_URL="https://your-app.vercel.app/api/admin/events/process"
+export ADMIN_WARMUP_SECRET="your_admin_secret"
 
 # Run scraper
 python website-scrapers/grelle-forelle.py
@@ -51,12 +77,17 @@ python website-scrapers/grelle-forelle.py
 
 ### Environment Variables
 
-The scraper requires the following environment variables to save to the database:
+The scraper supports two modes of operation:
 
+**1. Unified Pipeline API (Recommended):**
+- `UNIFIED_PIPELINE_URL` - URL to your deployed `/api/admin/events/process` endpoint
+- `ADMIN_WARMUP_SECRET` - Bearer token for API authentication
+
+**2. Direct Supabase (Fallback):**
 - `NEXT_PUBLIC_SUPABASE_URL` - Your Supabase project URL
 - `SUPABASE_SERVICE_ROLE_KEY` or `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Supabase API key
 
-If these are not set, the scraper will automatically run in dry-run mode.
+If neither set of variables is configured, the scraper will run in dry-run mode.
 
 ### Output
 

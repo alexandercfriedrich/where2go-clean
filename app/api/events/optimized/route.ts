@@ -16,7 +16,7 @@ import { EventData } from '@/lib/types';
 import { eventsCache } from '@/lib/cache';
 import { upsertDayEvents } from '@/lib/dayCache';
 import { computeTTLSecondsForEvents } from '@/lib/cacheTtl';
-import { EventRepository } from '@/lib/repositories/EventRepository';
+import { processEvents, RawEventInput } from '../../../../lib/events/unified-event-pipeline';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -240,33 +240,53 @@ export async function POST(request: NextRequest) {
 
           console.log(`[OptimizedAPI:Stream] Complete: ${normalizedFinal.length} events`);
 
-          // Write events to PostgreSQL with batching and deduplication
+          // Write events to PostgreSQL via unified pipeline
           if (normalizedFinal.length > 0) {
             try {
-              const result = await EventRepository.insertEventsInBatches(
-                normalizedFinal,
-                city,
-                50, // batch size
-                date // date for fetching existing events for deduplication
-              );
-              
-              console.log(`[OptimizedAPI:PostgreSQL] Batch insert complete:`, {
-                total: normalizedFinal.length,
-                inserted: result.inserted,
-                duplicatesRemoved: result.duplicatesRemoved,
-                success: result.success
+              // Convert EventData to RawEventInput for unified pipeline
+              const rawEvents: RawEventInput[] = normalizedFinal
+                .filter(e => e.title && e.venue)
+                .map(e => ({
+                  title: e.title,
+                  description: e.description,
+                  start_date_time: e.date && e.time ? `${e.date}T${e.time}:00.000Z` : e.date ? `${e.date}T00:00:00.000Z` : new Date().toISOString(),
+                  end_date_time: e.endTime && e.date ? `${e.date}T${e.endTime}:00.000Z` : undefined,
+                  venue_name: e.venue || 'Unknown Venue',
+                  venue_address: e.address,
+                  venue_city: e.city || city,
+                  category: e.category,
+                  price: e.price,
+                  website_url: e.website,
+                  ticket_url: e.bookingLink,
+                  image_url: e.imageUrl,
+                  source: 'ai-search' as const,
+                  source_url: e.website,
+                  latitude: e.latitude,
+                  longitude: e.longitude
+                }));
+
+              // Process through unified pipeline - handles venue matching, deduplication, and ensures venue_id is set
+              const pipelineResult = await processEvents(rawEvents, {
+                source: 'ai-search',
+                city: city,
+                dryRun: false,
+                debug: false,
+                syncToCache: false // Already cached above
               });
               
-              if (!result.success && result.errors.length > 0) {
-                console.error('[OptimizedAPI:PostgreSQL] Batch insert had errors:', result.errors);
-              }
+              console.log(`[OptimizedAPI:UnifiedPipeline] Complete:`, {
+                total: normalizedFinal.length,
+                inserted: pipelineResult.eventsInserted,
+                venuesCreated: pipelineResult.venuesCreated,
+                duplicatesSkipped: pipelineResult.eventsSkippedAsDuplicates,
+                success: pipelineResult.success
+              });
               
-              // Link events to venues after bulk insert
-              if (result.success && result.inserted > 0) {
-                await EventRepository.linkEventsToVenues(city, 'API /events/optimized');
+              if (!pipelineResult.success && pipelineResult.errors.length > 0) {
+                console.error('[OptimizedAPI:UnifiedPipeline] Errors:', pipelineResult.errors);
               }
             } catch (error) {
-              console.error('[OptimizedAPI:PostgreSQL] Failed to write events:', error);
+              console.error('[OptimizedAPI:UnifiedPipeline] Failed to process events:', error);
               // Don't throw - events are already cached in Redis
             }
           }

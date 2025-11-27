@@ -1,27 +1,21 @@
 /**
  * Wien.info Event Importer
  * 
- * Fetches all available events from wien.info API (no date restriction by default),
- * normalizes the data, and upserts venues and events into Supabase.
+ * Fetches events from wien.info API and processes them through the unified pipeline.
  * 
  * Features:
  * - Paginated fetch with throttling and retry logic
- * - Idempotent upserts using ON CONFLICT
- * - Batch processing for performance
+ * - Uses unified pipeline for consistent venue linking and data integrity
+ * - Automatic cache synchronization with Upstash Redis
  * - Dry-run mode for testing
  * - Comprehensive statistics and error tracking
  */
 
 import { fetchWienInfoEvents } from '@/lib/sources/wienInfo';
-import { VenueRepository } from '@/lib/repositories/VenueRepository';
-import { EventRepository } from '@/lib/repositories/EventRepository';
+import { processEvents, RawEventInput } from '../../../lib/events/unified-event-pipeline';
 import type { EventData } from '@/lib/types';
-import type { Database } from '@/lib/supabase/types';
 import pThrottle from 'p-throttle';
 import pRetry from 'p-retry';
-import { randomUUID } from 'crypto';
-
-type DbVenueInsert = Database['public']['Tables']['venues']['Insert'];
 
 // Constants
 const DEFAULT_CITY = 'Wien';
@@ -66,6 +60,11 @@ export interface ImporterOptions {
    * Enable verbose logging
    */
   debug?: boolean;
+  
+  /**
+   * Sync events to Upstash Redis cache (default: true)
+   */
+  syncToCache?: boolean;
 }
 
 export interface ImporterStats {
@@ -95,6 +94,11 @@ export interface ImporterStats {
   venuesProcessed: number;
   
   /**
+   * Total events synced to cache
+   */
+  eventsCached: number;
+  
+  /**
    * Import duration in milliseconds
    */
   duration: number;
@@ -114,7 +118,7 @@ export interface ImporterStats {
 }
 
 /**
- * Main importer function
+ * Main importer function - uses unified pipeline for consistent data integrity
  */
 export async function importWienInfoEvents(
   options: ImporterOptions = {}
@@ -127,7 +131,8 @@ export async function importWienInfoEvents(
     fromDate,
     toDate,
     limit = 10000,
-    debug = false
+    debug = false,
+    syncToCache = true
   } = options;
   
   // Calculate date range
@@ -143,6 +148,7 @@ export async function importWienInfoEvents(
     totalFailed: 0,
     pagesProcessed: 0,
     venuesProcessed: 0,
+    eventsCached: 0,
     duration: 0,
     errors: [],
     dateRange: { from: fromISO, to: toISO }
@@ -154,16 +160,13 @@ export async function importWienInfoEvents(
       batchSize,
       fromISO,
       toISO,
-      limit
+      limit,
+      syncToCache
     });
   }
   
   try {
     // Fetch events from Wien.info API
-    // Since the API doesn't support traditional pagination with offset/page,
-    // we fetch all events up to the limit in a single request.
-    // Note: The stats.pagesProcessed field exists for future pagination support,
-    // but currently only 1 page is ever processed.
     const result = await fetchEventsWithRetry(fromISO, toISO, limit, debug);
     
     if (result.error || !result.events || result.events.length === 0) {
@@ -176,29 +179,37 @@ export async function importWienInfoEvents(
       return stats;
     }
     
-    stats.pagesProcessed = 1; // Single request (no pagination in current API)
+    stats.pagesProcessed = 1;
     
     if (debug) {
-      console.log(`[WIEN-IMPORTER] Fetched ${result.events.length} events`);
+      console.log(`[WIEN-IMPORTER] Fetched ${result.events.length} events, converting to pipeline format...`);
     }
     
-    // Process events in batches
-    const batches = chunkArray(result.events, batchSize);
+    // Convert EventData to RawEventInput for unified pipeline
+    const rawEvents = convertToRawEventInput(result.events);
     
-    for (let i = 0; i < batches.length; i++) {
-      const batch = batches[i];
-      if (debug) {
-        console.log(`[WIEN-IMPORTER] Processing batch ${i + 1}/${batches.length} (${batch.length} events)`);
-      }
-      
-      const batchResult = await processBatch(batch, dryRun, debug, DEFAULT_CITY);
-      
-      stats.totalImported += batchResult.imported;
-      stats.totalUpdated += batchResult.updated;
-      stats.totalFailed += batchResult.failed;
-      stats.venuesProcessed += batchResult.venuesProcessed;
-      stats.errors.push(...batchResult.errors);
+    if (debug) {
+      console.log(`[WIEN-IMPORTER] Converted ${rawEvents.length} events, sending to unified pipeline...`);
     }
+    
+    // Process through unified pipeline - handles venue matching, deduplication, 
+    // slug generation, DB upsert, and cache sync automatically
+    const pipelineResult = await processEvents(rawEvents, {
+      source: 'wien.info',
+      city: DEFAULT_CITY,
+      dryRun,
+      batchSize,
+      debug,
+      syncToCache
+    });
+    
+    // Map pipeline results to importer stats
+    stats.totalImported = pipelineResult.eventsInserted;
+    stats.totalUpdated = pipelineResult.eventsUpdated;
+    stats.totalFailed = pipelineResult.eventsFailed;
+    stats.venuesProcessed = pipelineResult.venuesCreated + pipelineResult.venuesReused;
+    stats.eventsCached = pipelineResult.eventsCached;
+    stats.errors.push(...pipelineResult.errors);
     
     stats.duration = Date.now() - startTime;
     
@@ -208,6 +219,7 @@ export async function importWienInfoEvents(
         updated: stats.totalUpdated,
         failed: stats.totalFailed,
         venues: stats.venuesProcessed,
+        cached: stats.eventsCached,
         duration: `${stats.duration}ms`,
         dryRun
       });
@@ -221,6 +233,48 @@ export async function importWienInfoEvents(
     console.error('[WIEN-IMPORTER] Fatal error:', error);
     return stats;
   }
+}
+
+/**
+ * Convert EventData array to RawEventInput array for unified pipeline
+ */
+function convertToRawEventInput(events: EventData[]): RawEventInput[] {
+  return events
+    .filter(event => event.title && event.venue) // Must have title and venue
+    .map(event => {
+      // Parse date and time to ISO timestamp
+      let startDateTime: string;
+      if (event.date && event.time) {
+        // Handle 'ganztags' (all-day) events
+        const timeStr = /ganztags|all[- ]?day|ganztagig/i.test(event.time) 
+          ? '00:00' 
+          : event.time;
+        startDateTime = `${event.date}T${timeStr}:00.000Z`;
+      } else if (event.date) {
+        startDateTime = `${event.date}T00:00:00.000Z`;
+      } else {
+        startDateTime = new Date().toISOString();
+      }
+      
+      return {
+        title: event.title,
+        description: event.description,
+        start_date_time: startDateTime,
+        end_date_time: event.endTime ? `${event.date}T${event.endTime}:00.000Z` : undefined,
+        venue_name: event.venue || 'Unknown Venue',
+        venue_address: event.address,
+        venue_city: event.city || DEFAULT_CITY,
+        category: event.category,
+        price: event.price,
+        ticket_url: event.bookingLink,
+        website_url: event.website,
+        image_url: event.imageUrl,
+        source: 'wien.info' as const,
+        source_url: event.website,
+        latitude: event.latitude,
+        longitude: event.longitude
+      };
+    });
 }
 
 /**
@@ -267,139 +321,4 @@ async function fetchEventsWithRetry(
       }
     }
   );
-}
-
-/**
- * Process a batch of events: upsert venues first, then events, then link them
- * 
- * The linking of events to venues is done through the database function link_events_to_venues,
- * which matches events to venues based on venue name and city.
- */
-async function processBatch(
-  events: EventData[],
-  dryRun: boolean,
-  debug: boolean,
-  city: string = DEFAULT_CITY
-): Promise<{
-  imported: number;
-  updated: number;
-  failed: number;
-  venuesProcessed: number;
-  errors: string[];
-}> {
-  const result = {
-    imported: 0,
-    updated: 0,
-    failed: 0,
-    venuesProcessed: 0,
-    errors: [] as string[]
-  };
-  
-  // Step 1: Extract and upsert unique venues
-  const venueMap = new Map<string, string>(); // venue name -> venue ID
-  
-  for (const event of events) {
-    const venueName = event.venue?.trim();
-    const venueAddress = event.address?.trim();
-    const eventSource = event.source || 'unknown';
-    
-    if (!venueName || venueMap.has(venueName)) {
-      continue; // Skip if no venue or already processed
-    }
-    
-    try {
-      if (dryRun) {
-        if (debug) {
-          console.log(`[WIEN-IMPORTER][DRY-RUN] Would upsert venue: ${venueName}`);
-        }
-        // In dry-run, generate a unique ID using UUID to prevent collisions
-        venueMap.set(venueName, `venue-${randomUUID()}`);
-        result.venuesProcessed++;
-      } else {
-        // Upsert venue (venue_slug will be auto-generated by VenueRepository.upsertVenue())
-        const venueData: DbVenueInsert = {
-          name: venueName,
-          full_address: venueAddress || null,
-          city: city,
-          country: 'Austria',
-          source: eventSource,
-          website: null, // Wien.info doesn't provide venue-specific websites in event data
-          latitude: null,
-          longitude: null
-        };
-        
-        const venueId = await VenueRepository.upsertVenue(venueData);
-        
-        if (venueId) {
-          venueMap.set(venueName, venueId);
-          result.venuesProcessed++;
-          if (debug) {
-            console.log(`[WIEN-IMPORTER] Upserted venue: ${venueName} (${venueId})`);
-          }
-        } else {
-          if (debug) {
-            console.warn(`[WIEN-IMPORTER] Failed to upsert venue: ${venueName}`);
-          }
-        }
-      }
-    } catch (error: any) {
-      result.errors.push(`Venue upsert failed for ${venueName}: ${error.message}`);
-      if (debug) {
-        console.error(`[WIEN-IMPORTER] Venue error:`, error);
-      }
-    }
-  }
-  
-  // Step 2: Upsert events
-  if (dryRun) {
-    // In dry-run mode, just log what would be done
-    result.imported = events.length;
-    if (debug) {
-      console.log(`[WIEN-IMPORTER][DRY-RUN] Would import ${events.length} events`);
-    }
-  } else {
-    // Bulk insert/upsert events
-    try {
-      const insertResult = await EventRepository.bulkInsertEvents(events, city);
-      
-      if (insertResult.success) {
-        result.imported = insertResult.inserted;
-        // We can't easily distinguish new vs updated in bulk upsert
-        // Just report all as imported
-        
-        // Step 3: Link events to venues using database function
-        // This must be done after both venues and events are created
-        const linkResult = await EventRepository.linkEventsToVenues(city, 'Wien.info Importer');
-        if (linkResult) {
-          if (debug) {
-            console.log(`[WIEN-IMPORTER] Successfully linked ${linkResult.events_linked} events to venues`);
-          }
-        } else {
-          result.errors.push('Event-venue linking failed - see logs for details');
-        }
-      } else {
-        result.failed = events.length;
-        result.errors.push(...insertResult.errors);
-      }
-    } catch (error: any) {
-      result.failed = events.length;
-      result.errors.push(`Bulk insert failed: ${error.message}`);
-      if (debug) {
-        console.error(`[WIEN-IMPORTER] Bulk insert error:`, error);
-      }
-    }
-  }
-  
-  return result;
-}
-
-/**
- * Utility: Split array into chunks
- */
-function chunkArray<T>(array: T[], size: number): T[][] {
-  const chunks: T[][] = [];
-  for (let i = 0; i < array.length; i += size) {
-    chunks.push(array.slice(i, i + size));
-  }
-  return chunks;
 }

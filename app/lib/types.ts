@@ -197,11 +197,12 @@ export interface DayBucket {
 }
 
 // Venue types for venue discovery and detail pages
+// Note: These types match the RPC function return values, not the raw table columns
 export interface VenueStats {
   venue_id: string;
   venue_slug: string;
   name: string;
-  full_address: string;
+  full_address: string;  // RPC returns address as full_address
   city: string;
   total_events: number;
   upcoming_events: number;
@@ -210,14 +211,12 @@ export interface VenueStats {
   sources: string[];
 }
 
+// Venue type matching RPC get_venue_with_events output
 export interface Venue {
   id: string;
-  slug: string;
+  slug: string;  // RPC returns venue_slug as slug (see line 32 of 007_update_venue_functions_for_slug.sql)
   name: string;
-  full_address: string;
-  street?: string;
-  street_number?: string;
-  postal_code?: string;
+  full_address: string;  // RPC returns address as full_address
   city: string;
   country?: string;
   phone?: string;
@@ -225,8 +224,6 @@ export interface Venue {
   website?: string;
   latitude?: number;
   longitude?: number;
-  created_at?: string;
-  updated_at?: string;
 }
 
 export interface VenueDetail {
