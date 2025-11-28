@@ -12,6 +12,7 @@ import { supabase } from '@/lib/supabase/client';
 import { generateEventSchema, generateBreadcrumbSchema } from '@/lib/schemaOrg';
 import { normalizeCitySlug } from '@/lib/slugGenerator';
 import SchemaOrg from '@/components/SchemaOrg';
+import { SearchBar } from '@/components/discovery/SearchBar';
 import type { EventData } from '@/lib/types';
 import type { Database } from '@/lib/supabase/types';
 
@@ -264,6 +265,43 @@ export default async function EventPage({ params }: EventPageProps) {
     <>
       <SchemaOrg schema={eventSchema} />
       <SchemaOrg schema={breadcrumbSchema} />
+      
+      {/* Sticky Header with Search */}
+      <header 
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 50,
+          background: 'linear-gradient(135deg, rgba(26, 26, 26, 0.98) 0%, rgba(42, 42, 42, 0.98) 100%)',
+          backdropFilter: 'blur(10px)',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          padding: '12px 16px',
+        }}
+      >
+        <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {/* Logo / Home Link */}
+          <Link 
+            href="/" 
+            style={{ 
+              color: '#FF6B35', 
+              fontWeight: 700, 
+              fontSize: '20px',
+              textDecoration: 'none',
+              flexShrink: 0,
+            }}
+          >
+            W2G
+          </Link>
+          
+          {/* Search Bar */}
+          <div style={{ flex: 1, maxWidth: '500px' }}>
+            <SearchBar 
+              placeholder="Events & Venues suchen..." 
+              className="w-full"
+            />
+          </div>
+        </div>
+      </header>
       
       <div style={{ 
         background: 'linear-gradient(135deg, #1A1A1A 0%, #2A2A2A 100%)', 

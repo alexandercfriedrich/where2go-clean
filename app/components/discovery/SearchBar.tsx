@@ -132,11 +132,12 @@ export function SearchBar({
     const timer = setTimeout(async () => {
       setIsLoading(true);
       try {
-        // Search venues first
+        // Search venues first (use venue_slug for navigation)
         const venuePromise = supabase
           .from('venues')
-          .select('id, name, slug, city, address')
+          .select('id, name, venue_slug, city, address')
           .ilike('name', `%${query}%`)
+          .not('venue_slug', 'is', null)
           .limit(3);
 
         // Search events
@@ -167,7 +168,7 @@ export function SearchBar({
               type: 'venue',
               id: venue.id,
               name: venue.name,
-              slug: venue.slug,
+              slug: venue.venue_slug,  // Use venue_slug for navigation
               city: venue.city,
               address: venue.address,
               event_count: count || 0
