@@ -67,6 +67,11 @@ export default function DiscoveryClient({
       switch (filter) {
         case 'today':
           return eventDateOnly.getTime() === today.getTime();
+        
+        case 'tomorrow':
+          const tomorrow = new Date(today);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          return eventDateOnly.getTime() === tomorrow.getTime();
           
         case 'this-week':
           const weekEnd = new Date(today);

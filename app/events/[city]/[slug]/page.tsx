@@ -333,17 +333,17 @@ export default async function EventPage({ params }: EventPageProps) {
               overflow: 'hidden'
             }}
           >
-            {/* Event Image */}
+            {/* Event Image - Using Next.js Image to avoid hotlinking issues */}
             {event.imageUrl && (
-              <div 
-                style={{
-                  width: '100%',
-                  height: '400px',
-                  backgroundImage: `url(${event.imageUrl})`,
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                }}
-              >
+              <div style={{ position: 'relative', width: '100%', height: '400px' }}>
+                <Image 
+                  src={event.imageUrl}
+                  alt={event.title}
+                  fill
+                  style={{ objectFit: 'cover' }}
+                  priority
+                  unoptimized // Allow external images without configuration
+                />
                 <meta itemProp="image" content={event.imageUrl} />
               </div>
             )}
