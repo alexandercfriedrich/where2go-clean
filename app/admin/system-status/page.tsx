@@ -225,12 +225,12 @@ export default function SystemStatusPage() {
         <div className="mt-8 bg-blue-50 border border-blue-200 rounded-lg p-6">
           <h3 className="font-bold text-blue-900 mb-3">📝 How to Use</h3>
           <ul className="space-y-2 text-blue-800 text-sm">
-            <li>• Click "Re-run Checks" to test all systems</li>
-            <li>• You'll be prompted for your ADMIN_WARMUP_SECRET token</li>
+            <li>• Click &quot;Re-run Checks&quot; to test all systems</li>
+            <li>• You&apos;ll be prompted for your ADMIN_WARMUP_SECRET token</li>
             <li>• Green = Working ✓</li>
             <li>• Red = Error ✗</li>
             <li>• Yellow = Warning or Skipped ⚠</li>
-            <li>• Click "Show Details" to see technical information</li>
+            <li>• Click &quot;Show Details&quot; to see technical information</li>
           </ul>
         </div>
 
