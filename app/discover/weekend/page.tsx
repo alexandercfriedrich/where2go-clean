@@ -8,7 +8,7 @@ import { getWeekendEvents } from '../../../lib/events/queries';
 import { ThemeProvider } from '@/components/ui/ThemeProvider';
 import { DiscoveryNav } from '@/components/discovery/DiscoveryNav';
 import { LocationBar } from '@/components/discovery/LocationBar';
-import { EventCard } from '@/components/discovery/EventCard';
+import { EventCard } from '@/components/EventCard';
 
 export const metadata: Metadata = {
   title: 'This Weekend - Weekend Events | Where2Go',

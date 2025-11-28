@@ -12,7 +12,7 @@ import { DiscoveryNav } from '@/components/discovery/DiscoveryNav';
 import { LocationBar } from '@/components/discovery/LocationBar';
 import { CategoryBrowser } from '@/components/discovery/CategoryBrowser';
 import { SearchBar } from '@/components/discovery/SearchBar';
-import { EventCard } from '@/components/discovery/EventCard';
+import { EventCard } from '@/components/EventCard';
 import { FAQSection } from '@/components/FAQSection';
 import { HowToSection } from '@/components/HowToSection';
 import { DateFilterLinks } from '@/components/discovery/DateFilterLinks';

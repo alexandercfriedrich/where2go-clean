@@ -17,7 +17,7 @@ interface AddToCalendarProps {
     custom_venue_name?: string;
     venue?: string;
     description?: string;
-    id: string;
+    id?: string;
   };
   className?: string;
   size?: 'sm' | 'md' | 'lg';

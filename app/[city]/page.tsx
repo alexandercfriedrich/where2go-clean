@@ -3,9 +3,11 @@ import SchemaOrg from '@/components/SchemaOrg';
 import Breadcrumb from '@/components/Breadcrumb';
 import { TLDRBox } from '@/components/TLDRBox';
 import { FAQSection } from '@/components/FAQSection';
-import { generateEventListSchema, generateEventMicrodata, generateCanonicalUrl } from '@/lib/schemaOrg';
+import { SectionHeader } from '@/components/discovery/SectionHeader';
+import { CategoryBrowser } from '@/components/discovery/CategoryBrowser';
+import { EventCard } from '@/components/EventCard';
+import { generateEventListSchema } from '@/lib/schemaOrg';
 import { resolveCityFromParam, dateTokenToISO, formatGermanDate } from '@/lib/city';
-import { getRevalidateFor } from '@/lib/isr';
 import { EventRepository } from '@/lib/repositories/EventRepository';
 import { normalizeCategory, EVENT_CATEGORY_SUBCATEGORIES } from '@/lib/eventCategories';
 import { generateCitySEO } from '@/lib/seoContent';
@@ -65,6 +67,28 @@ async function fetchEvents(city: string, dateISO: string, category: string | nul
   }
 }
 
+/**
+ * Convert EventData to the format expected by Discovery EventCard
+ */
+function toDiscoveryEvent(ev: EventData, index: number) {
+  return {
+    id: `${ev.title}-${ev.venue}-${ev.date}-${index}`,
+    title: ev.title,
+    category: ev.category,
+    date: ev.date,
+    time: ev.time,
+    venue: ev.venue,
+    address: ev.address,
+    description: ev.description,
+    price: ev.price,
+    imageUrl: ev.imageUrl,
+    source: ev.source,
+    website: ev.website,
+    bookingLink: ev.bookingLink,
+    custom_venue_name: ev.venue
+  };
+}
+
 export default async function CityPage({ params }: { params: { city: string } }) {
   // Disable strict mode by default - allow any city name (filtered by middleware)
   const strictMode = process.env.CITY_STRICT_MODE === 'true'; // Default to non-strict
@@ -83,268 +107,120 @@ export default async function CityPage({ params }: { params: { city: string } })
     { label: resolved.name, href: `/${resolved.slug}` }
   ];
 
+  // Convert events to discovery format
+  const discoveryEvents = events.map((ev, i) => toDiscoveryEvent(ev, i));
+
   return (
-    <div style={{ background: 'linear-gradient(135deg, #1A1A1A 0%, #2A2A2A 100%)', minHeight: '100vh', padding: '24px 16px' }}>
-      <div className="container" style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        <SchemaOrg schema={listSchema} />
-        <Breadcrumb items={breadcrumbItems} />
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+      <SchemaOrg schema={listSchema} />
+      
+      {/* Hero Section - Discovery Style */}
+      <div className="bg-[#1a2332] text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+          <Breadcrumb items={breadcrumbItems} />
+          <h1 className="text-3xl md:text-5xl font-bold mb-4 mt-4">
+            Events in {resolved.name}
+          </h1>
+          <p className="text-lg md:text-xl text-gray-300 mb-6">
+            {formatGermanDate(dateISO)} • {events.length} Events gefunden
+          </p>
+          
+          {/* Time Period Navigation */}
+          <nav className="flex flex-wrap gap-3" aria-label="Zeitraum">
+            <Link 
+              href={`/${resolved.slug}/heute`} 
+              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-semibold text-sm transition-colors"
+            >
+              Heute
+            </Link>
+            <Link 
+              href={`/${resolved.slug}/morgen`}
+              className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-lg font-semibold text-sm transition-colors"
+            >
+              Morgen
+            </Link>
+            <Link 
+              href={`/${resolved.slug}/wochenende`}
+              className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-lg font-semibold text-sm transition-colors"
+            >
+              Wochenende
+            </Link>
+          </nav>
+        </div>
+      </div>
 
-        <h1 style={{ fontSize: '32px', fontWeight: 700, color: '#FFFFFF', marginBottom: '24px' }}>
-          Events in {resolved.name}
-        </h1>
-
-        <nav className="mb-6" aria-label="Zeitraum">
-          <ul style={{ display: 'flex', gap: 12, listStyle: 'none', padding: 0, margin: '0 0 24px 0', flexWrap: 'wrap' }}>
-            <li>
-              <Link 
-                href={`/${resolved.slug}/heute`} 
-                style={{ 
-                  display: 'inline-block',
-                  padding: '10px 20px',
-                  background: '#4A90E2',
-                  color: '#FFFFFF',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
-                  fontWeight: 600,
-                  fontSize: '14px',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                Heute
-              </Link>
-            </li>
-            <li>
-              <Link 
-                href={`/${resolved.slug}/morgen`}
-                style={{ 
-                  display: 'inline-block',
-                  padding: '10px 20px',
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  color: '#FFFFFF',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
-                  fontWeight: 600,
-                  fontSize: '14px',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                Morgen
-              </Link>
-            </li>
-            <li>
-              <Link 
-                href={`/${resolved.slug}/wochenende`}
-                style={{ 
-                  display: 'inline-block',
-                  padding: '10px 20px',
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  color: '#FFFFFF',
-                  borderRadius: '8px',
-                  textDecoration: 'none',
-                  fontWeight: 600,
-                  fontSize: '14px',
-                  transition: 'all 0.2s ease'
-                }}
-              >
-                Wochenende
-              </Link>
-            </li>
-          </ul>
-        </nav>
-
-        {/* Category Filter Row */}
-        <div style={{ marginBottom: '24px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <div style={{ display: 'flex', gap: '10px', paddingBottom: '8px', minWidth: 'min-content' }}>
-            {/* "Alle Events anzeigen" button - always active on base city page */}
+      {/* Main Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        {/* Category Browser */}
+        <section className="mb-12" aria-label="Browse events by category">
+          <SectionHeader
+            title="Nach Kategorie filtern"
+            subtitle="Finde Events die zu deinen Interessen passen"
+          />
+          <div className="mt-4 flex flex-wrap gap-3">
+            {/* All Events Button */}
             <Link
               href={`/${resolved.slug}/heute`}
-              style={{
-                padding: '8px 16px',
-                background: '#404040',
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px',
-                color: '#ffffff',
-                fontWeight: 500,
-                fontSize: '13px',
-                whiteSpace: 'nowrap',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                textDecoration: 'none',
-                transition: 'all 0.2s ease'
-              }}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm hover:bg-indigo-700 transition-colors flex items-center gap-2"
             >
-              Alle Events anzeigen
-              <span style={{ fontSize: '11px', opacity: 0.8 }}>({events.length})</span>
+              Alle Events
+              <span className="text-xs opacity-80">({events.length})</span>
             </Link>
             
+            {/* Category Buttons */}
             {Object.keys(EVENT_CATEGORY_SUBCATEGORIES).map(cat => {
               const catSlug = cat.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
-              const count = events.filter(e => {
-                // Check if event's normalized category matches this main category
-                return normalizeCategory(e.category) === cat;
-              }).length;
-              
+              const count = events.filter(e => normalizeCategory(e.category) === cat).length;
               const isDisabled = count === 0;
               
               return (
                 <Link
                   key={cat}
                   href={isDisabled ? '#' : `/${resolved.slug}/${catSlug}/heute`}
-                  style={{
-                    padding: '8px 16px',
-                    background: '#f5f5f5',
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    color: isDisabled ? '#9ca3af' : '#374151',
-                    fontWeight: 500,
-                    fontSize: '13px',
-                    whiteSpace: 'nowrap',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    textDecoration: 'none',
-                    transition: 'all 0.2s ease',
-                    opacity: isDisabled ? 0.5 : 1,
-                    cursor: isDisabled ? 'not-allowed' : 'pointer',
-                    pointerEvents: isDisabled ? 'none' : 'auto'
-                  }}
+                  className={`px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-colors ${
+                    isDisabled 
+                      ? 'bg-gray-200 dark:bg-gray-700 text-gray-400 cursor-not-allowed pointer-events-none' 
+                      : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600'
+                  }`}
                 >
                   {cat}
-                  <span style={{ fontSize: '11px', opacity: 0.8 }}>({count})</span>
+                  <span className="text-xs opacity-70">({count})</span>
                 </Link>
               );
             })}
           </div>
-        </div>
+        </section>
 
-        <p style={{ color: '#AAAAAA', marginBottom: '32px', fontSize: '15px' }}>
-          {formatGermanDate(dateISO)} • {events.length} Events gefunden
-        </p>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '24px' }}>
-          {events.length === 0 && (
-            <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '60px 20px' }}>
-              <p style={{ color: '#888', fontSize: '16px' }}>Für heute sind keine Events verfügbar.</p>
+        {/* Events Grid - Discovery Style */}
+        {discoveryEvents.length > 0 ? (
+          <section className="mb-16" aria-label="Event listings">
+            <SectionHeader
+              title={`Events heute in ${resolved.name}`}
+              subtitle={`${events.length} Veranstaltungen gefunden`}
+            />
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-6">
+              {discoveryEvents.map((event) => (
+                <EventCard key={event.id} event={event} city={resolved.name} />
+              ))}
             </div>
-          )}
+          </section>
+        ) : (
+          <div className="text-center py-16">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+              Keine Events gefunden
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400">
+              Für heute sind keine Events in {resolved.name} verfügbar. Schau morgen wieder vorbei!
+            </p>
+          </div>
+        )}
 
-          {events.map((ev, i) => {
-            const key = `${ev.title}-${ev.venue}-${ev.date}-${i}`;
-            const microdata = generateEventMicrodata(ev);
-            const canonicalUrl = generateCanonicalUrl(ev, 'https://www.where2go.at');
-
-            return (
-              <div key={key} className="dark-event-card" {...microdata}>
-                <link itemProp="url" href={canonicalUrl} />
-                <meta itemProp="eventStatus" content="https://schema.org/EventScheduled" />
-                <meta itemProp="eventAttendanceMode" content="https://schema.org/OfflineEventAttendanceMode" />
-                {ev.imageUrl && (
-                  <>
-                    <meta itemProp="image" content={ev.imageUrl} />
-                    <div 
-                      className="dark-event-card-image"
-                      style={{
-                        backgroundImage: `url(${ev.imageUrl})`
-                      }}
-                    />
-                  </>
-                )}
-
-                <div className="dark-event-content">
-                {ev.category && (
-                  <a 
-                    href={`/${resolved.slug}/${ev.category.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-')}/heute`}
-                    className="dark-event-category dark-event-category-link"
-                  >
-                    {ev.category}
-                  </a>
-                )}
-
-                <h3 className="dark-event-title" itemProp="name">{ev.title}</h3>
-
-                <div className="dark-event-details">
-                  <div className="dark-event-detail">
-                    <svg className="dark-event-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                    </svg>
-                    <span itemProp="startDate" content={`${ev.date}T${(ev.time || '19:00')}:00`}>
-                      {formatGermanDate(ev.date)}
-                    </span>
-                  </div>
-
-                  {ev.time && (
-                    <div className="dark-event-detail">
-                      <svg className="dark-event-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                      <span>{ev.time} Uhr</span>
-                    </div>
-                  )}
-
-                  <div className="dark-event-detail" itemProp="location" itemScope itemType="https://schema.org/Place">
-                    <svg className="dark-event-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((ev.venue || '') + (ev.address ? ', ' + ev.address : ''))}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="dark-event-venue-link"
-                      itemProp="name"
-                    >
-                      {ev.venue}
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: '4px', opacity: 0.6, display: 'inline' }}>
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                        <polyline points="15 3 21 3 21 9"></polyline>
-                        <line x1="10" y1="14" x2="21" y2="3"></line>
-                      </svg>
-                    </a>
-                    {ev.address && <meta itemProp="address" content={ev.address} />}
-                  </div>
-                </div>
-
-                {ev.description && (
-                  <p className="dark-event-description" itemProp="description">{ev.description}</p>
-                )}
-
-                {ev.price && (
-                  <div className="dark-event-price">{ev.price}</div>
-                )}
-                </div>
-                
-                {/* Source Badge - bottom-right corner */}
-                {ev.source && (
-                  <div className="dark-event-source-badge">
-                    {ev.source === 'rss' ? 'RSS' :
-                     ev.source === 'ai' ? 'KI' :
-                     ev.source === 'ra' ? 'API' :
-                     ev.source === 'cache' ? 'Cache' :
-                     ev.source}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* City Intro Content Section */}
-        <div style={{ marginTop: '48px', marginBottom: '48px' }}>
-          <h2 style={{ 
-            fontSize: '28px', 
-            fontWeight: 700, 
-            color: '#FFFFFF', 
-            marginBottom: '20px' 
-          }}>
+        {/* City Content Section */}
+        <div className="mt-12 mb-12 bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-sm">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
             Was macht {resolved.name} besonders für Events?
           </h2>
-          <p style={{ 
-            fontSize: '16px', 
-            lineHeight: '1.8', 
-            color: 'rgba(255, 255, 255, 0.85)', 
-            marginBottom: '24px' 
-          }}>
+          <p className="text-gray-600 dark:text-gray-300 leading-relaxed mb-8">
             {cityContent.intro}
           </p>
 
@@ -352,7 +228,10 @@ export default async function CityPage({ params }: { params: { city: string } })
             title={`${resolved.name} Event-Highlights`}
             items={cityContent.highlights}
           />
+        </div>
 
+        {/* FAQ Section */}
+        <div className="max-w-4xl mx-auto">
           <FAQSection 
             faqs={cityContent.faqs} 
             title={`Häufige Fragen zu Events in ${resolved.name}`}
@@ -360,29 +239,31 @@ export default async function CityPage({ params }: { params: { city: string } })
         </div>
 
         {/* SEO Content Section */}
-        <div className="seo-content-section">
-          <h2>{seoContent.title}</h2>
-          <p>{seoContent.description}</p>
+        <div className="mt-12 bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-sm">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">{seoContent.title}</h2>
+          <p className="text-gray-600 dark:text-gray-300 mb-6">{seoContent.description}</p>
 
-          <h3>Warum {resolved.name}?</h3>
-          <p>{seoContent.whyVisit}</p>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">Warum {resolved.name}?</h3>
+          <p className="text-gray-600 dark:text-gray-300 mb-6">{seoContent.whyVisit}</p>
 
-          <h3>Beliebte Event-Kategorien in {resolved.name}</h3>
-          <ul>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">Beliebte Event-Kategorien</h3>
+          <ul className="list-disc list-inside text-gray-600 dark:text-gray-300 mb-6 space-y-1">
             {seoContent.popularCategories.map((cat, i) => (
               <li key={i}>{cat}</li>
             ))}
           </ul>
 
-          <h3>Häufig gestellte Fragen</h3>
-          {seoContent.faq.map((item, i) => (
-            <div key={i} className="seo-faq-item" itemScope itemType="https://schema.org/Question">
-              <div className="seo-faq-question" itemProp="name">{item.question}</div>
-              <div className="seo-faq-answer" itemScope itemType="https://schema.org/Answer" itemProp="acceptedAnswer">
-                <div itemProp="text">{item.answer}</div>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Häufig gestellte Fragen</h3>
+          <div className="space-y-4">
+            {seoContent.faq.map((item, i) => (
+              <div key={i} className="border-b border-gray-200 dark:border-gray-700 pb-4" itemScope itemType="https://schema.org/Question">
+                <h4 className="font-medium text-gray-900 dark:text-white mb-2" itemProp="name">{item.question}</h4>
+                <div itemScope itemType="https://schema.org/Answer" itemProp="acceptedAnswer">
+                  <p className="text-gray-600 dark:text-gray-300" itemProp="text">{item.answer}</p>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>

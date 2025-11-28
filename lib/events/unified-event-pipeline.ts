@@ -78,8 +78,6 @@ export interface PipelineOptions {
   debug?: boolean;
   /** Skip deduplication (use with caution) */
   skipDeduplication?: boolean;
-  /** @deprecated Upstash cache sync removed. Events are stored in Supabase only. */
-  syncToCache?: boolean;
 }
 
 /**
@@ -94,7 +92,6 @@ export interface PipelineResult {
   eventsSkippedAsDuplicates: number;
   venuesCreated: number;
   venuesReused: number;
-  eventsCached: number;
   duration: number;
   errors: string[];
 }
@@ -148,8 +145,7 @@ export async function processEvents(
     source,
     city = 'Wien',
     debug = false,
-    skipDeduplication = false,
-    // syncToCache is ignored - Upstash cache sync removed
+    skipDeduplication = false
   } = options;
 
   const result: PipelineResult = {
@@ -161,7 +157,6 @@ export async function processEvents(
     eventsSkippedAsDuplicates: 0,
     venuesCreated: 0,
     venuesReused: 0,
-    eventsCached: 0, // Always 0 now - no cache sync
     duration: 0,
     errors: []
   };

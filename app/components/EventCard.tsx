@@ -1,205 +1,319 @@
+/**
+ * Unified Event Card Component
+ * 
+ * Single source of truth for event card design across the entire application.
+ * Used on: Discovery pages, City pages, Venue pages, Guide pages, Search results
+ */
+
+'use client';
+
+import React from 'react';
 import Link from 'next/link';
-import { generateEventMicrodata, generateCanonicalUrl } from '@/lib/schemaOrg';
 import { generateEventSlug, normalizeCitySlug } from '@/lib/slugGenerator';
-import { EVENT_CATEGORY_SUBCATEGORIES } from '@/lib/eventCategories';
+import { AddToCalendar } from './discovery/AddToCalendar';
+import { ShareButtons } from './discovery/ShareButtons';
+import { FavoriteButton } from './discovery/FavoriteButton';
 import type { EventData } from '@/lib/types';
 
-interface EventCardProps {
-  event: EventData;
+/**
+ * Universal event interface that accepts both EventData and database event formats
+ */
+export interface UnifiedEventCardProps {
+  event: EventData | {
+    id?: string;
+    title: string;
+    category?: string;
+    date?: string;
+    time?: string;
+    venue?: string;
+    address?: string;
+    description?: string;
+    price?: string;
+    imageUrl?: string;
+    image_urls?: string[];
+    source?: string;
+    start_date_time?: string;
+    end_date_time?: string;
+    price_min?: number | null;
+    price_max?: number | null;
+    is_free?: boolean;
+    custom_venue_name?: string;
+    website?: string;
+    bookingLink?: string;
+    slug?: string;
+  };
   city?: string;
-  formatEventDate: (date: string) => string;
+  /** Optional: Custom date formatter function */
+  formatEventDate?: (date: string) => string;
+  /** Optional: Show/hide action buttons (favorite, calendar, share) */
+  showActions?: boolean;
+  /** Optional: Show/hide info/ticket buttons */
+  showButtons?: boolean;
 }
 
-const ALL_SUPER_CATEGORIES = Object.keys(EVENT_CATEGORY_SUBCATEGORIES);
+// Helper function to format date in German format
+function formatGermanDate(dateStr: string): string {
+  try {
+    const date = new Date(dateStr);
+    const options: Intl.DateTimeFormatOptions = { 
+      weekday: 'short', 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric' 
+    };
+    return date.toLocaleDateString('de-DE', options);
+  } catch {
+    return dateStr;
+  }
+}
 
-function formatEventDateTime(date: string, time: string, endTime?: string) {
-  // Format time display
-  const formattedTime = time && time !== '00:00' ? time : '';
-  const formattedDate = date;
+// Helper to parse time from ISO datetime or separate time field
+function getEventTime(event: any): string | null {
+  if (event.time) {
+    // Check if time should be treated as all-day
+    if (event.time === '00:00' || event.time === '01:00' || event.time === 'ganztags') {
+      return null; // Will display as "ganztags"
+    }
+    return event.time;
+  }
+  if (event.start_date_time) {
+    try {
+      const date = new Date(event.start_date_time);
+      const timeStr = date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      // Treat midnight and 1 AM as all-day events
+      if (timeStr === '00:00' || timeStr === '01:00') {
+        return null; // Will display as "ganztags"
+      }
+      return timeStr;
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+// Helper to get display date
+function getEventDate(event: any): string {
+  if (event.date) return event.date;
+  if (event.start_date_time) {
+    try {
+      const date = new Date(event.start_date_time);
+      return date.toISOString().split('T')[0];
+    } catch {
+      return '';
+    }
+  }
+  return '';
+}
+
+// Generate a unique ID for events without one
+function generateEventId(event: any, index?: number): string {
+  if (event.id) return event.id;
+  const base = `${event.title || ''}-${event.venue || ''}-${event.date || ''}`;
+  return index !== undefined ? `${base}-${index}` : base;
+}
+
+export function EventCard({ 
+  event, 
+  city = 'Wien',
+  formatEventDate,
+  showActions = true,
+  showButtons = true
+}: UnifiedEventCardProps) {
+  const venue = (event as any).custom_venue_name || event.venue || '';
+  const eventDate = getEventDate(event);
+  const eventTime = getEventTime(event);
+  const displayDate = eventDate 
+    ? (formatEventDate ? formatEventDate(eventDate) : formatGermanDate(eventDate))
+    : '';
   
-  return { date: formattedDate, time: formattedTime };
-}
-
-export function EventCard({ event: ev, city = 'wien', formatEventDate }: EventCardProps) {
-  const superCat =
-    ALL_SUPER_CATEGORIES.find(c => EVENT_CATEGORY_SUBCATEGORIES[c]?.includes(ev.category)) ||
-    ev.category;
-
-  const { date: formattedDate, time: formattedTime } =
-    formatEventDateTime(ev.date, ev.time, ev.endTime);
-
-  // Generate microdata attributes for Schema.org
-  const microdataAttrs = generateEventMicrodata(ev);
-  const canonicalUrl = generateCanonicalUrl(ev);
+  // Use slug from database if available, otherwise generate
+  const eventSlug = (event as any).slug || generateEventSlug({
+    title: event.title,
+    venue: venue,
+    date: eventDate
+  });
   
   const citySlug = normalizeCitySlug(city);
-  const categorySlug = superCat.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/\//g, '-').replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-');
   
-  // Event detail page URL: Use database slug if available, otherwise generate from event data
-  const eventSlug = ev.slug || generateEventSlug({
-    title: ev.title,
-    venue: ev.venue,
-    date: ev.date
-  });
+  // Event detail page URL
   const eventDetailUrl = `/events/${citySlug}/${eventSlug}`;
-  const isInternalLink = true;
+  
+  // Get first image from image_urls array or use imageUrl field
+  const eventImage = (event as any).image_urls && (event as any).image_urls.length > 0
+    ? (event as any).image_urls[0]
+    : event.imageUrl;
+  
+  // Price display
+  let priceDisplay = 'Preis auf Anfrage';
+  if ((event as any).is_free) {
+    priceDisplay = 'Kostenlos';
+  } else if (event.price) {
+    priceDisplay = event.price;
+  } else if ((event as any).price_min !== null && (event as any).price_min !== undefined) {
+    if ((event as any).price_max && (event as any).price_max !== (event as any).price_min) {
+      priceDisplay = `€${(event as any).price_min} - €${(event as any).price_max}`;
+    } else {
+      priceDisplay = `ab €${(event as any).price_min}`;
+    }
+  }
+
+  // Map source to display text
+  const sourceDisplay = event.source === 'rss' ? 'RSS' :
+    event.source === 'ai' ? 'KI' :
+    event.source === 'ra' ? 'API' :
+    event.source === 'wien-info' ? 'Wien.info' :
+    event.source === 'cache' ? 'Cache' :
+    event.source || 'Event';
+
+  // Generate a stable ID for action buttons
+  const eventId = generateEventId(event);
 
   return (
-    <Link 
-      href={eventDetailUrl}
-      style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}
-    >
-      <div 
-        className={`event-card ${ev.imageUrl ? 'event-card-with-image' : ''}`}
-        {...microdataAttrs}
-        style={{
-          background: 'rgba(255, 255, 255, 0.03)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          borderRadius: '12px',
-          padding: '20px',
-          marginBottom: '16px',
-          transition: 'all 0.3s ease',
-          cursor: 'pointer',
-        }}
-      >
-        <link itemProp="url" href={canonicalUrl} />
-      <meta itemProp="eventStatus" content="https://schema.org/EventScheduled" />
-      <meta itemProp="eventAttendanceMode" content="https://schema.org/OfflineEventAttendanceMode" />
-      
-      {ev.imageUrl && (
-        <>
-          <meta itemProp="image" content={ev.imageUrl} />
-          <div 
-            className="event-card-image"
-            style={{
-              backgroundImage: `url(${ev.imageUrl})`,
-              height: '200px',
-              borderRadius: '8px',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-              marginBottom: '16px',
-            }}
-          />
-        </>
-      )}
-      
-      <div className="event-content">
-        {superCat && (
-          <Link 
-            href={`/${citySlug}/${categorySlug}/heute`}
-            className="event-category-badge"
-            style={{
-              display: 'inline-block',
-              padding: '4px 12px',
-              background: 'rgba(255, 107, 53, 0.2)',
-              color: '#FF6B35',
-              borderRadius: '6px',
-              fontSize: '12px',
-              fontWeight: 600,
-              marginBottom: '12px',
-              textDecoration: 'none',
-            }}
-          >
-            {superCat}
-          </Link>
-        )}
-        
-        <h3 className="event-title" itemProp="name" style={{
-          fontSize: '20px',
-          fontWeight: 600,
-          color: '#FFFFFF',
-          marginBottom: '12px',
-        }}>
-          {ev.title}
-        </h3>
+    <Link href={eventDetailUrl} className="block">
+      <div className="dark-event-card">
+        {/* Source Badge - Always Visible */}
+        <div className="dark-event-source-badge">
+          {sourceDisplay}
+        </div>
 
-        <div className="event-meta-line" style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          color: 'rgba(255, 255, 255, 0.7)',
-          fontSize: '14px',
-          marginBottom: '8px',
-        }}>
-          <meta itemProp="startDate" content={`${ev.date}T${ev.time || '00:00'}:00`} />
-          {ev.endTime && <meta itemProp="endDate" content={`${ev.date}T${ev.endTime}:00`} />}
-          <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-            <line x1="16" y1="2" x2="16" y2="6"/>
-            <line x1="8" y1="2" x2="8" y2="6"/>
-            <line x1="3" y1="10" x2="21" y2="10"/>
-          </svg>
-          <span className="event-date">{formatEventDate(ev.date)}</span>
-          {formattedTime && (
-            <>
-              <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/>
+        {/* Event Image */}
+        <div 
+          className="dark-event-card-image"
+          style={{
+            backgroundImage: eventImage 
+              ? `url(${eventImage})` 
+              : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            minHeight: '240px',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center'
+          }}
+        />
+
+        {/* Event Content */}
+        <div className="dark-event-content">
+          {/* Category Badge */}
+          {event.category && (
+            <span className="dark-event-category">
+              {event.category}
+            </span>
+          )}
+
+          {/* Title */}
+          <h3 className="dark-event-title hover:text-indigo-400 transition-colors cursor-pointer">
+            {event.title}
+          </h3>
+
+          {/* Event Details with Icons */}
+          <div className="dark-event-details">
+            {/* Date */}
+            {displayDate && (
+              <div className="dark-event-detail">
+                <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span>{displayDate}</span>
+              </div>
+            )}
+
+            {/* Time */}
+            <div className="dark-event-detail">
+              <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <span className="event-time">{formattedTime}</span>
-            </>
+              <span {...(!eventTime && { 'aria-label': 'Ganztägige Veranstaltung' })}>
+                {eventTime ? `${eventTime} Uhr` : 'ganztags'}
+              </span>
+            </div>
+
+            {/* Venue (clickable to Google Maps) */}
+            {venue && (
+              <div className="dark-event-detail">
+                <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue + (event.address ? ', ' + event.address : ''))}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="dark-event-venue-link"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {venue}
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: '4px', opacity: 0.6, display: 'inline' }}>
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                  </svg>
+                </a>
+              </div>
+            )}
+          </div>
+
+          {/* Description */}
+          {event.description && (
+            <p className="dark-event-description">
+              {event.description}
+            </p>
+          )}
+
+          {/* Price */}
+          <div className="dark-event-price">
+            {priceDisplay}
+          </div>
+
+          {/* Info and Ticket Links */}
+          {showButtons && (
+            <div className="mt-4 flex items-center gap-2 flex-wrap">
+              {/* Mehr Info button - always displayed */}
+              <a
+                href={event.website || `/event/${eventId}`}
+                {...(event.website && { target: "_blank", rel: "noopener noreferrer" })}
+                className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#FF6B35] hover:bg-[#e55a2b] text-white text-sm font-medium rounded-md transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Mehr Info
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                  <polyline points="15 3 21 3 21 9"></polyline>
+                  <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+              </a>
+              {/* Ticket button - only when bookingLink is available */}
+              {event.bookingLink && (
+                <a
+                  href={event.bookingLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Tickets
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                    <polyline points="15 3 21 3 21 9"></polyline>
+                    <line x1="10" y1="14" x2="21" y2="3"></line>
+                  </svg>
+                </a>
+              )}
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          {showActions && (
+            <div className="mt-2 flex items-center gap-2 flex-wrap" onClick={(e) => e.preventDefault()}>
+              <FavoriteButton eventId={eventId} size="sm" />
+              <AddToCalendar event={event} size="sm" />
+              <ShareButtons 
+                event={event} 
+                url={`https://www.where2go.at/event/${eventId}`}
+                size="sm"
+              />
+            </div>
           )}
         </div>
-
-        <div className="event-meta-line" itemProp="location" itemScope itemType="https://schema.org/Place" style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          color: 'rgba(255, 255, 255, 0.7)',
-          fontSize: '14px',
-          marginBottom: '8px',
-        }}>
-          <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>
-          </svg>
-          <a
-            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((ev.venue || '') + (ev.address ? ', ' + ev.address : ''))}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="venue-link"
-            itemProp="name"
-            style={{
-              color: 'rgba(255, 255, 255, 0.85)',
-              textDecoration: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
-          >
-            {ev.venue}
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ opacity: 0.6 }}>
-              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-              <polyline points="15 3 21 3 21 9"></polyline>
-              <line x1="10" y1="14" x2="21" y2="3"></line>
-            </svg>
-          </a>
-          {ev.address && (
-            <meta itemProp="address" content={ev.address} />
-          )}
-        </div>
-
-        {ev.price && (
-          <div className="event-meta-line" style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            color: 'rgba(255, 255, 255, 0.7)',
-            fontSize: '14px',
-            marginBottom: '8px',
-          }}>
-            <svg width="16" height="16" strokeWidth={2} viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
-            </svg>
-            <span>{ev.price}</span>
-          </div>
-        )}
-
-        {ev.source && (
-          <div style={{ marginTop: '12px', fontSize: '12px', color: 'rgba(255, 255, 255, 0.5)' }}>
-            Quelle: {ev.source}
-          </div>
-        )}
       </div>
-    </div>
     </Link>
   );
 }

@@ -25,40 +25,47 @@ export function generateWebSiteSchema(url: string = 'https://www.where2go.at') {
 
 /**
  * Generates Schema.org Event structured data for a single event
+ * Follows Google Rich Results requirements: https://developers.google.com/search/docs/appearance/structured-data/event
  */
 export function generateEventSchema(event: EventData, baseUrl: string = 'https://www.where2go.at'): object {
   const schema: any = {
     '@context': 'https://schema.org',
     '@type': 'Event',
     name: event.title,
-    startDate: combineDateTime(event.date, event.time),
-    location: {
-      '@type': 'Place',
-      name: event.venue
-    }
+    startDate: combineDateTime(event.date, event.time)
   };
 
-  // Add event attendance mode and status (can be overridden by event properties in the future)
+  // Add event attendance mode and status
   schema.eventAttendanceMode = event.eventType === 'online' 
     ? 'https://schema.org/OnlineEventAttendanceMode'
     : 'https://schema.org/OfflineEventAttendanceMode';
   
-  schema.eventStatus = 'https://schema.org/EventScheduled'; // Can be extended to handle cancelled/postponed events
+  schema.eventStatus = 'https://schema.org/EventScheduled';
 
-  // Add endDate if endTime is available
+  // Add endDate - use endTime if available, otherwise estimate +3 hours from start
   if (event.endTime) {
     schema.endDate = combineDateTime(event.date, event.endTime);
+  } else if (event.time && event.time !== '00:00') {
+    // Estimate end time as 3 hours after start for events with specific start time
+    const [hours, minutes] = event.time.split(':').map(Number);
+    const endHours = (hours + 3) % 24;
+    const endTime = `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    schema.endDate = combineDateTime(event.date, endTime);
   }
 
-  // Add address and GeoCoordinates if available
-  if (event.address) {
-    schema.location.address = {
+  // Location with address (required by Google)
+  schema.location = {
+    '@type': 'Place',
+    name: event.venue || 'Veranstaltungsort',
+    address: {
       '@type': 'PostalAddress',
-      streetAddress: event.address,
+      ...(event.address && { streetAddress: event.address }),
       addressLocality: event.city || 'Wien',
+      addressRegion: event.city || 'Wien',
+      postalCode: '', // Empty but present
       addressCountry: 'AT'
-    };
-  }
+    }
+  };
 
   // Add GeoCoordinates if available
   if (event.latitude && event.longitude) {
@@ -69,45 +76,49 @@ export function generateEventSchema(event: EventData, baseUrl: string = 'https:/
     };
   }
 
-  // Add areaServed for local SEO only when city is provided
-  if (event.city) {
-    schema.location.areaServed = {
-      '@type': 'City',
-      name: event.city,
-      addressCountry: 'AT'
+  // Description (required by Google) - use event description or generate from title
+  schema.description = event.description || `${event.title} - Veranstaltung in ${event.city || 'Wien'}`;
+
+  // Image (recommended by Google) - use event image or default placeholder
+  schema.image = event.imageUrl 
+    ? [event.imageUrl]
+    : [`${baseUrl}/images/event-placeholder.jpg`];
+
+  // Offers (pricing) - always include for Google
+  const priceText = event.ticketPrice || event.price;
+  const numericPrice = extractNumericPrice(priceText || '0');
+  schema.offers = {
+    '@type': 'Offer',
+    price: numericPrice,
+    priceCurrency: 'EUR',
+    availability: 'https://schema.org/InStock',
+    validFrom: new Date().toISOString().split('T')[0],
+    url: event.bookingLink || event.website || `${baseUrl}/events`
+  };
+
+  // Organizer (recommended by Google)
+  schema.organizer = {
+    '@type': 'Organization',
+    name: event.venue || 'Where2Go',
+    url: event.website || baseUrl
+  };
+
+  // Performer (optional but recommended for concerts/shows)
+  if (event.category && (
+    event.category.toLowerCase().includes('musik') || 
+    event.category.toLowerCase().includes('konzert') ||
+    event.category.toLowerCase().includes('theater') ||
+    event.category.toLowerCase().includes('performance')
+  )) {
+    schema.performer = {
+      '@type': 'PerformingGroup',
+      name: event.title.split(' - ')[0] || event.title // Extract performer from title if possible
     };
   }
 
-  // Add description if available
-  if (event.description) {
-    schema.description = event.description;
-  }
-
-  // Add offers (pricing) if available
-  if (event.price || event.ticketPrice) {
-    const priceText = event.ticketPrice || event.price;
-    schema.offers = {
-      '@type': 'Offer',
-      price: extractNumericPrice(priceText),
-      priceCurrency: 'EUR',
-      availability: 'https://schema.org/InStock',
-      url: event.bookingLink || event.website
-    };
-  }
-
-  // Add image if available
-  if (event.imageUrl) {
-    schema.image = event.imageUrl;
-  }
-
-  // Add organizer/website info
+  // Event URL
   if (event.website) {
     schema.url = event.website;
-  }
-
-  // Add category as event type
-  if (event.category) {
-    schema.about = event.category;
   }
 
   return schema;
@@ -255,22 +266,16 @@ export function generateLocalBusinessSchema(
   const schema: any = {
     '@context': 'https://schema.org',
     '@type': 'LocalBusiness',
-    name: venue.name,
-    areaServed: {
-      '@type': 'City',
-      name: 'Wien',
-      addressCountry: 'AT'
-    }
+    name: venue.name
   };
 
-  if (venue.address) {
-    schema.address = {
-      '@type': 'PostalAddress',
-      streetAddress: venue.address,
-      addressLocality: 'Wien',
-      addressCountry: 'AT'
-    };
-  }
+  // Add address as PostalAddress (proper Schema.org format)
+  schema.address = {
+    '@type': 'PostalAddress',
+    ...(venue.address && { streetAddress: venue.address }),
+    addressLocality: 'Wien',
+    addressCountry: 'AT'
+  };
 
   if (venue.latitude && venue.longitude) {
     schema.geo = {
@@ -297,7 +302,7 @@ export function generateLocalBusinessSchema(
 export function generateViennaPlaceSchema(): object {
   return {
     '@context': 'https://schema.org',
-    '@type': 'City',
+    '@type': 'Place',
     name: 'Wien',
     alternateName: 'Vienna',
     geo: {
@@ -309,11 +314,6 @@ export function generateViennaPlaceSchema(): object {
       '@type': 'PostalAddress',
       addressLocality: 'Wien',
       addressCountry: 'AT'
-    },
-    areaServed: {
-      '@type': 'Country',
-      name: 'Österreich',
-      alternateName: 'Austria'
     }
   };
 }

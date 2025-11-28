@@ -9,7 +9,7 @@ import React, { useState } from 'react';
 interface ShareButtonsProps {
   event: {
     title: string;
-    id: string;
+    id?: string;
     custom_venue_name?: string;
     venue?: string;
   };
@@ -22,7 +22,7 @@ export function ShareButtons({ event, url, className = '', size = 'md' }: ShareB
   const [copied, setCopied] = useState(false);
 
   const eventUrl = url || (typeof window !== 'undefined' 
-    ? `${window.location.origin}/event/${event.id}` 
+    ? `${window.location.origin}/event/${event.id || 'event'}` 
     : '');
   
   const shareText = `${event.title} at ${event.custom_venue_name || event.venue || 'TBA'}`;

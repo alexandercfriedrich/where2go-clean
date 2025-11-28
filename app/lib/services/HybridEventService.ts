@@ -156,8 +156,7 @@ export class HybridEventService {
         source: 'redis-import',
         city: city,
         dryRun: false,
-        debug: false,
-        syncToCache: false // Already in cache
+        debug: false
       });
 
       if (result.success) {
@@ -229,8 +228,7 @@ export class HybridEventService {
           source: 'redis-batch-import',
           city: city,
           dryRun: false,
-          debug: false,
-          syncToCache: false // Already in cache
+          debug: false
         });
 
         if (result.success) {
