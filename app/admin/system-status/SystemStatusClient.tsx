@@ -2,20 +2,22 @@
 
 import { useState } from 'react';
 
-type EnvVarInfo = {
+type EnvVarInfoWithHint = {
   isSet: boolean;
   length: number;
-  first4: string;
-  last4: string;
+  first4?: string;
+  last4?: string;
 };
 
 type EnvInfo = {
-  adminWarmupSecret: EnvVarInfo;
-  adminUser: EnvVarInfo;
+  adminWarmupSecret: EnvVarInfoWithHint;
+  adminUser: {
+    isSet: boolean;
+    length: number;
+  };
   adminPass: {
     isSet: boolean;
     length: number;
-    hint: string;
   };
 };
 
@@ -157,9 +159,7 @@ export function SystemStatusClient({ envInfo }: { envInfo: EnvInfo }) {
               </div>
               {envInfo.adminUser.isSet && (
                 <div className="mt-2 text-sm font-mono bg-white p-2 rounded border">
-                  Length: {envInfo.adminUser.length} | 
-                  First 4: <span className="font-bold">{envInfo.adminUser.first4}</span> | 
-                  Last 4: <span className="font-bold">{envInfo.adminUser.last4}</span>
+                  Length: {envInfo.adminUser.length} characters
                 </div>
               )}
             </div>
@@ -179,7 +179,7 @@ export function SystemStatusClient({ envInfo }: { envInfo: EnvInfo }) {
               </div>
               {envInfo.adminPass.isSet && (
                 <div className="mt-2 text-sm font-mono bg-white p-2 rounded border">
-                  {envInfo.adminPass.hint}
+                  {envInfo.adminPass.length} characters
                 </div>
               )}
             </div>
