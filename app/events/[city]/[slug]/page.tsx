@@ -628,7 +628,7 @@ export default async function EventPage({ params }: EventPageProps) {
           {/* Back to Events Link */}
           <div style={{ marginTop: '32px', textAlign: 'center' }}>
             <Link 
-              href={`/${citySlug}`}
+              href="/discover"
               style={{ 
                 display: 'inline-flex',
                 alignItems: 'center',

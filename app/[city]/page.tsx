@@ -69,6 +69,7 @@ async function fetchEvents(city: string, dateISO: string, category: string | nul
 
 /**
  * Convert EventData to the format expected by Discovery EventCard
+ * Note: slug is now included from the database to ensure proper event linking
  */
 function toDiscoveryEvent(ev: EventData, index: number) {
   return {
@@ -85,7 +86,8 @@ function toDiscoveryEvent(ev: EventData, index: number) {
     source: ev.source,
     website: ev.website,
     bookingLink: ev.bookingLink,
-    custom_venue_name: ev.venue
+    custom_venue_name: ev.venue,
+    slug: ev.slug // Include slug from database for proper event linking
   };
 }
 
