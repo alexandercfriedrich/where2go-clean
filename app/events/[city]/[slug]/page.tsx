@@ -7,6 +7,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { supabase } from '@/lib/supabase/client';
 import { generateEventSchema, generateBreadcrumbSchema } from '@/lib/schemaOrg';
 import { normalizeCitySlug } from '@/lib/slugGenerator';
@@ -15,6 +16,18 @@ import type { EventData } from '@/lib/types';
 import type { Database } from '@/lib/supabase/types';
 
 type DbEvent = Database['public']['Tables']['events']['Row'];
+
+/**
+ * Compact event interface for related events list
+ */
+interface RelatedEvent {
+  id: string;
+  title: string;
+  slug: string | null;
+  start_date_time: string;
+  image_urls: string[] | null;
+  city: string;
+}
 
 interface EventPageProps {
   params: {
@@ -81,9 +94,9 @@ function dbEventToEventData(dbEvent: DbEvent): EventData {
 }
 
 /**
- * Fetch event by city and slug
+ * Fetch event by city and slug, returns event with venue name for related events query
  */
-async function getEventBySlug(city: string, slug: string): Promise<EventData | null> {
+async function getEventBySlug(city: string, slug: string): Promise<{ event: EventData; venueName: string | null; currentEventSlug: string } | null> {
   const { data, error } = await supabase
     .from('events')
     .select('*')
@@ -101,7 +114,40 @@ async function getEventBySlug(city: string, slug: string): Promise<EventData | n
     return null;
   }
 
-  return dbEventToEventData(data);
+  const dbEvent = data as DbEvent;
+  
+  return {
+    event: dbEventToEventData(dbEvent),
+    venueName: dbEvent.custom_venue_name,
+    currentEventSlug: dbEvent.slug || ''
+  };
+}
+
+/**
+ * Fetch other events at the same venue
+ */
+async function getEventsAtSameVenue(venueName: string, city: string, currentEventSlug: string, limit: number = 5): Promise<RelatedEvent[]> {
+  if (!venueName) return [];
+  
+  const now = new Date().toISOString();
+  
+  const { data, error } = await supabase
+    .from('events')
+    .select('id, title, slug, start_date_time, image_urls, city')
+    .eq('custom_venue_name', venueName)
+    .ilike('city', city)
+    .eq('is_cancelled', false)
+    .neq('slug', currentEventSlug)  // Exclude current event
+    .gte('start_date_time', now)    // Only future events
+    .order('start_date_time', { ascending: true })
+    .limit(limit);
+
+  if (error) {
+    console.error('Error fetching related events:', error?.message || 'Unknown error');
+    return [];
+  }
+
+  return data || [];
 }
 
 /**
@@ -123,14 +169,15 @@ function formatGermanDate(date: string): string {
  * Generate SEO metadata for event detail page
  */
 export async function generateMetadata({ params }: EventPageProps): Promise<Metadata> {
-  const event = await getEventBySlug(params.city, params.slug);
+  const result = await getEventBySlug(params.city, params.slug);
 
-  if (!event) {
+  if (!result) {
     return {
       title: 'Event nicht gefunden | Where2Go',
     };
   }
 
+  const event = result.event;
   const title = `${event.title} | ${event.venue} ${event.city}`;
   const description = event.description 
     ? event.description.substring(0, 155) + '...'
@@ -192,11 +239,16 @@ export async function generateStaticParams() {
  * Event Detail Page Component
  */
 export default async function EventPage({ params }: EventPageProps) {
-  const event = await getEventBySlug(params.city, params.slug);
+  const result = await getEventBySlug(params.city, params.slug);
 
-  if (!event) {
+  if (!result) {
     return notFound();
   }
+
+  const { event, venueName, currentEventSlug } = result;
+  
+  // Fetch related events at the same venue
+  const relatedEvents = await getEventsAtSameVenue(venueName || '', params.city, currentEventSlug);
 
   // Generate Schema.org structured data
   const eventSchema = generateEventSchema(event, BASE_URL);
@@ -495,6 +547,46 @@ export default async function EventPage({ params }: EventPageProps) {
             </div>
           </article>
           
+          {/* More Events at this Location */}
+          {relatedEvents.length > 0 && event.venue && (
+            <section style={{ marginTop: '32px' }}>
+              <div 
+                style={{ 
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '16px',
+                  padding: '24px'
+                }}
+              >
+                <h2 style={{ 
+                  fontSize: '20px', 
+                  fontWeight: 700, 
+                  color: '#FFFFFF', 
+                  marginBottom: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}>
+                  <svg width="20" height="20" fill="none" stroke="#FF6B35" viewBox="0 0 24 24" strokeWidth="2">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                    <circle cx="12" cy="10" r="3"/>
+                  </svg>
+                  Weitere Events im {event.venue}
+                </h2>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {relatedEvents.map((relatedEvent) => (
+                    <RelatedEventRow 
+                      key={relatedEvent.id} 
+                      event={relatedEvent} 
+                      citySlug={citySlug}
+                    />
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+          
           {/* Back to Events Link */}
           <div style={{ marginTop: '32px', textAlign: 'center' }}>
             <Link 
@@ -522,5 +614,131 @@ export default async function EventPage({ params }: EventPageProps) {
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * Format compact date for related event rows
+ */
+function formatCompactDate(dateTime: string): string {
+  try {
+    const date = new Date(dateTime);
+    const weekdays = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const weekday = weekdays[date.getDay()];
+    
+    // Only show time if not midnight
+    const timeStr = hours === '00' && minutes === '00' ? '' : ` · ${hours}:${minutes}`;
+    
+    return `${weekday}, ${day}.${month}.${timeStr}`;
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Compact row component for related events at the same venue
+ */
+function RelatedEventRow({ event, citySlug }: { event: RelatedEvent; citySlug: string }) {
+  const eventUrl = event.slug ? `/events/${citySlug}/${event.slug}` : '#';
+  const imageUrl = event.image_urls?.[0];
+  
+  return (
+    <Link 
+      href={eventUrl}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '16px',
+        padding: '12px',
+        background: 'rgba(255, 255, 255, 0.03)',
+        borderRadius: '8px',
+        textDecoration: 'none',
+        transition: 'background 0.2s ease',
+      }}
+      className="hover:bg-white/10"
+    >
+      {/* Event Image */}
+      <div 
+        style={{
+          width: '60px',
+          height: '60px',
+          borderRadius: '8px',
+          overflow: 'hidden',
+          flexShrink: 0,
+          background: 'rgba(255, 255, 255, 0.1)',
+        }}
+      >
+        {imageUrl ? (
+          <Image 
+            src={imageUrl}
+            alt={event.title}
+            width={60}
+            height={60}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+            }}
+          />
+        ) : (
+          <div 
+            style={{
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <svg width="24" height="24" fill="none" stroke="rgba(255,255,255,0.4)" viewBox="0 0 24 24" strokeWidth="1.5">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+          </div>
+        )}
+      </div>
+      
+      {/* Event Info */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <h3 style={{
+          fontSize: '15px',
+          fontWeight: 600,
+          color: '#FFFFFF',
+          marginBottom: '4px',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}>
+          {event.title}
+        </h3>
+        <div style={{
+          fontSize: '13px',
+          color: 'rgba(255, 255, 255, 0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+        }}>
+          <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          <span>{formatCompactDate(event.start_date_time)}</span>
+        </div>
+      </div>
+      
+      {/* Arrow Icon */}
+      <div style={{ color: 'rgba(255, 255, 255, 0.4)', flexShrink: 0 }}>
+        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+          <path d="M9 18l6-6-6-6"/>
+        </svg>
+      </div>
+    </Link>
   );
 }
