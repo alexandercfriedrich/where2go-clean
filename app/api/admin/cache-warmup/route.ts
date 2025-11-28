@@ -5,7 +5,7 @@
  * 
  * Authentication:
  * - Primary: Middleware Basic Auth (ADMIN_USER/ADMIN_PASS) - Always required
- * - Optional: Bearer token (ADMIN_WARMUP_SECRET) - Additional security layer
+ * - Optional: Bearer token (ADMIN_WARMUP_SECRET) - Additional security layer for external access
  * 
  * POST /api/admin/cache-warmup
  * 
@@ -18,7 +18,7 @@
  * 
  * Headers:
  * - Authorization: Basic <base64(ADMIN_USER:ADMIN_PASS)> - Required (enforced by middleware)
- * - Authorization: Bearer <ADMIN_WARMUP_SECRET> - Optional (if env var is set)
+ * - Authorization: Bearer <ADMIN_WARMUP_SECRET> - Optional (bypasses Basic Auth if valid)
  * 
  * Response:
  * - 200: Success with import statistics
@@ -41,18 +41,18 @@ export const maxDuration = 300; // 5 minutes for large imports
  */
 export async function POST(request: NextRequest) {
   try {
-    // 1. Verify authorization (optional Bearer token)
-    // Note: This endpoint is already protected by middleware Basic Auth
-    // The ADMIN_WARMUP_SECRET provides an optional additional layer of security
+    // 1. Optional Bearer token authentication (bypasses middleware Basic Auth if provided)
     const authHeader = request.headers.get('authorization');
     const adminSecret = process.env.ADMIN_WARMUP_SECRET;
     
-    // If ADMIN_WARMUP_SECRET is set, verify Bearer token using constant-time comparison
-    if (adminSecret) {
+    // If Bearer token is provided and ADMIN_WARMUP_SECRET is set, validate it
+    if (authHeader && authHeader.startsWith('Bearer ') && adminSecret) {
       const expectedAuth = `Bearer ${adminSecret}`;
-      // Use constant-time comparison to prevent timing attacks
-      if (!authHeader || authHeader.length !== expectedAuth.length) {
-        console.warn('[ADMIN:WARMUP] Invalid Bearer token');
+      
+      // Only reject if Bearer token is invalid (wrong token)
+      // If no Bearer token provided, middleware Basic Auth will handle it
+      if (authHeader.length !== expectedAuth.length) {
+        console.warn('[ADMIN:WARMUP] Invalid Bearer token length');
         return NextResponse.json(
           { error: 'Unauthorized - Invalid Bearer token' },
           { status: 401 }
@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
             { status: 401 }
           );
         }
+        console.log('[ADMIN:WARMUP] Bearer token validated successfully');
       } catch (error) {
         console.warn('[ADMIN:WARMUP] Bearer token comparison failed');
         return NextResponse.json(
@@ -77,7 +78,8 @@ export async function POST(request: NextRequest) {
         );
       }
     }
-    // If ADMIN_WARMUP_SECRET is not set, rely on middleware Basic Auth (already enforced)
+    // If no Bearer token or ADMIN_WARMUP_SECRET not set, rely on middleware Basic Auth
+    // Middleware will have already rejected unauthenticated requests
     
     // 2. Validate Supabase configuration
     try {
@@ -209,8 +211,8 @@ export async function GET(request: NextRequest) {
     description: 'Admin endpoint to trigger wien.info event import into Supabase',
     method: 'POST',
     authentication: {
-      required: 'Basic Auth via middleware (ADMIN_USER/ADMIN_PASS)',
-      optional: 'Bearer token (ADMIN_WARMUP_SECRET env var)'
+      primary: 'Basic Auth via middleware (ADMIN_USER/ADMIN_PASS) - Required by default',
+      optional: 'Bearer token (ADMIN_WARMUP_SECRET env var) - Bypasses Basic Auth if valid'
     },
     queryParameters: {
       dryRun: 'boolean (optional) - Run without writing to database',
@@ -222,7 +224,7 @@ export async function GET(request: NextRequest) {
     example: {
       url: '/api/admin/cache-warmup?dryRun=true&fromDate=2025-11-17&toDate=2025-12-17',
       headers: {
-        'Authorization': 'Basic <base64(username:password)>'
+        'Authorization': 'Basic <base64(username:password)> OR Bearer <secret>'
       }
     }
   });
