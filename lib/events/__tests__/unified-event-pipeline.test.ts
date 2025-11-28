@@ -103,7 +103,6 @@ describe('Unified Event Pipeline', () => {
         eventsSkippedAsDuplicates: 1,
         venuesCreated: 3,
         venuesReused: 5,
-        eventsCached: 8,
         duration: 1500,
         errors: ['Test error']
       };

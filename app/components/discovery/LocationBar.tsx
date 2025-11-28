@@ -32,6 +32,7 @@ export function LocationBar({
   const dateFilters = [
     { id: 'all', label: 'All' },
     { id: 'today', label: 'Today' },
+    { id: 'tomorrow', label: 'Tomorrow' },
     { id: 'this-week', label: 'This Week' },
     { id: 'weekend', label: 'Weekend' },
     { id: 'next-week', label: 'Next Week' },

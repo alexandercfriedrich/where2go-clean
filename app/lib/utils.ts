@@ -33,6 +33,8 @@ export const formatEventDate = (date: string | Date): string => {
 export const transformVenueEventToEventData = (event: any, venue: any) => {
   return {
     ...event,
+    // Ensure slug is included for proper event detail page navigation
+    slug: event.slug,
     date: event.start_date_time
       ? new Date(event.start_date_time).toISOString().split('T')[0]
       : event.date || '',

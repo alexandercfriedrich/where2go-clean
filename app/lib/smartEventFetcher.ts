@@ -4,19 +4,20 @@
  * Reduces AI API calls from 30+ to maximum 5 per search while maintaining coverage.
  * 
  * Architecture:
- * Phase 1: Cache + Local APIs (0 AI calls)
+ * Phase 1: Supabase + Local APIs (0 AI calls) - Events always from database
  * Phase 2: Hot-City prioritized venues (max 2 AI calls)
  * Phase 3: Smart Category Search (max 3 AI calls, batched)
  * Phase 4: Finalize and deduplicate
+ * 
+ * NOTE: Per new architecture, Upstash is only used for AI search result caching,
+ * not for primary event display. All events are loaded from Supabase directly.
  */
 
 import { EventData } from './types';
-import { eventsCache } from './cache';
-import { getDayEvents, upsertDayEvents } from './dayCache';
+import { EventRepository } from './repositories/EventRepository';
 import { fetchWienInfoEvents } from './sources/wienInfo';
 import { eventAggregator } from './aggregator';
 import { createPerplexityService } from './perplexity';
-import { computeTTLSecondsForEvents } from './cacheTtl';
 import { getHotCity } from './hotCityStore';
 
 /**
@@ -166,28 +167,27 @@ export class SmartEventFetcher {
   }
 
   /**
-   * Phase 1: Try cache (day-bucket + category shards) and Wien.info JSON API
+   * Phase 1: Load events directly from Supabase and Wien.info JSON API
    * All operations run in parallel for maximum speed
+   * NOTE: Per new architecture, events always come from Supabase (single source of truth)
    */
   private async phase1CacheAndLocalAPIs(city: string, date: string): Promise<EventData[]> {
     const events: EventData[] = [];
 
     try {
       // Run all Phase 1 operations in parallel for speed
-      const [dayBucket, categoryCache, wienInfoEvents] = await Promise.all([
-        // 1a. Try day-bucket cache first (fastest)
-        getDayEvents(city, date).catch(err => {
-          console.warn('[Phase1] Day-bucket error:', err);
-          return null;
+      const [supabaseEvents, wienInfoEvents] = await Promise.all([
+        // 1a. Load events directly from Supabase (single source of truth)
+        EventRepository.getEvents({
+          city,
+          date,
+          limit: 500
+        }).catch(err => {
+          console.warn('[Phase1] Supabase error:', err);
+          return [];
         }),
         
-        // 1b. Try per-category shards
-        eventsCache.getEventsByCategories(city, date, this.categories).catch(err => {
-          console.warn('[Phase1] Category cache error:', err);
-          return { cachedEvents: {}, missingCategories: [], cacheInfo: {} };
-        }),
-        
-        // 1c. Wien.info JSON API for Vienna (0 AI calls) - runs in parallel
+        // 1b. Wien.info JSON API for Vienna (0 AI calls) - runs in parallel
         (async () => {
           if (city.toLowerCase() === 'wien' || city.toLowerCase() === 'vienna') {
             try {
@@ -208,22 +208,12 @@ export class SmartEventFetcher {
         })()
       ]);
 
-      // Process day-bucket results
-      if (dayBucket && dayBucket.events.length > 0) {
+      // Process Supabase results
+      if (supabaseEvents.length > 0) {
         if (this.debug) {
-          console.log(`[Phase1] Day-bucket hit: ${dayBucket.events.length} events`);
+          console.log(`[Phase1] Supabase: ${supabaseEvents.length} events`);
         }
-        events.push(...dayBucket.events);
-      }
-
-      // Process per-category cache results (only if day-bucket was empty)
-      if (events.length === 0 && categoryCache) {
-        for (const [category, categoryEvents] of Object.entries(categoryCache.cachedEvents)) {
-          if (this.debug) {
-            console.log(`[Phase1] Category cache hit for ${category}: ${categoryEvents.length} events`);
-          }
-          events.push(...categoryEvents);
-        }
+        events.push(...supabaseEvents);
       }
 
       // Add Wien.info results
@@ -236,13 +226,6 @@ export class SmartEventFetcher {
 
       // Deduplicate events from multiple sources
       const deduped = eventAggregator.deduplicateEvents(events);
-
-      // Upsert to day-bucket cache for fast future reads (non-blocking)
-      if (deduped.length > 0) {
-        upsertDayEvents(city, date, deduped).catch(err => 
-          console.warn('[Phase1] Cache upsert error:', err)
-        );
-      }
 
       return deduped;
     } catch (error) {

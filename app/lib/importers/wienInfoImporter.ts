@@ -60,11 +60,6 @@ export interface ImporterOptions {
    * Enable verbose logging
    */
   debug?: boolean;
-  
-  /**
-   * Sync events to Upstash Redis cache (default: true)
-   */
-  syncToCache?: boolean;
 }
 
 export interface ImporterStats {
@@ -92,11 +87,6 @@ export interface ImporterStats {
    * Total venues created/reused
    */
   venuesProcessed: number;
-  
-  /**
-   * Total events synced to cache
-   */
-  eventsCached: number;
   
   /**
    * Import duration in milliseconds
@@ -131,8 +121,7 @@ export async function importWienInfoEvents(
     fromDate,
     toDate,
     limit = 10000,
-    debug = false,
-    syncToCache = true
+    debug = false
   } = options;
   
   // Calculate date range
@@ -148,7 +137,6 @@ export async function importWienInfoEvents(
     totalFailed: 0,
     pagesProcessed: 0,
     venuesProcessed: 0,
-    eventsCached: 0,
     duration: 0,
     errors: [],
     dateRange: { from: fromISO, to: toISO }
@@ -160,8 +148,7 @@ export async function importWienInfoEvents(
       batchSize,
       fromISO,
       toISO,
-      limit,
-      syncToCache
+      limit
     });
   }
   
@@ -199,8 +186,7 @@ export async function importWienInfoEvents(
       city: DEFAULT_CITY,
       dryRun,
       batchSize,
-      debug,
-      syncToCache
+      debug
     });
     
     // Map pipeline results to importer stats
@@ -208,7 +194,6 @@ export async function importWienInfoEvents(
     stats.totalUpdated = pipelineResult.eventsUpdated;
     stats.totalFailed = pipelineResult.eventsFailed;
     stats.venuesProcessed = pipelineResult.venuesCreated + pipelineResult.venuesReused;
-    stats.eventsCached = pipelineResult.eventsCached;
     stats.errors.push(...pipelineResult.errors);
     
     stats.duration = Date.now() - startTime;
@@ -219,7 +204,6 @@ export async function importWienInfoEvents(
         updated: stats.totalUpdated,
         failed: stats.totalFailed,
         venues: stats.venuesProcessed,
-        cached: stats.eventsCached,
         duration: `${stats.duration}ms`,
         dryRun
       });

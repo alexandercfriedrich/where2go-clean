@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { supabase } from '@/lib/supabase/client';
 import { EventCard } from '@/components/EventCard';
-import { formatEventDate, transformVenueEventToEventData } from '@/lib/utils';
+import { transformVenueEventToEventData } from '@/lib/utils';
 
 interface VenuePageProps {
   params: {
@@ -269,7 +269,6 @@ export default async function VenuePage({ params }: VenuePageProps) {
                   key={event.id}
                   event={transformVenueEventToEventData(event, venue)}
                   city={venue.city}
-                  formatEventDate={formatEventDate}
                 />
               ))}
             </div>

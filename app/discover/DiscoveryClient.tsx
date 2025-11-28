@@ -12,7 +12,7 @@ import { DiscoveryNav } from '@/components/discovery/DiscoveryNav';
 import { LocationBar } from '@/components/discovery/LocationBar';
 import { CategoryBrowser } from '@/components/discovery/CategoryBrowser';
 import { SearchBar } from '@/components/discovery/SearchBar';
-import { EventCard } from '@/components/discovery/EventCard';
+import { EventCard } from '@/components/EventCard';
 import { FAQSection } from '@/components/FAQSection';
 import { HowToSection } from '@/components/HowToSection';
 import { DateFilterLinks } from '@/components/discovery/DateFilterLinks';
@@ -67,6 +67,11 @@ export default function DiscoveryClient({
       switch (filter) {
         case 'today':
           return eventDateOnly.getTime() === today.getTime();
+        
+        case 'tomorrow':
+          const tomorrow = new Date(today);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          return eventDateOnly.getTime() === tomorrow.getTime();
           
         case 'this-week':
           const weekEnd = new Date(today);
