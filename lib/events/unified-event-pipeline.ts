@@ -342,7 +342,8 @@ export async function processEvents(
             // STEP 3e: COLLECT EVENT FOR CACHE SYNC
             // ─────────────────────────────────────────────────────
             if (syncToCache) {
-              const eventDataForCache = normalizedToEventData(event);
+              // CRITICAL FIX: Include eventSlug in cached event data
+              const eventDataForCache = normalizedToEventData(event, eventSlug);
               const eventDate = eventDataForCache.date;
               if (eventDate) {
                 if (!eventsForCache.has(eventDate)) {
@@ -515,9 +516,12 @@ function parseDateTime(input: string | Date): string | null {
 }
 
 /**
- * Convert normalized event to EventData format for deduplication
+ * Convert normalized event to EventData format for deduplication and caching
+ * 
+ * @param event Normalized event data
+ * @param slug Optional event slug (for cache sync)
  */
-function normalizedToEventData(event: NormalizedEvent): EventData {
+function normalizedToEventData(event: NormalizedEvent, slug?: string): EventData {
   // Extract date and time from ISO timestamp
   const dateMatch = event.start_date_time.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
   const date = dateMatch ? dateMatch[1] : event.start_date_time.split('T')[0] || '';
@@ -534,7 +538,8 @@ function normalizedToEventData(event: NormalizedEvent): EventData {
     description: event.description || undefined,
     address: event.venue_address || undefined,
     city: event.venue_city,
-    source: event.source  // EventData accepts string source
+    source: event.source,
+    slug: slug  // CRITICAL FIX: Include slug property for cache consistency
   };
 }
 
