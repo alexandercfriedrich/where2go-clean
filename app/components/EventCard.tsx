@@ -43,8 +43,6 @@ export interface UnifiedEventCardProps {
     slug?: string;
   };
   city?: string;
-  /** Optional: Custom date formatter function */
-  formatEventDate?: (date: string) => string;
   /** Optional: Show/hide action buttons (favorite, calendar, share) */
   showActions?: boolean;
   /** Optional: Show/hide info/ticket buttons */
@@ -116,16 +114,13 @@ function generateEventId(event: any, index?: number): string {
 export function EventCard({ 
   event, 
   city = 'Wien',
-  formatEventDate,
   showActions = true,
   showButtons = true
 }: UnifiedEventCardProps) {
   const venue = (event as any).custom_venue_name || event.venue || '';
   const eventDate = getEventDate(event);
   const eventTime = getEventTime(event);
-  const displayDate = eventDate 
-    ? (formatEventDate ? formatEventDate(eventDate) : formatGermanDate(eventDate))
-    : '';
+  const displayDate = eventDate ? formatGermanDate(eventDate) : '';
   
   // Use slug from database if available, otherwise generate
   const eventSlug = (event as any).slug || generateEventSlug({

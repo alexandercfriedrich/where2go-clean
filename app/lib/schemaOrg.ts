@@ -62,7 +62,6 @@ export function generateEventSchema(event: EventData, baseUrl: string = 'https:/
       ...(event.address && { streetAddress: event.address }),
       addressLocality: event.city || 'Wien',
       addressRegion: event.city || 'Wien',
-      postalCode: '', // Empty but present
       addressCountry: 'AT'
     }
   };
@@ -79,10 +78,10 @@ export function generateEventSchema(event: EventData, baseUrl: string = 'https:/
   // Description (required by Google) - use event description or generate from title
   schema.description = event.description || `${event.title} - Veranstaltung in ${event.city || 'Wien'}`;
 
-  // Image (recommended by Google) - use event image or default placeholder
-  schema.image = event.imageUrl 
-    ? [event.imageUrl]
-    : [`${baseUrl}/images/event-placeholder.jpg`];
+  // Image (recommended by Google) - use event image or omit if not available
+  if (event.imageUrl) {
+    schema.image = [event.imageUrl];
+  }
 
   // Offers (pricing) - always include for Google
   const priceText = event.ticketPrice || event.price;

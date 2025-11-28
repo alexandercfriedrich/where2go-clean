@@ -318,7 +318,6 @@ export default async function GuidePage({
                             key={eventIdx}
                             event={event}
                             city={cityName}
-                            formatEventDate={formatEventDate}
                           />
                         ))}
                       </div>
