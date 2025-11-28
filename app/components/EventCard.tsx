@@ -105,10 +105,13 @@ function getEventDate(event: any): string {
 }
 
 // Generate a unique ID for events without one
-function generateEventId(event: any, index?: number): string {
+function generateEventId(event: any): string {
   if (event.id) return event.id;
+  // Create a hash-like string from event properties for uniqueness
   const base = `${event.title || ''}-${event.venue || ''}-${event.date || ''}`;
-  return index !== undefined ? `${base}-${index}` : base;
+  // Add a simple hash to help ensure uniqueness
+  const hash = base.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return `${base.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase()}-${hash}`;
 }
 
 export function EventCard({ 

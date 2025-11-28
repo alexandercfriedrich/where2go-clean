@@ -43,6 +43,7 @@ export function generateEventSchema(event: EventData, baseUrl: string = 'https:/
   schema.eventStatus = 'https://schema.org/EventScheduled';
 
   // Add endDate - use endTime if available, otherwise estimate +3 hours from start
+  // NOTE: 3-hour default duration is a reasonable estimate for most events (concerts, shows, etc.)
   if (event.endTime) {
     schema.endDate = combineDateTime(event.date, event.endTime);
   } else if (event.time && event.time !== '00:00') {

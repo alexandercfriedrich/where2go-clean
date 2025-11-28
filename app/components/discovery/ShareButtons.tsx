@@ -21,8 +21,11 @@ interface ShareButtonsProps {
 export function ShareButtons({ event, url, className = '', size = 'md' }: ShareButtonsProps) {
   const [copied, setCopied] = useState(false);
 
+  // Build a more meaningful fallback URL based on event properties
   const eventUrl = url || (typeof window !== 'undefined' 
-    ? `${window.location.origin}/event/${event.id || 'event'}` 
+    ? event.id 
+      ? `${window.location.origin}/event/${event.id}` 
+      : `${window.location.origin}/discover`
     : '');
   
   const shareText = `${event.title} at ${event.custom_venue_name || event.venue || 'TBA'}`;
