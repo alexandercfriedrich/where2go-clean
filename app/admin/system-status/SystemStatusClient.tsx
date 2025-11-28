@@ -179,7 +179,7 @@ export function SystemStatusClient({ envInfo }: { envInfo: EnvInfo }) {
               </div>
               {envInfo.adminPass.isSet && (
                 <div className="mt-2 text-sm font-mono bg-white p-2 rounded border">
-                  {envInfo.adminPass.length} characters
+                  Length: {envInfo.adminPass.length} characters
                 </div>
               )}
             </div>
