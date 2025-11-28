@@ -153,17 +153,28 @@ export function SearchBar({
 
         const combinedResults: SearchResult[] = [];
 
-        // Add venues with event counts
-        if (!venueResponse.error && venueResponse.data) {
-          // Get event counts for each venue
-          for (const venue of venueResponse.data as any[]) {
-            const { count } = await supabase
-              .from('events')
-              .select('*', { count: 'exact', head: true })
-              .eq('custom_venue_name', venue.name)
-              .gte('start_date_time', new Date().toISOString())
-              .eq('is_cancelled', false);
+        // Add venues with event counts (optimized: single query for all venue names)
+        if (!venueResponse.error && venueResponse.data && venueResponse.data.length > 0) {
+          const venues = venueResponse.data as any[];
+          const venueNames = venues.map(v => v.name);
+          
+          // Get event counts for all venues in a single aggregated query
+          const { data: eventCounts } = await supabase
+            .from('events')
+            .select('custom_venue_name')
+            .in('custom_venue_name', venueNames)
+            .gte('start_date_time', new Date().toISOString())
+            .eq('is_cancelled', false);
+          
+          // Count events per venue
+          const countMap: Record<string, number> = {};
+          if (eventCounts) {
+            eventCounts.forEach((e: any) => {
+              countMap[e.custom_venue_name] = (countMap[e.custom_venue_name] || 0) + 1;
+            });
+          }
 
+          venues.forEach((venue) => {
             combinedResults.push({
               type: 'venue',
               id: venue.id,
@@ -171,9 +182,9 @@ export function SearchBar({
               slug: venue.venue_slug,  // Use venue_slug for navigation
               city: venue.city,
               address: venue.address,
-              event_count: count || 0
+              event_count: countMap[venue.name] || 0
             });
-          }
+          });
         }
 
         // Add events

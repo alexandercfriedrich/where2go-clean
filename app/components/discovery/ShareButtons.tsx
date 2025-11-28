@@ -20,6 +20,7 @@ interface ShareButtonsProps {
 
 export function ShareButtons({ event, url, className = '', size = 'md' }: ShareButtonsProps) {
   const [copied, setCopied] = useState(false);
+  const [tiktokCopied, setTiktokCopied] = useState(false);
 
   // Build a more meaningful fallback URL based on event properties
   const eventUrl = url || (typeof window !== 'undefined' 
@@ -55,7 +56,9 @@ export function ShareButtons({ event, url, className = '', size = 'md' }: ShareB
     // TikTok doesn't have a direct share URL, so we copy to clipboard with TikTok-friendly text
     const tiktokText = `🎉 ${shareText}\n\n📍 Check it out: ${eventUrl}\n\n#events #wien #where2go`;
     navigator.clipboard.writeText(tiktokText).then(() => {
-      alert('Text für TikTok kopiert! Füge es in dein TikTok-Video ein.');
+      // Show inline toast instead of blocking alert
+      setTiktokCopied(true);
+      setTimeout(() => setTiktokCopied(false), 3000);
     }).catch(() => {
       // Fallback: open TikTok
       window.open('https://www.tiktok.com/', '_blank');
@@ -75,7 +78,13 @@ export function ShareButtons({ event, url, className = '', size = 'md' }: ShareB
   };
 
   return (
-    <div className={`inline-flex gap-2 ${className}`} onClick={(e) => e.stopPropagation()}>
+    <div className={`inline-flex gap-2 items-center ${className}`} onClick={(e) => e.stopPropagation()}>
+      {/* TikTok Toast Notification */}
+      {tiktokCopied && (
+        <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-3 py-1.5 rounded-lg shadow-lg whitespace-nowrap animate-fade-in">
+          ✓ Text für TikTok kopiert!
+        </div>
+      )}
       {/* WhatsApp */}
       <button
         onClick={handleWhatsAppShare}

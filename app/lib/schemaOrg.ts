@@ -42,16 +42,10 @@ export function generateEventSchema(event: EventData, baseUrl: string = 'https:/
   
   schema.eventStatus = 'https://schema.org/EventScheduled';
 
-  // Add endDate - use endTime if available, otherwise estimate +3 hours from start
-  // NOTE: 3-hour default duration is a reasonable estimate for most events (concerts, shows, etc.)
+  // Add endDate only when explicit endTime is available
+  // Omitting endDate is acceptable per Google Rich Results schema when not known
   if (event.endTime) {
     schema.endDate = combineDateTime(event.date, event.endTime);
-  } else if (event.time && event.time !== '00:00') {
-    // Estimate end time as 3 hours after start for events with specific start time
-    const [hours, minutes] = event.time.split(':').map(Number);
-    const endHours = (hours + 3) % 24;
-    const endTime = `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
-    schema.endDate = combineDateTime(event.date, endTime);
   }
 
   // Location with address (required by Google)
@@ -104,16 +98,21 @@ export function generateEventSchema(event: EventData, baseUrl: string = 'https:/
   };
 
   // Performer (optional but recommended for concerts/shows)
+  // Only add performer when title clearly contains "Artist - Event" format
   if (event.category && (
     event.category.toLowerCase().includes('musik') || 
     event.category.toLowerCase().includes('konzert') ||
     event.category.toLowerCase().includes('theater') ||
     event.category.toLowerCase().includes('performance')
   )) {
-    schema.performer = {
-      '@type': 'PerformingGroup',
-      name: event.title.split(' - ')[0] || event.title // Extract performer from title if possible
-    };
+    // Only extract performer if title contains a dash separator (format: "Artist Name - Event Title")
+    const titleParts = event.title.split(' - ');
+    if (titleParts.length >= 2 && titleParts[0].trim().length > 0) {
+      schema.performer = {
+        '@type': 'PerformingGroup',
+        name: titleParts[0].trim()
+      };
+    }
   }
 
   // Event URL
