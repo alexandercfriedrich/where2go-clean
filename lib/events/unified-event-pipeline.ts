@@ -10,14 +10,15 @@
  * 3. VENUE MATCH/CREATE: Find or create venues, ensuring venue_id is set
  * 4. SLUG GENERATION: Generate SEO-friendly event slugs
  * 5. UPSERT: Insert/update events in database with venue_id linked
- * 6. CACHE SYNC: Update Upstash Redis day-bucket cache for consistency
+ * 
+ * NOTE: Cache sync to Upstash has been removed. All events are stored in Supabase only.
+ * Upstash is now exclusively used for AI search result caching (see /api/search).
  */
 
 import { supabaseAdmin } from '@/lib/supabase/client';
 import { VenueRepository } from '@/lib/repositories/VenueRepository';
 import { deduplicateEvents } from '@/lib/eventDeduplication';
 import { EventRepository } from '@/lib/repositories/EventRepository';
-import { eventsCache } from '@/lib/cache';
 import type { EventData } from '@/lib/types';
 import type { Database } from '@/lib/supabase/types';
 
@@ -77,7 +78,7 @@ export interface PipelineOptions {
   debug?: boolean;
   /** Skip deduplication (use with caution) */
   skipDeduplication?: boolean;
-  /** Sync events to Upstash Redis cache after DB insert (default: true) */
+  /** @deprecated Upstash cache sync removed. Events are stored in Supabase only. */
   syncToCache?: boolean;
 }
 
@@ -148,7 +149,7 @@ export async function processEvents(
     city = 'Wien',
     debug = false,
     skipDeduplication = false,
-    syncToCache = true
+    // syncToCache is ignored - Upstash cache sync removed
   } = options;
 
   const result: PipelineResult = {
@@ -160,13 +161,10 @@ export async function processEvents(
     eventsSkippedAsDuplicates: 0,
     venuesCreated: 0,
     venuesReused: 0,
-    eventsCached: 0,
+    eventsCached: 0, // Always 0 now - no cache sync
     duration: 0,
     errors: []
   };
-
-  // Collect events for cache sync (grouped by date)
-  const eventsForCache: Map<string, EventData[]> = new Map();
 
   if (debug) {
     console.log(`[PIPELINE:START] Processing ${rawEvents.length} events from ${source}`);
@@ -338,20 +336,7 @@ export async function processEvents(
             // Count as inserted (upsert handles both insert and update internally)
             result.eventsInserted++;
 
-            // ─────────────────────────────────────────────────────
-            // STEP 3e: COLLECT EVENT FOR CACHE SYNC
-            // ─────────────────────────────────────────────────────
-            if (syncToCache) {
-              // CRITICAL FIX: Include eventSlug in cached event data
-              const eventDataForCache = normalizedToEventData(event, eventSlug);
-              const eventDate = eventDataForCache.date;
-              if (eventDate) {
-                if (!eventsForCache.has(eventDate)) {
-                  eventsForCache.set(eventDate, []);
-                }
-                eventsForCache.get(eventDate)!.push(eventDataForCache);
-              }
-            }
+            // NOTE: Cache sync removed - events are stored in Supabase only
           } else {
             if (debug) {
               console.log(`[PIPELINE:DRY-RUN] Would upsert event: ${event.title}`);
@@ -393,28 +378,9 @@ export async function processEvents(
       }
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // STEP 5: SYNC TO UPSTASH CACHE (Day-Buckets)
-    // ═══════════════════════════════════════════════════════════
-    if (!dryRun && syncToCache && eventsForCache.size > 0) {
-      if (debug) {
-        console.log(`[PIPELINE:STEP5] Syncing ${eventsForCache.size} days to Upstash cache...`);
-      }
-
-      try {
-        for (const [date, events] of eventsForCache) {
-          await eventsCache.upsertDayEvents(city, date, events);
-          result.eventsCached += events.length;
-          if (debug) {
-            console.log(`[PIPELINE:CACHE] Synced ${events.length} events for ${date}`);
-          }
-        }
-      } catch (cacheError: any) {
-        // Cache sync failure should not fail the pipeline, just log it
-        console.error('[PIPELINE:CACHE:ERROR] Failed to sync to cache:', cacheError);
-        result.errors.push(`Cache sync warning: ${cacheError.message}`);
-      }
-    }
+    // NOTE: Step 5 (Upstash cache sync) has been removed.
+    // All events are now stored exclusively in Supabase (single source of truth).
+    // Upstash is only used for AI search result caching.
 
     result.success = result.eventsFailed === 0;
 
@@ -434,7 +400,6 @@ export async function processEvents(
       duplicates: result.eventsSkippedAsDuplicates,
       venuesCreated: result.venuesCreated,
       venuesReused: result.venuesReused,
-      cached: result.eventsCached,
       duration: `${result.duration}ms`
     });
   }
@@ -516,12 +481,11 @@ function parseDateTime(input: string | Date): string | null {
 }
 
 /**
- * Convert normalized event to EventData format for deduplication and caching
+ * Convert normalized event to EventData format for deduplication
  * 
  * @param event Normalized event data
- * @param slug Optional event slug (for cache sync)
  */
-function normalizedToEventData(event: NormalizedEvent, slug?: string): EventData {
+function normalizedToEventData(event: NormalizedEvent): EventData {
   // Extract date and time from ISO timestamp
   const dateMatch = event.start_date_time.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
   const date = dateMatch ? dateMatch[1] : event.start_date_time.split('T')[0] || '';
@@ -538,8 +502,7 @@ function normalizedToEventData(event: NormalizedEvent, slug?: string): EventData
     description: event.description || undefined,
     address: event.venue_address || undefined,
     city: event.venue_city,
-    source: event.source,
-    slug: slug  // CRITICAL FIX: Include slug property for cache consistency
+    source: event.source
   };
 }
 

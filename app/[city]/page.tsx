@@ -6,22 +6,24 @@ import { FAQSection } from '@/components/FAQSection';
 import { generateEventListSchema, generateEventMicrodata, generateCanonicalUrl } from '@/lib/schemaOrg';
 import { resolveCityFromParam, dateTokenToISO, formatGermanDate } from '@/lib/city';
 import { getRevalidateFor } from '@/lib/isr';
-import { getDayEvents, isEventValidNow } from '@/lib/dayCache';
-import { eventsCache } from '@/lib/cache';
-import { eventAggregator } from '@/lib/aggregator';
-import { EVENT_CATEGORIES, normalizeCategory, EVENT_CATEGORY_SUBCATEGORIES } from '@/lib/eventCategories';
+import { EventRepository } from '@/lib/repositories/EventRepository';
+import { normalizeCategory, EVENT_CATEGORY_SUBCATEGORIES } from '@/lib/eventCategories';
 import { generateCitySEO } from '@/lib/seoContent';
 import { getCityContent } from '@/data/cityContent';
 import type { EventData } from '@/lib/types';
 
-// Mark as dynamic since we use Redis for HotCities
+// Mark as dynamic for fresh data on each request
 export const dynamic = 'force-dynamic';
 
+/**
+ * Fetch events directly from Supabase (single source of truth)
+ * This replaces the previous Upstash cache-based approach for better consistency
+ */
 async function fetchEvents(city: string, dateISO: string, category: string | null = null): Promise<EventData[]> {
   try {
-    console.log(`[fetchEvents] Direct call: city=${city}, date=${dateISO}, category=${category}`);
+    console.log(`[fetchEvents] Supabase direct: city=${city}, date=${dateISO}, category=${category}`);
     
-    // Direct call to cache logic (no HTTP request needed)
+    // Parse requested categories
     const requestedCategories = category
       ? Array.from(new Set(
           category.split(',')
@@ -31,35 +33,23 @@ async function fetchEvents(city: string, dateISO: string, category: string | nul
         ))
       : null;
 
-    let allEvents: EventData[] = [];
+    // Fetch events directly from Supabase
+    // If category is specified, fetch only that category; otherwise fetch all
+    const singleCategory = requestedCategories && requestedCategories.length === 1 
+      ? requestedCategories[0] 
+      : undefined;
 
-    // Try to load from day-bucket first
-    const dayBucket = await getDayEvents(city, dateISO);
-    
-    if (dayBucket && dayBucket.events.length > 0) {
-      allEvents = dayBucket.events;
-    } else {
-      // Fallback: Load from per-category shards
-      const categoriesToLoad = requestedCategories || EVENT_CATEGORIES;
-      const cacheResult = await eventsCache.getEventsByCategories(city, dateISO, categoriesToLoad);
-      
-      const cachedEventsList: EventData[] = [];
-      for (const cat in cacheResult.cachedEvents) {
-        cachedEventsList.push(...cacheResult.cachedEvents[cat]);
-      }
-      
-      // Deduplicate events from different category shards
-      allEvents = eventAggregator.deduplicateEvents(cachedEventsList);
-    }
+    const allEvents = await EventRepository.getEvents({
+      city,
+      date: dateISO,
+      category: singleCategory,
+      limit: 500 // Reasonable limit for a day's events
+    });
 
-    // Filter: Only return valid (non-expired) events
-    const now = new Date();
-    const validEvents = allEvents.filter(event => isEventValidNow(event, now));
-
-    // Filter by requested categories if specified
-    let filteredEvents = validEvents;
-    if (requestedCategories && requestedCategories.length > 0) {
-      filteredEvents = validEvents.filter(event => {
+    // Filter by multiple requested categories if more than one
+    let filteredEvents = allEvents;
+    if (requestedCategories && requestedCategories.length > 1) {
+      filteredEvents = allEvents.filter(event => {
         if (!event.category) return false;
         const normalizedEventCategory = normalizeCategory(event.category);
         return requestedCategories.includes(normalizedEventCategory);
