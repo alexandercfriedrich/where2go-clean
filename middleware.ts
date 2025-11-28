@@ -45,7 +45,7 @@ function isSuspiciousCityName(cityParam: string): boolean {
   }
   
   // Block if contains suspicious keywords (admin, config, etc.)
-  const suspiciousKeywords = ['admin', 'config', 'backup', 'test', 'debug', 'phpinfo'];
+  const suspiciousKeywords = ['admin', 'config', 'backup', 'test', 'phpinfo'];
   if (suspiciousKeywords.some(keyword => decoded === keyword)) {
     return true;
   }
@@ -110,6 +110,11 @@ function slugify(text: string): string {
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const searchParams = request.nextUrl.searchParams;
+
+  // Allow /api/debug routes (for development/troubleshooting)
+  if (pathname.startsWith('/api/debug')) {
+    return NextResponse.next();
+  }
 
   // Block suspicious requests early
   if (isSuspiciousRequest(request)) {
