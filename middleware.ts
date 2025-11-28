@@ -144,7 +144,8 @@ export function middleware(request: NextRequest) {
   }
 
   // Protect /admin and /api/admin paths with Basic Auth
-  if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
+  // EXCEPT /api/admin/events/process which uses Bearer token authentication
+  if ((pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) && pathname !== '/api/admin/events/process') {
     const authHeader = request.headers.get('authorization');
     
     // Check for Basic Auth
