@@ -202,15 +202,24 @@ export function SystemStatusClient({ envInfo }: { envInfo: EnvInfo }) {
               <label htmlFor="token" className="block text-sm font-medium text-gray-700 mb-1">
                 ADMIN_WARMUP_SECRET Token
               </label>
-              <input
-                type="password"
-                id="token"
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                placeholder="Enter your secret token..."
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
+              <div className="relative">
+                <input
+                  type={showToken ? "text" : "password"}
+                  id="token"
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  placeholder="Enter your secret token..."
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-12"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowToken((v) => !v)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 px-2 py-1 text-sm text-gray-600 bg-gray-100 rounded hover:bg-gray-200 focus:outline-none"
+                  aria-label={showToken ? "Hide token" : "Show token"}
+                >
+                  {showToken ? "Hide" : "Show"}
+                </button>
+              </div>
 
             {/* Test Button */}
             <button
