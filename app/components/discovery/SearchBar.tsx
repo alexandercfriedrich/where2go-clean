@@ -1,6 +1,6 @@
 /**
  * Enhanced Search Bar with Autocomplete
- * Searches events and shows live suggestions
+ * Searches events AND venues with live suggestions
  */
 
 'use client';
@@ -9,17 +9,104 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 
-interface SearchResult {
+interface EventSearchResult {
+  type: 'event';
   id: string;
   title: string;
   category: string;
   venue: string;
   start_date_time: string;
+  slug?: string;
+  city?: string;
+  image_url?: string;
 }
+
+interface VenueSearchResult {
+  type: 'venue';
+  id: string;
+  name: string;
+  slug: string;
+  city: string;
+  address: string | null;
+  event_count: number;
+}
+
+type SearchResult = EventSearchResult | VenueSearchResult;
 
 interface SearchBarProps {
   placeholder?: string;
   className?: string;
+}
+
+/**
+ * Helper to check if event is today and calculate time until start
+ */
+function getCountdownInfo(startDateTime: string): { isToday: boolean; timeUntil: string | null; hasStarted: boolean } {
+  const now = new Date();
+  const eventDate = new Date(startDateTime);
+  
+  // Check if same day
+  const isToday = 
+    eventDate.getDate() === now.getDate() &&
+    eventDate.getMonth() === now.getMonth() &&
+    eventDate.getFullYear() === now.getFullYear();
+  
+  if (!isToday) {
+    return { isToday: false, timeUntil: null, hasStarted: false };
+  }
+  
+  const diffMs = eventDate.getTime() - now.getTime();
+  
+  // Event has already started
+  if (diffMs <= 0) {
+    return { isToday: true, timeUntil: null, hasStarted: true };
+  }
+  
+  // Calculate hours and minutes
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const hours = Math.floor(diffMins / 60);
+  const mins = diffMins % 60;
+  
+  const timeUntil = `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+  
+  return { isToday: true, timeUntil, hasStarted: false };
+}
+
+/**
+ * Countdown component for today's events
+ */
+function EventCountdown({ startDateTime }: { startDateTime: string }) {
+  const [countdown, setCountdown] = useState<{ timeUntil: string | null; hasStarted: boolean }>(() => {
+    const info = getCountdownInfo(startDateTime);
+    return { timeUntil: info.timeUntil, hasStarted: info.hasStarted };
+  });
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const info = getCountdownInfo(startDateTime);
+      setCountdown({ timeUntil: info.timeUntil, hasStarted: info.hasStarted });
+    }, 1000); // Update every second for smooth countdown
+
+    return () => clearInterval(timer);
+  }, [startDateTime]);
+
+  if (countdown.hasStarted) {
+    return (
+      <span className="inline-flex items-center gap-1 text-xs font-bold text-green-500 animate-pulse">
+        🔴 LIVE
+      </span>
+    );
+  }
+
+  if (!countdown.timeUntil) {
+    return null;
+  }
+
+  return (
+    <span className="inline-flex items-center gap-1 text-xs font-light text-orange-500 animate-pulse tracking-wide">
+      ⏱️ startet in {countdown.timeUntil}
+    </span>
+  );
 }
 
 export function SearchBar({ 
@@ -34,7 +121,7 @@ export function SearchBar({
   const searchRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  // Debounced search
+  // Debounced search for both venues and events
   useEffect(() => {
     if (query.length < 2) {
       setResults([]);
@@ -45,24 +132,80 @@ export function SearchBar({
     const timer = setTimeout(async () => {
       setIsLoading(true);
       try {
-        const { data, error } = await supabase
+        // Search venues first (use venue_slug for navigation)
+        const venuePromise = supabase
+          .from('venues')
+          .select('id, name, venue_slug, city, address')
+          .ilike('name', `%${query}%`)
+          .not('venue_slug', 'is', null)
+          .limit(3);
+
+        // Search events
+        const eventPromise = supabase
           .from('events')
-          .select('id, title, category, custom_venue_name, start_date_time')
+          .select('id, title, category, custom_venue_name, start_date_time, slug, city, image_urls')
           .or(`title.ilike.%${query}%,custom_venue_name.ilike.%${query}%,category.ilike.%${query}%`)
           .gte('start_date_time', new Date().toISOString())
           .eq('is_cancelled', false)
-          .limit(8) as any;
+          .limit(6);
 
-        if (!error && data) {
-          setResults(data.map((event: any) => ({
-            id: event.id,
-            title: event.title,
-            category: event.category,
-            venue: event.custom_venue_name || 'TBA',
-            start_date_time: event.start_date_time
-          })));
-          setIsOpen(true);
+        const [venueResponse, eventResponse] = await Promise.all([venuePromise, eventPromise]);
+
+        const combinedResults: SearchResult[] = [];
+
+        // Add venues with event counts (optimized: single query for all venue names)
+        if (!venueResponse.error && venueResponse.data && venueResponse.data.length > 0) {
+          const venues = venueResponse.data as any[];
+          const venueNames = venues.map(v => v.name);
+          
+          // Get event counts for all venues in a single aggregated query
+          const { data: eventCounts } = await supabase
+            .from('events')
+            .select('custom_venue_name')
+            .in('custom_venue_name', venueNames)
+            .gte('start_date_time', new Date().toISOString())
+            .eq('is_cancelled', false);
+          
+          // Count events per venue
+          const countMap: Record<string, number> = {};
+          if (eventCounts) {
+            eventCounts.forEach((e: any) => {
+              countMap[e.custom_venue_name] = (countMap[e.custom_venue_name] || 0) + 1;
+            });
+          }
+
+          venues.forEach((venue) => {
+            combinedResults.push({
+              type: 'venue',
+              id: venue.id,
+              name: venue.name,
+              slug: venue.venue_slug,  // Use venue_slug for navigation
+              city: venue.city,
+              address: venue.address,
+              event_count: countMap[venue.name] || 0
+            });
+          });
         }
+
+        // Add events
+        if (!eventResponse.error && eventResponse.data) {
+          (eventResponse.data as any[]).forEach((event: any) => {
+            combinedResults.push({
+              type: 'event',
+              id: event.id,
+              title: event.title,
+              category: event.category,
+              venue: event.custom_venue_name || 'TBA',
+              start_date_time: event.start_date_time,
+              slug: event.slug,
+              city: event.city,
+              image_url: event.image_urls?.[0] || undefined
+            });
+          });
+        }
+
+        setResults(combinedResults);
+        setIsOpen(true);
       } catch (err) {
         console.error('Search error:', err);
       } finally {
@@ -99,7 +242,7 @@ export function SearchBar({
       case 'Enter':
         e.preventDefault();
         if (selectedIndex >= 0) {
-          navigateToEvent(results[selectedIndex].id);
+          navigateToResult(results[selectedIndex]);
         }
         break;
       case 'Escape':
@@ -108,16 +251,31 @@ export function SearchBar({
     }
   };
 
-  const navigateToEvent = (eventId: string) => {
+  const navigateToResult = (result: SearchResult) => {
     setIsOpen(false);
     setQuery('');
-    router.push(`/event/${eventId}`);
+    
+    if (result.type === 'venue') {
+      router.push(`/venues/${result.slug}`);
+    } else {
+      // Navigate to event detail page
+      if (result.slug && result.city) {
+        const citySlug = result.city.toLowerCase().replace(/\s+/g, '-');
+        router.push(`/events/${citySlug}/${result.slug}`);
+      } else {
+        router.push(`/event/${result.id}`);
+      }
+    }
   };
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' });
   };
+
+  // Separate venues and events for display
+  const venueResults = results.filter((r): r is VenueSearchResult => r.type === 'venue');
+  const eventResults = results.filter((r): r is EventSearchResult => r.type === 'event');
 
   return (
     <div ref={searchRef} className={`relative ${className}`}>
@@ -136,7 +294,7 @@ export function SearchBar({
           onFocus={() => query.length >= 2 && setIsOpen(true)}
           placeholder={placeholder}
           className="w-full pl-11 pr-4 py-3 md:py-4 rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 transition-colors"
-          aria-label="Search events"
+          aria-label="Search events and venues"
           aria-autocomplete="list"
           aria-controls="search-results"
         />
@@ -152,38 +310,132 @@ export function SearchBar({
         <div 
           id="search-results"
           role="listbox"
-          className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-h-96 overflow-y-auto"
+          className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-h-[28rem] overflow-y-auto"
         >
-          {results.map((result, index) => (
-            <button
-              key={result.id}
-              role="option"
-              aria-selected={selectedIndex === index}
-              onClick={() => navigateToEvent(result.id)}
-              className={`w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0 ${
-                selectedIndex === index ? 'bg-gray-100 dark:bg-gray-700' : ''
-              }`}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                    {result.title}
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                    📍 {result.venue}
-                  </p>
-                </div>
-                <div className="flex-shrink-0 text-right">
-                  <span className="text-xs px-2 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300">
-                    {result.category}
-                  </span>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    {formatDate(result.start_date_time)}
-                  </p>
-                </div>
+          {/* Venue Results Section */}
+          {venueResults.length > 0 && (
+            <div>
+              <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 uppercase tracking-wide border-b border-gray-200 dark:border-gray-700">
+                📍 Venues
               </div>
-            </button>
-          ))}
+              {venueResults.map((venue, index) => (
+                <button
+                  key={`venue-${venue.id}`}
+                  role="option"
+                  aria-selected={selectedIndex === index}
+                  onClick={() => navigateToResult(venue)}
+                  className={`w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700 ${
+                    selectedIndex === index ? 'bg-gray-100 dark:bg-gray-700' : ''
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="flex-shrink-0 w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
+                        <svg className="w-5 h-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+                          <circle cx="12" cy="10" r="3"/>
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-900 dark:text-gray-100 truncate">
+                          {venue.name}
+                        </p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                          {venue.address || venue.city}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex-shrink-0 text-right">
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300">
+                        <span className="font-bold">{venue.event_count}</span>
+                        <span>Events</span>
+                      </span>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Event Results Section */}
+          {eventResults.length > 0 && (
+            <div>
+              <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 uppercase tracking-wide border-b border-gray-200 dark:border-gray-700">
+                🎭 Events
+              </div>
+              {eventResults.map((event, index) => {
+                const resultIndex = venueResults.length + index;
+                const countdownInfo = getCountdownInfo(event.start_date_time);
+                
+                return (
+                  <button
+                    key={`event-${event.id}`}
+                    role="option"
+                    aria-selected={selectedIndex === resultIndex}
+                    onClick={() => navigateToResult(event)}
+                    className={`w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0 ${
+                      selectedIndex === resultIndex ? 'bg-gray-100 dark:bg-gray-700' : ''
+                    } ${countdownInfo.isToday ? 'bg-orange-50/50 dark:bg-orange-900/10' : ''}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {/* Event Image */}
+                      <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-700">
+                        {event.image_url ? (
+                          <img 
+                            src={event.image_url} 
+                            alt=""
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                              <circle cx="8.5" cy="8.5" r="1.5"/>
+                              <polyline points="21 15 16 10 5 21"/>
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Event Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                            {event.title}
+                          </p>
+                          {countdownInfo.isToday && (
+                            <span className="flex-shrink-0 text-xs px-1.5 py-0.5 rounded bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 font-medium">
+                              HEUTE
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                          📍 {event.venue}
+                        </p>
+                        {/* Countdown Timer for today's events */}
+                        {countdownInfo.isToday && (
+                          <div className="mt-0.5">
+                            <EventCountdown startDateTime={event.start_date_time} />
+                          </div>
+                        )}
+                      </div>
+                      
+                      {/* Category & Date */}
+                      <div className="flex-shrink-0 text-right">
+                        <span className="text-xs px-2 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300">
+                          {event.category}
+                        </span>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          {formatDate(event.start_date_time)}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -191,7 +443,7 @@ export function SearchBar({
       {isOpen && results.length === 0 && !isLoading && query.length >= 2 && (
         <div className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4">
           <p className="text-center text-gray-600 dark:text-gray-400">
-            No events found for &quot;{query}&quot;
+            Keine Ergebnisse für &quot;{query}&quot;
           </p>
         </div>
       )}

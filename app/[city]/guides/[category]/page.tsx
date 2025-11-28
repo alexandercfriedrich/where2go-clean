@@ -7,7 +7,7 @@ import { Breadcrumbs } from '@/components/Breadcrumbs';
 import { EventCard } from '@/components/EventCard';
 import { getGuideContentByCity, getAllGuides } from '@/data/guideContent';
 import { loadHotCities } from '@/lib/hotCityStore';
-import { getDayEvents } from '@/lib/dayCache';
+import { EventRepository } from '@/lib/repositories/EventRepository';
 import { normalizeCategory } from '@/lib/eventCategories';
 import type { EventData, HotCityVenue } from '@/lib/types';
 
@@ -74,7 +74,9 @@ async function getHotCityVenuesForCategory(
   }
 }
 
-// Fetch latest events for a specific venue
+/**
+ * Fetch latest events for a specific venue directly from Supabase
+ */
 async function getVenueEvents(
   city: string, 
   venueName: string, 
@@ -84,15 +86,15 @@ async function getVenueEvents(
     // Get today's date
     const today = new Date().toISOString().split('T')[0];
     
-    // Fetch events from day cache
-    const dayBucket = await getDayEvents(city, today);
-    
-    if (!dayBucket || !dayBucket.events) {
-      return [];
-    }
+    // Fetch events directly from Supabase
+    const events = await EventRepository.getEvents({
+      city,
+      date: today,
+      limit: 500
+    });
 
     // Filter events by venue name (case-insensitive partial match)
-    const venueEvents = dayBucket.events
+    const venueEvents = events
       .filter(event => 
         event.venue && 
         event.venue.toLowerCase().includes(venueName.toLowerCase())
@@ -316,7 +318,6 @@ export default async function GuidePage({
                             key={eventIdx}
                             event={event}
                             city={cityName}
-                            formatEventDate={formatEventDate}
                           />
                         ))}
                       </div>

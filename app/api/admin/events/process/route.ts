@@ -16,8 +16,7 @@
  *     source: string,      // e.g., 'scraper', 'grelle-forelle-scraper'
  *     city?: string,       // default: 'Wien'
  *     dryRun?: boolean,    // default: false
- *     debug?: boolean,     // default: false
- *     syncToCache?: boolean // default: true
+ *     debug?: boolean      // default: false
  *   }
  * }
  * 
@@ -26,6 +25,8 @@
  * - 400: Bad request (missing or invalid data)
  * - 401: Unauthorized
  * - 500: Server error
+ * 
+ * Note: Events are stored directly in Supabase. Upstash cache is no longer used for events.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -185,7 +186,7 @@ export async function POST(request: NextRequest) {
     const city = options.city || 'Wien';
     const dryRun = options.dryRun === true;
     const debug = options.debug === true;
-    const syncToCache = options.syncToCache !== false; // default true
+    // Note: syncToCache option removed - events are stored in Supabase only
     
     console.log(`[ADMIN:EVENTS:PROCESS] Processing ${body.events.length} events from ${source} for ${city}`);
     
@@ -200,8 +201,7 @@ export async function POST(request: NextRequest) {
       source: source,
       city: city,
       dryRun: dryRun,
-      debug: debug,
-      syncToCache: syncToCache
+      debug: debug
     });
     
     console.log(`[ADMIN:EVENTS:PROCESS] Complete:`, {
@@ -228,7 +228,6 @@ export async function POST(request: NextRequest) {
         eventsSkippedAsDuplicates: result.eventsSkippedAsDuplicates,
         venuesCreated: result.venuesCreated,
         venuesReused: result.venuesReused,
-        eventsCached: result.eventsCached,
         duration: result.duration,
         errors: result.errors.length > 0 ? result.errors.slice(0, 20) : undefined // Limit errors in response
       }
@@ -290,8 +289,7 @@ export async function GET() {
           source: 'string - Source identifier for logging (default: "scraper")',
           city: 'string - City for events (default: "Wien")',
           dryRun: 'boolean - If true, validates but does not write (default: false)',
-          debug: 'boolean - Enable verbose logging (default: false)',
-          syncToCache: 'boolean - Sync to Upstash Redis cache (default: true)'
+          debug: 'boolean - Enable verbose logging (default: false)'
         }
       }
     },
@@ -306,7 +304,6 @@ export async function GET() {
         eventsSkippedAsDuplicates: 'number',
         venuesCreated: 'number',
         venuesReused: 'number',
-        eventsCached: 'number',
         duration: 'number (ms)',
         errors: 'string[] (first 20 errors if any)'
       }

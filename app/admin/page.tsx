@@ -360,9 +360,6 @@ export default function AdminPage() {
       <div className="admin-header">
         <h1 className="admin-title">Admin Dashboard</h1>
         <div>
-          <a href="/admin/system-status" className="btn btn-success">
-            🔧 System Status
-          </a>
           <a href="/admin/events" className="btn btn-secondary">
             View Events Cache
           </a>

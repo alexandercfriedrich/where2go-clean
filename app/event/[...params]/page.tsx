@@ -3,15 +3,15 @@ import Link from 'next/link';
 import SchemaOrg from '@/components/SchemaOrg';
 import { generateEventSchema, generateEventMicrodata, generateCanonicalUrl } from '@/lib/schemaOrg';
 import { resolveCityFromParam, formatGermanDate } from '@/lib/city';
-import { getDayEvents, isEventValidNow } from '@/lib/dayCache';
-import { eventsCache } from '@/lib/cache';
-import { eventAggregator } from '@/lib/aggregator';
-import { EVENT_CATEGORIES } from '@/lib/eventCategories';
+import { EventRepository } from '@/lib/repositories/EventRepository';
 import type { EventData } from '@/lib/types';
 import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Find an event in a list by matching title slug
+ */
 async function findEventInList(
   events: EventData[],
   titleSegments: string[],
@@ -105,31 +105,16 @@ export default async function LegacyEventPage({ params }: { params: { params: st
   const baseUrl = 'https://www.where2go.at';
   let foundEvent: EventData | null = null;
   
-  const dayBucket = await getDayEvents(cityName, dateParam);
+  // Fetch events directly from Supabase (single source of truth)
+  const events = await EventRepository.getEvents({
+    city: cityName,
+    date: dateParam,
+    limit: 500
+  });
   
-  if (dayBucket && dayBucket.events.length > 0) {
-    const now = new Date();
-    const validEvents = dayBucket.events.filter(event => isEventValidNow(event, now));
-    
-    foundEvent = await findEventInList(validEvents, titleSegments, baseUrl);
-    console.log('[LegacyEventPage] Day-bucket search result:', foundEvent ? 'found' : 'not found');
-  }
-  
-  if (!foundEvent) {
-    const cacheResult = await eventsCache.getEventsByCategories(cityName, dateParam, EVENT_CATEGORIES);
-    
-    const cachedEventsList: EventData[] = [];
-    for (const cat in cacheResult.cachedEvents) {
-      cachedEventsList.push(...cacheResult.cachedEvents[cat]);
-    }
-    
-    const allEvents = eventAggregator.deduplicateEvents(cachedEventsList);
-    
-    const now = new Date();
-    const validEvents = allEvents.filter(event => isEventValidNow(event, now));
-    
-    foundEvent = await findEventInList(validEvents, titleSegments, baseUrl);
-    console.log('[LegacyEventPage] Per-category cache search result:', foundEvent ? 'found' : 'not found');
+  if (events.length > 0) {
+    foundEvent = await findEventInList(events, titleSegments, baseUrl);
+    console.log('[LegacyEventPage] Supabase search result:', foundEvent ? 'found' : 'not found');
   }
   
   if (!foundEvent) {

@@ -211,8 +211,7 @@ export async function POST(request: NextRequest) {
             source: 'ai-search',
             city: city,
             dryRun: false,
-            debug: false,
-            syncToCache: false // Already cached above
+            debug: false
           });
 
           console.log(`[UnifiedPipeline] AI Search: Processed ${pipelineResult.eventsInserted} events, ${pipelineResult.venuesCreated} new venues for ${city}`);

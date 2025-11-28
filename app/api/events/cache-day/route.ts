@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getDayEvents, isEventValidNow } from '@/lib/dayCache';
-import { eventsCache } from '@/lib/cache';
+import { EventRepository } from '@/lib/repositories/EventRepository';
 import { EventData } from '@/lib/types';
-import { eventAggregator } from '@/lib/aggregator';
-import { EVENT_CATEGORIES, normalizeCategory } from '@/lib/eventCategories';
+import { normalizeCategory } from '@/lib/eventCategories';
 import { getHotCity, getHotCityBySlug } from '@/lib/hotCityStore';
 
 export const runtime = 'nodejs';
@@ -12,15 +10,15 @@ export const maxDuration = 60;
 /**
  * GET /api/events/cache-day
  * 
- * Read-only endpoint for retrieving cached events for a city+date.
+ * Endpoint for retrieving events for a city+date directly from Supabase.
+ * NOTE: Per new architecture, events are loaded from Supabase (single source of truth).
  * 
  * Query parameters:
  * - city (required): City name
  * - date (required): Date in YYYY-MM-DD format
  * - category (optional): CSV of categories to filter by
  * 
- * Returns all valid (non-expired) events from the day-bucket cache.
- * Falls back to per-category shards if day-bucket doesn't exist.
+ * Returns all events for the specified city and date.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -59,40 +57,22 @@ export async function GET(request: NextRequest) {
         ))
       : null;
 
-    let allEvents: EventData[] = [];
-    let fromDayBucket = false;
-    let updatedAt: string | null = null;
+    // Fetch events directly from Supabase (single source of truth)
+    const singleCategory = requestedCategories && requestedCategories.length === 1 
+      ? requestedCategories[0] 
+      : undefined;
 
-    // Try to load from day-bucket first
-    const dayBucket = await getDayEvents(city, date);
-    
-    if (dayBucket && dayBucket.events.length > 0) {
-      // Day-bucket exists
-      allEvents = dayBucket.events;
-      fromDayBucket = true;
-      updatedAt = dayBucket.updatedAt;
-    } else {
-      // Fallback: Load from per-category shards
-      const categoriesToLoad = requestedCategories || EVENT_CATEGORIES;
-      const cacheResult = await eventsCache.getEventsByCategories(city, date, categoriesToLoad);
-      
-      const cachedEventsList: EventData[] = [];
-      for (const category in cacheResult.cachedEvents) {
-        cachedEventsList.push(...cacheResult.cachedEvents[category]);
-      }
-      
-      // Deduplicate events from different category shards
-      allEvents = eventAggregator.deduplicateEvents(cachedEventsList);
-    }
+    const allEvents = await EventRepository.getEvents({
+      city,
+      date,
+      category: singleCategory,
+      limit: 500
+    });
 
-    // Filter: Only return valid (non-expired) events
-    const now = new Date();
-    const validEvents = allEvents.filter(event => isEventValidNow(event, now));
-
-    // Filter by requested categories if specified (normalize both sides for comparison)
-    let filteredEvents = validEvents;
-    if (requestedCategories && requestedCategories.length > 0) {
-      filteredEvents = validEvents.filter(event => {
+    // Filter by multiple requested categories if more than one
+    let filteredEvents = allEvents;
+    if (requestedCategories && requestedCategories.length > 1) {
+      filteredEvents = allEvents.filter(event => {
         if (!event.category) return false;
         const normalizedEventCategory = normalizeCategory(event.category);
         return requestedCategories.includes(normalizedEventCategory);
@@ -107,39 +87,15 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Compute TTL hint (time until oldest event expires, capped at 5 minutes)
-    let ttlHint = 300; // Default 5 minutes
-    if (filteredEvents.length > 0) {
-      // Find earliest expiry time
-      let earliestExpiry: Date | null = null;
-      for (const event of filteredEvents) {
-        if (event.cacheUntil) {
-          try {
-            const expiry = new Date(event.cacheUntil);
-            if (!isNaN(expiry.getTime()) && (!earliestExpiry || expiry < earliestExpiry)) {
-              earliestExpiry = expiry;
-            }
-          } catch {
-            // Ignore invalid dates
-          }
-        }
-      }
-      
-      if (earliestExpiry) {
-        const secondsUntilExpiry = Math.floor((earliestExpiry.getTime() - now.getTime()) / 1000);
-        ttlHint = Math.max(60, Math.min(secondsUntilExpiry, 300));
-      }
-    }
-
     const response = {
       city,
       date,
       events: filteredEvents,
       categories: categoryCounts,
-      cached: fromDayBucket || allEvents.length > 0,
+      cached: false, // Events come directly from Supabase now
       status: 'completed',
-      updatedAt: updatedAt || new Date().toISOString(),
-      ttlHint
+      updatedAt: new Date().toISOString(),
+      ttlHint: 300 // 5 minutes default
     };
 
     // Always set Cache-Control: no-store (as per requirements)
