@@ -142,18 +142,24 @@ export function EventCard({
     ? (event as any).image_urls[0]
     : event.imageUrl;
   
-  // Price display
+  // Price display - check multiple fields that might contain price information
   let priceDisplay = 'Preis auf Anfrage';
   if ((event as any).is_free) {
     priceDisplay = 'Kostenlos';
-  } else if (event.price) {
+  } else if (event.price && event.price !== 'Preis auf Anfrage') {
     priceDisplay = event.price;
+  } else if ((event as any).price_info && (event as any).price_info !== 'Preis auf Anfrage') {
+    priceDisplay = (event as any).price_info;
   } else if ((event as any).price_min !== null && (event as any).price_min !== undefined) {
     if ((event as any).price_max && (event as any).price_max !== (event as any).price_min) {
       priceDisplay = `€${(event as any).price_min} - €${(event as any).price_max}`;
-    } else {
+    } else if ((event as any).price_min > 0) {
       priceDisplay = `ab €${(event as any).price_min}`;
+    } else {
+      priceDisplay = 'Kostenlos';
     }
+  } else if ((event as any).ticketPrice) {
+    priceDisplay = (event as any).ticketPrice;
   }
 
   // Map source to display text

@@ -45,14 +45,33 @@ export default function DiscoveryClient({
     setMounted(true);
   }, []);
 
-  // Helper function to filter events by date
+  // Helper function to filter events by date (always excludes past events)
   const filterEventsByDate = (events: any[], filter: string) => {
-    if (filter === 'all') return events;
-    
     const now = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     
-    return events.filter((event: any) => {
+    // First, always filter out past events
+    const futureEvents = events.filter((event: any) => {
+      const eventDate = event.start_date_time 
+        ? new Date(event.start_date_time)
+        : event.date 
+          ? new Date(event.date)
+          : null;
+      
+      if (!eventDate) return false;
+      
+      // Normalize event date to midnight for comparison
+      const eventDateOnly = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+      
+      // Only include events from today onwards
+      return eventDateOnly >= today;
+    });
+    
+    // If filter is 'all', just return future events (no additional filtering)
+    if (filter === 'all') return futureEvents;
+    
+    // Apply specific date filter
+    return futureEvents.filter((event: any) => {
       const eventDate = event.start_date_time 
         ? new Date(event.start_date_time)
         : event.date 

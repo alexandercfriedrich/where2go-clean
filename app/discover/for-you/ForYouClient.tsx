@@ -34,9 +34,24 @@ export function ForYouClient({ initialEvents, city }: ForYouClientProps) {
     setSelectedDateFilter(urlDateRange);
   }, [urlDateRange]);
 
-  // Filter events based on URL parameters
+  // Filter events based on URL parameters - always excludes past events
   const filteredEvents = useMemo(() => {
-    let filtered = [...initialEvents];
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    // First, always filter out past events
+    let filtered = initialEvents.filter((event: any) => {
+      const eventDate = event.start_date_time 
+        ? new Date(event.start_date_time)
+        : event.date 
+          ? new Date(event.date)
+          : null;
+      
+      if (!eventDate) return false;
+      
+      const eventDateOnly = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+      return eventDateOnly >= today;
+    });
 
     // Category filter
     if (urlCategories.length > 0) {
@@ -60,11 +75,8 @@ export function ForYouClient({ initialEvents, city }: ForYouClientProps) {
       });
     }
 
-    // Date filter
+    // Date filter (only apply if not 'all')
     if (selectedDateFilter !== 'all') {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
       filtered = filtered.filter((event: any) => {
         const eventDate = event.start_date_time 
           ? new Date(event.start_date_time)
