@@ -229,8 +229,8 @@ class PratersaunaScraper(BaseVenueScraper):
                 title = ' '.join(word.capitalize() for word in title.split())
                 if title and len(title) > 3:
                     return title
-        except Exception as e:
-            if hasattr(self, "debug") and self.debug:
+        except (AttributeError, ValueError, TypeError) as e:
+            if self.debug:
                 self.log(f"Error extracting title from URL '{url}': {e}", "error")
         
         return None
