@@ -1,12 +1,12 @@
 /**
  * Category Browser Component
- * Visual category selection with icons and colors
+ * Visual category selection with icons (dark gray background with light gray border)
  */
 
 'use client';
 
 import React from 'react';
-import { getAllCategories, getCategoryColor } from '../../../lib/events/category-utils';
+import { getAllCategories } from '../../../lib/events/category-utils';
 
 interface CategoryBrowserProps {
   onCategoryClick?: (categoryName: string) => void;
@@ -35,8 +35,8 @@ export function CategoryBrowser({
                   : 'shadow-md hover:shadow-xl'
               }`}
               style={{
-                backgroundColor: isSelected ? category.color + '30' : category.color + '15',
-                borderColor: category.color,
+                backgroundColor: isSelected ? '#374151' : '#1f2937', // Dark gray background
+                border: '1px solid #9ca3af', // Light gray border
               }}
             >
               {/* Icon */}
@@ -45,7 +45,7 @@ export function CategoryBrowser({
               </div>
 
               {/* Name */}
-              <div className="text-sm font-semibold text-center text-gray-900 dark:text-gray-100">
+              <div className="text-sm font-semibold text-center text-gray-100">
                 {category.name}
               </div>
             </button>

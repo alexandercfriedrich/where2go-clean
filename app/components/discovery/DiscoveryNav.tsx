@@ -5,12 +5,18 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { useTheme } from '@/components/ui/ThemeProvider';
 
 export function DiscoveryNav() {
   const { theme, toggleTheme } = useTheme();
+  const [showComingSoon, setShowComingSoon] = useState(false);
+
+  const handleSignInClick = () => {
+    setShowComingSoon(true);
+    setTimeout(() => setShowComingSoon(false), 3000);
+  };
 
   return (
     <nav className="sticky top-0 z-20 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800">
@@ -59,9 +65,19 @@ export function DiscoveryNav() {
             </button>
 
             {/* Profile/Login Placeholder */}
-            <button className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition-colors">
-              Sign In
-            </button>
+            <div className="relative">
+              <button 
+                onClick={handleSignInClick}
+                className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition-colors"
+              >
+                Sign In
+              </button>
+              {showComingSoon && (
+                <div className="absolute top-full right-0 mt-2 px-4 py-2 bg-gray-800 text-white text-sm rounded-lg shadow-lg whitespace-nowrap animate-fade-in">
+                  Coming soon...
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

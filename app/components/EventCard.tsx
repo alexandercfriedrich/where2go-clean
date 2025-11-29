@@ -264,15 +264,15 @@ export function EventCard({
           {/* Info and Ticket Links */}
           {showButtons && (
             <div className="mt-4 flex items-center gap-2 flex-wrap">
-              {/* Mehr Info button - always displayed */}
+              {/* Mehr Info button - subtle, less dominant styling */}
               <a
                 href={event.website || `/event/${eventId}`}
                 {...(event.website && { target: "_blank", rel: "noopener noreferrer" })}
-                className="inline-flex items-center gap-1 px-3 py-1.5 bg-[#FF6B35] hover:bg-[#e55a2b] text-white text-sm font-medium rounded-md transition-colors"
+                className="inline-flex items-center gap-1 px-3 py-1.5 bg-transparent border border-gray-400 dark:border-gray-500 text-gray-600 dark:text-gray-300 text-xs font-normal rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 onClick={(e) => e.stopPropagation()}
               >
                 Mehr Info
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
                   <polyline points="15 3 21 3 21 9"></polyline>
                   <line x1="10" y1="14" x2="21" y2="3"></line>

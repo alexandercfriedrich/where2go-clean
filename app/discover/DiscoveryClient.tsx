@@ -168,11 +168,9 @@ export default function DiscoveryClient({
         {/* Navigation */}
         <DiscoveryNav />
         
-        {/* Location Bar */}
+        {/* Location Bar (simplified - city display only) */}
         <LocationBar 
           initialCity={city}
-          onCityChange={(newCity) => console.log('City changed:', newCity)}
-          onDateFilterChange={(filter) => setSelectedDateFilter(filter)}
         />
 
         {/* Hero Section */}
@@ -228,16 +226,19 @@ export default function DiscoveryClient({
             )}
           </section>
 
-          {/* For You Section */}
+          {/* For You Section - Show ALL events when category is selected */}
           {filteredEvents.personalized.length > 0 && (
             <section className="mb-16" aria-label="Personalized event recommendations">
               <SectionHeader
-                title="For You"
-                subtitle="Personalized recommendations based on your interests"
-                action={{ label: 'See all', href: '/discover/for-you' }}
+                title={selectedCategory ? `${selectedCategory} Events` : "For You"}
+                subtitle={selectedCategory 
+                  ? `All ${filteredEvents.personalized.length} events in this category`
+                  : "Personalized recommendations based on your interests"}
+                action={!selectedCategory ? { label: 'See all', href: '/discover/for-you' } : undefined}
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {filteredEvents.personalized.slice(0, 8).map((event) => (
+                {/* Show all events when category is selected, otherwise limit to 8 */}
+                {(selectedCategory ? filteredEvents.personalized : filteredEvents.personalized.slice(0, 8)).map((event) => (
                   <EventCard key={event.id} event={event} city={city} />
                 ))}
               </div>

@@ -2,10 +2,14 @@
 """
 Patroc Wien Gay Events Scraper
 Extracts LGBTQ+ events from https://www.patroc.com/de/gay/wien/
+
+NOTE: Patroc is an event listing website, NOT a venue itself.
+Events are extracted with their actual venue information from the listing.
 """
 
 import sys
 import os
+import re
 from typing import List, Dict, Optional
 import argparse
 
@@ -14,13 +18,20 @@ from base_scraper import BaseVenueScraper
 
 
 class PatrocWienGayScraper(BaseVenueScraper):
-    """Scraper for Patroc Wien Gay events"""
+    """
+    Scraper for Patroc Wien Gay events.
     
-    VENUE_NAME = "Patroc Wien Gay Events"
-    VENUE_ADDRESS = "Various locations in Wien"
+    NOTE: This is NOT a venue scraper - Patroc is an event aggregator website.
+    Each event will be saved with its actual venue name extracted from the listing.
+    The VENUE_NAME here is only used as source identifier for the scraper.
+    """
+    
+    # Source identifier (not the actual venue - events have their own venues)
+    VENUE_NAME = "patroc-listing"  # Source identifier
+    VENUE_ADDRESS = "Wien"  # Default city
     BASE_URL = "https://www.patroc.com"
     EVENTS_URL = "https://www.patroc.com/de/gay/wien/"
-    CATEGORY = "Clubs/Discos"
+    CATEGORY = "Musik & Nachtleben"
     SUBCATEGORY = "LGBTQ+"
     
     def scrape_events(self) -> List[Dict]:
@@ -60,8 +71,9 @@ class PatrocWienGayScraper(BaseVenueScraper):
             
             if event_data and event_data.get('title'):
                 events.append(event_data)
+                venue_info = event_data.get('venue_name', 'Unknown venue')
                 status = "✓" if event_data.get('date') else "?"
-                self.log(f"  {status} {event_data['title'][:50]}", 
+                self.log(f"  {status} {event_data['title'][:40]} @ {venue_info}", 
                         "success" if status == "✓" else "warning")
         
         return events
@@ -76,6 +88,8 @@ class PatrocWienGayScraper(BaseVenueScraper):
                 'image_url': None,
                 'detail_url': None,
                 'description': None,
+                'venue_name': None,  # Actual venue for the event
+                'venue_address': None,
             }
             
             # Extract title from .summary
@@ -128,18 +142,19 @@ class PatrocWienGayScraper(BaseVenueScraper):
             if desc_elem:
                 event_data['description'] = desc_elem.get_text(strip=True)[:500]
             
-            # Extract location/venue from .location
+            # CRITICAL: Extract actual venue from .location (not Patroc as venue!)
             location_elem = item.select_one('.location')
             if location_elem:
                 location_text = location_elem.get_text(strip=True)
-                # Location is often in format "@ Venue Name (Address)"
-                if '@' in location_text:
-                    location_text = location_text.split('@')[1].strip()
-                # Store in description if not already present
-                if event_data['description']:
-                    event_data['description'] = f"{event_data['description']}\n\nVenue: {location_text}"
-                else:
-                    event_data['description'] = f"Venue: {location_text}"
+                # Parse venue name and address from location
+                venue_name, venue_address = self._parse_location(location_text)
+                event_data['venue_name'] = venue_name
+                event_data['venue_address'] = venue_address
+            
+            # If no venue found, try to extract from other elements or use default
+            if not event_data.get('venue_name'):
+                event_data['venue_name'] = 'LGBTQ+ Venue Wien'
+                event_data['venue_address'] = 'Wien'
             
             return event_data if event_data.get('title') else None
             
@@ -147,6 +162,68 @@ class PatrocWienGayScraper(BaseVenueScraper):
             if self.debug:
                 self.log(f"Error parsing event: {e}", "error")
             return None
+    
+    def _parse_location(self, location_text: str) -> tuple:
+        """
+        Parse venue name and address from location text.
+        
+        Common formats:
+        - "@ Venue Name (Address)"
+        - "@ Venue Name, Address"
+        - "Venue Name"
+        """
+        if not location_text:
+            return None, None
+        
+        venue_name = location_text
+        venue_address = 'Wien'
+        
+        # Remove leading "@ " if present
+        if location_text.startswith('@'):
+            venue_name = location_text[1:].strip()
+        
+        # Try to split by parentheses for address
+        paren_match = re.search(r'^([^(]+)\(([^)]+)\)', venue_name)
+        if paren_match:
+            venue_name = paren_match.group(1).strip()
+            venue_address = paren_match.group(2).strip()
+        else:
+            # Try comma separation
+            if ',' in venue_name:
+                parts = venue_name.split(',', 1)
+                venue_name = parts[0].strip()
+                venue_address = parts[1].strip() if len(parts) > 1 else 'Wien'
+        
+        return venue_name, venue_address
+    
+    def _prepare_event_for_db(self, event: Dict) -> Dict:
+        """Override to use actual venue from event data instead of scraper's VENUE_NAME"""
+        db_event = super()._prepare_event_for_db(event)
+        
+        # Override with actual venue from event
+        if event.get('venue_name'):
+            db_event['custom_venue_name'] = event['venue_name']
+        if event.get('venue_address'):
+            db_event['custom_venue_address'] = event['venue_address']
+        
+        # Update source to indicate this is from patroc listing
+        db_event['source'] = 'patroc-scraper'
+        
+        return db_event
+    
+    def _prepare_event_for_pipeline(self, event: Dict) -> Optional[Dict]:
+        """Override to use actual venue from event data"""
+        raw_event = super()._prepare_event_for_pipeline(event)
+        if not raw_event:
+            return None
+        
+        # Override with actual venue from event
+        if event.get('venue_name'):
+            raw_event['venue_name'] = event['venue_name']
+        if event.get('venue_address'):
+            raw_event['venue_address'] = event['venue_address']
+        
+        return raw_event
 
 
 def main():
