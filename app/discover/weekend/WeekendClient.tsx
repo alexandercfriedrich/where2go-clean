@@ -13,6 +13,7 @@ import { DiscoveryNav } from '@/components/discovery/DiscoveryNav';
 import { LocationBar } from '@/components/discovery/LocationBar';
 import { EventCard } from '@/components/EventCard';
 import { matchesCategory } from '../../../lib/events/category-utils';
+import { filterEventsByDateRange, filterOutPastEvents } from '../../../lib/utils/eventDateFilter';
 
 interface WeekendClientProps {
   initialEvents: any[];
@@ -34,9 +35,10 @@ export function WeekendClient({ initialEvents, city }: WeekendClientProps) {
     setSelectedDateFilter(urlDateRange);
   }, [urlDateRange]);
 
-  // Filter events based on URL parameters
+  // Filter events based on URL parameters - uses shared utility for date filtering
   const filteredEvents = useMemo(() => {
-    let filtered = [...initialEvents];
+    // First, filter out past events using shared utility
+    let filtered = filterOutPastEvents(initialEvents);
 
     // Category filter
     if (urlCategories.length > 0) {
@@ -60,68 +62,8 @@ export function WeekendClient({ initialEvents, city }: WeekendClientProps) {
       });
     }
 
-    // Date filter (note: weekend events already filtered by date, but still apply if user changes filter)
-    if (selectedDateFilter !== 'all') {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-      filtered = filtered.filter((event: any) => {
-        const eventDate = event.start_date_time 
-          ? new Date(event.start_date_time)
-          : event.date 
-            ? new Date(event.date)
-            : null;
-        
-        if (!eventDate) return false;
-        
-        const eventDateOnly = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
-        
-        switch (selectedDateFilter) {
-          case 'today':
-            return eventDateOnly.getTime() === today.getTime();
-          
-          case 'tomorrow':
-            const tomorrow = new Date(today);
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            return eventDateOnly.getTime() === tomorrow.getTime();
-            
-          case 'this-week':
-            const weekEnd = new Date(today);
-            weekEnd.setDate(weekEnd.getDate() + 7);
-            return eventDateOnly >= today && eventDateOnly < weekEnd;
-            
-          case 'weekend':
-          case 'this-weekend':
-            const dayOfWeek = today.getDay();
-            let daysUntilFriday: number;
-            
-            if (dayOfWeek === 5) daysUntilFriday = 0;
-            else if (dayOfWeek === 6) daysUntilFriday = -1;
-            else if (dayOfWeek === 0) daysUntilFriday = -2;
-            else daysUntilFriday = 5 - dayOfWeek;
-            
-            const nextFriday = new Date(today);
-            nextFriday.setDate(today.getDate() + daysUntilFriday);
-            
-            const nextMonday = new Date(nextFriday);
-            nextMonday.setDate(nextFriday.getDate() + 3);
-            
-            return eventDateOnly >= nextFriday && eventDateOnly < nextMonday;
-            
-          case 'next-week':
-            const nextWeekStart = new Date(today);
-            nextWeekStart.setDate(nextWeekStart.getDate() + 7);
-            const nextWeekEnd = new Date(nextWeekStart);
-            nextWeekEnd.setDate(nextWeekEnd.getDate() + 7);
-            return eventDateOnly >= nextWeekStart && eventDateOnly < nextWeekEnd;
-            
-          default:
-            return true;
-        }
-      });
-    }
-
-    return filtered;
+    // Apply date filter using shared utility
+    return filterEventsByDateRange(filtered, selectedDateFilter);
   }, [initialEvents, urlCategories, urlFreeOnly, urlMinPrice, urlMaxPrice, selectedDateFilter]);
 
   return (
@@ -129,8 +71,7 @@ export function WeekendClient({ initialEvents, city }: WeekendClientProps) {
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
         <DiscoveryNav />
         <LocationBar 
-          initialCity={city} 
-          onDateFilterChange={setSelectedDateFilter}
+          initialCity={city}
         />
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">

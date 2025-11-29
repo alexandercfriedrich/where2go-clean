@@ -93,6 +93,14 @@ class PratersaunaScraper(BaseVenueScraper):
                 'artists': [],
             }
             
+            # First, extract the link - we may need to visit detail page for title
+            link_elem = item.select_one('a[href*="/event/"]') or item.find('a', href=True)
+            if link_elem and link_elem.get('href'):
+                href = link_elem['href']
+                if not href.startswith('http'):
+                    href = self.BASE_URL.rstrip('/') + '/' + href.lstrip('/')
+                event_data['detail_url'] = href
+            
             # Extract title - try multiple selectors
             title_selectors = ['h2', 'h3.event-title', '.wp-block-heading', 'h1', '.elementor-heading-title']
             for sel in title_selectors:
@@ -101,23 +109,36 @@ class PratersaunaScraper(BaseVenueScraper):
                     event_data['title'] = title_elem.get_text(strip=True)
                     break
             
-            # If title is just a date (DD.MM), try to get better title from link or image alt
-            if event_data['title'] and re.match(r'^\d{1,2}\.\d{1,2}$', event_data['title']):
-                # Try to get title from link text or nearby elements
-                for heading in item.select('h2, h3, h4'):
-                    heading_text = heading.get_text(strip=True)
-                    if heading_text and not re.match(r'^\d{1,2}\.\d{1,2}$', heading_text):
-                        # Combine date with better title
-                        event_data['title'] = f"{event_data['title']} - {heading_text}"
-                        break
+            # Check if title is just a date (DD.MM or DD.MM.) - if so, we need a better title
+            is_date_only_title = event_data['title'] and re.match(r'^\d{1,2}\.\d{1,2}\.?$', event_data['title'].strip())
             
-            # Extract link
-            link_elem = item.select_one('a[href*="/event/"]') or item.find('a', href=True)
-            if link_elem and link_elem.get('href'):
-                href = link_elem['href']
-                if not href.startswith('http'):
-                    href = self.BASE_URL.rstrip('/') + '/' + href.lstrip('/')
-                event_data['detail_url'] = href
+            if is_date_only_title:
+                # Try to extract event name from URL slug
+                better_title = self._extract_title_from_url(event_data.get('detail_url'))
+                
+                # Also try to find other text elements that might have the real title
+                if not better_title:
+                    for heading in item.select('h2, h3, h4, strong, .event-name'):
+                        heading_text = heading.get_text(strip=True)
+                        # Skip if it's also just a date
+                        if heading_text and not re.match(r'^\d{1,2}\.\d{1,2}\.?$', heading_text.strip()):
+                            better_title = heading_text
+                            break
+                
+                # Try image alt text as fallback
+                if not better_title:
+                    img = item.select_one('img[alt]')
+                    if img and img.get('alt'):
+                        alt_text = img['alt'].strip()
+                        if alt_text and len(alt_text) > 3 and not re.match(r'^\d{1,2}\.\d{1,2}\.?$', alt_text):
+                            better_title = alt_text
+                
+                # If we found a better title, use date + title format
+                if better_title:
+                    event_data['title'] = f"Pratersauna {event_data['title'].strip('.')} - {better_title}"
+                else:
+                    # Fallback: Use "Pratersauna Event" + date
+                    event_data['title'] = f"Pratersauna Event {event_data['title']}"
             
             # Extract image
             img_selectors = [
@@ -147,7 +168,7 @@ class PratersaunaScraper(BaseVenueScraper):
                         event_data['date'] = parsed_date
                         break
             
-            # If date not found and title is in DD.MM format, use that
+            # If date not found and title contains DD.MM format, extract from title
             if not event_data['date'] and event_data['title']:
                 match = re.search(r'(\d{1,2})\.(\d{1,2})', event_data['title'])
                 if match:
@@ -188,6 +209,31 @@ class PratersaunaScraper(BaseVenueScraper):
             if self.debug:
                 self.log(f"Error parsing event item: {e}", "error")
             return None
+    
+    def _extract_title_from_url(self, url: str) -> Optional[str]:
+        """
+        Extract event title from URL slug.
+        URLs like: https://pratersauna.tv/event/event-name-here/
+        """
+        if not url:
+            return None
+        
+        try:
+            # Extract path after /event/
+            match = re.search(r'/event/([^/]+)', url)
+            if match:
+                slug = match.group(1)
+                # Convert slug to title: replace hyphens with spaces, capitalize
+                title = slug.replace('-', ' ').strip()
+                # Capitalize each word
+                title = ' '.join(word.capitalize() for word in title.split())
+                if title and len(title) > 3:
+                    return title
+        except (AttributeError, ValueError, TypeError) as e:
+            if self.debug:
+                self.log(f"Error extracting title from URL '{url}': {e}", "error")
+        
+        return None
     
     def _enrich_from_detail_page(self, event_data: Dict):
         """Enrich event data from detail page"""

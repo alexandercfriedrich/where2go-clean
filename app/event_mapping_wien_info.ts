@@ -110,7 +110,7 @@ export const WIENINFO_LABEL_ALIASES: Record<string, string> = {
 // Ambiguities are resolved to the broadest sensible default (consistent with UI filters)
 const WIENINFO_LABEL_TO_MAIN_CATEGORY: Record<string, string> = {
   // Classical and concerts
-  'Klassisch': 'Live-Konzerte',
+  'Klassisch': 'Theater/Performance',  // Classical performances are more theater-like
   'Rock, Pop, Jazz und mehr': 'Live-Konzerte',
   'Konzerte': 'Live-Konzerte',
   
@@ -122,8 +122,8 @@ const WIENINFO_LABEL_TO_MAIN_CATEGORY: Record<string, string> = {
   // Museums and exhibitions
   'Ausstellungen': 'Museen',
   
-  // Markets and festivals - both map to Open Air
-  'Märkte und Messen': 'Open Air',
+  // Markets and festivals
+  'Märkte und Messen': 'Märkte/Shopping',  // Markets are shopping, not Open Air
   'Festivals, Feste, und Shows': 'Open Air',
   
   // Entertainment

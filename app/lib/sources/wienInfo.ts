@@ -16,7 +16,7 @@ interface FetchWienInfoOptions {
   fromISO: string;          // YYYY-MM-DD
   toISO: string;            // YYYY-MM-DD
   categories: string[];     // Main categories to filter for
-  limit?: number;           // Maximum number of events to return
+  limit?: number;           // Maximum number of events to return (optional, defaults to unlimited)
   debug?: boolean;          // Enable debug logging
   debugVerbose?: boolean;   // Enable verbose debug logging
 }
@@ -78,7 +78,7 @@ interface WienInfoEvent {
 }
 
 export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<WienInfoResult> {
-  const { fromISO, toISO, categories, limit = 100, debug = false, debugVerbose = false } = opts;
+  const { fromISO, toISO, categories, limit, debug = false, debugVerbose = false } = opts;
 
   try {
     // 1) Normalize UI super-categories to main categories for F1 mapping
@@ -243,7 +243,7 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
     }
 
     // 8) Normalize to our EventData format (limited by "limit")
-    const normalizedEvents = filteredEvents.slice(0, limit).map((event) =>
+    const normalizedEvents = (limit ? filteredEvents.slice(0, limit) : filteredEvents).map((event) =>
       normalizeWienInfoEvent(event, categories, fromISO, toISO)
     );
 

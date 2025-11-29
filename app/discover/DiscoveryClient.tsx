@@ -18,6 +18,7 @@ import { HowToSection } from '@/components/HowToSection';
 import { DateFilterLinks } from '@/components/discovery/DateFilterLinks';
 import { discoverPageFAQs, discoverPageHowTo } from '@/lib/content/discoverPageContent';
 import { VenueStats } from '@/components/VenueStats';
+import { filterEventsByDateRange } from '../../lib/utils/eventDateFilter';
 
 interface DiscoveryClientProps {
   initialTrendingEvents: any[];
@@ -45,80 +46,7 @@ export default function DiscoveryClient({
     setMounted(true);
   }, []);
 
-  // Helper function to filter events by date
-  const filterEventsByDate = (events: any[], filter: string) => {
-    if (filter === 'all') return events;
-    
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
-    return events.filter((event: any) => {
-      const eventDate = event.start_date_time 
-        ? new Date(event.start_date_time)
-        : event.date 
-          ? new Date(event.date)
-          : null;
-      
-      if (!eventDate) return false;
-      
-      // Normalize event date to midnight for comparison
-      const eventDateOnly = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
-      
-      switch (filter) {
-        case 'today':
-          return eventDateOnly.getTime() === today.getTime();
-        
-        case 'tomorrow':
-          const tomorrow = new Date(today);
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          return eventDateOnly.getTime() === tomorrow.getTime();
-          
-        case 'this-week':
-          const weekEnd = new Date(today);
-          weekEnd.setDate(weekEnd.getDate() + 7);
-          return eventDateOnly >= today && eventDateOnly < weekEnd;
-          
-        case 'weekend':
-          // Calculate next weekend (Friday, Saturday, and Sunday)
-          const dayOfWeek = today.getDay();
-          let daysUntilFriday: number;
-          
-          if (dayOfWeek === 5) {
-            // Today is Friday - include today, tomorrow, and day after
-            daysUntilFriday = 0;
-          } else if (dayOfWeek === 6) {
-            // Today is Saturday - include today and tomorrow
-            daysUntilFriday = -1; // Go back to Friday
-          } else if (dayOfWeek === 0) {
-            // Today is Sunday - go back to Friday to include all weekend days (Friday, Saturday, Sunday)
-            daysUntilFriday = -2;
-          } else {
-            // Monday to Thursday - calculate days until Friday
-            daysUntilFriday = 5 - dayOfWeek;
-          }
-          
-          const nextFriday = new Date(today);
-          nextFriday.setDate(today.getDate() + daysUntilFriday);
-          
-          const nextMonday = new Date(nextFriday);
-          nextMonday.setDate(nextFriday.getDate() + 3); // Friday + 3 = Monday
-          
-          return eventDateOnly >= nextFriday && eventDateOnly < nextMonday;
-          
-        case 'next-week':
-          const nextWeekStart = new Date(today);
-          nextWeekStart.setDate(nextWeekStart.getDate() + 7);
-          const nextWeekEnd = new Date(nextWeekStart);
-          nextWeekEnd.setDate(nextWeekEnd.getDate() + 7);
-          return eventDateOnly >= nextWeekStart && eventDateOnly < nextWeekEnd;
-          
-        default:
-          return true;
-      }
-    });
-  };
-
-  // Filter events by category and date
+  // Filter events by category and date using the shared utility
   useEffect(() => {
     const { matchesCategory } = require('../../lib/events/category-utils');
     
@@ -143,11 +71,11 @@ export default function DiscoveryClient({
       };
     }
     
-    // Apply date filter
+    // Apply date filter using the shared utility function
     setFilteredEvents({
-      personalized: filterEventsByDate(categoryFiltered.personalized, selectedDateFilter),
-      trending: filterEventsByDate(categoryFiltered.trending, selectedDateFilter),
-      weekend: filterEventsByDate(categoryFiltered.weekend, selectedDateFilter),
+      personalized: filterEventsByDateRange(categoryFiltered.personalized, selectedDateFilter),
+      trending: filterEventsByDateRange(categoryFiltered.trending, selectedDateFilter),
+      weekend: filterEventsByDateRange(categoryFiltered.weekend, selectedDateFilter),
     });
   }, [selectedCategory, selectedDateFilter, initialPersonalizedEvents, initialTrendingEvents, initialWeekendEvents]);
 
@@ -168,11 +96,9 @@ export default function DiscoveryClient({
         {/* Navigation */}
         <DiscoveryNav />
         
-        {/* Location Bar */}
+        {/* Location Bar (simplified - city display only) */}
         <LocationBar 
           initialCity={city}
-          onCityChange={(newCity) => console.log('City changed:', newCity)}
-          onDateFilterChange={(filter) => setSelectedDateFilter(filter)}
         />
 
         {/* Hero Section */}
@@ -228,16 +154,19 @@ export default function DiscoveryClient({
             )}
           </section>
 
-          {/* For You Section */}
+          {/* For You Section - Show ALL events when category is selected */}
           {filteredEvents.personalized.length > 0 && (
             <section className="mb-16" aria-label="Personalized event recommendations">
               <SectionHeader
-                title="For You"
-                subtitle="Personalized recommendations based on your interests"
-                action={{ label: 'See all', href: '/discover/for-you' }}
+                title={selectedCategory ? `${selectedCategory} Events` : "For You"}
+                subtitle={selectedCategory 
+                  ? `All ${filteredEvents.personalized.length} events in this category`
+                  : "Personalized recommendations based on your interests"}
+                action={!selectedCategory ? { label: 'See all', href: '/discover/for-you' } : undefined}
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {filteredEvents.personalized.slice(0, 8).map((event) => (
+                {/* Show all events when category is selected, otherwise limit to 8 */}
+                {(selectedCategory ? filteredEvents.personalized : filteredEvents.personalized.slice(0, 8)).map((event) => (
                   <EventCard key={event.id} event={event} city={city} />
                 ))}
               </div>

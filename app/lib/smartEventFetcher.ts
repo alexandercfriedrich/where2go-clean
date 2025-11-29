@@ -4,18 +4,18 @@
  * Reduces AI API calls from 30+ to maximum 5 per search while maintaining coverage.
  * 
  * Architecture:
- * Phase 1: Supabase + Local APIs (0 AI calls) - Events always from database
+ * Phase 1: Supabase database (0 AI calls) - Events always from database (includes wien.info from warmup)
  * Phase 2: Hot-City prioritized venues (max 2 AI calls)
  * Phase 3: Smart Category Search (max 3 AI calls, batched)
  * Phase 4: Finalize and deduplicate
  * 
  * NOTE: Per new architecture, Upstash is only used for AI search result caching,
  * not for primary event display. All events are loaded from Supabase directly.
+ * Wien.info data is loaded during warmup and stored in Supabase - no direct API call needed during search.
  */
 
 import { EventData } from './types';
 import { EventRepository } from './repositories/EventRepository';
-import { fetchWienInfoEvents } from './sources/wienInfo';
 import { eventAggregator } from './aggregator';
 import { createPerplexityService } from './perplexity';
 import { getHotCity } from './hotCityStore';
@@ -167,64 +167,35 @@ export class SmartEventFetcher {
   }
 
   /**
-   * Phase 1: Load events directly from Supabase and Wien.info JSON API
+   * Phase 1: Load events directly from Supabase database
    * All operations run in parallel for maximum speed
    * NOTE: Per new architecture, events always come from Supabase (single source of truth)
+   * Wien.info data is already loaded during warmup and stored in Supabase - no direct API call needed
    */
   private async phase1CacheAndLocalAPIs(city: string, date: string): Promise<EventData[]> {
     const events: EventData[] = [];
 
     try {
-      // Run all Phase 1 operations in parallel for speed
-      const [supabaseEvents, wienInfoEvents] = await Promise.all([
-        // 1a. Load events directly from Supabase (single source of truth)
-        EventRepository.getEvents({
-          city,
-          date,
-          limit: 500
-        }).catch(err => {
-          console.warn('[Phase1] Supabase error:', err);
-          return [];
-        }),
-        
-        // 1b. Wien.info JSON API for Vienna (0 AI calls) - runs in parallel
-        (async () => {
-          if (city.toLowerCase() === 'wien' || city.toLowerCase() === 'vienna') {
-            try {
-              const wienResult = await fetchWienInfoEvents({
-                fromISO: date,
-                toISO: date,
-                categories: this.categories,
-                limit: 500, // Fix from PR173: Increase limit to show more events
-                debug: this.debug // Respect instance debug setting for Wien.info
-              });
-              return wienResult.events || [];
-            } catch (error) {
-              console.warn('[Phase1] Wien.info API error:', error);
-              return [];
-            }
-          }
-          return [];
-        })()
-      ]);
+      // Load events directly from Supabase (single source of truth)
+      // Wien.info events are already in the database from warmup - no need to call API directly
+      const supabaseEvents = await EventRepository.getEvents({
+        city,
+        date,
+        limit: 500
+      }).catch(err => {
+        console.warn('[Phase1] Supabase error:', err);
+        return [];
+      });
 
-      // Process Supabase results
+      // Process Supabase results (includes wien.info events from warmup)
       if (supabaseEvents.length > 0) {
         if (this.debug) {
-          console.log(`[Phase1] Supabase: ${supabaseEvents.length} events`);
+          console.log(`[Phase1] Supabase: ${supabaseEvents.length} events (includes wien.info from warmup)`);
         }
         events.push(...supabaseEvents);
       }
 
-      // Add Wien.info results
-      if (wienInfoEvents.length > 0) {
-        if (this.debug) {
-          console.log(`[Phase1] Wien.info API: ${wienInfoEvents.length} events`);
-        }
-        events.push(...wienInfoEvents);
-      }
-
-      // Deduplicate events from multiple sources
+      // Deduplicate events
       const deduped = eventAggregator.deduplicateEvents(events);
 
       return deduped;
