@@ -173,7 +173,7 @@ class PatrocWienGayScraper(BaseVenueScraper):
         - "Venue Name"
         """
         if not location_text:
-            return None, None
+            return 'LGBTQ+ Venue Wien', 'Wien'
         
         venue_name = location_text
         venue_address = 'Wien'

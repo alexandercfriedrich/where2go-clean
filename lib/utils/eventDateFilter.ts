@@ -84,31 +84,31 @@ export function filterEventsByDateRange<T extends { start_date_time?: string; da
         
       case 'weekend':
       case 'this-weekend': {
-        // Calculate next weekend (Friday, Saturday, and Sunday)
+        // Calculate current or next weekend (Friday, Saturday, and Sunday)
         const dayOfWeek = today.getDay();
-        let daysUntilFriday: number;
+        let daysUntilWeekendStart: number;
         
         if (dayOfWeek === 5) {
-          // Today is Friday - include today, tomorrow, and day after
-          daysUntilFriday = 0;
+          // Today is Friday - weekend starts today
+          daysUntilWeekendStart = 0;
         } else if (dayOfWeek === 6) {
-          // Today is Saturday - include today and tomorrow
-          daysUntilFriday = -1;
+          // Today is Saturday - weekend started yesterday (Friday)
+          daysUntilWeekendStart = -1;
         } else if (dayOfWeek === 0) {
-          // Today is Sunday - go back to Friday to include all weekend days
-          daysUntilFriday = -2;
+          // Today is Sunday - weekend started two days ago (Friday)
+          daysUntilWeekendStart = -2;
         } else {
-          // Monday to Thursday - calculate days until Friday
-          daysUntilFriday = 5 - dayOfWeek;
+          // Monday to Thursday - calculate days until next Friday
+          daysUntilWeekendStart = 5 - dayOfWeek;
         }
         
-        const nextFriday = new Date(today);
-        nextFriday.setDate(today.getDate() + daysUntilFriday);
+        const weekendStart = new Date(today);
+        weekendStart.setDate(today.getDate() + daysUntilWeekendStart);
         
-        const nextMonday = new Date(nextFriday);
-        nextMonday.setDate(nextFriday.getDate() + 3);
+        const weekendEnd = new Date(weekendStart);
+        weekendEnd.setDate(weekendStart.getDate() + 3);
         
-        return eventDateOnly >= nextFriday && eventDateOnly < nextMonday;
+        return eventDateOnly >= weekendStart && eventDateOnly < weekendEnd;
       }
         
       case 'next-week': {

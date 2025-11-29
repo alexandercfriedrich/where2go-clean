@@ -9,8 +9,6 @@ import React from 'react';
 
 interface LocationBarProps {
   initialCity?: string;
-  onCityChange?: (city: string) => void;
-  onDateFilterChange?: (filter: string) => void;
 }
 
 export function LocationBar({ 

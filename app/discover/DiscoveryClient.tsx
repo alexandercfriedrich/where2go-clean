@@ -46,99 +46,7 @@ export default function DiscoveryClient({
     setMounted(true);
   }, []);
 
-  // Helper function to filter events by date (always excludes past events)
-  const filterEventsByDate = (events: any[], filter: string) => {
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    
-    // First, always filter out past events
-    const futureEvents = events.filter((event: any) => {
-      const eventDate = event.start_date_time 
-        ? new Date(event.start_date_time)
-        : event.date 
-          ? new Date(event.date)
-          : null;
-      
-      if (!eventDate) return false;
-      
-      // Normalize event date to midnight for comparison
-      const eventDateOnly = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
-      
-      // Only include events from today onwards
-      return eventDateOnly >= today;
-    });
-    
-    // If filter is 'all', just return future events (no additional filtering)
-    if (filter === 'all') return futureEvents;
-    
-    // Apply specific date filter
-    return futureEvents.filter((event: any) => {
-      const eventDate = event.start_date_time 
-        ? new Date(event.start_date_time)
-        : event.date 
-          ? new Date(event.date)
-          : null;
-      
-      if (!eventDate) return false;
-      
-      // Normalize event date to midnight for comparison
-      const eventDateOnly = new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
-      
-      switch (filter) {
-        case 'today':
-          return eventDateOnly.getTime() === today.getTime();
-        
-        case 'tomorrow':
-          const tomorrow = new Date(today);
-          tomorrow.setDate(tomorrow.getDate() + 1);
-          return eventDateOnly.getTime() === tomorrow.getTime();
-          
-        case 'this-week':
-          const weekEnd = new Date(today);
-          weekEnd.setDate(weekEnd.getDate() + 7);
-          return eventDateOnly >= today && eventDateOnly < weekEnd;
-          
-        case 'weekend':
-          // Calculate next weekend (Friday, Saturday, and Sunday)
-          const dayOfWeek = today.getDay();
-          let daysUntilFriday: number;
-          
-          if (dayOfWeek === 5) {
-            // Today is Friday - include today, tomorrow, and day after
-            daysUntilFriday = 0;
-          } else if (dayOfWeek === 6) {
-            // Today is Saturday - include today and tomorrow
-            daysUntilFriday = -1; // Go back to Friday
-          } else if (dayOfWeek === 0) {
-            // Today is Sunday - go back to Friday to include all weekend days (Friday, Saturday, Sunday)
-            daysUntilFriday = -2;
-          } else {
-            // Monday to Thursday - calculate days until Friday
-            daysUntilFriday = 5 - dayOfWeek;
-          }
-          
-          const nextFriday = new Date(today);
-          nextFriday.setDate(today.getDate() + daysUntilFriday);
-          
-          const nextMonday = new Date(nextFriday);
-          nextMonday.setDate(nextFriday.getDate() + 3); // Friday + 3 = Monday
-          
-          return eventDateOnly >= nextFriday && eventDateOnly < nextMonday;
-          
-        case 'next-week':
-          const nextWeekStart = new Date(today);
-          nextWeekStart.setDate(nextWeekStart.getDate() + 7);
-          const nextWeekEnd = new Date(nextWeekStart);
-          nextWeekEnd.setDate(nextWeekEnd.getDate() + 7);
-          return eventDateOnly >= nextWeekStart && eventDateOnly < nextWeekEnd;
-          
-        default:
-          return true;
-      }
-    });
-  };
-
-  // Filter events by category and date
+  // Filter events by category and date using the shared utility
   useEffect(() => {
     const { matchesCategory } = require('../../lib/events/category-utils');
     
@@ -163,11 +71,11 @@ export default function DiscoveryClient({
       };
     }
     
-    // Apply date filter
+    // Apply date filter using the shared utility function
     setFilteredEvents({
-      personalized: filterEventsByDate(categoryFiltered.personalized, selectedDateFilter),
-      trending: filterEventsByDate(categoryFiltered.trending, selectedDateFilter),
-      weekend: filterEventsByDate(categoryFiltered.weekend, selectedDateFilter),
+      personalized: filterEventsByDateRange(categoryFiltered.personalized, selectedDateFilter),
+      trending: filterEventsByDateRange(categoryFiltered.trending, selectedDateFilter),
+      weekend: filterEventsByDateRange(categoryFiltered.weekend, selectedDateFilter),
     });
   }, [selectedCategory, selectedDateFilter, initialPersonalizedEvents, initialTrendingEvents, initialWeekendEvents]);
 
