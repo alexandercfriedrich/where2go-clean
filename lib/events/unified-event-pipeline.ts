@@ -536,7 +536,8 @@ async function matchOrCreateVenue(
     
     const venueData: DbVenueInsert = {
       name: venueInfo.name,
-      slug: venueSlug,  // Required field with unique value
+      slug: venueSlug,        // Required field with unique value
+      venue_slug: venueSlug,  // Also set venue_slug for navigation links
       address: venueInfo.address,
       city: venueInfo.city,
       country: 'Austria'

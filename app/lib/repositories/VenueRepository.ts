@@ -209,10 +209,13 @@ export class VenueRepository {
     // Generate unique slug: name-city-postalCode or name-city-uniqueId
     const generatedSlug = generateVenueSlug(venue.name, venue.city, postalCode);
     
+    // Use provided slug or generate one - ensure both slug and venue_slug are the same
+    const finalSlug = venue.slug || generatedSlug;
+    
     const venueWithSlug = {
       ...venue,
-      slug: venue.slug || generatedSlug,           // Required field
-      venue_slug: venue.venue_slug || generatedSlug // Optional field for compatibility
+      slug: finalSlug,                             // Required field
+      venue_slug: venue.venue_slug || finalSlug    // Optional field for compatibility - use same slug
     };
     
     // Venue doesn't exist, create it
