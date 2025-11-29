@@ -18,6 +18,7 @@ import { HowToSection } from '@/components/HowToSection';
 import { DateFilterLinks } from '@/components/discovery/DateFilterLinks';
 import { discoverPageFAQs, discoverPageHowTo } from '@/lib/content/discoverPageContent';
 import { VenueStats } from '@/components/VenueStats';
+import { filterEventsByDateRange } from '../../lib/utils/eventDateFilter';
 
 interface DiscoveryClientProps {
   initialTrendingEvents: any[];
