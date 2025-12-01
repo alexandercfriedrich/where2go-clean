@@ -5,6 +5,10 @@
       "schedule": "0 2 * * *"
     },
     {
+      "path": "/api/cron/scrape-wien-info?limit=200",
+      "schedule": "0 3 * * *"
+    },
+    {
       "path": "/api/cron/cache-warmup",
       "schedule": "0 6 * * *"
     }
