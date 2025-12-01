@@ -344,8 +344,9 @@ export class WienInfoScraper {
       .limit(this.options.limit);
 
     // Execute query with optional time filter
+    // Use ::text cast to convert timestamp for LIKE pattern matching
     const { data, error } = this.options.onlyMissingTimes
-      ? await baseQuery.like('start_date_time', '%T00:00:00%')
+      ? await baseQuery.filter('start_date_time::text', 'like', '%T00:00:00%')
       : await baseQuery;
 
     if (error) {
