@@ -31,7 +31,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scrapeWienInfoEvents } from '@/lib/scrapers/wienInfoScraper';
 import { validateSupabaseConfig } from '@/lib/supabase/client';
-import { timingSafeEqual } from 'crypto';
+import { timingSafeEqual, createHash } from 'crypto';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes for scraping
@@ -47,21 +47,15 @@ export async function POST(request: NextRequest) {
     
     // If Bearer token is provided and ADMIN_WARMUP_SECRET is set, validate it
     if (authHeader && authHeader.startsWith('Bearer ') && adminSecret) {
-      const expectedAuth = `Bearer ${adminSecret}`;
-      
-      // Only reject if Bearer token is invalid (wrong token)
-      if (authHeader.length !== expectedAuth.length) {
-        console.warn('[ADMIN:WIEN-SCRAPER] Invalid Bearer token length');
-        return NextResponse.json(
-          { error: 'Unauthorized - Invalid Bearer token' },
-          { status: 401 }
-        );
-      }
+      const providedToken = authHeader.slice(7); // Remove 'Bearer ' prefix
       
       try {
-        const authBuffer = Buffer.from(authHeader, 'utf8');
-        const expectedBuffer = Buffer.from(expectedAuth, 'utf8');
-        if (!timingSafeEqual(authBuffer, expectedBuffer)) {
+        // Hash both tokens to get fixed-length outputs for constant-time comparison
+        // This prevents timing attacks by ensuring we always compare same-length values
+        const providedHash = createHash('sha256').update(providedToken).digest();
+        const expectedHash = createHash('sha256').update(adminSecret).digest();
+        
+        if (!timingSafeEqual(providedHash, expectedHash)) {
           console.warn('[ADMIN:WIEN-SCRAPER] Invalid Bearer token');
           return NextResponse.json(
             { error: 'Unauthorized - Invalid Bearer token' },
