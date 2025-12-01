@@ -82,6 +82,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE;
 
+-- Set search_path to ensure function can find tables in public schema
+ALTER FUNCTION get_top_venues(text, integer, text) SET search_path = public;
+
 -- Function to get venue details with upcoming events
 -- Returns JSON object with venue info, stats, and event list
 CREATE OR REPLACE FUNCTION get_venue_with_events(
