@@ -31,7 +31,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scrapeWienInfoEvents } from '@/lib/scrapers/wienInfoScraper';
 import { validateSupabaseConfig } from '@/lib/supabase/client';
-import { timingSafeEqual, createHash } from 'crypto';
+import { timingSafeEqual } from 'crypto';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes for scraping
@@ -47,15 +47,22 @@ export async function POST(request: NextRequest) {
     
     // If Bearer token is provided and ADMIN_WARMUP_SECRET is set, validate it
     if (authHeader && authHeader.startsWith('Bearer ') && adminSecret) {
-      const providedToken = authHeader.slice(7); // Remove 'Bearer ' prefix
+      const expectedAuth = `Bearer ${adminSecret}`;
+      
+      // Only reject if Bearer token is invalid (wrong token)
+      // If no Bearer token provided, middleware Basic Auth will handle it
+      if (authHeader.length !== expectedAuth.length) {
+        console.warn('[ADMIN:WIEN-SCRAPER] Invalid Bearer token length');
+        return NextResponse.json(
+          { error: 'Unauthorized - Invalid Bearer token' },
+          { status: 401 }
+        );
+      }
       
       try {
-        // Hash both tokens to get fixed-length outputs for constant-time comparison
-        // This prevents timing attacks by ensuring we always compare same-length values
-        const providedHash = createHash('sha256').update(providedToken).digest();
-        const expectedHash = createHash('sha256').update(adminSecret).digest();
-        
-        if (!timingSafeEqual(providedHash, expectedHash)) {
+        const authBuffer = Buffer.from(authHeader, 'utf8');
+        const expectedBuffer = Buffer.from(expectedAuth, 'utf8');
+        if (!timingSafeEqual(authBuffer, expectedBuffer)) {
           console.warn('[ADMIN:WIEN-SCRAPER] Invalid Bearer token');
           return NextResponse.json(
             { error: 'Unauthorized - Invalid Bearer token' },
@@ -94,13 +101,13 @@ export async function POST(request: NextRequest) {
     const scrapeAll = searchParams.get('all') === 'true';
     const limitParam = searchParams.get('limit');
     
-    // Parse limit with validation
-    let limit = 100;
+    // Parse limit with validation - default to 10000 to process all events with missing times
+    let limit = 10000;
     if (limitParam) {
       const parsedLimit = parseInt(limitParam, 10);
-      if (isNaN(parsedLimit) || parsedLimit < 1 || parsedLimit > 1000) {
+      if (isNaN(parsedLimit) || parsedLimit < 1 || parsedLimit > 50000) {
         return NextResponse.json(
-          { error: 'Invalid limit. Must be between 1 and 1000.' },
+          { error: 'Invalid limit. Must be between 1 and 50000.' },
           { status: 400 }
         );
       }
@@ -192,7 +199,7 @@ export async function GET(request: NextRequest) {
     },
     queryParameters: {
       dryRun: 'boolean (optional) - Run without writing to database',
-      limit: 'number (optional) - Maximum events to scrape (default: 100, max: 1000)',
+      limit: 'number (optional) - Maximum events to scrape (default: 10000, max: 50000)',
       debug: 'boolean (optional) - Enable verbose logging',
       all: 'boolean (optional) - If true, scrape all events, not just those with missing times (default: false)'
     },

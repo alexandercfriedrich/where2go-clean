@@ -76,7 +76,7 @@ export class WienInfoScraper {
   constructor(options: ScraperOptions = {}) {
     this.options = {
       dryRun: options.dryRun ?? false,
-      limit: options.limit ?? 100,
+      limit: options.limit ?? 10000, // Default to 10000 to process all events with missing times
       debug: options.debug ?? false,
       rateLimit: options.rateLimit ?? 2,
       onlyMissingTimes: options.onlyMissingTimes ?? true,
