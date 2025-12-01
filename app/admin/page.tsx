@@ -13,6 +13,8 @@ export default function AdminPage() {
   const [warmupMessage, setWarmupMessage] = useState<string | null>(null);
   const [scraperLoading, setScraperLoading] = useState(false);
   const [scraperMessage, setScraperMessage] = useState<string | null>(null);
+  const [wienScraperLoading, setWienScraperLoading] = useState(false);
+  const [wienScraperMessage, setWienScraperMessage] = useState<string | null>(null);
 
   useEffect(() => {
     loadCities();
@@ -185,6 +187,50 @@ export default function AdminPage() {
       setScraperMessage('❌ Error: ' + (err?.message || 'Unknown error'));
     } finally {
       setScraperLoading(false);
+    }
+  };
+
+  const handleWienScraper = async () => {
+    if (!confirm('Start Wien.info event scraper? This will scrape event detail pages to extract event times. This may take a few minutes.')) return;
+
+    try {
+      setWienScraperLoading(true);
+      setWienScraperMessage('Scraping Wien.info event detail pages...');
+
+      const response = await fetch('/api/admin/wien-scraper', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (!response.ok && response.status !== 207) {
+        throw new Error(data?.message || data?.error || 'Failed to run Wien.info scraper');
+      }
+
+      // Display success message with stats
+      if (data?.stats) {
+        const s = data.stats;
+        const scraped = typeof s.eventsScraped === 'number' ? s.eventsScraped : 0;
+        const updated = typeof s.eventsUpdated === 'number' ? s.eventsUpdated : 0;
+        const failed = typeof s.eventsFailed === 'number' ? s.eventsFailed : 0;
+        const duration = s.duration || '–';
+
+        const headline = data.success === false ? '⚠️' : '✅';
+        setWienScraperMessage(
+          `${headline} Scraping complete. Events scraped: ${scraped}, Updated: ${updated}, Failed: ${failed}, Duration: ${duration}`
+        );
+      } else if (data?.message) {
+        setWienScraperMessage('✅ ' + data.message);
+      } else {
+        setWienScraperMessage('✅ Done.');
+      }
+    } catch (err: any) {
+      setWienScraperMessage('❌ Error: ' + (err?.message || 'Unknown error'));
+    } finally {
+      setWienScraperLoading(false);
     }
   };
 
@@ -388,6 +434,14 @@ export default function AdminPage() {
           >
             {scraperLoading ? '⏳ Scraping...' : '🎯 Venue Scraper'}
           </button>
+          <button 
+            className="btn btn-secondary" 
+            onClick={handleWienScraper}
+            disabled={wienScraperLoading}
+            style={{ marginRight: '10px' }}
+          >
+            {wienScraperLoading ? '⏳ Scraping...' : '🕐 Wien.info Scraper'}
+          </button>
           <button className="btn btn-primary" onClick={handleCreateCity}>
             Add New City
           </button>
@@ -420,6 +474,20 @@ export default function AdminPage() {
         }}
         dangerouslySetInnerHTML={{ __html: scraperMessage }}
       />
+      )}
+
+      {wienScraperMessage && (
+        <div style={{
+          padding: '15px',
+          marginBottom: '20px',
+          borderRadius: '5px',
+          backgroundColor: wienScraperMessage.startsWith('✅') ? '#d4edda' : '#f8d7da',
+          color: wienScraperMessage.startsWith('✅') ? '#155724' : '#721c24',
+          border: wienScraperMessage.startsWith('✅') ? '1px solid #c3e6cb' : '1px solid #f5c6cb',
+          fontSize: '14px'
+        }}>
+          {wienScraperMessage}
+        </div>
       )}
 
       <div style={{ marginBottom: '30px' }}>
