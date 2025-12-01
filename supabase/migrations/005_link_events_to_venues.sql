@@ -76,8 +76,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Set search_path to ensure function can find tables in public schema
-ALTER FUNCTION link_events_to_venues(text[], real) SET search_path = public;
+-- Set search_path to ensure function can find tables in public and extensions schemas
+ALTER FUNCTION link_events_to_venues(text[], real) SET search_path =public, extensions;
 
 -- Add comment for documentation
 COMMENT ON FUNCTION link_events_to_venues(text[], real) IS 'Links events to venues by matching custom_venue_name with venue name and city. Uses exact matching first, then fuzzy matching with similarity threshold. Filters by source if provided. Returns count of events linked.';
