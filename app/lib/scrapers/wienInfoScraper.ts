@@ -334,7 +334,7 @@ export class WienInfoScraper {
     start_date_time: string;
   }>> {
     // Build base query
-    const baseQuery = supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from('events')
       .select('id, title, source_url, start_date_time')
       .eq('source', 'wien.info')
@@ -342,12 +342,6 @@ export class WienInfoScraper {
       .like('source_url', '%wien.info%')
       .order('start_date_time', { ascending: true })
       .limit(this.options.limit);
-
-    // Execute query with optional time filter
-    // Use ::text cast to convert timestamp for LIKE pattern matching
-    const { data, error } = this.options.onlyMissingTimes
-      ? await baseQuery.filter('start_date_time::text', 'like', '%T00:00:00%')
-      : await baseQuery;
 
     if (error) {
       this.log(`Error fetching events: ${error.message}`, 'error');
@@ -362,10 +356,22 @@ export class WienInfoScraper {
       start_date_time: string;
     }>;
 
-    return events
-      .filter((e): e is { id: string; title: string; source_url: string; start_date_time: string } => 
+    // Filter events with valid source_url
+    let filteredEvents = events.filter(
+      (e): e is { id: string; title: string; source_url: string; start_date_time: string } => 
         e.source_url !== null
-      );
+    );
+
+    // If onlyMissingTimes is true, filter to events with 00:00:00 time (no specific time set)
+    if (this.options.onlyMissingTimes) {
+      filteredEvents = filteredEvents.filter(e => {
+        // Check if the time portion is 00:00:00 (midnight = no specific time)
+        const dateStr = e.start_date_time;
+        return dateStr.includes('T00:00:00') || dateStr.includes(' 00:00:00');
+      });
+    }
+
+    return filteredEvents;
   }
 
   /**
