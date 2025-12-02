@@ -400,7 +400,7 @@ export default async function CityParamsPage({ params }: { params: { city: strin
 
             return (
               <div key={key} className="dark-event-card" {...microdata}>
-                <link itemProp="url" href={canonicalUrl} />
+                {canonicalUrl && <link itemProp="url" href={canonicalUrl} />}
                 <meta itemProp="eventStatus" content="https://schema.org/EventScheduled" />
                 <meta itemProp="eventAttendanceMode" content="https://schema.org/OfflineEventAttendanceMode" />
                 {ev.imageUrl && (

@@ -360,15 +360,16 @@ describe('Schema.org Utilities', () => {
         venue: 'Central Park',
         city: 'Berlin',
         price: '25€',
-        website: 'https://example.com'
+        website: 'https://example.com',
+        slug: 'summer-festival-2025-central-park-2025-06-15-abc12345' // Database slug with UUID suffix
       };
 
       const url = generateCanonicalUrl(event, 'https://where2go.com');
       
-      expect(url).toBe('https://where2go.com/berlin/event/2025-06-15/summer-festival-2025');
+      expect(url).toBe('https://where2go.com/events/berlin/summer-festival-2025-central-park-2025-06-15-abc12345');
     });
 
-    it('should normalize title correctly', () => {
+    it('should return null when no database slug is provided', () => {
       const event: EventData = {
         title: 'Rock & Roll Night!!!',
         category: 'Music',
@@ -378,30 +379,31 @@ describe('Schema.org Utilities', () => {
         city: 'Wien',
         price: '10€',
         website: 'https://example.com'
+        // No slug field - should return null
       };
 
       const url = generateCanonicalUrl(event);
       
-      expect(url).toContain('/wien/event/');
-      expect(url).toContain('rock-roll-night');
-      expect(url).not.toContain('&');
-      expect(url).not.toContain('!');
+      // Should return null when slug is missing to prevent URL mismatch
+      expect(url).toBeNull();
     });
 
-    it('should handle missing city', () => {
+    it('should use database slug directly without modification', () => {
       const event: EventData = {
         title: 'Test Event',
         category: 'Music',
         date: '2025-01-20',
         time: '19:00',
         venue: 'The Venue Name',
+        city: 'Wien',
         price: '10€',
-        website: 'https://example.com'
+        website: 'https://example.com',
+        slug: 'test-event-the-venue-name-2025-01-20-xyz78901'
       };
 
       const url = generateCanonicalUrl(event);
       
-      expect(url).toContain('/the-venue-name/event/');
+      expect(url).toContain('/events/wien/test-event-the-venue-name-2025-01-20-xyz78901');
     });
 
     it('should use default baseUrl if not provided', () => {
@@ -413,7 +415,8 @@ describe('Schema.org Utilities', () => {
         venue: 'Venue',
         city: 'Wien',
         price: '10€',
-        website: 'https://example.com'
+        website: 'https://example.com',
+        slug: 'test-event-venue-2025-01-20-def45678'
       };
 
       const url = generateCanonicalUrl(event);
@@ -421,7 +424,7 @@ describe('Schema.org Utilities', () => {
       expect(url).toContain('www.where2go.at');
     });
 
-    it('should normalize diacritics in city and title', () => {
+    it('should normalize city diacritics but use database slug as-is', () => {
       const event: EventData = {
         title: 'Fête de la Musique – Café Français',
         category: 'Music',
@@ -430,15 +433,14 @@ describe('Schema.org Utilities', () => {
         venue: 'Café',
         city: 'Zürich',
         price: '15€',
-        website: 'https://example.com'
+        website: 'https://example.com',
+        slug: 'fete-de-la-musique-cafe-francais-2025-06-21-ghi23456'
       };
 
       const url = generateCanonicalUrl(event, 'https://where2go.com');
       
-      expect(url).toBe('https://where2go.com/zurich/event/2025-06-21/fete-de-la-musique-cafe-francais');
-      expect(url).not.toContain('é');
-      expect(url).not.toContain('ü');
-      expect(url).not.toContain('–');
+      expect(url).toBe('https://where2go.com/events/zurich/fete-de-la-musique-cafe-francais-2025-06-21-ghi23456');
+      expect(url).not.toContain('ü'); // City normalized
     });
   });
 
