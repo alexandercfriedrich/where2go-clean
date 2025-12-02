@@ -6,6 +6,79 @@ export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes
 
 /**
+ * Scraper options parsed from query parameters
+ */
+interface ScraperParams {
+  limit: number;
+  dryRun: boolean;
+  debug: boolean;
+  scrapeAll: boolean;
+}
+
+/**
+ * Parse scraper options from URL search params
+ */
+function parseScraperParams(searchParams: URLSearchParams): ScraperParams {
+  return {
+    limit: parseInt(searchParams.get('limit') || '100', 10),
+    dryRun: searchParams.get('dryRun') === 'true',
+    debug: searchParams.get('debug') === 'true',
+    scrapeAll: searchParams.get('all') === 'true',
+  };
+}
+
+/**
+ * Shared scraper logic for both GET and POST handlers
+ * Runs the Wien.info event detail scraper
+ */
+async function runWienInfoScraper(params: ScraperParams): Promise<NextResponse> {
+  const { limit, dryRun, debug, scrapeAll } = params;
+  
+  console.log('[CRON:SCRAPE-WIEN-INFO] Starting Wien.info event scraper', {
+    limit,
+    dryRun,
+    debug,
+    onlyMissingTimes: !scrapeAll,
+  });
+
+  // Run the scraper
+  const result = await scrapeWienInfoEvents({
+    limit,
+    dryRun,
+    debug,
+    onlyMissingTimes: !scrapeAll,
+    rateLimit: 2, // 2 requests per second to be respectful
+  });
+
+  console.log('[CRON:SCRAPE-WIEN-INFO] Scraping complete', result);
+
+  if (!result.success) {
+    return NextResponse.json({
+      success: false,
+      message: 'Scraping completed with errors',
+      stats: {
+        eventsScraped: result.eventsScraped,
+        eventsUpdated: result.eventsUpdated,
+        eventsFailed: result.eventsFailed,
+        duration: `${result.duration}ms`,
+      },
+      errors: result.errors.slice(0, 10), // Limit error output
+    }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    success: true,
+    message: 'Wien.info event scraping completed successfully',
+    stats: {
+      eventsScraped: result.eventsScraped,
+      eventsUpdated: result.eventsUpdated,
+      eventsFailed: result.eventsFailed,
+      duration: `${result.duration}ms`,
+    },
+  });
+}
+
+/**
  * POST /api/cron/scrape-wien-info
  * 
  * Cron job endpoint that scrapes Wien.info event detail pages to extract
@@ -33,55 +106,9 @@ export async function POST(request: NextRequest) {
       return authResult.errorResponse!;
     }
 
-    // Parse query parameters
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '100', 10);
-    const dryRun = searchParams.get('dryRun') === 'true';
-    const debug = searchParams.get('debug') === 'true';
-    const scrapeAll = searchParams.get('all') === 'true';
-
-    console.log('[CRON:SCRAPE-WIEN-INFO] Starting Wien.info event scraper', {
-      limit,
-      dryRun,
-      debug,
-      onlyMissingTimes: !scrapeAll,
-    });
-
-    // Run the scraper
-    const result = await scrapeWienInfoEvents({
-      limit,
-      dryRun,
-      debug,
-      onlyMissingTimes: !scrapeAll,
-      rateLimit: 2, // 2 requests per second to be respectful
-    });
-
-    console.log('[CRON:SCRAPE-WIEN-INFO] Scraping complete', result);
-
-    if (!result.success) {
-      return NextResponse.json({
-        success: false,
-        message: 'Scraping completed with errors',
-        stats: {
-          eventsScraped: result.eventsScraped,
-          eventsUpdated: result.eventsUpdated,
-          eventsFailed: result.eventsFailed,
-          duration: `${result.duration}ms`,
-        },
-        errors: result.errors.slice(0, 10), // Limit error output
-      }, { status: 500 });
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Wien.info event scraping completed successfully',
-      stats: {
-        eventsScraped: result.eventsScraped,
-        eventsUpdated: result.eventsUpdated,
-        eventsFailed: result.eventsFailed,
-        duration: `${result.duration}ms`,
-      },
-    });
+    const params = parseScraperParams(searchParams);
+    return await runWienInfoScraper(params);
 
   } catch (error: any) {
     console.error('[CRON:SCRAPE-WIEN-INFO] Fatal error:', error);
@@ -116,55 +143,9 @@ export async function GET(request: NextRequest) {
       return authResult.errorResponse!;
     }
 
-    // Parse query parameters
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get('limit') || '100', 10);
-    const dryRun = searchParams.get('dryRun') === 'true';
-    const debug = searchParams.get('debug') === 'true';
-    const scrapeAll = searchParams.get('all') === 'true';
-
-    console.log('[CRON:SCRAPE-WIEN-INFO] Starting Wien.info event scraper (via GET)', {
-      limit,
-      dryRun,
-      debug,
-      onlyMissingTimes: !scrapeAll,
-    });
-
-    // Run the scraper
-    const result = await scrapeWienInfoEvents({
-      limit,
-      dryRun,
-      debug,
-      onlyMissingTimes: !scrapeAll,
-      rateLimit: 2, // 2 requests per second to be respectful
-    });
-
-    console.log('[CRON:SCRAPE-WIEN-INFO] Scraping complete', result);
-
-    if (!result.success) {
-      return NextResponse.json({
-        success: false,
-        message: 'Scraping completed with errors',
-        stats: {
-          eventsScraped: result.eventsScraped,
-          eventsUpdated: result.eventsUpdated,
-          eventsFailed: result.eventsFailed,
-          duration: `${result.duration}ms`,
-        },
-        errors: result.errors.slice(0, 10), // Limit error output
-      }, { status: 500 });
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: 'Wien.info event scraping completed successfully',
-      stats: {
-        eventsScraped: result.eventsScraped,
-        eventsUpdated: result.eventsUpdated,
-        eventsFailed: result.eventsFailed,
-        duration: `${result.duration}ms`,
-      },
-    });
+    const params = parseScraperParams(searchParams);
+    return await runWienInfoScraper(params);
 
   } catch (error: any) {
     console.error('[CRON:SCRAPE-WIEN-INFO] Fatal error:', error);
