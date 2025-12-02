@@ -242,11 +242,12 @@ export async function getUpcomingEvents(
 /**
  * Validate that event has slug before processing
  * Logs error if slug is missing for monitoring
+ * @returns true if slug exists, false otherwise
  */
-function validateEventSlug(event: any): void {
+function validateEventSlug(event: any): boolean {
   if (!event.slug) {
     console.error(
-      `[SLUG_MISSING] Event without slug detected:`,
+      `[SLUG_MISSING] Event without slug detected - will be excluded from results:`,
       {
         id: event.id,
         title: event.title,
@@ -254,10 +255,9 @@ function validateEventSlug(event: any): void {
         source: event.source || 'unknown',
       }
     );
-    
-    // This should never happen since all events have slugs,
-    // but we log it for monitoring purposes
+    return false;
   }
+  return true;
 }
 
 /**
@@ -267,10 +267,14 @@ function validateEventSlug(event: any): void {
  * NOTE: We use string parsing instead of Date objects to avoid timezone issues.
  * Database stores UTC timestamps, and we want to extract date/time exactly as stored
  * without local timezone conversion that could shift dates by ±1 day.
+ * 
+ * @returns EventData object or null if event has no slug (invalid event)
  */
-export function convertToEventData(event: any): EventData {
-  // Validate slug presence
-  validateEventSlug(event);
+export function convertToEventData(event: any): EventData | null {
+  // Validate slug presence - return null if missing
+  if (!validateEventSlug(event)) {
+    return null;
+  }
   
   // Extract date and time directly from ISO string to avoid timezone issues
   // Format: "2025-12-03T00:00:00.000Z" or "2025-12-03T19:30:00.000Z"
