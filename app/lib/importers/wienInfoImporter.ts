@@ -231,10 +231,13 @@ function convertToRawEventInput(events: EventData[]): RawEventInput[] {
       if (event.date && event.time) {
         // Handle 'ganztags' (all-day) events - use 00:00:01 as the marker
         // This distinguishes all-day events from actual midnight events
-        const timeStr = /ganztags|all[- ]?day|ganztagig/i.test(event.time) 
-          ? '00:00:01' 
-          : event.time;
-        startDateTime = `${event.date}T${timeStr}:00.000Z`;
+        if (/ganztags|all[- ]?day|ganztagig/i.test(event.time)) {
+          // All-day event: use 00:00:01 marker
+          startDateTime = `${event.date}T00:00:01.000Z`;
+        } else {
+          // Regular time: format HH:MM becomes HH:MM:00.000Z
+          startDateTime = `${event.date}T${event.time}:00.000Z`;
+        }
       } else if (event.date) {
         // No time specified means all-day event, use 00:00:01 marker
         startDateTime = `${event.date}T00:00:01.000Z`;
