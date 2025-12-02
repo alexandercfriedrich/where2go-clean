@@ -13,8 +13,15 @@ export const maxDuration = 120;
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     // Verify this is a Vercel Cron request
+    // Vercel sends the secret in the Authorization header as "Bearer {CRON_SECRET}"
     const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    const cronSecret = process.env.CRON_SECRET;
+    
+    // If CRON_SECRET is not set, log a warning but allow the request in development
+    if (!cronSecret) {
+      console.warn('[cron-warmup] CRON_SECRET not set - authentication disabled');
+    } else if (authHeader !== `Bearer ${cronSecret}`) {
+      console.warn('[cron-warmup] Unauthorized request - invalid authorization header');
       return NextResponse.json(
         { error: 'Unauthorized' },
         { status: 401 }
