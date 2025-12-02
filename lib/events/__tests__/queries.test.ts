@@ -55,4 +55,76 @@ describe('convertToEventData', () => {
     expect(result.venue).toBe('Fallback Location');
     expect(result.slug).toBe('event-with-location-2025-12-03-xyz789');
   });
+
+  describe('date and time parsing', () => {
+    it('should extract date and time from ISO string without timezone conversion', () => {
+      const dbEvent = {
+        title: 'Midnight Event',
+        start_date_time: '2025-12-03T00:00:00.000Z',
+        category: 'Event',
+        city: 'Wien',
+      };
+
+      const result = convertToEventData(dbEvent);
+
+      // Should extract date directly from ISO string, not convert to local timezone
+      expect(result.date).toBe('2025-12-03');
+      expect(result.time).toBe('00:00');
+    });
+
+    it('should handle events at 00:00:01 (all-day marker)', () => {
+      const dbEvent = {
+        title: 'All Day Event',
+        start_date_time: '2025-12-03T00:00:01.000Z',
+        category: 'Event',
+        city: 'Wien',
+      };
+
+      const result = convertToEventData(dbEvent);
+
+      expect(result.date).toBe('2025-12-03');
+      expect(result.time).toBe('00:00'); // Time still extracted
+    });
+
+    it('should extract correct date for evening events', () => {
+      const dbEvent = {
+        title: 'Evening Event',
+        start_date_time: '2025-12-03T19:30:00.000Z',
+        category: 'Event',
+        city: 'Wien',
+      };
+
+      const result = convertToEventData(dbEvent);
+
+      expect(result.date).toBe('2025-12-03');
+      expect(result.time).toBe('19:30');
+    });
+
+    it('should handle events close to midnight', () => {
+      const dbEvent = {
+        title: 'Late Night Event',
+        start_date_time: '2025-12-03T23:59:00.000Z',
+        category: 'Event',
+        city: 'Wien',
+      };
+
+      const result = convertToEventData(dbEvent);
+
+      expect(result.date).toBe('2025-12-03');
+      expect(result.time).toBe('23:59');
+    });
+
+    it('should handle missing start_date_time', () => {
+      const dbEvent = {
+        title: 'Event Without Time',
+        category: 'Event',
+        city: 'Wien',
+      };
+
+      const result = convertToEventData(dbEvent);
+
+      expect(result.date).toBe('');
+      expect(result.time).toBe('00:00');
+    });
+  });
 });
