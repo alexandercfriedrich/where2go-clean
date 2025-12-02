@@ -16,7 +16,14 @@ interface FetchWienInfoOptions {
   fromISO: string;          // YYYY-MM-DD
   toISO: string;            // YYYY-MM-DD
   categories: string[];     // Main categories to filter for
-  limit?: number;           // Maximum number of events to return (optional, defaults to unlimited)
+  /**
+   * Maximum number of raw events to process BEFORE expansion.
+   * Note: Multi-date events are expanded AFTER this limit is applied,
+   * so the final number of returned events may exceed this limit.
+   * For example, if limit=100 and each event averages 5 dates,
+   * the result could contain up to 500 expanded events.
+   */
+  limit?: number;
   debug?: boolean;          // Enable debug logging
   debugVerbose?: boolean;   // Enable verbose debug logging
 }
@@ -243,12 +250,18 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
     }
 
     // 8) Normalize to our EventData format (limited by "limit")
-    const normalizedEvents = (limit ? filteredEvents.slice(0, limit) : filteredEvents).map((event) =>
-      normalizeWienInfoEvent(event, categories, fromISO, toISO)
-    );
+    // For events with multiple dates (dates[] array), create one EventData entry per date
+    const eventsToNormalize = limit ? filteredEvents.slice(0, limit) : filteredEvents;
+    const normalizedEvents: EventData[] = [];
+    
+    for (const event of eventsToNormalize) {
+      const expandedEvents = expandWienInfoEventDates(event, categories, fromISO, toISO);
+      normalizedEvents.push(...expandedEvents);
+    }
 
     if (debug) {
       console.log('[WIEN.INFO:FETCH] Final normalized events:', normalizedEvents.length);
+      console.log('[WIEN.INFO:FETCH] Events expanded from', eventsToNormalize.length, 'raw events');
       if (debugVerbose) console.log('[WIEN.INFO:FETCH] Events:', normalizedEvents);
     }
 
@@ -277,6 +290,108 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
 }
 
 /**
+ * Expands a Wien.info event with multiple dates into multiple EventData entries.
+ * For events with dates[] array, creates one EventData per date within the search window.
+ * For events with only startDate/endDate range, creates a single entry.
+ * 
+ * This ensures that multi-day events (e.g., exhibitions, recurring shows) are stored
+ * as separate records in Supabase for each occurrence date.
+ */
+function expandWienInfoEventDates(
+  wienInfoEvent: WienInfoEvent,
+  _requestedCategories: string[],
+  fromISO: string,
+  toISO: string
+): EventData[] {
+  const from = new Date(fromISO + 'T00:00:00');
+  const to = new Date(toISO + 'T23:59:59');
+  const results: EventData[] = [];
+
+  // Helper to extract time or return 'ganztags' for input processing
+  // Wien.info returns 00:00 when no specific time is set - we convert to 'ganztags'
+  // which will be stored as 00:00:01 in Supabase
+  const extractTimeOrAllDay = (isoDateTime?: string): string => {
+    if (!isoDateTime || !isoDateTime.includes('T')) return 'ganztags';
+    const hhmm = isoDateTime.split('T')[1]?.split(/[+Z]/)[0]?.slice(0, 5) || '';
+    if (!/^\d{2}:\d{2}$/.test(hhmm)) return 'ganztags';
+    // Wien.info uses 00:00 or 00:01 when no specific time is available
+    // Convert these to 'ganztags' which will be stored as 00:00:01 in Supabase
+    if (hhmm === '00:00' || hhmm === '00:01') return 'ganztags';
+    return hhmm;
+  };
+
+  // Common event data (shared across all dates)
+  const canonical = canonicalizeWienInfoLabel(wienInfoEvent.category || '');
+  const category = mapWienInfoCategoryLabelToWhereToGo(canonical) ?? 'Kultur/Traditionen';
+
+  const fullUrl = wienInfoEvent.url?.startsWith('http')
+    ? wienInfoEvent.url
+    : `https://www.wien.info${wienInfoEvent.url}`;
+
+  const rawImageUrl = wienInfoEvent.imageUrl || wienInfoEvent.image_url;
+  const imageUrl = rawImageUrl?.startsWith('http')
+    ? rawImageUrl
+    : rawImageUrl
+    ? `https://www.wien.info${rawImageUrl}`
+    : undefined;
+
+  const description = wienInfoEvent.subtitle 
+    || wienInfoEvent.description 
+    || wienInfoEvent.teaserText 
+    || '';
+  
+  const bookingLink = wienInfoEvent.ticket_url || undefined;
+  const price = wienInfoEvent.price || '';
+  const address = wienInfoEvent.address || wienInfoEvent.location || 'Wien, Austria';
+
+  // If event has dates[] array, create one entry per date within the window
+  if (Array.isArray(wienInfoEvent.dates) && wienInfoEvent.dates.length > 0) {
+    for (const dateTimeStr of wienInfoEvent.dates) {
+      const dt = new Date(dateTimeStr);
+      // Only include dates within our search window
+      if (dt >= from && dt <= to) {
+        const date = dateTimeStr.split('T')[0];
+        const time = extractTimeOrAllDay(dateTimeStr);
+        
+        let endTime: string | undefined = undefined;
+        if (wienInfoEvent.endDate && wienInfoEvent.endDate.includes('T')) {
+          const t = wienInfoEvent.endDate.split('T')[1]?.split(/[+Z]/)[0]?.slice(0, 5);
+          if (t && /^\d{2}:\d{2}$/.test(t) && t !== '00:00' && t !== '00:01') endTime = t;
+        }
+
+        results.push({
+          title: wienInfoEvent.title,
+          category,
+          date,
+          time: wienInfoEvent.start_time || time,
+          venue: wienInfoEvent.location || 'Wien',
+          price,
+          website: fullUrl,
+          source: wienInfoEvent.source || 'wien.info',
+          city: 'Wien',
+          description,
+          address,
+          ...(endTime || wienInfoEvent.end_time ? { endTime: wienInfoEvent.end_time || endTime } : {}),
+          ...(imageUrl ? { imageUrl } : {}),
+          ...(bookingLink ? { bookingLink } : {})
+        } as unknown as EventData);
+      }
+    }
+  }
+  
+  // If no dates[] or no dates matched, fall back to startDate/endDate range
+  if (results.length === 0) {
+    // Use the original single-date normalization
+    const normalized = normalizeWienInfoEvent(wienInfoEvent, _requestedCategories, fromISO, toISO);
+    if (normalized.date) {
+      results.push(normalized);
+    }
+  }
+
+  return results;
+}
+
+/**
  * Pick the best date and time for an event within the search window.
  * - Prefers a dates[] instance that falls inside [fromISO..toISO]
  * - Else, if [startDate..endDate] intersects the window, use fromISO and time from startDate (if present)
@@ -284,7 +399,8 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
  *
  * Additionally:
  * - If no concrete time is available, label as "ganztags"
- * - Treat "00:00" as all-day -> "ganztags"
+ * - Wien.info uses "00:00" or "00:01" when no time is specified - convert to "ganztags"
+ *   (Supabase stores all-day events as 00:00:01 to distinguish from midnight events)
  */
 function pickDateTimeWithinWindow(
   event: WienInfoEvent,
@@ -294,11 +410,15 @@ function pickDateTimeWithinWindow(
   const from = new Date(fromISO + 'T00:00:00');
   const to = new Date(toISO + 'T23:59:59');
 
+  // Helper to extract time or return 'ganztags' for input processing
+  // Wien.info returns 00:00 or 00:01 when no specific time is set
   const extractTimeOrAllDay = (isoDateTime?: string): string => {
     if (!isoDateTime || !isoDateTime.includes('T')) return 'ganztags';
     const hhmm = isoDateTime.split('T')[1]?.split(/[+Z]/)[0]?.slice(0, 5) || '';
     if (!/^\d{2}:\d{2}$/.test(hhmm)) return 'ganztags';
-    if (hhmm === '00:00') return 'ganztags';
+    // Wien.info uses 00:00 or 00:01 when no specific time is available
+    // Convert these to 'ganztags' which will be stored as 00:00:01 in Supabase
+    if (hhmm === '00:00' || hhmm === '00:01') return 'ganztags';
     return hhmm;
   };
 
@@ -392,7 +512,8 @@ function normalizeWienInfoEvent(
   let endTime: string | undefined = undefined;
   if (wienInfoEvent.endDate && wienInfoEvent.endDate.includes('T')) {
     const t = wienInfoEvent.endDate.split('T')[1]?.split(/[+Z]/)[0]?.slice(0, 5);
-    if (t && /^\d{2}:\d{2}$/.test(t) && t !== '00:00') endTime = t;
+    // Exclude both 00:00 and 00:01 as they indicate all-day events
+    if (t && /^\d{2}:\d{2}$/.test(t) && t !== '00:00' && t !== '00:01') endTime = t;
   }
 
   const fullUrl = wienInfoEvent.url?.startsWith('http')

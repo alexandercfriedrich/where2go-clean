@@ -69,7 +69,8 @@ function formatGermanDate(dateStr: string): string {
 function getEventTime(event: any): string | null {
   if (event.time) {
     // Check if time should be treated as all-day
-    if (event.time === '00:00' || event.time === '01:00' || event.time === 'ganztags') {
+    // Only 00:00:01 is recognized as the all-day marker for data integrity
+    if (event.time === '00:00:01' || event.time === 'ganztags') {
       return null; // Will display as "ganztags"
     }
     return event.time;
@@ -77,11 +78,14 @@ function getEventTime(event: any): string | null {
   if (event.start_date_time) {
     try {
       const date = new Date(event.start_date_time);
-      const timeStr = date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-      // Treat midnight and 1 AM as all-day events
-      if (timeStr === '00:00' || timeStr === '01:00') {
+      const hours = date.getUTCHours();
+      const minutes = date.getUTCMinutes();
+      const seconds = date.getUTCSeconds();
+      // Only treat 00:00:01 as all-day (the Supabase marker)
+      if (hours === 0 && minutes === 0 && seconds === 1) {
         return null; // Will display as "ganztags"
       }
+      const timeStr = date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
       return timeStr;
     } catch {
       return null;

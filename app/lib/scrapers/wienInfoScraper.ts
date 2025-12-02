@@ -362,12 +362,15 @@ export class WienInfoScraper {
         e.source_url !== null
     );
 
-    // If onlyMissingTimes is true, filter to events with 00:00:00 time (no specific time set)
+    // If onlyMissingTimes is true, filter to events that need time scraping
+    // These are events stored with either:
+    // - 00:00:00 (original data had no specific time)
+    // - 00:00:01 (already marked as all-day in Supabase)
     if (this.options.onlyMissingTimes) {
       filteredEvents = filteredEvents.filter(e => {
-        // Check if the time portion is 00:00:00 (midnight = no specific time)
         const dateStr = e.start_date_time;
-        return dateStr.includes('T00:00:00') || dateStr.includes(' 00:00:00');
+        return dateStr.includes('T00:00:00') || dateStr.includes(' 00:00:00') ||
+               dateStr.includes('T00:00:01') || dateStr.includes(' 00:00:01');
       });
     }
 

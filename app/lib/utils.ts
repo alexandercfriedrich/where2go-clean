@@ -2,6 +2,12 @@
  * Utility functions for the application
  */
 
+/**
+ * Time format regex for HH:mm validation
+ * Matches times from 00:00 to 23:59
+ */
+export const TIME_FORMAT_REGEX = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
+
 export const generateId = () => `city-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 export const generateWebsiteId = () => `website-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -22,6 +28,54 @@ export const formatEventDate = (date: string | Date): string => {
   } catch {
     return typeof date === 'string' ? date : date.toString();
   }
+};
+
+/**
+ * Check if a time string represents an all-day event
+ * 
+ * IMPORTANT: Only '00:00:01' is recognized as the all-day marker for data integrity.
+ * This is the timestamp stored in Supabase for all-day events.
+ * Text indicators like "ganztags" are also recognized for input processing.
+ * 
+ * @param timeStr - Time string to check
+ * @returns true if the time represents an all-day event
+ */
+export const isAllDayTime = (timeStr: string | undefined | null): boolean => {
+  if (!timeStr) return true;
+  const normalizedTime = timeStr.trim().toLowerCase();
+  // Only 00:00:01 is recognized as the all-day marker (for data integrity)
+  // Text patterns are recognized for input processing from external sources
+  return (
+    normalizedTime === '00:00:01' ||
+    /ganztags|all[- ]?day|ganztagig|fullday/i.test(normalizedTime)
+  );
+};
+
+/**
+ * Create an ISO timestamp from date and time, handling all-day events
+ * All-day events use 00:00:01 as the marker to distinguish from midnight events
+ * 
+ * @param dateStr - Date string in YYYY-MM-DD format
+ * @param timeStr - Time string in HH:mm format or all-day indicator
+ * @returns ISO 8601 timestamp
+ */
+export const createEventTimestamp = (dateStr: string | undefined, timeStr: string | undefined): string => {
+  if (!dateStr) {
+    return new Date().toISOString();
+  }
+  
+  // Handle all-day events with 00:00:01 marker
+  if (!timeStr || isAllDayTime(timeStr)) {
+    return `${dateStr}T00:00:01.000Z`;
+  }
+  
+  // Validate time format (HH:mm) using shared regex constant
+  if (TIME_FORMAT_REGEX.test(timeStr)) {
+    return `${dateStr}T${timeStr}:00.000Z`;
+  }
+  
+  // Fallback for invalid time format - treat as all-day
+  return `${dateStr}T00:00:01.000Z`;
 };
 
 /**
