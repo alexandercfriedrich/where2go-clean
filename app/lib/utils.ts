@@ -25,6 +25,52 @@ export const formatEventDate = (date: string | Date): string => {
 };
 
 /**
+ * Check if a time string represents an all-day event
+ * All-day events are marked as "ganztags", "00:00", "00:01", or "01:00"
+ * Supabase uses 00:00:01 as the marker for all-day events
+ * 
+ * @param timeStr - Time string to check
+ * @returns true if the time represents an all-day event
+ */
+export const isAllDayTime = (timeStr: string | undefined | null): boolean => {
+  if (!timeStr) return true;
+  const normalizedTime = timeStr.trim().toLowerCase();
+  return (
+    normalizedTime === '00:00' ||
+    normalizedTime === '00:01' ||
+    normalizedTime === '01:00' ||
+    /ganztags|all[- ]?day|ganztagig|fullday/i.test(normalizedTime)
+  );
+};
+
+/**
+ * Create an ISO timestamp from date and time, handling all-day events
+ * All-day events use 00:00:01 as the marker to distinguish from midnight events
+ * 
+ * @param dateStr - Date string in YYYY-MM-DD format
+ * @param timeStr - Time string in HH:mm format or all-day indicator
+ * @returns ISO 8601 timestamp
+ */
+export const createEventTimestamp = (dateStr: string | undefined, timeStr: string | undefined): string => {
+  if (!dateStr) {
+    return new Date().toISOString();
+  }
+  
+  // Handle all-day events with 00:00:01 marker
+  if (!timeStr || isAllDayTime(timeStr)) {
+    return `${dateStr}T00:00:01.000Z`;
+  }
+  
+  // Validate time format (HH:mm)
+  if (/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(timeStr)) {
+    return `${dateStr}T${timeStr}:00.000Z`;
+  }
+  
+  // Fallback for invalid time format - treat as all-day
+  return `${dateStr}T00:00:01.000Z`;
+};
+
+/**
  * Transform venue event data to EventCard format
  * @param event - Raw event data from venue query
  * @param venue - Venue information

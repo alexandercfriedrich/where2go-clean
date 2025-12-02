@@ -16,8 +16,9 @@ export class EventRepository {
     if (!dateStr) return null;
     
     // Handle all-day events (ganztags, all day, ganztagig, etc.)
+    // Use 00:00:01 as the marker for all-day events to distinguish from midnight
     if (timeStr && /ganztags|all[- ]?day|ganztagig|fullday/i.test(timeStr)) {
-      return `${dateStr}T00:00:00.000Z`;
+      return `${dateStr}T00:00:01.000Z`;
     }
     
     // Handle normal time strings

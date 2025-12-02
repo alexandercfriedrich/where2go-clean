@@ -284,7 +284,8 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
  *
  * Additionally:
  * - If no concrete time is available, label as "ganztags"
- * - Treat "00:00" as all-day -> "ganztags"
+ * - Treat "00:00" and "00:01" as all-day -> "ganztags"
+ *   (Supabase stores all-day events as 00:00:01 to distinguish from midnight events)
  */
 function pickDateTimeWithinWindow(
   event: WienInfoEvent,
@@ -298,7 +299,9 @@ function pickDateTimeWithinWindow(
     if (!isoDateTime || !isoDateTime.includes('T')) return 'ganztags';
     const hhmm = isoDateTime.split('T')[1]?.split(/[+Z]/)[0]?.slice(0, 5) || '';
     if (!/^\d{2}:\d{2}$/.test(hhmm)) return 'ganztags';
-    if (hhmm === '00:00') return 'ganztags';
+    // Treat both 00:00 and 00:01 as all-day events
+    // Supabase uses 00:00:01 to mark all-day events distinctly from midnight
+    if (hhmm === '00:00' || hhmm === '00:01') return 'ganztags';
     return hhmm;
   };
 
@@ -392,7 +395,8 @@ function normalizeWienInfoEvent(
   let endTime: string | undefined = undefined;
   if (wienInfoEvent.endDate && wienInfoEvent.endDate.includes('T')) {
     const t = wienInfoEvent.endDate.split('T')[1]?.split(/[+Z]/)[0]?.slice(0, 5);
-    if (t && /^\d{2}:\d{2}$/.test(t) && t !== '00:00') endTime = t;
+    // Exclude both 00:00 and 00:01 as they indicate all-day events
+    if (t && /^\d{2}:\d{2}$/.test(t) && t !== '00:00' && t !== '00:01') endTime = t;
   }
 
   const fullUrl = wienInfoEvent.url?.startsWith('http')
