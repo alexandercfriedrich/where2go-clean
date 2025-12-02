@@ -28,10 +28,10 @@ async function runWienInfoSync(): Promise<NextResponse> {
     );
   }
 
-  // Calculate date range: today + next 30 days
+  // Calculate date range: today + next 60 days
   const today = new Date();
   const endDate = new Date(today);
-  endDate.setDate(endDate.getDate() + 30);
+  endDate.setDate(endDate.getDate() + 60);
 
   const fromISO = today.toISOString().split('T')[0];
   const toISO = endDate.toISOString().split('T')[0];
