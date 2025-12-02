@@ -241,6 +241,7 @@ export async function getUpcomingEvents(
 
 /**
  * Convert Supabase event to EventData format for Schema.org
+ * IMPORTANT: Always include slug from database to avoid URL mismatch issues
  */
 export function convertToEventData(event: any): EventData {
   const startDate = event.start_date_time ? new Date(event.start_date_time) : null;
@@ -260,5 +261,7 @@ export function convertToEventData(event: any): EventData {
     imageUrl: event.image_url || event.imageUrl || '',
     latitude: event.latitude,
     longitude: event.longitude,
+    // Include slug from database to prevent URL mismatch between frontend and database
+    slug: event.slug,
   };
 }
