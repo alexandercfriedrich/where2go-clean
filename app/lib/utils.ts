@@ -1,8 +1,12 @@
-import { TIME_FORMAT_REGEX } from '@/lib/cronAuth';
-
 /**
  * Utility functions for the application
  */
+
+/**
+ * Time format regex for HH:mm validation
+ * Matches times from 00:00 to 23:59
+ */
+export const TIME_FORMAT_REGEX = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
 
 export const generateId = () => `city-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 export const generateWebsiteId = () => `website-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -28,8 +32,10 @@ export const formatEventDate = (date: string | Date): string => {
 
 /**
  * Check if a time string represents an all-day event
- * All-day events are marked as "ganztags", "00:00", "00:01", or "01:00"
- * Supabase uses 00:00:01 as the marker for all-day events
+ * 
+ * IMPORTANT: Only '00:00:01' is recognized as the all-day marker for data integrity.
+ * This is the timestamp stored in Supabase for all-day events.
+ * Text indicators like "ganztags" are also recognized for input processing.
  * 
  * @param timeStr - Time string to check
  * @returns true if the time represents an all-day event
@@ -37,10 +43,10 @@ export const formatEventDate = (date: string | Date): string => {
 export const isAllDayTime = (timeStr: string | undefined | null): boolean => {
   if (!timeStr) return true;
   const normalizedTime = timeStr.trim().toLowerCase();
+  // Only 00:00:01 is recognized as the all-day marker (for data integrity)
+  // Text patterns are recognized for input processing from external sources
   return (
-    normalizedTime === '00:00' ||
-    normalizedTime === '00:01' ||
-    normalizedTime === '01:00' ||
+    normalizedTime === '00:00:01' ||
     /ganztags|all[- ]?day|ganztagig|fullday/i.test(normalizedTime)
   );
 };

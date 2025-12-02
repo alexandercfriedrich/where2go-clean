@@ -8,11 +8,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
- * Time format regex for HH:mm validation
- */
-export const TIME_FORMAT_REGEX = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
-
-/**
  * Result of cron authentication validation
  */
 export interface CronAuthResult {

@@ -16,7 +16,14 @@ interface FetchWienInfoOptions {
   fromISO: string;          // YYYY-MM-DD
   toISO: string;            // YYYY-MM-DD
   categories: string[];     // Main categories to filter for
-  limit?: number;           // Maximum number of events to return (optional, defaults to unlimited)
+  /**
+   * Maximum number of raw events to process BEFORE expansion.
+   * Note: Multi-date events are expanded AFTER this limit is applied,
+   * so the final number of returned events may exceed this limit.
+   * For example, if limit=100 and each event averages 5 dates,
+   * the result could contain up to 500 expanded events.
+   */
+  limit?: number;
   debug?: boolean;          // Enable debug logging
   debugVerbose?: boolean;   // Enable verbose debug logging
 }
@@ -300,11 +307,15 @@ function expandWienInfoEventDates(
   const to = new Date(toISO + 'T23:59:59');
   const results: EventData[] = [];
 
-  // Helper to extract time or return 'ganztags'
+  // Helper to extract time or return 'ganztags' for input processing
+  // Wien.info returns 00:00 when no specific time is set - we convert to 'ganztags'
+  // which will be stored as 00:00:01 in Supabase
   const extractTimeOrAllDay = (isoDateTime?: string): string => {
     if (!isoDateTime || !isoDateTime.includes('T')) return 'ganztags';
     const hhmm = isoDateTime.split('T')[1]?.split(/[+Z]/)[0]?.slice(0, 5) || '';
     if (!/^\d{2}:\d{2}$/.test(hhmm)) return 'ganztags';
+    // Wien.info uses 00:00 or 00:01 when no specific time is available
+    // Convert these to 'ganztags' which will be stored as 00:00:01 in Supabase
     if (hhmm === '00:00' || hhmm === '00:01') return 'ganztags';
     return hhmm;
   };
@@ -388,7 +399,7 @@ function expandWienInfoEventDates(
  *
  * Additionally:
  * - If no concrete time is available, label as "ganztags"
- * - Treat "00:00" and "00:01" as all-day -> "ganztags"
+ * - Wien.info uses "00:00" or "00:01" when no time is specified - convert to "ganztags"
  *   (Supabase stores all-day events as 00:00:01 to distinguish from midnight events)
  */
 function pickDateTimeWithinWindow(
@@ -399,12 +410,14 @@ function pickDateTimeWithinWindow(
   const from = new Date(fromISO + 'T00:00:00');
   const to = new Date(toISO + 'T23:59:59');
 
+  // Helper to extract time or return 'ganztags' for input processing
+  // Wien.info returns 00:00 or 00:01 when no specific time is set
   const extractTimeOrAllDay = (isoDateTime?: string): string => {
     if (!isoDateTime || !isoDateTime.includes('T')) return 'ganztags';
     const hhmm = isoDateTime.split('T')[1]?.split(/[+Z]/)[0]?.slice(0, 5) || '';
     if (!/^\d{2}:\d{2}$/.test(hhmm)) return 'ganztags';
-    // Treat both 00:00 and 00:01 as all-day events
-    // Supabase uses 00:00:01 to mark all-day events distinctly from midnight
+    // Wien.info uses 00:00 or 00:01 when no specific time is available
+    // Convert these to 'ganztags' which will be stored as 00:00:01 in Supabase
     if (hhmm === '00:00' || hhmm === '00:01') return 'ganztags';
     return hhmm;
   };

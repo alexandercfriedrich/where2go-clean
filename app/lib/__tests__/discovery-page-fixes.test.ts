@@ -11,8 +11,8 @@ describe('Discovery Page - Time Display', () => {
   function getEventTime(event: any): string | null {
     if (event.time) {
       // Check if time should be treated as all-day
-      // 00:01 is used as a marker for all-day events in Supabase
-      if (event.time === '00:00' || event.time === '00:01' || event.time === '01:00' || event.time === 'ganztags') {
+      // Only 00:00:01 is recognized as the all-day marker for data integrity
+      if (event.time === '00:00:01' || event.time === 'ganztags') {
         return null; // Will display as "ganztags"
       }
       return event.time;
@@ -20,12 +20,14 @@ describe('Discovery Page - Time Display', () => {
     if (event.start_date_time) {
       try {
         const date = new Date(event.start_date_time);
-        const timeStr = date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-        // Treat midnight, 00:01, and 1 AM as all-day events
-        // 00:01 is the Supabase marker for all-day events
-        if (timeStr === '00:00' || timeStr === '00:01' || timeStr === '01:00') {
+        const hours = date.getUTCHours();
+        const minutes = date.getUTCMinutes();
+        const seconds = date.getUTCSeconds();
+        // Only treat 00:00:01 as all-day (the Supabase marker)
+        if (hours === 0 && minutes === 0 && seconds === 1) {
           return null; // Will display as "ganztags"
         }
+        const timeStr = date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
         return timeStr;
       } catch {
         return null;
@@ -34,24 +36,26 @@ describe('Discovery Page - Time Display', () => {
     return null;
   }
 
-  it('should return null for 00:00 time', () => {
-    const event = { time: '00:00' };
-    expect(getEventTime(event)).toBeNull();
-  });
-
-  it('should return null for 00:01 time (Supabase all-day marker)', () => {
-    const event = { time: '00:01' };
-    expect(getEventTime(event)).toBeNull();
-  });
-
-  it('should return null for 01:00 time (Wien.info issue)', () => {
-    const event = { time: '01:00' };
+  it('should return null for 00:00:01 time (Supabase all-day marker)', () => {
+    const event = { time: '00:00:01' };
     expect(getEventTime(event)).toBeNull();
   });
 
   it('should return null for "ganztags" time', () => {
     const event = { time: 'ganztags' };
     expect(getEventTime(event)).toBeNull();
+  });
+
+  it('should return the time for regular times like 00:00', () => {
+    // 00:00 is midnight, NOT all-day - only 00:00:01 is all-day
+    const event = { time: '00:00' };
+    expect(getEventTime(event)).toBe('00:00');
+  });
+
+  it('should return the time for 01:00', () => {
+    // 01:00 is 1 AM, NOT all-day - only 00:00:01 is all-day
+    const event = { time: '01:00' };
+    expect(getEventTime(event)).toBe('01:00');
   });
 
   it('should return valid time for normal hours', () => {
@@ -63,27 +67,26 @@ describe('Discovery Page - Time Display', () => {
     const event = { start_date_time: '2025-11-18T19:30:00Z' };
     const time = getEventTime(event);
     expect(time).toBeTruthy();
-    expect(time).not.toBe('00:00');
-    expect(time).not.toBe('00:01');
-    expect(time).not.toBe('01:00');
   });
 
-  it('should return null for start_date_time with 00:00', () => {
+  it('should return time for start_date_time at midnight (00:00:00)', () => {
+    // Midnight is NOT all-day - only 00:00:01 is all-day
     const event = { start_date_time: '2025-11-18T00:00:00Z' };
     const time = getEventTime(event);
-    expect(time).toBeNull();
+    expect(time).toBeTruthy();  // Should return a time, not null
   });
 
-  it('should return null for start_date_time with 00:01 (Supabase all-day marker)', () => {
+  it('should return null for start_date_time with 00:00:01 (Supabase all-day marker)', () => {
     const event = { start_date_time: '2025-11-18T00:00:01Z' };
     const time = getEventTime(event);
     expect(time).toBeNull();
   });
 
-  it('should return null for start_date_time with 01:00', () => {
+  it('should return time for start_date_time at 01:00', () => {
+    // 1 AM is NOT all-day - only 00:00:01 is all-day
     const event = { start_date_time: '2025-11-18T01:00:00Z' };
     const time = getEventTime(event);
-    expect(time).toBeNull();
+    expect(time).toBeTruthy();  // Should return a time, not null
   });
 
   it('should prefer time field over start_date_time', () => {
