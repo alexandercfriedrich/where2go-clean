@@ -3,6 +3,19 @@
 import { useState, useEffect } from 'react';
 import { HotCity, HotCityWebsite } from '@/lib/types';
 
+interface SlugHealthReport {
+  totalEvents: number;
+  eventsWithSlug: number;
+  eventsWithoutSlug: number;
+  missingSlugPercentage: number;
+  sampleMissingEvents: Array<{
+    id: string;
+    title: string;
+    source: string;
+    date: string;
+  }>;
+}
+
 export default function AdminPage() {
   const [cities, setCities] = useState<HotCity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -15,10 +28,27 @@ export default function AdminPage() {
   const [scraperMessage, setScraperMessage] = useState<string | null>(null);
   const [wienScraperLoading, setWienScraperLoading] = useState(false);
   const [wienScraperMessage, setWienScraperMessage] = useState<string | null>(null);
+  const [slugHealth, setSlugHealth] = useState<SlugHealthReport | null>(null);
+  const [slugHealthLoading, setSlugHealthLoading] = useState(false);
 
   useEffect(() => {
     loadCities();
+    loadSlugHealth();
   }, []);
+
+  const loadSlugHealth = async () => {
+    try {
+      setSlugHealthLoading(true);
+      const response = await fetch('/api/admin/slug-health');
+      if (!response.ok) throw new Error('Failed to load slug health');
+      const data = await response.json();
+      setSlugHealth(data);
+    } catch (err: any) {
+      console.error('Error loading slug health:', err);
+    } finally {
+      setSlugHealthLoading(false);
+    }
+  };
 
   const loadCities = async () => {
     try {
@@ -489,6 +519,105 @@ export default function AdminPage() {
           {wienScraperMessage}
         </div>
       )}
+
+      {/* Slug Health Monitor */}
+      <div style={{
+        backgroundColor: 'white',
+        borderRadius: '8px',
+        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+        padding: '24px',
+        marginBottom: '30px'
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <h2 style={{ margin: 0, fontSize: '1.5rem', color: '#333' }}>Slug Health Monitor</h2>
+          <button 
+            className="btn btn-secondary" 
+            onClick={loadSlugHealth}
+            disabled={slugHealthLoading}
+            style={{ padding: '6px 12px', fontSize: '12px' }}
+          >
+            {slugHealthLoading ? '⏳ Loading...' : '🔄 Refresh'}
+          </button>
+        </div>
+        
+        {slugHealth ? (
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '16px' }}>
+              <div>
+                <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>Total Events</p>
+                <p style={{ margin: '4px 0 0 0', fontSize: '24px', fontWeight: 'bold', color: '#333' }}>
+                  {slugHealth.totalEvents.toLocaleString()}
+                </p>
+              </div>
+              
+              <div>
+                <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>Events with Slug</p>
+                <p style={{ margin: '4px 0 0 0', fontSize: '24px', fontWeight: 'bold', color: '#28a745' }}>
+                  {slugHealth.eventsWithSlug.toLocaleString()}
+                </p>
+              </div>
+              
+              <div>
+                <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>Events without Slug</p>
+                <p style={{ 
+                  margin: '4px 0 0 0', 
+                  fontSize: '24px', 
+                  fontWeight: 'bold', 
+                  color: slugHealth.eventsWithoutSlug > 0 ? '#dc3545' : '#28a745' 
+                }}>
+                  {slugHealth.eventsWithoutSlug.toLocaleString()}
+                </p>
+              </div>
+              
+              <div>
+                <p style={{ margin: 0, fontSize: '14px', color: '#666' }}>Missing Percentage</p>
+                <p style={{ 
+                  margin: '4px 0 0 0', 
+                  fontSize: '24px', 
+                  fontWeight: 'bold', 
+                  color: slugHealth.missingSlugPercentage > 1 ? '#dc3545' :
+                         slugHealth.missingSlugPercentage > 0 ? '#ffc107' : '#28a745' 
+                }}>
+                  {slugHealth.missingSlugPercentage}%
+                </p>
+              </div>
+            </div>
+            
+            {slugHealth.sampleMissingEvents.length > 0 && (
+              <div style={{ marginTop: '16px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#dc3545', marginBottom: '8px' }}>
+                  Sample Events Missing Slugs:
+                </h3>
+                <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '14px' }}>
+                  {slugHealth.sampleMissingEvents.map(e => (
+                    <li key={e.id} style={{ color: '#666', marginBottom: '4px' }}>
+                      <strong>{e.title}</strong> ({e.source}) - {e.date}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
+            {slugHealth.missingSlugPercentage === 0 && (
+              <div style={{
+                backgroundColor: '#d4edda',
+                border: '1px solid #c3e6cb',
+                borderRadius: '6px',
+                padding: '12px',
+                marginTop: '16px'
+              }}>
+                <p style={{ margin: 0, color: '#155724' }}>
+                  ✅ Excellent! All events have slugs with UUID suffix.
+                </p>
+              </div>
+            )}
+          </>
+        ) : slugHealthLoading ? (
+          <p style={{ color: '#666' }}>Loading slug health data...</p>
+        ) : (
+          <p style={{ color: '#666' }}>Unable to load slug health data</p>
+        )}
+      </div>
 
       <div style={{ marginBottom: '30px' }}>
         <h2 style={{ color: '#333', fontSize: '1.8rem' }}>Hot Cities Management</h2>

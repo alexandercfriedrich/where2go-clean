@@ -11,6 +11,10 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Find an event in a list by matching title slug
+ * Uses 3 matching strategies in priority order:
+ * 1. Direct slug match (most reliable)
+ * 2. Canonical URL match (fallback)
+ * 3. Fuzzy match (last resort for old URLs)
  */
 async function findEventInList(
   events: EventData[],
@@ -20,34 +24,55 @@ async function findEventInList(
   const titleSlug = titleSegments.join('-').toLowerCase();
   
   for (const event of events) {
-    // Only compare canonical URL if the event has a database slug
+    // Priority 1: Direct slug match (most reliable)
+    // This should always work since all events have database slugs
+    if (event.slug && event.slug.toLowerCase() === titleSlug) {
+      return event;
+    }
+    
+    // Priority 2: Canonical URL match (fallback)
     const canonical = generateCanonicalUrl(event, baseUrl);
     if (canonical) {
       const canonicalSlug = canonical.split('/').pop()?.toLowerCase();
-      
       if (canonicalSlug === titleSlug) {
         return event;
       }
     }
     
-    // Also try matching by database slug directly
-    if (event.slug && event.slug.toLowerCase() === titleSlug) {
-      return event;
-    }
-    
-    const eventTitleSlug = event.title
-      .toLowerCase()
-      .normalize('NFKD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .trim();
-    
-    if (eventTitleSlug === titleSlug) {
-      return event;
+    // Priority 3: Fuzzy match (last resort for old URLs)
+    // This helps with legacy URLs that might be missing UUID suffix
+    if (event.slug) {
+      const eventSlugLower = event.slug.toLowerCase();
+      const slugParts = titleSlug.split('-');
+      
+      // Check if event slug contains all parts of the requested slug
+      const allPartsMatch = slugParts.every(part => 
+        part.length > 0 && eventSlugLower.includes(part)
+      );
+      
+      if (allPartsMatch && slugParts.length >= 3) {
+        console.warn(
+          `[FUZZY_MATCH] Found event via fuzzy matching. ` +
+          `This suggests an old/invalid URL format.`,
+          {
+            requestedSlug: titleSlug,
+            matchedEventSlug: event.slug,
+            eventTitle: event.title,
+          }
+        );
+        return event;
+      }
     }
   }
+  
+  console.error(
+    `[EVENT_NOT_FOUND] No event found for slug: ${titleSlug}`,
+    {
+      slug: titleSlug,
+      searchedEventsCount: events.length,
+      sampleEventSlugs: events.slice(0, 3).map(e => e.slug),
+    }
+  );
   
   return null;
 }

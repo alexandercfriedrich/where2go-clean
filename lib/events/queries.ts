@@ -240,6 +240,27 @@ export async function getUpcomingEvents(
 }
 
 /**
+ * Validate that event has slug before processing
+ * Logs error if slug is missing for monitoring
+ */
+function validateEventSlug(event: any): void {
+  if (!event.slug) {
+    console.error(
+      `[SLUG_MISSING] Event without slug detected:`,
+      {
+        id: event.id,
+        title: event.title,
+        date: event.start_date_time,
+        source: event.source || 'unknown',
+      }
+    );
+    
+    // This should never happen since all events have slugs,
+    // but we log it for monitoring purposes
+  }
+}
+
+/**
  * Convert Supabase event to EventData format for Schema.org
  * IMPORTANT: Always include slug from database to avoid URL mismatch issues
  * 
@@ -248,6 +269,9 @@ export async function getUpcomingEvents(
  * without local timezone conversion that could shift dates by ±1 day.
  */
 export function convertToEventData(event: any): EventData {
+  // Validate slug presence
+  validateEventSlug(event);
+  
   // Extract date and time directly from ISO string to avoid timezone issues
   // Format: "2025-12-03T00:00:00.000Z" or "2025-12-03T19:30:00.000Z"
   let date = '';

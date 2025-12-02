@@ -134,6 +134,20 @@ export function EventCard({
   // Generating slugs on-the-fly creates mismatched URLs without the UUID suffix
   const databaseSlug = (event as any).slug;
   
+  // Log error if slug is missing (this should never happen)
+  if (!databaseSlug) {
+    console.error(
+      `[EVENTCARD] Event missing database slug - card will be non-clickable:`,
+      {
+        eventId: (event as any).id,
+        eventTitle: event.title,
+        eventDate: eventDate,
+        eventVenue: venue,
+        city: city,
+      }
+    );
+  }
+  
   const citySlug = normalizeCitySlug(city);
   
   // Event detail page URL - only set if we have a valid database slug
