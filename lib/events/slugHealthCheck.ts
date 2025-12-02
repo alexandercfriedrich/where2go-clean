@@ -3,7 +3,7 @@
  * Monitors slug integrity across the system
  */
 
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase/client';
 
 export interface SlugHealthReport {
   totalEvents: number;
@@ -18,11 +18,16 @@ export interface SlugHealthReport {
   }>;
 }
 
+// Type for the query result
+interface EventSlugRow {
+  id: string;
+  title: string;
+  source: string | null;
+  start_date_time: string;
+}
+
 export async function checkSlugHealth(): Promise<SlugHealthReport> {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  // Reuses shared Supabase client instead of creating new instance each call
   
   // Get total count
   const { count: totalEvents } = await supabase
@@ -48,12 +53,15 @@ export async function checkSlugHealth(): Promise<SlugHealthReport> {
     ? (eventsWithoutSlug / totalEvents) * 100 
     : 0;
   
+  // Cast to known type for processing
+  const missingEvents = (sampleMissing || []) as EventSlugRow[];
+  
   const report: SlugHealthReport = {
     totalEvents: totalEvents || 0,
     eventsWithSlug: eventsWithSlug || 0,
     eventsWithoutSlug,
     missingSlugPercentage: parseFloat(missingPercentage.toFixed(2)),
-    sampleMissingEvents: (sampleMissing || []).map(e => ({
+    sampleMissingEvents: missingEvents.map(e => ({
       id: e.id,
       title: e.title,
       source: e.source || 'unknown',

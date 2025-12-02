@@ -43,20 +43,20 @@ async function findEventInList(
     // This helps with legacy URLs that might be missing UUID suffix
     if (event.slug) {
       const eventSlugLower = event.slug.toLowerCase();
-      const slugParts = titleSlug.split('-');
       
-      // Check if event slug contains all parts of the requested slug
-      const allPartsMatch = slugParts.every(part => 
-        part.length > 0 && eventSlugLower.includes(part)
-      );
+      // Remove UUID suffix to get base slug
+      // Format: "event-title-venue-2025-12-03-abc12345" -> "event-title-venue-2025-12-03"
+      const slugWithoutUUID = eventSlugLower.replace(/-[a-f0-9]{6,8}$/i, '');
       
-      if (allPartsMatch && slugParts.length >= 3) {
+      // Check if titleSlug is a PREFIX of the base slug
+      // This prevents false positives while allowing legacy URLs
+      if (slugWithoutUUID.startsWith(titleSlug) || eventSlugLower.startsWith(titleSlug)) {
         console.warn(
-          `[FUZZY_MATCH] Found event via fuzzy matching. ` +
-          `This suggests an old/invalid URL format.`,
+          `[FUZZY_MATCH] Found event via prefix matching. Old URL format detected.`,
           {
             requestedSlug: titleSlug,
             matchedEventSlug: event.slug,
+            matchedBaseSlug: slugWithoutUUID,
             eventTitle: event.title,
           }
         );
