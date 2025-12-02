@@ -9,6 +9,7 @@ import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getUpcoming
 import { discoverPageMetadata } from './lib/content/discoverPageContent';
 import SchemaOrg from './components/SchemaOrg';
 import { generateEventListSchema, generateBreadcrumbSchema } from './lib/schemaOrg';
+import type { EventData } from './lib/types';
 
 export const metadata: Metadata = {
   title: discoverPageMetadata.title,
@@ -63,7 +64,10 @@ export default async function HomePage() {
     ]);
 
     // Convert upcoming events from Supabase format to EventData format
-    const upcomingEventsData = upcomingEvents.map(convertToEventData);
+    // Filter out null values (events without slugs are excluded)
+    const upcomingEventsData = upcomingEvents
+      .map(convertToEventData)
+      .filter((event): event is EventData => event !== null);
     
     // Generate schemas
     const today = new Date().toISOString().split('T')[0];

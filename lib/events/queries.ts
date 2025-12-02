@@ -240,17 +240,63 @@ export async function getUpcomingEvents(
 }
 
 /**
+ * Validate that event has slug before processing
+ * Logs error if slug is missing for monitoring
+ * @returns true if slug exists, false otherwise
+ */
+function validateEventSlug(event: any): boolean {
+  if (!event.slug) {
+    console.error(
+      `[SLUG_MISSING] Event without slug detected - will be excluded from results:`,
+      {
+        id: event.id,
+        title: event.title,
+        date: event.start_date_time,
+        source: event.source || 'unknown',
+      }
+    );
+    return false;
+  }
+  return true;
+}
+
+/**
  * Convert Supabase event to EventData format for Schema.org
  * IMPORTANT: Always include slug from database to avoid URL mismatch issues
+ * 
+ * NOTE: We use string parsing instead of Date objects to avoid timezone issues.
+ * Database stores UTC timestamps, and we want to extract date/time exactly as stored
+ * without local timezone conversion that could shift dates by ±1 day.
+ * 
+ * @returns EventData object or null if event has no slug (invalid event)
  */
-export function convertToEventData(event: any): EventData {
-  const startDate = event.start_date_time ? new Date(event.start_date_time) : null;
+export function convertToEventData(event: any): EventData | null {
+  // Validate slug presence - return null if missing
+  if (!validateEventSlug(event)) {
+    return null;
+  }
+  
+  // Extract date and time directly from ISO string to avoid timezone issues
+  // Format: "2025-12-03T00:00:00.000Z" or "2025-12-03T19:30:00.000Z"
+  let date = '';
+  let time = '00:00';
+  
+  if (event.start_date_time) {
+    const dateMatch = event.start_date_time.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+    if (dateMatch) {
+      date = dateMatch[1];
+      time = dateMatch[2];
+    } else {
+      // Fallback: try to extract date from the beginning
+      date = event.start_date_time.split('T')[0] || '';
+    }
+  }
   
   return {
     title: event.title || event.name || 'Event',
     category: event.category || 'Event',
-    date: startDate ? startDate.toISOString().split('T')[0] : '',
-    time: startDate ? startDate.toTimeString().split(' ')[0].substring(0, 5) : '00:00',
+    date: date,
+    time: time,
     venue: event.custom_venue_name || event.location || 'Wien',
     price: event.price_info || event.price || 'Preis auf Anfrage', // TODO: Externalize to i18n
     website: event.url || event.website || '',

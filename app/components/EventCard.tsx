@@ -9,7 +9,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { generateEventSlug, normalizeCitySlug } from '@/lib/slugGenerator';
+import { normalizeCitySlug } from '@/lib/slugGenerator';
 import { AddToCalendar } from './discovery/AddToCalendar';
 import { ShareButtons } from './discovery/ShareButtons';
 import { FavoriteButton } from './discovery/FavoriteButton';
@@ -129,17 +129,29 @@ export function EventCard({
   const eventTime = getEventTime(event);
   const displayDate = eventDate ? formatGermanDate(eventDate) : '';
   
-  // Use slug from database if available, otherwise generate
-  const eventSlug = (event as any).slug || generateEventSlug({
-    title: event.title,
-    venue: venue,
-    date: eventDate
-  });
+  // IMPORTANT: Only use slug from database to prevent URL mismatch
+  // Database slugs include a UUID suffix (e.g., "event-title-2025-12-03-abc12345")
+  // Generating slugs on-the-fly creates mismatched URLs without the UUID suffix
+  const databaseSlug = (event as any).slug;
+  
+  // Log error if slug is missing (this should never happen)
+  if (!databaseSlug) {
+    console.error(
+      `[EVENTCARD] Event missing database slug - card will be non-clickable:`,
+      {
+        eventId: (event as any).id,
+        eventTitle: event.title,
+        eventDate: eventDate,
+        eventVenue: venue,
+        city: city,
+      }
+    );
+  }
   
   const citySlug = normalizeCitySlug(city);
   
-  // Event detail page URL
-  const eventDetailUrl = `/events/${citySlug}/${eventSlug}`;
+  // Event detail page URL - only set if we have a valid database slug
+  const eventDetailUrl = databaseSlug ? `/events/${citySlug}/${databaseSlug}` : null;
   
   // Get first image from image_urls array or use imageUrl field
   const eventImage = (event as any).image_urls && (event as any).image_urls.length > 0
@@ -177,151 +189,167 @@ export function EventCard({
   // Generate a stable ID for action buttons
   const eventId = generateEventId(event);
 
-  return (
-    <Link href={eventDetailUrl} className="block">
-      <div className="dark-event-card">
-        {/* Source Badge - Always Visible */}
-        <div className="dark-event-source-badge">
-          {sourceDisplay}
-        </div>
+  // Common card content - extracted to avoid duplication
+  const cardContent = (
+    <div className="dark-event-card">
+      {/* Source Badge - Always Visible */}
+      <div className="dark-event-source-badge">
+        {sourceDisplay}
+      </div>
 
-        {/* Event Image */}
-        <div 
-          className="dark-event-card-image"
-          style={{
-            backgroundImage: eventImage 
-              ? `url(${eventImage})` 
-              : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            minHeight: '240px',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center'
-          }}
-        />
+      {/* Event Image */}
+      <div 
+        className="dark-event-card-image"
+        style={{
+          backgroundImage: eventImage 
+            ? `url(${eventImage})` 
+            : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          minHeight: '240px',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center'
+        }}
+      />
 
-        {/* Event Content */}
-        <div className="dark-event-content">
-          {/* Category Badge */}
-          {event.category && (
-            <span className="dark-event-category">
-              {event.category}
-            </span>
-          )}
+      {/* Event Content */}
+      <div className="dark-event-content">
+        {/* Category Badge */}
+        {event.category && (
+          <span className="dark-event-category">
+            {event.category}
+          </span>
+        )}
 
-          {/* Title */}
-          <h3 className="dark-event-title hover:text-indigo-400 transition-colors cursor-pointer">
-            {event.title}
-          </h3>
+        {/* Title */}
+        <h3 className={`dark-event-title transition-colors ${eventDetailUrl ? 'hover:text-indigo-400 cursor-pointer' : ''}`}>
+          {event.title}
+        </h3>
 
-          {/* Event Details with Icons */}
-          <div className="dark-event-details">
-            {/* Date */}
-            {displayDate && (
-              <div className="dark-event-detail">
-                <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-                <span>{displayDate}</span>
-              </div>
-            )}
-
-            {/* Time */}
+        {/* Event Details with Icons */}
+        <div className="dark-event-details">
+          {/* Date */}
+          {displayDate && (
             <div className="dark-event-detail">
               <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <span {...(!eventTime && { 'aria-label': 'Ganztägige Veranstaltung' })}>
-                {eventTime ? `${eventTime} Uhr` : 'ganztags'}
-              </span>
+              <span>{displayDate}</span>
             </div>
-
-            {/* Venue (clickable to Google Maps) */}
-            {venue && (
-              <div className="dark-event-detail">
-                <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue + (event.address ? ', ' + event.address : ''))}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="dark-event-venue-link"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {venue}
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: '4px', opacity: 0.6, display: 'inline' }}>
-                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                    <polyline points="15 3 21 3 21 9"></polyline>
-                    <line x1="10" y1="14" x2="21" y2="3"></line>
-                  </svg>
-                </a>
-              </div>
-            )}
-          </div>
-
-          {/* Description */}
-          {event.description && (
-            <p className="dark-event-description">
-              {event.description}
-            </p>
           )}
 
-          {/* Price */}
-          <div className="dark-event-price">
-            {priceDisplay}
+          {/* Time */}
+          <div className="dark-event-detail">
+            <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span {...(!eventTime && { 'aria-label': 'Ganztägige Veranstaltung' })}>
+              {eventTime ? `${eventTime} Uhr` : 'ganztags'}
+            </span>
           </div>
 
-          {/* Info and Ticket Links */}
-          {showButtons && (
-            <div className="mt-4 flex items-center gap-2 flex-wrap">
-              {/* Mehr Info button - subtle, less dominant styling */}
+          {/* Venue (clickable to Google Maps) */}
+          {venue && (
+            <div className="dark-event-detail">
+              <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
               <a
-                href={event.website || `/event/${eventId}`}
-                {...(event.website && { target: "_blank", rel: "noopener noreferrer" })}
-                className="inline-flex items-center gap-1 px-3 py-1.5 bg-transparent border border-gray-400 dark:border-gray-500 text-gray-600 dark:text-gray-300 text-xs font-normal rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue + (event.address ? ', ' + event.address : ''))}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="dark-event-venue-link"
                 onClick={(e) => e.stopPropagation()}
               >
-                Mehr Info
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                {venue}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: '4px', opacity: 0.6, display: 'inline' }}>
                   <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
                   <polyline points="15 3 21 3 21 9"></polyline>
                   <line x1="10" y1="14" x2="21" y2="3"></line>
                 </svg>
               </a>
-              {/* Ticket button - only when bookingLink is available */}
-              {event.bookingLink && (
-                <a
-                  href={event.bookingLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md transition-colors"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  Tickets
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                    <polyline points="15 3 21 3 21 9"></polyline>
-                    <line x1="10" y1="14" x2="21" y2="3"></line>
-                  </svg>
-                </a>
-              )}
-            </div>
-          )}
-
-          {/* Action Buttons */}
-          {showActions && (
-            <div className="mt-2 flex items-center gap-2 flex-wrap" onClick={(e) => e.preventDefault()}>
-              <FavoriteButton eventId={eventId} size="sm" />
-              <AddToCalendar event={event} size="sm" />
-              <ShareButtons 
-                event={event} 
-                url={`https://www.where2go.at/event/${eventId}`}
-                size="sm"
-              />
             </div>
           )}
         </div>
+
+        {/* Description */}
+        {event.description && (
+          <p className="dark-event-description">
+            {event.description}
+          </p>
+        )}
+
+        {/* Price */}
+        <div className="dark-event-price">
+          {priceDisplay}
+        </div>
+
+        {/* Info and Ticket Links */}
+        {showButtons && (
+          <div className="mt-4 flex items-center gap-2 flex-wrap">
+            {/* Mehr Info button - subtle, less dominant styling */}
+            <a
+              href={event.website || `/event/${eventId}`}
+              {...(event.website && { target: "_blank", rel: "noopener noreferrer" })}
+              className="inline-flex items-center gap-1 px-3 py-1.5 bg-transparent border border-gray-400 dark:border-gray-500 text-gray-600 dark:text-gray-300 text-xs font-normal rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Mehr Info
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </a>
+            {/* Ticket button - only when bookingLink is available */}
+            {event.bookingLink && (
+              <a
+                href={event.bookingLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md transition-colors"
+                onClick={(e) => e.stopPropagation()}
+              >
+                Tickets
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                  <polyline points="15 3 21 3 21 9"></polyline>
+                  <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+              </a>
+            )}
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        {showActions && (
+          <div className="mt-2 flex items-center gap-2 flex-wrap" onClick={(e) => e.preventDefault()}>
+            <FavoriteButton eventId={eventId} size="sm" />
+            <AddToCalendar event={event} size="sm" />
+            <ShareButtons 
+              event={event} 
+              url={`https://www.where2go.at/event/${eventId}`}
+              size="sm"
+            />
+          </div>
+        )}
       </div>
-    </Link>
+    </div>
+  );
+
+  // Only render as a link if we have a valid database slug
+  // This prevents URL mismatch when slug is missing
+  if (eventDetailUrl) {
+    return (
+      <Link href={eventDetailUrl} className="block">
+        {cardContent}
+      </Link>
+    );
+  }
+
+  // Render as a non-clickable div when slug is missing
+  return (
+    <div className="block">
+      {cardContent}
+    </div>
   );
 }

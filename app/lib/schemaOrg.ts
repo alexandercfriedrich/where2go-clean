@@ -1,5 +1,6 @@
 // Schema.org structured data utilities for SEO
 import { EventData } from './types';
+import { normalizeCitySlug } from './slugGenerator';
 
 /**
  * Generates Schema.org WebSite structured data
@@ -223,22 +224,20 @@ export function generateMicrodataProps(property: string, content?: string): Reco
 /**
  * Generates a canonical URL for an event
  * Format: {baseUrl}/events/{citySlug}/{slug}
- * Uses the database slug if available, otherwise generates one
+ * IMPORTANT: Only uses database slug to prevent URL mismatch.
+ * Database slugs include UUID suffix, generated slugs do not.
+ * Returns null if no database slug is available.
  */
-export function generateCanonicalUrl(event: EventData, baseUrl: string = 'https://www.where2go.at'): string {
-  // Import is at top of file, but we need the function here
-  const { generateEventSlug, normalizeCitySlug } = require('./slugGenerator');
-  
-  // Use database slug if available, otherwise generate from event data
-  const eventSlug = event.slug || generateEventSlug({
-    title: event.title,
-    venue: event.venue,
-    date: event.date
-  });
+export function generateCanonicalUrl(event: EventData, baseUrl: string = 'https://www.where2go.at'): string | null {
+  // Only use database slug - generating a slug on-the-fly will not match
+  // the database slug which includes a UUID suffix
+  if (!event.slug) {
+    return null;
+  }
   
   const citySlug = normalizeCitySlug(event.city || event.venue || 'unknown');
   
-  return `${baseUrl}/events/${citySlug}/${eventSlug}`;
+  return `${baseUrl}/events/${citySlug}/${event.slug}`;
 }
 
 /**

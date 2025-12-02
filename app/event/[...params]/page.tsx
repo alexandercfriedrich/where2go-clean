@@ -11,6 +11,10 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Find an event in a list by matching title slug
+ * Uses 3 matching strategies in priority order:
+ * 1. Direct slug match (most reliable)
+ * 2. Canonical URL match (fallback)
+ * 3. Fuzzy match (last resort for old URLs)
  */
 async function findEventInList(
   events: EventData[],
@@ -20,26 +24,55 @@ async function findEventInList(
   const titleSlug = titleSegments.join('-').toLowerCase();
   
   for (const event of events) {
-    const canonical = generateCanonicalUrl(event, baseUrl);
-    const canonicalSlug = canonical.split('/').pop()?.toLowerCase();
-    
-    if (canonicalSlug === titleSlug) {
+    // Priority 1: Direct slug match (most reliable)
+    // This should always work since all events have database slugs
+    if (event.slug && event.slug.toLowerCase() === titleSlug) {
       return event;
     }
     
-    const eventTitleSlug = event.title
-      .toLowerCase()
-      .normalize('NFKD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .trim();
+    // Priority 2: Canonical URL match (fallback)
+    const canonical = generateCanonicalUrl(event, baseUrl);
+    if (canonical) {
+      const canonicalSlug = canonical.split('/').pop()?.toLowerCase();
+      if (canonicalSlug === titleSlug) {
+        return event;
+      }
+    }
     
-    if (eventTitleSlug === titleSlug) {
-      return event;
+    // Priority 3: Fuzzy match (last resort for old URLs)
+    // This helps with legacy URLs that might be missing UUID suffix
+    if (event.slug) {
+      const eventSlugLower = event.slug.toLowerCase();
+      
+      // Remove UUID suffix to get base slug
+      // Format: "event-title-venue-2025-12-03-abc12345" -> "event-title-venue-2025-12-03"
+      const slugWithoutUUID = eventSlugLower.replace(/-[a-f0-9]{6,8}$/i, '');
+      
+      // Check if titleSlug is a PREFIX of the base slug
+      // This prevents false positives while allowing legacy URLs
+      if (slugWithoutUUID.startsWith(titleSlug) || eventSlugLower.startsWith(titleSlug)) {
+        console.warn(
+          `[FUZZY_MATCH] Found event via prefix matching. Old URL format detected.`,
+          {
+            requestedSlug: titleSlug,
+            matchedEventSlug: event.slug,
+            matchedBaseSlug: slugWithoutUUID,
+            eventTitle: event.title,
+          }
+        );
+        return event;
+      }
     }
   }
+  
+  console.error(
+    `[EVENT_NOT_FOUND] No event found for slug: ${titleSlug}`,
+    {
+      slug: titleSlug,
+      searchedEventsCount: events.length,
+      sampleEventSlugs: events.slice(0, 3).map(e => e.slug),
+    }
+  );
   
   return null;
 }
@@ -134,9 +167,11 @@ export default async function LegacyEventPage({ params }: { params: { params: st
     <div style={{ background: 'linear-gradient(135deg, #1A1A1A 0%, #2A2A2A 100%)', minHeight: '100vh', padding: '24px 16px' }}>
       <div className="container" style={{ maxWidth: '800px', margin: '0 auto' }}>
         <SchemaOrg schema={eventSchema} />
-        <div style={{ background: 'rgba(74, 144, 226, 0.1)', border: '1px solid rgba(74, 144, 226, 0.3)', borderRadius: '8px', padding: '16px', marginBottom: '24px', color: '#AAAAAA', fontSize: '14px' }}>
-          <p style={{ margin: 0 }}>Sie verwenden einen veralteten Link. Die aktuelle URL für dieses Event ist:{' '}<Link href={canonicalUrl} style={{ color: '#4A90E2', textDecoration: 'underline' }}>{canonicalUrl}</Link></p>
-        </div>
+        {canonicalUrl && (
+          <div style={{ background: 'rgba(74, 144, 226, 0.1)', border: '1px solid rgba(74, 144, 226, 0.3)', borderRadius: '8px', padding: '16px', marginBottom: '24px', color: '#AAAAAA', fontSize: '14px' }}>
+            <p style={{ margin: 0 }}>Sie verwenden einen veralteten Link. Die aktuelle URL für dieses Event ist:{' '}<Link href={canonicalUrl} style={{ color: '#4A90E2', textDecoration: 'underline' }}>{canonicalUrl}</Link></p>
+          </div>
+        )}
         <div style={{ marginBottom: '24px' }}>
           <Link href={`/${citySlug}/${dateParam}`} style={{ color: '#4A90E2', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px', fontSize: '14px' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
@@ -144,7 +179,7 @@ export default async function LegacyEventPage({ params }: { params: { params: st
           </Link>
         </div>
         <div className="dark-event-card" {...microdata} style={{ position: 'relative', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', borderRadius: '12px', padding: '24px', maxWidth: '100%' }}>
-          <link itemProp="url" href={canonicalUrl} />
+          {canonicalUrl && <link itemProp="url" href={canonicalUrl} />}
           <meta itemProp="eventStatus" content="https://schema.org/EventScheduled" />
           <meta itemProp="eventAttendanceMode" content="https://schema.org/OfflineEventAttendanceMode" />
           {foundEvent.imageUrl && (<><meta itemProp="image" content={foundEvent.imageUrl} /><div role="img" aria-label={`Event image for ${foundEvent.title}`} style={{ width: '100%', height: '300px', backgroundImage: `url(${foundEvent.imageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center', borderRadius: '8px', marginBottom: '24px' }} /></>)}

@@ -1053,7 +1053,7 @@ export default function Home() {
                       className={`event-card ${ev.imageUrl ? 'event-card-with-image' : ''}`}
                       {...microdataAttrs}
                     >
-                      <link itemProp="url" href={canonicalUrl} />
+                      {canonicalUrl && <link itemProp="url" href={canonicalUrl} />}
                       <meta itemProp="eventStatus" content="https://schema.org/EventScheduled" />
                       <meta itemProp="eventAttendanceMode" content="https://schema.org/OfflineEventAttendanceMode" />
                       {ev.imageUrl && (

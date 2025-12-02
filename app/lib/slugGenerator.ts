@@ -28,50 +28,35 @@ function normalizeForSlug(str: string): string {
 }
 
 /**
- * Generates a unique, SEO-friendly slug for an event
- * Format: {title-slug}-{venue-slug}-{date}
- * Maximum length: 150 characters
+ * @deprecated NEVER USE THIS FUNCTION
  * 
- * @param event - Event data object
- * @returns URL-safe slug string
+ * Slugs MUST come from the database (events.slug column).
+ * The database generates slugs with UUID suffix for uniqueness:
+ * Format: {title}-{venue}-{date}-{uuid}
+ * Example: "event-title-venue-2025-12-03-abc12345"
  * 
- * @example
- * generateEventSlug({
- *   title: "Wiener Mozart Konzert",
- *   venue: "Musikverein",
- *   date: "2025-11-20",
- *   ...
- * })
- * // Returns: "wiener-mozart-konzert-musikverein-2025-11-20"
+ * This function generates slugs WITHOUT UUID suffix, causing URL mismatch:
+ * Format: {title}-{venue}-{date}
+ * Example: "event-title-venue-2025-12-03"
+ * 
+ * Result: Frontend-generated URLs don't match database slugs → 404 errors
+ * 
+ * SOLUTION: Always use event.slug from database query result.
+ * See: lib/events/queries.ts - convertToEventData()
  */
 export function generateEventSlug(event: {
   title: string;
   venue?: string;
   date: string;
 }): string {
-  const titleSlug = normalizeForSlug(event.title);
-  const venueSlug = event.venue ? normalizeForSlug(event.venue) : '';
-  const dateSlug = event.date.slice(0, 10); // YYYY-MM-DD
-
-  // Combine parts, filtering out empty strings
-  const parts = [titleSlug, venueSlug, dateSlug].filter(Boolean);
-  const fullSlug = parts.join('-');
+  console.error('❌ generateEventSlug() called - this should NEVER happen!');
+  console.error('Event:', event);
+  console.error('Stack trace:', new Error().stack);
   
-  // Limit to 150 characters, but ensure we keep the date intact
-  if (fullSlug.length <= 150) {
-    return fullSlug;
-  }
-  
-  // If too long, truncate but preserve the date at the end
-  // Date is 10 chars, need 1 char for hyphen = 11 chars reserved
-  const maxLengthBeforeDate = 150 - 11;
-  const slugWithoutDate = [titleSlug, venueSlug].filter(Boolean).join('-');
-  const truncatedSlug = slugWithoutDate.substring(0, maxLengthBeforeDate);
-  
-  // Remove trailing hyphen if present after truncation
-  const cleanedSlug = truncatedSlug.replace(/-+$/, '');
-  
-  return `${cleanedSlug}-${dateSlug}`;
+  throw new Error(
+    'Slug generation moved to database. Use event.slug from database query. ' +
+    'See app/lib/slugGenerator.ts for details.'
+  );
 }
 
 /**
