@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scrapeWienInfoEvents } from '@/lib/scrapers/wienInfoScraper';
+import { validateCronAuth } from '@/lib/cronAuth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300; // 5 minutes
@@ -27,14 +28,9 @@ export const maxDuration = 300; // 5 minutes
 export async function POST(request: NextRequest) {
   try {
     // Verify cron secret for security
-    const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET;
-    
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    const authResult = validateCronAuth(request, '[CRON:SCRAPE-WIEN-INFO]');
+    if (!authResult.authorized) {
+      return authResult.errorResponse!;
     }
 
     // Parse query parameters
@@ -115,18 +111,9 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     // Verify cron secret for security
-    const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET;
-    
-    // If CRON_SECRET is not set, log a warning but allow the request in development
-    if (!cronSecret) {
-      console.warn('[CRON:SCRAPE-WIEN-INFO] CRON_SECRET not set - authentication disabled');
-    } else if (authHeader !== `Bearer ${cronSecret}`) {
-      console.warn('[CRON:SCRAPE-WIEN-INFO] Unauthorized request - invalid authorization header');
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    const authResult = validateCronAuth(request, '[CRON:SCRAPE-WIEN-INFO]');
+    if (!authResult.authorized) {
+      return authResult.errorResponse!;
     }
 
     // Parse query parameters

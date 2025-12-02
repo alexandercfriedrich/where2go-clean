@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { validateCronAuth } from '@/lib/cronAuth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
@@ -13,19 +14,9 @@ export const maxDuration = 120;
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     // Verify this is a Vercel Cron request
-    // Vercel sends the secret in the Authorization header as "Bearer {CRON_SECRET}"
-    const authHeader = request.headers.get('authorization');
-    const cronSecret = process.env.CRON_SECRET;
-    
-    // If CRON_SECRET is not set, log a warning but allow the request in development
-    if (!cronSecret) {
-      console.warn('[cron-warmup] CRON_SECRET not set - authentication disabled');
-    } else if (authHeader !== `Bearer ${cronSecret}`) {
-      console.warn('[cron-warmup] Unauthorized request - invalid authorization header');
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+    const authResult = validateCronAuth(request, '[cron-warmup]');
+    if (!authResult.authorized) {
+      return authResult.errorResponse!;
     }
 
     console.log('[cron-warmup] Starting daily cache warmup job at', new Date().toISOString());

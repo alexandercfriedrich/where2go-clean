@@ -1,3 +1,5 @@
+import { TIME_FORMAT_REGEX } from '@/lib/cronAuth';
+
 /**
  * Utility functions for the application
  */
@@ -61,8 +63,8 @@ export const createEventTimestamp = (dateStr: string | undefined, timeStr: strin
     return `${dateStr}T00:00:01.000Z`;
   }
   
-  // Validate time format (HH:mm)
-  if (/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(timeStr)) {
+  // Validate time format (HH:mm) using shared regex constant
+  if (TIME_FORMAT_REGEX.test(timeStr)) {
     return `${dateStr}T${timeStr}:00.000Z`;
   }
   
