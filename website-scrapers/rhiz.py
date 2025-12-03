@@ -2,7 +2,15 @@
 """
 Rhiz Event Scraper
 Extracts upcoming events from https://rhiz.wien/programm/
-and saves them to the Supabase database.
+
+The page structure shows events as:
+- Grid items with:
+  - .event-date a: date format "sa 061225 19:30" - the regex skips the day prefix and parses "DDMMYY HH:MM"
+  - .event-category: Live, DJ, etc.
+  - .ev-body h3 a: event title
+  - .ev-body h4 a: event subtitle
+  - .event-image img: event image
+  - .event-price: price info
 
 Usage:
     python website-scrapers/rhiz.py [--dry-run] [--debug]
@@ -40,25 +48,16 @@ class RhizScraper(BaseVenueScraper):
         
         events = []
         
-        # Rhiz lists events as links to detail pages
-        event_links = soup.select('a[href*="/programm/event/"]')
+        # Rhiz lists events in grid-item containers
+        event_items = soup.select('.grid-item')
         
-        # Filter unique URLs
-        unique_urls = set()
-        unique_links = []
-        for link in event_links:
-            url = link.get('href', '')
-            if url and url not in unique_urls and '/event/' in url:
-                unique_urls.add(url)
-                unique_links.append(link)
+        self.log(f"Found {len(event_items)} events")
         
-        self.log(f"Found {len(unique_links)} unique event links")
-        
-        for idx, link in enumerate(unique_links, 1):
+        for idx, item in enumerate(event_items[:50], 1):  # Limit to 50
             if self.debug:
-                self.log(f"Processing event {idx}/{len(unique_links)}", "debug")
+                self.log(f"Processing event {idx}/{len(event_items)}", "debug")
             
-            event_data = self._parse_event_link(link)
+            event_data = self._parse_event_item(item)
             
             if event_data and event_data.get('title'):
                 events.append(event_data)
@@ -68,8 +67,8 @@ class RhizScraper(BaseVenueScraper):
         
         return events
     
-    def _parse_event_link(self, link) -> Optional[Dict]:
-        """Parse event from link and detail page"""
+    def _parse_event_item(self, item) -> Optional[Dict]:
+        """Parse a single event grid item"""
         try:
             event_data = {
                 'title': None,
@@ -83,90 +82,65 @@ class RhizScraper(BaseVenueScraper):
                 'artists': [],
             }
             
-            # Get URL
-            href = link.get('href')
-            if not href.startswith('http'):
-                href = self.BASE_URL.rstrip('/') + href
-            event_data['detail_url'] = href
-            
-            # Get title from link if it has meaningful text
-            link_text = link.get_text(strip=True)
-            if link_text and len(link_text) > 5 and not link_text.startswith('do ') and not link_text.startswith('fr '):
-                event_data['title'] = link_text
-            
-            # Visit detail page for full information
-            if href:
-                self._enrich_from_detail_page(event_data)
-            
-            return event_data if event_data.get('title') and event_data.get('date') else None
-            
-        except Exception as e:
-            if self.debug:
-                self.log(f"Error parsing event link: {e}", "error")
-            return None
-    
-    def _enrich_from_detail_page(self, event_data: Dict):
-        """Enrich event data from detail page"""
-        if not event_data.get('detail_url'):
-            return
-        
-        try:
-            if self.debug:
-                self.log(f"  Fetching detail page: {event_data['detail_url']}", "debug")
-            
-            soup = self.fetch_page(event_data['detail_url'])
-            if not soup:
-                return
-            
-            # Extract title from h1
-            if not event_data.get('title'):
-                title_elem = soup.select_one('h1.entry-title, h1')
-                if title_elem:
-                    event_data['title'] = title_elem.get_text(strip=True)
-            
-            # Extract date and time from event meta or specific elements
-            date_elem = soup.select_one('.event-date, .tribe-event-date-start, time')
+            # Extract date and time from event-date link
+            # Format: "sa 061225 19:30" (saturday 6 Dec 2025 at 19:30)
+            date_elem = item.select_one('.event-date a')
             if date_elem:
                 date_text = date_elem.get_text(strip=True)
-                event_data['date'] = self.parse_german_date(date_text)
-                event_data['time'] = self.parse_time(date_text)
-            
-            # Try to parse from page content if not found
-            if not event_data.get('date'):
-                # Look for date patterns in the page
-                page_text = soup.get_text()
-                # Pattern like "Do 27.11.25 19:30" or "27. November 2025"
-                date_match = re.search(r'(\d{1,2})[\.\/](\d{1,2})[\.\/](\d{2,4})', page_text)
+                # Parse: "fr 051225 20:00"
+                date_match = re.search(r'(\d{2})(\d{2})(\d{2})\s+(\d{1,2}:\d{2})', date_text)
                 if date_match:
-                    event_data['date'] = self.parse_german_date(date_match.group(0))
+                    day, month, year, time = date_match.groups()
+                    event_data['date'] = f"20{year}-{month}-{day}"
+                    event_data['time'] = time
+                
+                # Also get detail URL from this link
+                event_data['detail_url'] = date_elem.get('href')
             
-            # Extract description
-            desc_elem = soup.select_one('.event-description, .entry-content, article p')
-            if desc_elem:
-                desc_text = desc_elem.get_text(strip=True)
-                if len(desc_text) > 20:
-                    event_data['description'] = desc_text[:500]
+            # Extract title from h3 a
+            title_elem = item.select_one('.ev-body h3 a')
+            if title_elem:
+                event_data['title'] = title_elem.get_text(strip=True)
+                if not event_data.get('detail_url'):
+                    event_data['detail_url'] = title_elem.get('href')
+            
+            # Extract subtitle from h4 a
+            subtitle_elem = item.select_one('.ev-body h4 a')
+            if subtitle_elem:
+                subtitle = subtitle_elem.get_text(strip=True)
+                if subtitle:
+                    event_data['description'] = subtitle
+            
+            # Extract category (Live, DJ, etc.)
+            category_elem = item.select_one('.event-category')
+            if category_elem:
+                category = category_elem.get_text(strip=True)
+                event_data['artists'] = [category]
+            
+            # Extract price
+            price_elem = item.select_one('.event-price')
+            if price_elem:
+                event_data['price'] = price_elem.get_text(strip=True)
             
             # Extract image
-            img = soup.select_one('article img, .event-image img, img[src*="uploads"]')
-            if img:
-                src = img.get('src') or img.get('data-src')
-                if src and 'logo' not in src.lower():
+            img_elem = item.select_one('.event-image img')
+            if img_elem:
+                # Try data-src first (lazy loading), then src
+                src = img_elem.get('data-src') or img_elem.get('src')
+                if src and 'lazy_placeholder' not in src:
                     if not src.startswith('http'):
-                        src = self.BASE_URL.rstrip('/') + '/' + src.lstrip('/')
+                        if src.startswith('//'):
+                            src = 'https:' + src
+                        else:
+                            src = self.BASE_URL.rstrip('/') + '/' + src.lstrip('/')
                     event_data['image_url'] = src
             
-            # Extract ticket link
-            for link in soup.find_all('a', href=True):
-                href = link['href']
-                text = link.get_text().lower()
-                if any(kw in href.lower() or kw in text for kw in ['ticket', 'karten', 'eventbrite', 'ntry']):
-                    event_data['ticket_url'] = href
-                    break
+            return event_data if event_data['title'] else None
             
         except Exception as e:
             if self.debug:
-                self.log(f"  Error enriching from detail page: {e}", "warning")
+                self.log(f"Error parsing event item: {e}", "error")
+            return None
 
 
 def main():

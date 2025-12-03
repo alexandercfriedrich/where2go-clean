@@ -713,6 +713,44 @@ body {
   gap: 12px;
 }
 
+/* Expanded grid shows 2 rows */
+.weekend-events-expanded {
+  grid-template-rows: auto auto;
+}
+
+/* Show more button */
+.weekend-show-more-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 12px;
+  padding: 8px 16px;
+  background: rgba(79, 70, 229, 0.1);
+  border: 1px solid rgba(79, 70, 229, 0.3);
+  border-radius: 8px;
+  color: #6366f1;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.weekend-show-more-btn:hover {
+  background: rgba(79, 70, 229, 0.2);
+  border-color: rgba(79, 70, 229, 0.5);
+}
+
+.dark .weekend-show-more-btn {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.3);
+  color: #818cf8;
+}
+
+.dark .weekend-show-more-btn:hover {
+  background: rgba(99, 102, 241, 0.25);
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
 @media (max-width: 1200px) {
   .weekend-events-grid {
     grid-template-columns: repeat(4, 1fr);
@@ -720,14 +758,46 @@ body {
 }
 
 @media (max-width: 768px) {
+  /* Mobile: horizontal scroll with snap */
+  .weekend-events-container {
+    position: relative;
+  }
+  
   .weekend-events-grid {
-    grid-template-columns: repeat(3, 1fr);
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    gap: 12px;
+    padding-bottom: 12px;
+    scrollbar-width: none; /* Firefox */
+  }
+  
+  .weekend-events-grid::-webkit-scrollbar {
+    display: none; /* Chrome/Safari */
+  }
+  
+  .weekend-events-grid > * {
+    flex: 0 0 calc(50% - 6px);
+    scroll-snap-align: start;
+    min-width: calc(50% - 6px);
+  }
+  
+  .weekend-events-expanded {
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+  
+  .weekend-show-more-btn {
+    width: 100%;
+    margin-top: 16px;
   }
 }
 
 @media (max-width: 480px) {
-  .weekend-events-grid {
-    grid-template-columns: repeat(2, 1fr);
+  .weekend-events-grid > * {
+    flex: 0 0 calc(70% - 6px);
+    min-width: calc(70% - 6px);
   }
 }
 

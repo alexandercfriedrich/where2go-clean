@@ -252,37 +252,9 @@ VENUE_CONFIGS = {
     },
     
     # ============================================================================
-    # VENUE 8: CABARET FLEDERMAUS
+    # VENUE 8: CABARET FLEDERMAUS - REMOVED
+    # Scraper deleted per issue request
     # ============================================================================
-    'cabaret-fledermaus': {
-        'venue_name': 'Cabaret Fledermaus',
-        'venue_address': 'Spiegelgasse 2, 1010 Wien',
-        'base_url': 'https://www.fledermaus.at',
-        'events_url': 'https://www.fledermaus.at/program',  # ✓ KORRIGIERT: /program
-        'category': 'Bars',
-        'subcategory': 'Live Music',
-        
-        'list_selectors': {
-            # Programm-Tabelle mit wöchentlichen Events
-            'event_container': 'div.program-item, tr.event-row, div.event',
-            'date': 'td.date, .program-date, span.date',  # Format: "Do.20.November"
-            'title': 'td.title, .program-title, h3',  # z.B. "COOL FOR CATS"
-            'description': 'td.description, .program-description, p',
-            'time': 'td.time, .program-time',  # z.B. "ab 21h"
-        },
-        
-        # Wiederkehrende Events (jeden Mo/Do/Fr/Sa/So)
-        'recurring_events': {
-            'Montag': "MERCY - 80's, Wave, Synthie Pop",
-            'Donnerstag': "COOL FOR CATS - Rock'n'Roll, 50's",
-            'Freitag': 'CLASSIC - Die Kultnacht',
-            'Samstag': 'BOOGIE NIGHT (jeden 4. Sa im Monat)',
-            'Sonntag': "FREAK OUT - 60's & 70's",
-        },
-        
-        'use_detail_pages': False,
-        'date_format': 'DD.MMMM',  # z.B. "20.November"
-    },
     
     # ============================================================================
     # VENUE 9: CAMERA CLUB
@@ -391,34 +363,9 @@ VENUE_CONFIGS = {
     },
     
     # ============================================================================
-    # VENUE 12: CLUB U
+    # VENUE 12: CLUB U - REMOVED
+    # Scraper deleted per issue request
     # ============================================================================
-    'club-u': {
-        'venue_name': 'Club U',
-        'venue_address': 'Karlsplatz 5, 1010 Wien',  # ✓ Otto Wagner Pavillon
-        'base_url': 'https://club-u.at',
-        'events_url': 'https://club-u.at',  # ✓ Hauptseite, dann zu Events navigieren
-        'category': 'Clubs & Nachtleben',
-        'subcategory': 'Mixed',
-        
-        # ⚠️ PROBLEM: Website zeigt oft "coming soon" oder nur aktuelle Events
-        'list_selectors': {
-            'event_container': 'div.event, article.event-item',
-            'title': 'h2, h3.event-title',
-            'date': '.event-date, time',
-            'time': '.event-time',
-            'link': 'a[href*="event"]',
-        },
-        
-        # Alternative Quellen für verlässlichere Event-Daten
-        'alternative_sources': {
-            'freytag': 'https://frey-tag.at/locations/club-u',  # Aktuelle Events
-            'wien_info': 'https://www.wien.info/de/essen-trinken/bars-clubs/clubs-discos/club-u-343420',
-        },
-        
-        'use_detail_pages': False,
-        'scraping_strategy': 'external_aggregators',  # Empfehlung: frey-tag.at nutzen
-    },
     
     # ============================================================================
     # VENUE 13: DONAU

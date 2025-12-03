@@ -185,6 +185,7 @@ export async function getEventsByCategory(
 /**
  * Get weekend nightlife events - simplified query
  * Returns events for Clubs & Nachtleben category for Fr/Sa/So of this weekend
+ * Events are sorted by image presence and source (scraper > AI > API)
  */
 export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
   const { city = 'Wien' } = params;
@@ -252,11 +253,36 @@ export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
   
   console.log('[getWeekendNightlifeEvents] Raw events found:', events.length);
   
-  // Group by day
+  // Sort events by image presence and source priority
+  // Priority: scraper with image > AI with image > API with image > scraper no image > AI no image > API no image
+  const sortByImageAndSource = (evts: any[]) => {
+    return [...evts].sort((a, b) => {
+      const hasImageA = !!(a.image_urls?.length || a.image_url);
+      const hasImageB = !!(b.image_urls?.length || b.image_url);
+      
+      // Events with images come first
+      if (hasImageA && !hasImageB) return -1;
+      if (!hasImageA && hasImageB) return 1;
+      
+      // Within same image status, sort by source priority
+      const getSourcePriority = (source: string | undefined) => {
+        if (!source) return 3;
+        const s = source.toLowerCase();
+        if (s.includes('scraper')) return 0;
+        if (s.includes('ai') || s.includes('perplexity')) return 1;
+        if (s.includes('wien') || s.includes('api')) return 2;
+        return 3;
+      };
+      
+      return getSourcePriority(a.source) - getSourcePriority(b.source);
+    });
+  };
+  
+  // Group by day and sort by priority - get more events for "show more" functionality
   const result = {
-    friday: events.filter((e: any) => e.start_date_time?.startsWith(fridayStr)).slice(0, 6),
-    saturday: events.filter((e: any) => e.start_date_time?.startsWith(saturdayStr)).slice(0, 6),
-    sunday: events.filter((e: any) => e.start_date_time?.startsWith(sundayStr)).slice(0, 6),
+    friday: sortByImageAndSource(events.filter((e: any) => e.start_date_time?.startsWith(fridayStr))).slice(0, 20),
+    saturday: sortByImageAndSource(events.filter((e: any) => e.start_date_time?.startsWith(saturdayStr))).slice(0, 20),
+    sunday: sortByImageAndSource(events.filter((e: any) => e.start_date_time?.startsWith(sundayStr))).slice(0, 20),
   };
   
   console.log('[getWeekendNightlifeEvents] Grouped results:', {

@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
 """
 Chelsea Event Scraper
-Extracts upcoming events from https://www.chelsea.co.at/concerts.php and clubs.php
+Extracts upcoming events from https://www.chelsea.co.at/concerts.php
+
+The page structure shows events with:
+- Anchors like <a name="concert_6524"></a>
+- Images in format img/concert_XXXX_1.jpg
+- Date in format "Mi, 03.12." with event details after
 """
 import sys
 import os
+from datetime import datetime
 from typing import List, Dict, Optional
 import argparse
 import re
@@ -33,8 +39,6 @@ class ChelseaScraper(BaseVenueScraper):
             if not soup:
                 continue
             
-            # Chelsea lists events in a table format
-            # Find all text items that contain event info (numbered list)
             events = self._parse_event_list(soup, url)
             all_events.extend(events)
             
@@ -45,30 +49,30 @@ class ChelseaScraper(BaseVenueScraper):
         events = []
         
         try:
-            # Look for the main content area with event list
-            # Chelsea displays events as a numbered list
-            # Find all text nodes that start with numbers (01, 02, etc.)
+            # Find all anchor elements that mark concert sections
+            concert_anchors = soup.find_all('a', attrs={'name': re.compile(r'concert_\d+')})
             
-            # Get all text content and split into potential event entries
-            page_text = soup.get_text()
+            self.log(f"Found {len(concert_anchors)} concert anchors")
             
-            # Look for event anchors - they have ID pattern like #concert_XXXX
-            event_links = soup.find_all('a', href=re.compile(r'#concert_\d+'))
-            
-            self.log(f"Found {len(event_links)} event anchors")
-            
-            # For each anchor, try to extract event info
-            for anchor in event_links:
-                event_data = self._extract_event_from_anchor(anchor, soup)
+            for anchor in concert_anchors:
+                event_id = anchor.get('name', '').replace('concert_', '')
+                
+                # Find the parent table containing this event's details
+                event_table = anchor.find_next('table', class_='termindetails')
+                if not event_table:
+                    continue
+                
+                event_data = self._extract_event_from_table(event_table, event_id)
+                
                 if event_data and event_data.get('title'):
                     events.append(event_data)
                     status = "✓" if event_data.get('date') else "?"
-                    self.log(f" {status} {event_data['title'][:60]}",
+                    self.log(f"  {status} {event_data['title'][:50]} - {event_data.get('date', 'no date')}",
                             "success" if status == "✓" else "warning")
             
-            # Also try to parse from visible text list format
-            if not events or len(events) < 5:
-                events.extend(self._parse_text_list(soup, page_url))
+            # Also look for links to concerts in the main list
+            if len(events) < 5:
+                events.extend(self._parse_from_links(soup, page_url))
                 
         except Exception as e:
             if self.debug:
@@ -76,8 +80,8 @@ class ChelseaScraper(BaseVenueScraper):
         
         return events
     
-    def _extract_event_from_anchor(self, anchor, soup) -> Optional[Dict]:
-        """Extract event info from an anchor tag."""
+    def _extract_event_from_table(self, table, event_id: str) -> Optional[Dict]:
+        """Extract event info from a concert details table."""
         try:
             event_data = {
                 'title': None,
@@ -85,94 +89,146 @@ class ChelseaScraper(BaseVenueScraper):
                 'time': None,
                 'description': None,
                 'image_url': None,
-                'detail_url': None,
+                'detail_url': f"{self.BASE_URL}/concerts.php#concert_{event_id}",
                 'ticket_url': None,
                 'price': None,
                 'artists': [],
             }
             
-            # Get the anchor text as title
-            text_content = anchor.get_text(strip=True)
-            if text_content:
-                event_data['title'] = text_content[:200]
+            # Get event title from text content
+            text_content = table.get_text()
             
-            # Get the detail URL
-            href = anchor.get('href', '')
-            if href:
-                if not href.startswith('http'):
-                    href = self.BASE_URL.rstrip('/') + '/' + href.lstrip('/')
-                event_data['detail_url'] = href
+            # Try to find title from strong/bold elements
+            strong = table.select_one('strong, b')
+            if strong:
+                event_data['title'] = strong.get_text(strip=True)
+            
+            # Extract image
+            img = table.select_one(f'img[src*="concert_{event_id}"]')
+            if img:
+                src = img.get('src')
+                if src:
+                    if not src.startswith('http'):
+                        src = self.BASE_URL + '/' + src.lstrip('/')
+                    event_data['image_url'] = src
+            
+            # Try to extract date from text (format: "Mi, 03.12.")
+            date_match = re.search(r'(\w{2}),\s*(\d{1,2})\.(\d{1,2})\.?(\d{2,4})?', text_content)
+            if date_match:
+                day_name, day, month, year = date_match.groups()
+                if not year:
+                    today = datetime.now()
+                    year = today.year
+                    # If the event date is in the past, it's likely for next year
+                    try:
+                        event_date_this_year = datetime(year, int(month), int(day))
+                        if event_date_this_year.date() < today.date():
+                            year = year + 1
+                    except ValueError:
+                        # Invalid date, use current year
+                        pass
+                elif len(str(year)) == 2:
+                    year = 2000 + int(year)
                 
-                # Try to find associated event details after the anchor
-                # Look for nearby text that might contain date/time info
-                parent = anchor.find_parent(['tr', 'td', 'div', 'li'])
-                if parent:
-                    sibling_text = parent.get_text(strip=True)
-                    
-                    # Try to extract date
-                    event_data['date'] = self.parse_german_date(sibling_text)
-                    event_data['time'] = self.parse_time(sibling_text)
-                    
-                    # Try to extract price
-                    event_data['price'] = self.extract_price(sibling_text)
+                event_data['date'] = f"{year}-{int(month):02d}-{int(day):02d}"
+            
+            # Try to extract time
+            time_match = re.search(r'Doors?:\s*(\d{1,2})\.?(\d{2})h?|Start:\s*(\d{1,2})\.?(\d{2})h?', text_content)
+            if time_match:
+                groups = time_match.groups()
+                hour = groups[0] if groups[0] is not None else groups[2]
+                minute = groups[1] if groups[1] is not None else groups[3]
+                if hour:
+                    event_data['time'] = f"{int(hour):02d}:{minute}"
+            
+            # Try to extract price
+            price_match = re.search(r'VVK:\s*([\d,\.]+)[€\s/]*AK:?\s*([\d,\.TBA]+)?', text_content)
+            if price_match:
+                vvk = price_match.group(1)
+                event_data['price'] = f"VVK: €{vvk}"
+            
+            # Extract ticket link
+            ticket_link = table.select_one('a[href*="ticket"]')
+            if ticket_link:
+                event_data['ticket_url'] = ticket_link.get('href')
+            
+            # Extract description (paragraphs)
+            paragraphs = table.select('p')
+            desc_parts = []
+            for p in paragraphs:
+                text = p.get_text(strip=True)
+                if text and len(text) > 30:
+                    desc_parts.append(text)
+            if desc_parts:
+                event_data['description'] = '\n\n'.join(desc_parts[:3])
             
             return event_data if event_data['title'] else None
             
         except Exception as e:
             if self.debug:
-                self.log(f"Error extracting from anchor: {e}", "error")
+                self.log(f"Error extracting from table: {e}", "error")
             return None
     
-    def _parse_text_list(self, soup, page_url: str) -> List[Dict]:
-        """Parse event list from visible text format."""
+    def _parse_from_links(self, soup, page_url: str) -> List[Dict]:
+        """Parse events from link list if table parsing didn't work well."""
         events = []
         
         try:
-            # Get all text content
-            full_text = soup.get_text('\n')
-            lines = full_text.split('\n')
+            # Look for highlight links in the overview table
+            links = soup.select('a.highlight[href*="#concert_"]')
             
-            # Look for lines that match event patterns
-            # Chelsea uses format like: "01 SPORTY BOYS / HONEST LIE", "02 THE MUDDY MOON", etc.
-            event_pattern = re.compile(r'^(\d{2})\s+(.+?)(?:\s*[-–]\s*(.+))?$')
-            
-            for line in lines:
-                line = line.strip()
-                match = event_pattern.match(line)
+            for link in links[:30]:
+                href = link.get('href', '')
+                concert_id = re.search(r'concert_(\d+)', href)
+                if not concert_id:
+                    continue
                 
-                if match and len(line) > 10:  # Must be substantial
-                    num, artists, detail = match.groups()
-                    
-                    if artists:
-                        event_data = {
-                            'title': artists.strip()[:200],
-                            'date': None,
-                            'time': None,
-                            'description': detail.strip() if detail else None,
-                            'image_url': None,
-                            'detail_url': None,
-                            'ticket_url': None,
-                            'price': None,
-                            'artists': artists.split('/'),
-                        }
-                        
-                        # Try to find full details in nearby text
-                        # Look for date patterns in surrounding lines
-                        line_idx = lines.index(line)
-                        context_text = ' '.join(lines[max(0, line_idx-2):min(len(lines), line_idx+5)])
-                        
-                        event_data['date'] = self.parse_german_date(context_text)
-                        event_data['time'] = self.parse_time(context_text)
-                        
-                        if event_data['title']:
-                            events.append(event_data)
-            
-            if self.debug and events:
-                self.log(f"Parsed {len(events)} events from text list")
-            
+                # Get the parent row to find the date
+                parent_row = link.find_parent('tr')
+                if not parent_row:
+                    continue
+                
+                title = link.get_text(strip=True)
+                if not title or len(title) < 3:
+                    continue
+                
+                event_data = {
+                    'title': title,
+                    'date': None,
+                    'time': None,
+                    'description': None,
+                    'image_url': f"{self.BASE_URL}/img/concert_{concert_id.group(1)}_1.jpg",
+                    'detail_url': f"{self.BASE_URL}/concerts.php#concert_{concert_id.group(1)}",
+                    'ticket_url': None,
+                    'price': None,
+                    'artists': title.split('/') if '/' in title else [title],
+                }
+                
+                # Try to get date from same row
+                row_text = parent_row.get_text()
+                date_match = re.search(r'(\d{1,2})\.(\d{1,2})\.?(\d{2,4})?', row_text)
+                if date_match:
+                    day, month, year = date_match.groups()
+                    if not year:
+                        today = datetime.now()
+                        year = today.year
+                        # If the event date is in the past, it's likely for next year
+                        try:
+                            event_date_this_year = datetime(year, int(month), int(day))
+                            if event_date_this_year.date() < today.date():
+                                year = year + 1
+                        except ValueError:
+                            pass
+                    elif len(str(year)) == 2:
+                        year = 2000 + int(year)
+                    event_data['date'] = f"{year}-{int(month):02d}-{int(day):02d}"
+                
+                if event_data['title']:
+                    events.append(event_data)
+        
         except Exception as e:
             if self.debug:
-                self.log(f"Error parsing text list: {e}", "error")
+                self.log(f"Error parsing from links: {e}", "error")
         
         return events
 

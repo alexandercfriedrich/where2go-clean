@@ -2,10 +2,17 @@
 """
 Celeste Event Scraper
 Extracts upcoming events from https://www.celeste.co.at
+
+The page structure shows events in a table with:
+- td.agenda-description: contains title (in a.month) and date (in div.ddMM)
+- td.agenda-djs: contains DJs/artists in div.eventarts
+- Date format: "DD-MM | HH:MM-HH:MM| Type" e.g. "12-12 | 20:00-06:00| Club"
 """
 
 import sys
 import os
+import re
+from datetime import datetime
 from typing import List, Dict, Optional
 import argparse
 
@@ -21,7 +28,7 @@ class CelesteScraper(BaseVenueScraper):
     BASE_URL = "https://www.celeste.co.at"
     EVENTS_URL = "https://www.celeste.co.at"
     CATEGORY = "Clubs & Nachtleben"
-    SUBCATEGORY = "Cocktail Bar"
+    SUBCATEGORY = "Electronic"
     
     def scrape_events(self) -> List[Dict]:
         """Scrape events from Celeste"""
@@ -33,17 +40,16 @@ class CelesteScraper(BaseVenueScraper):
         
         events = []
         
-        # Try common event selectors
-        event_items = soup.select('article.event, div.event, article, .event-item, div[class*="event"]')
-        event_items = [item for item in event_items if item.get_text(strip=True) and len(item.get_text(strip=True)) > 20]
+        # Find all table rows with agenda-description cells
+        rows = soup.select('tr:has(td.agenda-description)')
         
-        self.log(f"Found {len(event_items)} potential events")
+        self.log(f"Found {len(rows)} event rows")
         
-        for idx, item in enumerate(event_items[:50], 1):  # Limit to 50
+        for idx, row in enumerate(rows[:50], 1):  # Limit to 50
             if self.debug:
-                self.log(f"Processing event {idx}/{len(event_items)}", "debug")
+                self.log(f"Processing event {idx}/{len(rows)}", "debug")
             
-            event_data = self._parse_event_item(item)
+            event_data = self._parse_event_row(row)
             
             if event_data and event_data.get('title'):
                 events.append(event_data)
@@ -53,8 +59,8 @@ class CelesteScraper(BaseVenueScraper):
         
         return events
     
-    def _parse_event_item(self, item) -> Optional[Dict]:
-        """Parse a single event item"""
+    def _parse_event_row(self, row) -> Optional[Dict]:
+        """Parse a single event row from the table"""
         try:
             event_data = {
                 'title': None,
@@ -68,51 +74,88 @@ class CelesteScraper(BaseVenueScraper):
                 'artists': [],
             }
             
-            # Extract title
-            title_elem = item.select_one('h1, h2, h3, .title, .event-title')
-            if title_elem:
-                event_data['title'] = title_elem.get_text(strip=True)
+            # Get the description cell
+            desc_cell = row.select_one('td.agenda-description')
+            if not desc_cell:
+                return None
             
-            # Extract date
-            date_elem = item.select_one('.date, .event-date, time')
-            if date_elem:
-                date_text = date_elem.get_text(strip=True)
-                event_data['date'] = self.parse_german_date(date_text)
-                event_data['time'] = self.parse_time(date_text)
+            # Extract title from a.month link
+            title_link = desc_cell.select_one('a.month')
+            if title_link:
+                event_data['title'] = title_link.get_text(strip=True)
+                event_data['detail_url'] = title_link.get('href', '')
             
-            # If no date element, try parsing from full text
-            if not event_data.get('date'):
-                text = item.get_text()
-                event_data['date'] = self.parse_german_date(text)
-                event_data['time'] = self.parse_time(text)
+            # Extract date/time from div.ddMM
+            # Format: "DD-MM | HH:MM-HH:MM| Type" e.g. "12-12 | 20:00-06:00| Club"
+            date_div = desc_cell.select_one('div.ddMM')
+            if date_div:
+                date_text = date_div.get_text(strip=True)
+                
+                # Parse date: "DD-MM"
+                date_match = re.search(r'(\d{1,2})-(\d{1,2})', date_text)
+                if date_match:
+                    day, month = date_match.groups()
+                    
+                    # Validate day and month ranges
+                    day_int = int(day)
+                    month_int = int(month)
+                    if not (1 <= day_int <= 31 and 1 <= month_int <= 12):
+                        if self.debug:
+                            self.log(f"Invalid date found: day={day_int}, month={month_int} in '{date_text}'", "warning")
+                        # Skip date setting for invalid dates
+                    else:
+                        # Determine year
+                        today = datetime.now()
+                        year = today.year
+                        
+                        # If the event date is in the past, it's likely for next year
+                        try:
+                            event_date_this_year = datetime(year, month_int, day_int)
+                            if event_date_this_year.date() < today.date():
+                                year = year + 1
+                        except ValueError:
+                            # Invalid date, use current year
+                            pass
+                        
+                        event_data['date'] = f"{year}-{month_int:02d}-{day_int:02d}"
+                
+                # Parse time: "HH:MM-HH:MM" or "HH:MM"
+                time_match = re.search(r'(\d{1,2}:\d{2})(?:-\d{1,2}:\d{2})?', date_text)
+                if time_match:
+                    event_data['time'] = time_match.group(1)
+                
+                # Parse event type: "Club" or "Concert" etc.
+                if '| Club' in date_text:
+                    event_data['description'] = 'Club Event'
+                elif '| Concert' in date_text:
+                    event_data['description'] = 'Concert'
             
-            # Extract link
-            link = item.select_one('a[href]')
-            if link:
-                href = link.get('href')
-                if href and not href.startswith('http'):
-                    href = self.BASE_URL.rstrip('/') + '/' + href.lstrip('/')
-                event_data['detail_url'] = href
-            
-            # Extract image
-            img = item.select_one('img')
-            if img:
-                src = img.get('src') or img.get('data-src')
-                if src and 'logo' not in src.lower():
-                    if not src.startswith('http'):
-                        src = self.BASE_URL.rstrip('/') + '/' + src.lstrip('/')
-                    event_data['image_url'] = src
-            
-            # Extract description
-            desc = item.select_one('.description, .excerpt, p')
-            if desc:
-                event_data['description'] = desc.get_text(strip=True)[:300]
+            # Get the DJs/artists cell
+            djs_cell = row.select_one('td.agenda-djs')
+            if djs_cell:
+                # Extract all artists
+                artists = []
+                for art in djs_cell.select('div.eventarts'):
+                    artist_text = art.get_text(strip=True)
+                    # Clean up the text (remove instrument info)
+                    artist_name = re.sub(r'\|.*', '', artist_text).strip()
+                    if artist_name:
+                        artists.append(artist_name)
+                
+                if artists:
+                    event_data['artists'] = artists[:10]  # Limit to 10
+                    # Add lineup to description
+                    lineup = ', '.join(artists[:5])
+                    if event_data.get('description'):
+                        event_data['description'] += f'\n\nLineup: {lineup}'
+                    else:
+                        event_data['description'] = f'Lineup: {lineup}'
             
             return event_data if event_data['title'] else None
             
         except Exception as e:
             if self.debug:
-                self.log(f"Error parsing event item: {e}", "error")
+                self.log(f"Error parsing event row: {e}", "error")
             return None
 
 
