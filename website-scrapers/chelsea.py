@@ -117,11 +117,16 @@ class ChelseaScraper(BaseVenueScraper):
                 day_name, day, month, year = date_match.groups()
                 if not year:
                     from datetime import datetime
-                    year = datetime.now().year
-                    # If month has passed, assume next year
-                    current_month = datetime.now().month
-                    if int(month) < current_month:
-                        year = year + 1
+                    today = datetime.now()
+                    year = today.year
+                    # If the event date is in the past, it's likely for next year
+                    try:
+                        event_date_this_year = datetime(year, int(month), int(day))
+                        if event_date_this_year.date() < today.date():
+                            year = year + 1
+                    except ValueError:
+                        # Invalid date, use current year
+                        pass
                 elif len(str(year)) == 2:
                     year = 2000 + int(year)
                 

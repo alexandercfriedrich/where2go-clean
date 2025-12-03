@@ -96,15 +96,17 @@ class CelesteScraper(BaseVenueScraper):
                     day, month = date_match.groups()
                     # Determine year
                     from datetime import datetime
-                    current_year = datetime.now().year
-                    current_month = datetime.now().month
+                    today = datetime.now()
+                    year = today.year
                     
-                    # If month is less than current month, assume next year
-                    event_month = int(month)
-                    if event_month < current_month:
-                        year = current_year + 1
-                    else:
-                        year = current_year
+                    # If the event date is in the past, it's likely for next year
+                    try:
+                        event_date_this_year = datetime(year, int(month), int(day))
+                        if event_date_this_year.date() < today.date():
+                            year = year + 1
+                    except ValueError:
+                        # Invalid date, use current year
+                        pass
                     
                     event_data['date'] = f"{year}-{int(month):02d}-{int(day):02d}"
                 
