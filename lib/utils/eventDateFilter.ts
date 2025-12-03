@@ -1,30 +1,43 @@
 /**
  * Event Date Filtering Utilities
  * Shared logic for filtering events by date across all discovery pages
+ * 
+ * IMPORTANT: All date comparisons use UTC to avoid timezone issues.
+ * Event dates are extracted from ISO strings as-is (the date portion is used directly).
  */
 
 /**
- * Get today's date normalized to midnight in local timezone
+ * Get today's date normalized to midnight UTC
+ * Uses the server's local date but converts to UTC for consistent comparison
  */
 export function getToday(): Date {
   const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
 }
 
 /**
  * Parse event date from various formats and normalize to midnight
+ * Uses UTC dates to avoid timezone issues when comparing dates
  */
 export function parseEventDate(event: { start_date_time?: string; date?: string }): Date | null {
-  const eventDate = event.start_date_time 
-    ? new Date(event.start_date_time)
-    : event.date 
-      ? new Date(event.date)
-      : null;
+  const dateString = event.start_date_time || event.date;
+  if (!dateString) return null;
   
-  if (!eventDate || isNaN(eventDate.getTime())) return null;
+  // For ISO datetime strings, extract the date part directly to avoid timezone issues
+  // Format: "2025-12-05T23:00:00.000Z" - we want to extract "2025-12-05" as the event date
+  const isoMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoMatch) {
+    const [, year, month, day] = isoMatch;
+    // Create date at midnight UTC
+    return new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day), 0, 0, 0));
+  }
   
-  // Normalize to midnight for date-only comparison
-  return new Date(eventDate.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+  // Fallback for other date formats
+  const eventDate = new Date(dateString);
+  if (isNaN(eventDate.getTime())) return null;
+  
+  // Normalize to midnight UTC for date-only comparison
+  return new Date(Date.UTC(eventDate.getUTCFullYear(), eventDate.getUTCMonth(), eventDate.getUTCDate()));
 }
 
 /**
@@ -49,28 +62,31 @@ export function filterOutPastEvents<T extends { start_date_time?: string; date?:
 
 /**
  * Get Sunday of the current week (end of week)
+ * Uses UTC for consistent date calculations
  */
 export function getSundayOfWeek(date: Date): Date {
-  const dayOfWeek = date.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+  const dayOfWeek = date.getUTCDay(); // 0=Sun, 1=Mon, ..., 6=Sat
   const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
   const sunday = new Date(date);
-  sunday.setDate(date.getDate() + daysUntilSunday);
+  sunday.setUTCDate(date.getUTCDate() + daysUntilSunday);
   return sunday;
 }
 
 /**
  * Get Monday of next week
+ * Uses UTC for consistent date calculations
  */
 export function getNextMonday(date: Date): Date {
-  const dayOfWeek = date.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+  const dayOfWeek = date.getUTCDay(); // 0=Sun, 1=Mon, ..., 6=Sat
   const daysUntilNextMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
   const nextMonday = new Date(date);
-  nextMonday.setDate(date.getDate() + daysUntilNextMonday);
+  nextMonday.setUTCDate(date.getUTCDate() + daysUntilNextMonday);
   return nextMonday;
 }
 
 /**
  * Filter events by specific date range
+ * Uses UTC for consistent date comparisons
  */
 export function filterEventsByDateRange<T extends { start_date_time?: string; date?: string }>(
   events: T[],
@@ -83,7 +99,7 @@ export function filterEventsByDateRange<T extends { start_date_time?: string; da
   if (filter === 'all') return futureEvents;
   
   const today = getToday();
-  const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+  const dayOfWeek = today.getUTCDay(); // 0=Sun, 1=Mon, ..., 6=Sat (UTC)
   
   return futureEvents.filter((event) => {
     const eventDateOnly = parseEventDate(event);
@@ -95,7 +111,7 @@ export function filterEventsByDateRange<T extends { start_date_time?: string; da
       
       case 'tomorrow': {
         const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
         return eventDateOnly.getTime() === tomorrow.getTime();
       }
         
@@ -104,13 +120,13 @@ export function filterEventsByDateRange<T extends { start_date_time?: string; da
         // "Diese Woche" = alle events bis inkl. kommenden Sonntag
         const sunday = getSundayOfWeek(today);
         const mondayAfter = new Date(sunday);
-        mondayAfter.setDate(sunday.getDate() + 1);
+        mondayAfter.setUTCDate(sunday.getUTCDate() + 1);
         return eventDateOnly >= today && eventDateOnly < mondayAfter;
       }
         
       case 'weekend':
       case 'this-weekend': {
-        // Weekend behavior based on current day:
+        // Weekend behavior based on current day (UTC):
         // - If Friday (5): show Fr, Sa, So
         // - If Saturday (6): show Sa, So  
         // - If Sunday (0): show only So
@@ -123,24 +139,24 @@ export function filterEventsByDateRange<T extends { start_date_time?: string; da
           // Today is Friday - show Fr, Sa, So
           weekendStart = new Date(today);
           weekendEnd = new Date(today);
-          weekendEnd.setDate(today.getDate() + 3); // Monday
+          weekendEnd.setUTCDate(today.getUTCDate() + 3); // Monday
         } else if (dayOfWeek === 6) {
           // Today is Saturday - show Sa, So only
           weekendStart = new Date(today);
           weekendEnd = new Date(today);
-          weekendEnd.setDate(today.getDate() + 2); // Monday
+          weekendEnd.setUTCDate(today.getUTCDate() + 2); // Monday
         } else if (dayOfWeek === 0) {
           // Today is Sunday - show only Sunday
           weekendStart = new Date(today);
           weekendEnd = new Date(today);
-          weekendEnd.setDate(today.getDate() + 1); // Monday
+          weekendEnd.setUTCDate(today.getUTCDate() + 1); // Monday
         } else {
           // Monday (1) to Thursday (4) - show next Friday, Saturday, Sunday
           const daysUntilFriday = 5 - dayOfWeek;
           weekendStart = new Date(today);
-          weekendStart.setDate(today.getDate() + daysUntilFriday);
+          weekendStart.setUTCDate(today.getUTCDate() + daysUntilFriday);
           weekendEnd = new Date(weekendStart);
-          weekendEnd.setDate(weekendStart.getDate() + 3); // Monday after weekend
+          weekendEnd.setUTCDate(weekendStart.getUTCDate() + 3); // Monday after weekend
         }
         
         return eventDateOnly >= weekendStart && eventDateOnly < weekendEnd;
@@ -151,7 +167,7 @@ export function filterEventsByDateRange<T extends { start_date_time?: string; da
         // "Nächste Woche" = Mo-So der nächsten Woche
         const nextMonday = getNextMonday(today);
         const sundayAfterNextWeek = new Date(nextMonday);
-        sundayAfterNextWeek.setDate(nextMonday.getDate() + 7); // Monday after next Sunday
+        sundayAfterNextWeek.setUTCDate(nextMonday.getUTCDate() + 7); // Monday after next Sunday
         return eventDateOnly >= nextMonday && eventDateOnly < sundayAfterNextWeek;
       }
         
