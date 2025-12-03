@@ -5,6 +5,7 @@ Extracts LGBTQ+ events from https://www.patroc.com/de/gay/wien/
 
 NOTE: Patroc is an event listing website, NOT a venue itself.
 Events are extracted with their actual venue information from the listing.
+Venue names are extracted from the "@ VenueName" format in the address section.
 """
 
 import sys
@@ -58,10 +59,10 @@ class PatrocWienGayScraper(BaseVenueScraper):
         
         events = []
         
-        # Patroc uses vevent class (microformat for events)
-        event_items = soup.select('div.vevent')
+        # Patroc uses div.vevent.item class for event containers
+        event_items = soup.select('div.vevent.item')
         
-        self.log(f"Found {len(event_items)} potential events on {url}")
+        self.log(f"Found {len(event_items)} events on {url}")
         
         for idx, item in enumerate(event_items[:50], 1):  # Limit to 50 per page
             if self.debug:
@@ -79,7 +80,7 @@ class PatrocWienGayScraper(BaseVenueScraper):
         return events
     
     def _parse_event_item(self, item) -> Optional[Dict]:
-        """Parse a single event item"""
+        """Parse a single event item from Patroc structure"""
         try:
             event_data = {
                 'title': None,
@@ -90,68 +91,88 @@ class PatrocWienGayScraper(BaseVenueScraper):
                 'description': None,
                 'venue_name': None,  # Actual venue for the event
                 'venue_address': None,
+                'price': None,
             }
             
-            # Extract title from .summary
-            title_elem = item.select_one('.summary, strong.summary')
+            # Extract title from span.summary
+            title_elem = item.select_one('span.summary')
             if title_elem:
                 event_data['title'] = title_elem.get_text(strip=True)
             
-            # Extract date from abbr.dtstart title attribute (ISO format: 2025-11-29)
+            # Extract date from abbr.dtstart title attribute (ISO format: 2025-12-05)
             date_elem = item.select_one('abbr.dtstart')
             if date_elem and date_elem.get('title'):
-                # The title attribute has the date in ISO format (YYYY-MM-DD)
                 event_data['date'] = date_elem.get('title')
             
-            # If no date found, try parsing from visible date text
-            if not event_data.get('date'):
-                date_text_elem = item.select_one('.news-date, .dtstart')
-                if date_text_elem:
-                    date_text = date_text_elem.get_text(strip=True)
-                    event_data['date'] = self.parse_german_date(date_text)
+            # Extract time from div.open text (format: "Freitag, 5. Dezember 2025, 18:00 – 24:00")
+            open_elem = item.select_one('div.open')
+            if open_elem:
+                open_text = open_elem.get_text(strip=True)
+                event_data['time'] = self.parse_time(open_text)
             
-            # Extract time if present
-            full_text = item.get_text()
-            event_data['time'] = self.parse_time(full_text)
-            
-            # Extract link from a.url
-            link_elem = item.select_one('a.url, a[href]')
+            # Extract detail URL from a.url
+            link_elem = item.select_one('a.url')
             if link_elem:
                 href = link_elem.get('href')
                 if href:
-                    if href.startswith('/'):
+                    if href.startswith('d/'):
+                        # Relative URL like "d/event-name.html"
+                        event_data['detail_url'] = self.BASE_URL + '/de/gay/wien/' + href
+                    elif href.startswith('/'):
                         event_data['detail_url'] = self.BASE_URL + href
                     elif href.startswith('http'):
                         event_data['detail_url'] = href
-                    else:
-                        # Relative URL like "d/event-name.html"
-                        event_data['detail_url'] = self.BASE_URL + '/de/gay/wien/' + href
             
-            # Extract image
-            img_elem = item.select_one('img')
-            if img_elem:
-                src = img_elem.get('src') or img_elem.get('data-src')
-                if src:
-                    if src.startswith('/'):
-                        event_data['image_url'] = self.BASE_URL + src
-                    elif src.startswith('http'):
-                        event_data['image_url'] = src
-            
-            # Extract description from .description
-            desc_elem = item.select_one('.description, span.description')
+            # Extract description from div.description.notes
+            desc_elem = item.select_one('div.description.notes')
             if desc_elem:
-                event_data['description'] = desc_elem.get_text(strip=True)[:500]
+                desc_text = desc_elem.get_text(strip=True)
+                event_data['description'] = desc_text[:500]
+                
+                # Extract price from description (format: "Eintritt: 13-25 €" or "Tickets: 10-15 €")
+                price_match = re.search(r'(?:Eintritt|Tickets?):\s*([\d\-€,\.\s]+)', desc_text)
+                if price_match:
+                    event_data['price'] = price_match.group(1).strip()
             
-            # CRITICAL: Extract actual venue from .location (not Patroc as venue!)
-            location_elem = item.select_one('.location')
-            if location_elem:
-                location_text = location_elem.get_text(strip=True)
-                # Parse venue name and address from location
-                venue_name, venue_address = self._parse_location(location_text)
-                event_data['venue_name'] = venue_name
-                event_data['venue_address'] = venue_address
+            # Extract venue from div.adr - look for "@ VenueName" pattern
+            adr_elem = item.select_one('div.adr')
+            if adr_elem:
+                # First span in adr usually contains "@ VenueName"
+                venue_span = adr_elem.select_one('span')
+                if venue_span:
+                    venue_text = venue_span.get_text(strip=True)
+                    # Remove "@ " prefix
+                    if venue_text.startswith('@'):
+                        event_data['venue_name'] = venue_text[1:].strip()
+                    else:
+                        event_data['venue_name'] = venue_text
+                
+                # Also get full address
+                full_adr = adr_elem.get_text(strip=True)
+                if event_data.get('venue_name'):
+                    # Remove venue name from address
+                    full_adr = full_adr.replace('@ ' + event_data['venue_name'], '').strip()
+                event_data['venue_address'] = full_adr
             
-            # If no venue found, try to extract from other elements or use default
+            # Fallback venue name from abbr.fn.org
+            if not event_data.get('venue_name'):
+                venue_abbr = item.select_one('abbr.fn.org')
+                if venue_abbr:
+                    event_data['venue_name'] = venue_abbr.get('title', '')
+            
+            # Try to get event image from Facebook/Instagram links
+            # We can't actually fetch these without authentication, but store the links
+            social_links = []
+            for link in item.select('div.communication a'):
+                href = link.get('href', '')
+                if 'facebook.com/events' in href or 'instagram.com' in href:
+                    social_links.append(href)
+            
+            if social_links:
+                # Store first social link as potential image source (for future enhancement)
+                event_data['social_links'] = social_links
+            
+            # If no venue found, use default
             if not event_data.get('venue_name'):
                 event_data['venue_name'] = 'LGBTQ+ Venue Wien'
                 event_data['venue_address'] = 'Wien'
@@ -162,39 +183,6 @@ class PatrocWienGayScraper(BaseVenueScraper):
             if self.debug:
                 self.log(f"Error parsing event: {e}", "error")
             return None
-    
-    def _parse_location(self, location_text: str) -> tuple:
-        """
-        Parse venue name and address from location text.
-        
-        Common formats:
-        - "@ Venue Name (Address)"
-        - "@ Venue Name, Address"
-        - "Venue Name"
-        """
-        if not location_text:
-            return 'LGBTQ+ Venue Wien', 'Wien'
-        
-        venue_name = location_text
-        venue_address = 'Wien'
-        
-        # Remove leading "@ " if present
-        if location_text.startswith('@'):
-            venue_name = location_text[1:].strip()
-        
-        # Try to split by parentheses for address
-        paren_match = re.search(r'^([^(]+)\(([^)]+)\)', venue_name)
-        if paren_match:
-            venue_name = paren_match.group(1).strip()
-            venue_address = paren_match.group(2).strip()
-        else:
-            # Try comma separation
-            if ',' in venue_name:
-                parts = venue_name.split(',', 1)
-                venue_name = parts[0].strip()
-                venue_address = parts[1].strip() if len(parts) > 1 else 'Wien'
-        
-        return venue_name, venue_address
     
     def _prepare_event_for_db(self, event: Dict) -> Dict:
         """Override to use actual venue from event data instead of scraper's VENUE_NAME"""
