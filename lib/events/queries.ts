@@ -183,6 +183,74 @@ export async function getEventsByCategory(
 }
 
 /**
+ * Get weekend nightlife events from venue scrapers
+ * Returns events grouped by day (Friday, Saturday, Sunday)
+ */
+export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
+  const { city = 'Wien', limit = 18 } = params; // 6 per day * 3 days
+  
+  // Calculate this weekend's dates
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  
+  // If it's already the weekend, use this weekend
+  // Otherwise use next weekend
+  let daysUntilFriday = (5 - dayOfWeek + 7) % 7;
+  if (daysUntilFriday === 0 && dayOfWeek === 5) {
+    daysUntilFriday = 0; // It's Friday, use today
+  } else if (daysUntilFriday === 0) {
+    daysUntilFriday = 7; // Not Friday, get next Friday
+  }
+  
+  const friday = new Date(now);
+  friday.setDate(now.getDate() + daysUntilFriday);
+  friday.setHours(0, 0, 0, 0);
+  
+  const saturday = new Date(friday);
+  saturday.setDate(friday.getDate() + 1);
+  
+  const sunday = new Date(friday);
+  sunday.setDate(friday.getDate() + 2);
+  
+  const mondayEnd = new Date(friday);
+  mondayEnd.setDate(friday.getDate() + 3);
+  mondayEnd.setHours(4, 0, 0, 0);
+  
+  // Fetch Clubs & Nachtleben events from venue scrapers for the weekend
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .eq('city', city)
+    .eq('category', 'Clubs & Nachtleben')
+    .ilike('source', '%scraper%')
+    .gte('start_date_time', friday.toISOString())
+    .lt('start_date_time', mondayEnd.toISOString())
+    .neq('is_cancelled', true)
+    .order('start_date_time', { ascending: true })
+    .limit(limit * 2); // Fetch more to ensure we have enough after grouping
+
+  if (error) {
+    console.error('Error fetching weekend nightlife events:', error);
+    return { friday: [], saturday: [], sunday: [] };
+  }
+
+  const events = data || [];
+  
+  // Group events by day
+  const fridayDate = friday.toISOString().split('T')[0];
+  const saturdayDate = saturday.toISOString().split('T')[0];
+  const sundayDate = sunday.toISOString().split('T')[0];
+  
+  const grouped = {
+    friday: events.filter((e: any) => e.start_date_time?.startsWith(fridayDate)).slice(0, 6),
+    saturday: events.filter((e: any) => e.start_date_time?.startsWith(saturdayDate)).slice(0, 6),
+    sunday: events.filter((e: any) => e.start_date_time?.startsWith(sundayDate)).slice(0, 6),
+  };
+  
+  return grouped;
+}
+
+/**
  * Simple distance calculation (Haversine formula)
  */
 function calculateDistanceSimple(

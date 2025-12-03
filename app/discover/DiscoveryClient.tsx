@@ -16,6 +16,7 @@ import { EventCard } from '@/components/EventCard';
 import { FAQSection } from '@/components/FAQSection';
 import { HowToSection } from '@/components/HowToSection';
 import { DateFilterLinks } from '@/components/discovery/DateFilterLinks';
+import { WeekendNightlifeSection } from '@/components/discovery/WeekendNightlifeSection';
 import { discoverPageFAQs, discoverPageHowTo } from '@/lib/content/discoverPageContent';
 import { VenueStats } from '@/components/VenueStats';
 import { filterEventsByDateRange } from '../../lib/utils/eventDateFilter';
@@ -24,6 +25,11 @@ interface DiscoveryClientProps {
   initialTrendingEvents: any[];
   initialWeekendEvents: any[];
   initialPersonalizedEvents: any[];
+  initialWeekendNightlifeEvents?: {
+    friday: any[];
+    saturday: any[];
+    sunday: any[];
+  };
   city: string;
 }
 
@@ -31,6 +37,7 @@ export default function DiscoveryClient({
   initialTrendingEvents,
   initialWeekendEvents,
   initialPersonalizedEvents,
+  initialWeekendNightlifeEvents = { friday: [], saturday: [], sunday: [] },
   city,
 }: DiscoveryClientProps) {
   const [mounted, setMounted] = useState(false);
@@ -153,6 +160,14 @@ export default function DiscoveryClient({
               </div>
             )}
           </section>
+
+          {/* Weekend Nightlife Section - Clubs & Nachtleben from Venue Scrapers */}
+          {!selectedCategory && (
+            <WeekendNightlifeSection 
+              events={initialWeekendNightlifeEvents} 
+              city={city} 
+            />
+          )}
 
           {/* For You Section - Show ALL events when category is selected */}
           {filteredEvents.personalized.length > 0 && (

@@ -5,7 +5,7 @@
 
 import { Metadata } from 'next';
 import DiscoveryClient from './DiscoveryClient';
-import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents } from '../../lib/events/queries';
+import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getWeekendNightlifeEvents } from '../../lib/events/queries';
 import { discoverPageMetadata } from '../lib/content/discoverPageContent';
 
 export const metadata: Metadata = {
@@ -39,10 +39,11 @@ export default async function DiscoverPage() {
   const city = 'Wien';
   
   try {
-    const [trendingEvents, weekendEvents, personalizedEvents] = await Promise.all([
+    const [trendingEvents, weekendEvents, personalizedEvents, weekendNightlifeEvents] = await Promise.all([
       getTrendingEvents({ city, limit: 12 }),
       getWeekendEvents({ city, limit: 8 }),
       getPersonalizedEvents({ city, limit: 20 }),
+      getWeekendNightlifeEvents({ city }),
     ]);
 
     return (
@@ -50,6 +51,7 @@ export default async function DiscoverPage() {
         initialTrendingEvents={trendingEvents}
         initialWeekendEvents={weekendEvents}
         initialPersonalizedEvents={personalizedEvents}
+        initialWeekendNightlifeEvents={weekendNightlifeEvents}
         city={city}
       />
     );
@@ -62,6 +64,7 @@ export default async function DiscoverPage() {
         initialTrendingEvents={[]}
         initialWeekendEvents={[]}
         initialPersonalizedEvents={[]}
+        initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city={city}
       />
     );
