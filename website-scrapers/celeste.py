@@ -12,6 +12,7 @@ The page structure shows events in a table with:
 import sys
 import os
 import re
+from datetime import datetime
 from typing import List, Dict, Optional
 import argparse
 
@@ -95,7 +96,6 @@ class CelesteScraper(BaseVenueScraper):
                 if date_match:
                     day, month = date_match.groups()
                     # Determine year
-                    from datetime import datetime
                     today = datetime.now()
                     year = today.year
                     

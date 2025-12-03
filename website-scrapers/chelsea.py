@@ -10,6 +10,7 @@ The page structure shows events with:
 """
 import sys
 import os
+from datetime import datetime
 from typing import List, Dict, Optional
 import argparse
 import re
@@ -116,7 +117,6 @@ class ChelseaScraper(BaseVenueScraper):
             if date_match:
                 day_name, day, month, year = date_match.groups()
                 if not year:
-                    from datetime import datetime
                     today = datetime.now()
                     year = today.year
                     # If the event date is in the past, it's likely for next year
