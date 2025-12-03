@@ -8,6 +8,9 @@ import DiscoveryClient from './DiscoveryClient';
 import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getWeekendNightlifeEvents } from '../../lib/events/queries';
 import { discoverPageMetadata } from '../lib/content/discoverPageContent';
 
+// Force dynamic rendering to always fetch fresh event data
+export const dynamic = 'force-dynamic';
+
 export const metadata: Metadata = {
   title: discoverPageMetadata.title,
   description: discoverPageMetadata.description,
@@ -45,6 +48,14 @@ export default async function DiscoverPage() {
       getPersonalizedEvents({ city, limit: 20 }),
       getWeekendNightlifeEvents({ city }),
     ]);
+
+    // Log weekend nightlife results for debugging
+    console.log('[DiscoverPage] Weekend nightlife events fetched:', {
+      friday: weekendNightlifeEvents.friday.length,
+      saturday: weekendNightlifeEvents.saturday.length,
+      sunday: weekendNightlifeEvents.sunday.length,
+      total: weekendNightlifeEvents.friday.length + weekendNightlifeEvents.saturday.length + weekendNightlifeEvents.sunday.length,
+    });
 
     return (
       <DiscoveryClient

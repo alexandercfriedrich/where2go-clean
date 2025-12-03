@@ -219,6 +219,19 @@ export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
   const saturdayStr = saturday.toISOString().split('T')[0];
   const sundayStr = sunday.toISOString().split('T')[0];
   
+  // Log query parameters
+  console.log('[getWeekendNightlifeEvents] Query params:', {
+    city,
+    now: now.toISOString(),
+    dayOfWeek,
+    daysUntilFriday,
+    fridayStart: friday.toISOString(),
+    mondayEnd: monday.toISOString(),
+    fridayStr,
+    saturdayStr,
+    sundayStr,
+  });
+  
   // Simple query: get all Clubs & Nachtleben events for Fr/Sa/So
   const { data, error } = await supabase
     .from('events')
@@ -237,12 +250,22 @@ export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
 
   const events = data || [];
   
+  console.log('[getWeekendNightlifeEvents] Raw events found:', events.length);
+  
   // Group by day
-  return {
+  const result = {
     friday: events.filter((e: any) => e.start_date_time?.startsWith(fridayStr)).slice(0, 6),
     saturday: events.filter((e: any) => e.start_date_time?.startsWith(saturdayStr)).slice(0, 6),
     sunday: events.filter((e: any) => e.start_date_time?.startsWith(sundayStr)).slice(0, 6),
   };
+  
+  console.log('[getWeekendNightlifeEvents] Grouped results:', {
+    friday: result.friday.length,
+    saturday: result.saturday.length,
+    sunday: result.sunday.length,
+  });
+  
+  return result;
 }
 
 /**
