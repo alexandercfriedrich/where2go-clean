@@ -31,6 +31,7 @@ interface DiscoveryClientProps {
     sunday: any[];
   };
   city: string;
+  initialDateFilter?: string;
 }
 
 export default function DiscoveryClient({
@@ -39,10 +40,11 @@ export default function DiscoveryClient({
   initialPersonalizedEvents,
   initialWeekendNightlifeEvents = { friday: [], saturday: [], sunday: [] },
   city,
+  initialDateFilter = 'all',
 }: DiscoveryClientProps) {
   const [mounted, setMounted] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [selectedDateFilter, setSelectedDateFilter] = useState<string>('all');
+  const [selectedDateFilter, setSelectedDateFilter] = useState<string>(initialDateFilter);
   const [filteredEvents, setFilteredEvents] = useState({
     personalized: initialPersonalizedEvents,
     trending: initialTrendingEvents,

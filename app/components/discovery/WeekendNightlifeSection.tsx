@@ -42,8 +42,6 @@ function getWeekendDates(): { friday: Date; saturday: Date; sunday: Date } {
     daysUntilFriday = -1;
   } else if (dayOfWeek === 0) {
     daysUntilFriday = -2;
-  } else if (daysUntilFriday === 0) {
-    daysUntilFriday = 7;
   }
   
   const friday = new Date(now);

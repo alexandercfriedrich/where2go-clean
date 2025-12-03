@@ -195,10 +195,10 @@ export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
   
   // Calculate days until Friday
   let daysUntilFriday: number;
-  if (dayOfWeek === 5) daysUntilFriday = 0;      // Friday
-  else if (dayOfWeek === 6) daysUntilFriday = 6; // Saturday -> next Friday
-  else if (dayOfWeek === 0) daysUntilFriday = 5; // Sunday -> next Friday
-  else daysUntilFriday = 5 - dayOfWeek;          // Mon-Thu
+  if (dayOfWeek === 5) daysUntilFriday = 0;      // Friday -> this Friday
+  else if (dayOfWeek === 6) daysUntilFriday = -1; // Saturday -> last Friday
+  else if (dayOfWeek === 0) daysUntilFriday = -2; // Sunday -> last Friday
+  else daysUntilFriday = 5 - dayOfWeek;          // Mon-Thu -> next Friday
   
   const friday = new Date(now);
   friday.setDate(now.getDate() + daysUntilFriday);

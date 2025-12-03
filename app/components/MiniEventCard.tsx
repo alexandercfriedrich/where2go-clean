@@ -27,7 +27,7 @@ export interface MiniEventCardProps {
 }
 
 // Helper to parse time from ISO datetime
-function getEventTime(event: any): string | null {
+function getEventTime(event: MiniEventCardProps['event']): string | null {
   if (event.time) {
     if (event.time === '00:00:01' || event.time === 'ganztags') {
       return null;
@@ -52,7 +52,7 @@ function getEventTime(event: any): string | null {
 }
 
 export function MiniEventCard({ event, city = 'Wien' }: MiniEventCardProps) {
-  const venue = (event as any).custom_venue_name || event.venue || '';
+  const venue = event.custom_venue_name || event.venue || '';
   const eventTime = getEventTime(event);
   
   const databaseSlug = event.slug;
