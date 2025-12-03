@@ -29,7 +29,6 @@ const PRIORITY_VENUES = [
   'das werk',
   'u4',
   'o der klub',
-  'o klub',
 ];
 
 // Utility to normalize venue names for comparison

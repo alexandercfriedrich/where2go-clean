@@ -102,6 +102,7 @@ class CelesteScraper(BaseVenueScraper):
                     if not (1 <= day_int <= 31 and 1 <= month_int <= 12):
                         if self.debug:
                             self.log(f"Invalid date found: day={day_int}, month={month_int} in '{date_text}'", "warning")
+                        # Skip date setting for invalid dates
                     else:
                         # Determine year
                         today = datetime.now()
