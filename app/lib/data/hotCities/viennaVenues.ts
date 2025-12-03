@@ -1,13 +1,14 @@
 /**
  * Vienna Venues Data
  * Structured venue information for Vienna hot city
+ * Updated for new 12-category structure
  */
 
 export const VIENNA_VENUES = [
   {
     id: 'venue-konzerthaus-wien',
     name: 'Wiener Konzerthaus',
-    categories: ['Live-Konzerte', 'Kultur/Traditionen'],
+    categories: ['Klassik & Oper', 'Live-Konzerte'],
     description: 'Premier concert hall for classical and contemporary music',
     priority: 9,
     isActive: true,
@@ -26,7 +27,7 @@ export const VIENNA_VENUES = [
   {
     id: 'venue-staatsoper-wien',
     name: 'Wiener Staatsoper',
-    categories: ['Live-Konzerte', 'Theater/Performance', 'Kultur/Traditionen'],
+    categories: ['Klassik & Oper', 'Theater & Comedy'],
     description: 'World-famous Vienna State Opera',
     priority: 10,
     isActive: true,
@@ -45,7 +46,7 @@ export const VIENNA_VENUES = [
   {
     id: 'venue-flex-wien',
     name: 'Flex Wien',
-    categories: ['DJ Sets/Electronic', 'Clubs/Discos', 'Live-Konzerte'],
+    categories: ['Clubs & Nachtleben', 'Live-Konzerte'],
     description: 'Electronic music club and live venue',
     priority: 8,
     isActive: true,
@@ -64,7 +65,7 @@ export const VIENNA_VENUES = [
   {
     id: 'venue-belvedere-museum',
     name: 'Belvedere Museum',
-    categories: ['Museen', 'Kunst/Design'],
+    categories: ['Museen & Ausstellungen'],
     description: 'Baroque palace complex housing Austrian art collections',
     priority: 8,
     isActive: true,
@@ -83,7 +84,7 @@ export const VIENNA_VENUES = [
   {
     id: 'venue-burgtheater',
     name: 'Burgtheater',
-    categories: ['Theater/Performance', 'Kultur/Traditionen'],
+    categories: ['Theater & Comedy'],
     description: 'Austrian National Theatre and one of the most important German-language theatres',
     priority: 9,
     isActive: true,
@@ -102,7 +103,7 @@ export const VIENNA_VENUES = [
   {
     id: 'venue-donauinsel',
     name: 'Donauinsel',
-    categories: ['Open Air', 'Natur/Outdoor', 'Sport'],
+    categories: ['Open Air & Festivals', 'Sport & Fitness'],
     description: 'Recreational island on the Danube river, host to outdoor events and festivals',
     priority: 7,
     isActive: true,
@@ -121,7 +122,7 @@ export const VIENNA_VENUES = [
   {
     id: 'venue-albertina-museum',
     name: 'Albertina Museum',
-    categories: ['Museen', 'Kunst/Design'],
+    categories: ['Museen & Ausstellungen'],
     description: 'Major art museum with extensive collections of prints, drawings and modern art',
     priority: 8,
     isActive: true,
@@ -140,7 +141,7 @@ export const VIENNA_VENUES = [
   {
     id: 'venue-volkstheater',
     name: 'Volkstheater Wien',
-    categories: ['Theater/Performance', 'Kultur/Traditionen'],
+    categories: ['Theater & Comedy'],
     description: 'Major theatre venue for contemporary and classical performances',
     priority: 8,
     isActive: true,
@@ -159,7 +160,7 @@ export const VIENNA_VENUES = [
   {
     id: 'venue-arena-wien',
     name: 'Arena Wien',
-    categories: ['Live-Konzerte', 'Open Air', 'Kultur/Traditionen'],
+    categories: ['Live-Konzerte', 'Open Air & Festivals'],
     description: 'Historic venue for concerts, festivals and cultural events',
     priority: 7,
     isActive: true,
@@ -178,7 +179,7 @@ export const VIENNA_VENUES = [
   {
     id: 'venue-wiener-prater',
     name: 'Wiener Prater',
-    categories: ['Natur/Outdoor', 'Familien/Kids', 'Sport'],
+    categories: ['Open Air & Festivals', 'Familie & Kinder', 'Sport & Fitness'],
     description: 'Large public park and amusement park with events and attractions',
     priority: 7,
     isActive: true,
@@ -197,7 +198,7 @@ export const VIENNA_VENUES = [
   {
     id: 'venue-grelle-forelle',
     name: 'Grelle Forelle',
-    categories: ['DJ Sets/Electronic', 'Clubs/Discos'],
+    categories: ['Clubs & Nachtleben'],
     description: 'Popular electronic music club and techno venue',
     priority: 7,
     isActive: true,
@@ -216,7 +217,7 @@ export const VIENNA_VENUES = [
   {
     id: 'venue-porgy-bess',
     name: 'Porgy & Bess',
-    categories: ['Live-Konzerte', 'Kultur/Traditionen'],
+    categories: ['Live-Konzerte'],
     description: 'Renowned jazz club and concert venue',
     priority: 7,
     isActive: true,
@@ -235,7 +236,7 @@ export const VIENNA_VENUES = [
   {
     id: 'venue-ronacher-theater',
     name: 'Ronacher Theater',
-    categories: ['Theater/Performance', 'Live-Konzerte'],
+    categories: ['Theater & Comedy', 'Live-Konzerte'],
     description: 'Musical theatre and entertainment venue',
     priority: 8,
     isActive: true,
@@ -254,7 +255,7 @@ export const VIENNA_VENUES = [
   {
     id: 'venue-mak-museum',
     name: 'MAK - Museum für angewandte Kunst',
-    categories: ['Museen', 'Kunst/Design'],
+    categories: ['Museen & Ausstellungen'],
     description: 'Museum of Applied Arts with contemporary art and design exhibitions',
     priority: 7,
     isActive: true,
@@ -273,7 +274,7 @@ export const VIENNA_VENUES = [
   {
     id: 'venue-rathausplatz',
     name: 'Rathausplatz',
-    categories: ['Open Air', 'Film', 'Kultur/Traditionen', 'Märkte/Shopping'],
+    categories: ['Open Air & Festivals', 'Film & Kino', 'Kulinarik & Märkte'],
     description: 'Historic city square hosting film festivals, markets and cultural events',
     priority: 8,
     isActive: true,
@@ -292,7 +293,7 @@ export const VIENNA_VENUES = [
   {
     id: 'venue-mumok',
     name: 'mumok - Museum Moderner Kunst',
-    categories: ['Museen', 'Kunst/Design'],
+    categories: ['Museen & Ausstellungen'],
     description: 'Museum of Modern Art featuring contemporary and modern art',
     priority: 7,
     isActive: true,
@@ -311,7 +312,7 @@ export const VIENNA_VENUES = [
   {
     id: 'venue-kunsthistorisches-museum',
     name: 'Kunsthistorisches Museum',
-    categories: ['Museen', 'Kunst/Design', 'Kultur/Traditionen'],
+    categories: ['Museen & Ausstellungen'],
     description: 'World-renowned art history museum with extensive collections',
     priority: 9,
     isActive: true,
@@ -330,7 +331,7 @@ export const VIENNA_VENUES = [
   {
     id: 'venue-pratersauna',
     name: 'Pratersauna',
-    categories: ['DJ Sets/Electronic', 'Clubs/Discos', 'Live-Konzerte'],
+    categories: ['Clubs & Nachtleben', 'Live-Konzerte'],
     description: 'Club and cultural venue for electronic music and parties',
     priority: 7,
     isActive: true,
@@ -349,7 +350,7 @@ export const VIENNA_VENUES = [
   {
     id: 'venue-chelsea',
     name: 'Chelsea',
-    categories: ['Live-Konzerte', 'Clubs/Discos', 'DJ Sets/Electronic'],
+    categories: ['Live-Konzerte', 'Clubs & Nachtleben'],
     description: 'Underground venue for alternative music and club nights',
     priority: 6,
     isActive: true,
@@ -368,7 +369,7 @@ export const VIENNA_VENUES = [
   {
     id: 'venue-stadthalle',
     name: 'Wiener Stadthalle',
-    categories: ['Live-Konzerte', 'Sport', 'Theater/Performance'],
+    categories: ['Live-Konzerte', 'Sport & Fitness', 'Theater & Comedy'],
     description: 'Major indoor arena for concerts, sports and large-scale events',
     priority: 8,
     isActive: true,

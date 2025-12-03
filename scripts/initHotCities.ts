@@ -1,4 +1,5 @@
 // Script to initialize hot cities data
+// Updated for new 12-category structure
 import { HotCity, HotCityWebsite } from '../app/lib/types';
 import { saveHotCities } from '../app/lib/hotCityStore';
 
@@ -18,7 +19,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Wiener Staatsoper',
         url: 'https://www.wiener-staatsoper.at',
-        categories: ['Live-Konzerte', 'Theater/Performance', 'Kultur/Traditionen'],
+        categories: ['Klassik & Oper', 'Theater & Comedy'],
         description: 'Vienna State Opera performances',
         priority: 9,
         isActive: true
@@ -27,7 +28,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Wiener Konzerthaus',
         url: 'https://konzerthaus.at',
-        categories: ['Live-Konzerte', 'Kultur/Traditionen'],
+        categories: ['Klassik & Oper', 'Live-Konzerte'],
         description: 'Vienna Concert House events',
         priority: 9,
         isActive: true
@@ -36,7 +37,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Flex Wien',
         url: 'https://flex.at',
-        categories: ['DJ Sets/Electronic', 'Clubs/Discos', 'Live-Konzerte'],
+        categories: ['Clubs & Nachtleben', 'Live-Konzerte'],
         description: 'Electronic music and club events',
         priority: 8,
         isActive: true
@@ -45,7 +46,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Belvedere Museum',
         url: 'https://www.belvedere.at',
-        categories: ['Museen', 'Kunst/Design'],
+        categories: ['Museen & Ausstellungen'],
         description: 'Art exhibitions and cultural events',
         priority: 8,
         isActive: true
@@ -84,7 +85,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Ars Electronica',
         url: 'https://ars.electronica.art',
-        categories: ['Kunst/Design', 'Bildung/Lernen', 'DJ Sets/Electronic'],
+        categories: ['Museen & Ausstellungen', 'Bildung & Workshops', 'Clubs & Nachtleben'],
         description: 'Digital arts and technology events',
         priority: 9,
         isActive: true
@@ -93,7 +94,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Brucknerhaus',
         url: 'https://www.brucknerhaus.at',
-        categories: ['Live-Konzerte', 'Kultur/Traditionen'],
+        categories: ['Klassik & Oper', 'Live-Konzerte'],
         description: 'Concert hall and classical music',
         priority: 9,
         isActive: true
@@ -102,7 +103,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Lentos Kunstmuseum',
         url: 'https://www.lentos.at',
-        categories: ['Museen', 'Kunst/Design'],
+        categories: ['Museen & Ausstellungen'],
         description: 'Modern and contemporary art',
         priority: 8,
         isActive: true
@@ -111,7 +112,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Posthof Linz',
         url: 'https://www.posthof.at',
-        categories: ['Live-Konzerte', 'Theater/Performance', 'DJ Sets/Electronic'],
+        categories: ['Live-Konzerte', 'Theater & Comedy', 'Clubs & Nachtleben'],
         description: 'Cultural center with diverse events',
         priority: 8,
         isActive: true

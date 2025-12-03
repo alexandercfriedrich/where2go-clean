@@ -14,10 +14,10 @@ export default function HotCitiesDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   const availableCategories = [
-    'Live-Konzerte', 'DJ Sets/Electronic', 'Clubs/Discos', 'Theater/Performance',
-    'Museen', 'Kunst/Design', 'Food/Culinary', 'Sport', 'Networking/Business',
-    'Natur/Outdoor', 'Kultur/Traditionen', 'Familien/Kids', 'Wellness/Spirituell',
-    'Bildung/Lernen', 'Open Air', 'LGBTQ+'
+    'Clubs & Nachtleben', 'Live-Konzerte', 'Klassik & Oper', 'Theater & Comedy',
+    'Museen & Ausstellungen', 'Film & Kino', 'Open Air & Festivals',
+    'Kulinarik & Märkte', 'Sport & Fitness', 'Bildung & Workshops',
+    'Familie & Kinder', 'LGBTQ+'
   ];
 
   useEffect(() => {

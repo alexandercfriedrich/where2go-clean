@@ -38,7 +38,7 @@ class GenericVenueScraper(BaseVenueScraper):
         self.VENUE_ADDRESS = config['venue_address']
         self.BASE_URL = config['base_url']
         self.EVENTS_URL = config['events_url']
-        self.CATEGORY = config.get('category', 'Clubs/Discos')
+        self.CATEGORY = config.get('category', 'Clubs & Nachtleben')  # Updated for new 12-category structure
         self.SUBCATEGORY = config.get('subcategory', 'Electronic')
         
         # Store configuration
