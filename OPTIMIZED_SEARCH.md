@@ -100,7 +100,7 @@ import { createSmartEventFetcher } from '@/lib/smartEventFetcher';
 // Create fetcher instance
 const fetcher = createSmartEventFetcher({
   apiKey: process.env.PERPLEXITY_API_KEY!,
-  categories: ['Live-Konzerte', 'Theater/Performance'],
+  categories: ['Live-Konzerte', 'Theater & Comedy'],
   debug: true,
   temperature: 0.1,
   maxTokens: 8000
@@ -128,7 +128,7 @@ curl -X POST https://your-domain.com/api/events/optimized \
   -d '{
     "city": "Berlin",
     "date": "2025-01-20",
-    "categories": ["Live-Konzerte", "Theater/Performance"],
+    "categories": ["Live-Konzerte", "Theater & Comedy"],
     "options": {
       "debug": true,
       "temperature": 0.1,
@@ -173,18 +173,18 @@ The system uses 12 compact categories for efficient AI querying:
 
 ```typescript
 export const OPTIMIZED_CATEGORIES = [
-  'DJ Sets/Electronic',
-  'Clubs/Discos',
+  'Clubs & Nachtleben',
   'Live-Konzerte',
-  'Theater/Performance',
-  'Open Air',
-  'Museen',
-  'Comedy/Kabarett',
-  'Film',
-  'Food/Culinary',
-  'Sport',
-  'Kultur/Traditionen',
-  'Workshops'
+  'Klassik & Oper',
+  'Theater & Comedy',
+  'Museen & Ausstellungen',
+  'Film & Kino',
+  'Open Air & Festivals',
+  'Kulinarik & Märkte',
+  'Sport & Fitness',
+  'Bildung & Workshops',
+  'Familie & Kinder',
+  'LGBTQ+'
 ];
 ```
 

@@ -11,7 +11,7 @@ class PonyhofScraper(BaseVenueScraper):
     VENUE_ADDRESS = "Gürtelbogen 103, 1060 Wien"
     BASE_URL = "https://ponyhof-official.at"
     EVENTS_URL = "https://ponyhof-official.at"
-    CATEGORY = "Clubs/Discos"
+    CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Mixed"
     
     def scrape_events(self) -> List[Dict]:

@@ -27,7 +27,7 @@ class RhizScraper(BaseVenueScraper):
     VENUE_ADDRESS = "Lerchenfelder Gürtel, Stadtbahnbogen 37-38, 1080 Wien"
     BASE_URL = "https://rhiz.wien"
     EVENTS_URL = "https://rhiz.wien/programm/"
-    CATEGORY = "Clubs/Discos"
+    CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Underground"
     
     def scrape_events(self) -> List[Dict]:

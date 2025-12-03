@@ -27,7 +27,7 @@ class PraterstrasseScraper(BaseVenueScraper):
     VENUE_ADDRESS = "Praterstraße 38, 1020 Wien"
     BASE_URL = "https://praterstrasse.wien"
     EVENTS_URL = "https://praterstrasse.wien/en/praterstrasse-tickets-9djnDeMk/"
-    CATEGORY = "Clubs/Discos"
+    CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Electronic"
     
     def scrape_events(self) -> List[Dict]:

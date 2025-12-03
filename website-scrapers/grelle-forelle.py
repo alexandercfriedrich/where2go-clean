@@ -28,7 +28,7 @@ class GrelleForelleScraper(BaseVenueScraper):
     VENUE_ADDRESS = "Spittelauer Lände 12, 1090 Wien"
     BASE_URL = "https://www.grelleforelle.com"
     EVENTS_URL = "https://www.grelleforelle.com/programm/"
-    CATEGORY = "Clubs/Discos"
+    CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Electronic"
     
     def scrape_events(self) -> List[Dict]:

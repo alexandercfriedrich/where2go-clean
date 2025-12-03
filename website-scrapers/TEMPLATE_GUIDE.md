@@ -50,7 +50,7 @@ If the venue has a standard structure, just add a configuration to `venue_config
     'venue_address': 'Street 123, 1010 Wien',
     'base_url': 'https://my-venue.com',
     'events_url': 'https://my-venue.com/events/',
-    'category': 'Clubs/Discos',
+    'category': 'Clubs & Nachtleben',
     'subcategory': 'Electronic',
     
     'list_selectors': {
@@ -135,7 +135,7 @@ class MyVenueScraper(BaseVenueScraper):
     'venue_address': 'Full address',         # Full address
     'base_url': 'https://venue.com',         # Base URL for relative links
     'events_url': 'https://venue.com/events',# Events page URL
-    'category': 'Clubs/Discos',              # Event category
+    'category': 'Clubs & Nachtleben',              # Event category
     'subcategory': 'Electronic',             # Subcategory
 }
 ```

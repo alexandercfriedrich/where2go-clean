@@ -34,9 +34,17 @@ function getCityDisplayName(cityParam: string): string {
 // Helper to map guide category to event categories
 function mapGuideCategoryToEventCategories(categorySlug: string): string[] {
   const mapping: Record<string, string[]> = {
-    'live-konzerte': ['Musik & Nachtleben', 'Konzerte'],
-    'theater': ['Theater & Performance', 'Theater'],
-    'festivals': ['Festivals', 'Outdoor & Natur'],
+    'live-konzerte': ['Live-Konzerte', 'Clubs & Nachtleben'],
+    'theater': ['Theater & Comedy'],
+    'festivals': ['Open Air & Festivals'],
+    'klassik': ['Klassik & Oper'],
+    'museen': ['Museen & Ausstellungen'],
+    'film': ['Film & Kino'],
+    'kulinarik': ['Kulinarik & Märkte'],
+    'sport': ['Sport & Fitness'],
+    'bildung': ['Bildung & Workshops'],
+    'familie': ['Familie & Kinder'],
+    'lgbtq': ['LGBTQ+'],
     // Add more mappings as needed
   };
   return mapping[categorySlug] || [categorySlug];

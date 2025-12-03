@@ -147,7 +147,7 @@ Events are stored with the following fields:
 | title | title | Event name |
 | description | description | First 1000 chars of event description |
 | date + time | start_date_time | ISO 8601 format (YYYY-MM-DDTHH:MM:00.000Z) |
-| - | category | Set to "Clubs/Discos" |
+| - | category | Set to "Clubs & Nachtleben" |
 | - | subcategory | Set to "Electronic" |
 | - | custom_venue_name | Set to "Grelle Forelle" |
 | - | custom_venue_address | Set to "Spittelauer Lände 12, 1090 Wien" |

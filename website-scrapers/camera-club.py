@@ -11,7 +11,7 @@ class CameraClubScraper(BaseVenueScraper):
     VENUE_ADDRESS = "Neubaugasse 2, 1070 Wien"
     BASE_URL = "https://camera-club.at"
     EVENTS_URL = "https://camera-club.at/events/list/"
-    CATEGORY = "Clubs/Discos"
+    CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Electronic"
     
     def scrape_events(self) -> List[Dict]:

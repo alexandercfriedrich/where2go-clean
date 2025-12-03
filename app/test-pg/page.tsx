@@ -145,7 +145,7 @@ export default function TestPostgreSQLPage() {
                 borderRadius: '4px', 
                 border: '1px solid #ccc' 
               }}
-              placeholder="e.g., Musik & Nachtleben"
+              placeholder="e.g., Clubs & Nachtleben"
             />
           </div>
 

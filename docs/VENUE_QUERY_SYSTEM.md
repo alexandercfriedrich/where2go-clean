@@ -75,7 +75,7 @@ VENUE-SPECIFIC EVENT SEARCH: Classical music events at Wiener Konzerthaus
 TARGET VENUE: Wiener Konzerthaus
 LOCATION: Wien
 DATE: 2025-10-03
-CATEGORIES: Live-Konzerte, Kultur/Traditionen
+CATEGORIES: Live-Konzerte, Bildung & Workshops
 
 SEARCH INSTRUCTIONS:
 - Focus specifically on events at "Wiener Konzerthaus" in Wien
@@ -96,7 +96,7 @@ When calling `/api/events/process`, you can configure venue queries:
   "jobId": "my-job-id",
   "city": "Wien",
   "date": "2025-10-03",
-  "categories": ["Live-Konzerte", "DJ Sets/Electronic"],
+  "categories": ["Live-Konzerte", "Clubs & Nachtleben"],
   "options": {
     "debug": true,                    // Enable debug logging
     "enableVenueQueries": true,       // Enable venue queries (default: true)
@@ -114,7 +114,7 @@ Venues are configured in `app/lib/data/hotCities/viennaVenues.ts`:
 {
   id: 'venue-staatsoper-wien',
   name: 'Wiener Staatsoper',
-  categories: ['Live-Konzerte', 'Theater/Performance', 'Kultur/Traditionen'],
+  categories: ['Live-Konzerte', 'Theater & Comedy', 'Bildung & Workshops'],
   description: 'World-famous Vienna State Opera',
   priority: 10,                       // High priority (8-10)
   isActive: true,                     // Must be active

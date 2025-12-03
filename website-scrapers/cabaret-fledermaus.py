@@ -11,7 +11,7 @@ class CabaretFledermausScraper(BaseVenueScraper):
     VENUE_ADDRESS = "Spiegelgasse 2, 1010 Wien"
     BASE_URL = "https://www.fledermaus.at"
     EVENTS_URL = "https://www.fledermaus.at/program"
-    CATEGORY = "Clubs/Discos"
+    CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Mixed"
     
     def scrape_events(self) -> List[Dict]:

@@ -20,7 +20,7 @@ class DonauScraper(BaseVenueScraper):
     VENUE_ADDRESS = "Donaukanal, 1020 Wien"
     BASE_URL = "https://www.donautechno.com"
     EVENTS_URL = "https://www.donautechno.com"
-    CATEGORY = "Clubs/Discos"
+    CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Techno"
     
     def scrape_events(self) -> List[Dict]:

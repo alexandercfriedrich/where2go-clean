@@ -107,7 +107,7 @@ GET /api/v1/events?city=Wien&cache=false
   "data": [
     {
       "title": "Event Title",
-      "category": "Musik & Nachtleben",
+      "category": "Clubs & Nachtleben",
       "date": "2024-12-25T20:00:00.000Z",
       "time": "20:00",
       "venue": "Venue Name",
@@ -124,7 +124,7 @@ GET /api/v1/events?city=Wien&cache=false
     "source": "postgresql",
     "city": "Wien",
     "date": "2024-12-25",
-    "category": "Musik & Nachtleben"
+    "category": "Clubs & Nachtleben"
   }
 }
 ```

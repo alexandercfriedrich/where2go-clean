@@ -231,7 +231,7 @@ const seedCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Berghain',
         url: 'https://www.berghain.berlin',
-        categories: ['DJ Sets/Electronic', 'Clubs/Discos'],
+        categories: ['Clubs & Nachtleben', 'Clubs & Nachtleben'],
         description: 'World-famous techno club',
         priority: 9,
         isActive: true
@@ -240,7 +240,7 @@ const seedCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Watergate',
         url: 'https://water-gate.de',
-        categories: ['DJ Sets/Electronic', 'Clubs/Discos'],
+        categories: ['Clubs & Nachtleben', 'Clubs & Nachtleben'],
         description: 'Techno and electronic music club',
         priority: 8,
         isActive: true
@@ -249,7 +249,7 @@ const seedCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Berlin Philharmonic',
         url: 'https://www.berliner-philharmoniker.de',
-        categories: ['Live-Konzerte', 'Kultur/Traditionen'],
+        categories: ['Live-Konzerte', 'Bildung & Workshops'],
         description: 'Classical music and orchestra performances',
         priority: 9,
         isActive: true
@@ -258,7 +258,7 @@ const seedCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Museum Island Berlin',
         url: 'https://www.smb.museum/museumsinsel-berlin/',
-        categories: ['Museen', 'Kunst/Design'],
+        categories: ['Museen & Ausstellungen', 'Museen & Ausstellungen'],
         description: 'Museum exhibitions and cultural events',
         priority: 8,
         isActive: true
@@ -267,7 +267,7 @@ const seedCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'SO36 Berlin',
         url: 'https://www.so36.com',
-        categories: ['Live-Konzerte', 'LGBTQ+', 'Kultur/Traditionen'],
+        categories: ['Live-Konzerte', 'LGBTQ+', 'Bildung & Workshops'],
         description: 'Alternative venue for punk, indie, and LGBTQ+ events',
         priority: 8,
         isActive: true
