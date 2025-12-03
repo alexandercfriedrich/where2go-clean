@@ -46,13 +46,6 @@ export default async function DiscoverPage() {
       getWeekendNightlifeEvents({ city }),
     ]);
 
-    // Debug logging for weekend nightlife events
-    console.log('[DiscoverPage] Weekend nightlife events:', {
-      friday: weekendNightlifeEvents.friday.length,
-      saturday: weekendNightlifeEvents.saturday.length,
-      sunday: weekendNightlifeEvents.sunday.length,
-    });
-
     return (
       <DiscoveryClient
         initialTrendingEvents={trendingEvents}
