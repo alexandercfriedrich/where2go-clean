@@ -38,8 +38,6 @@ def import_scraper(venue_key):
         'praterstrasse': ('praterstrasse', 'PraterstrasseScraper'),
         'prater-dome': ('praterdome', 'PraterdomeScraper'),
         'sass-music-club': ('sass', 'SassScraper'),
-        'cabaret-fledermaus': ('cabaret-fledermaus', 'CabaretFledermausScraper'),
-        'club-u': ('club-u', 'ClubUScraper'),
         'ponyhof': ('ponyhof', 'PonyhofScraper'),
         'vieipee': ('vieipee', 'VieipeeScraper'),
         'babenberger-passage': ('babenberger-passage', 'BabenbergerPassageScraper'),

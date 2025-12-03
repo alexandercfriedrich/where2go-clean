@@ -3,6 +3,7 @@
  * 
  * Compact version of EventCard for grid layouts with 6 cards per row.
  * Designed for weekend nightlife section on Discovery page.
+ * Note: Time is intentionally not displayed on mini event cards per design requirements.
  */
 
 'use client';
@@ -26,34 +27,8 @@ export interface MiniEventCardProps {
   city?: string;
 }
 
-// Helper to parse time from ISO datetime
-function getEventTime(event: MiniEventCardProps['event']): string | null {
-  if (event.time) {
-    if (event.time === '00:00:01' || event.time === 'ganztags') {
-      return null;
-    }
-    return event.time;
-  }
-  if (event.start_date_time) {
-    try {
-      const date = new Date(event.start_date_time);
-      const hours = date.getUTCHours();
-      const minutes = date.getUTCMinutes();
-      const seconds = date.getUTCSeconds();
-      if (hours === 0 && minutes === 0 && seconds === 1) {
-        return null;
-      }
-      return date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
 export function MiniEventCard({ event, city = 'Wien' }: MiniEventCardProps) {
   const venue = event.custom_venue_name || event.venue || '';
-  const eventTime = getEventTime(event);
   
   const databaseSlug = event.slug;
   const citySlug = normalizeCitySlug(city);
@@ -66,7 +41,7 @@ export function MiniEventCard({ event, city = 'Wien' }: MiniEventCardProps) {
 
   const cardContent = (
     <div className="mini-event-card group">
-      {/* Event Image */}
+      {/* Event Image - no time overlay per design requirements */}
       <div 
         className="mini-event-image"
         style={{
@@ -74,14 +49,7 @@ export function MiniEventCard({ event, city = 'Wien' }: MiniEventCardProps) {
             ? `url(${eventImage})` 
             : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         }}
-      >
-        {/* Time overlay */}
-        {eventTime && (
-          <div className="mini-event-time">
-            {eventTime}
-          </div>
-        )}
-      </div>
+      />
 
       {/* Event Content */}
       <div className="mini-event-content">
