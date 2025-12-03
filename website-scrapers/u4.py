@@ -83,7 +83,9 @@ class U4Scraper(BaseVenueScraper):
                         desc = re.sub(r'\s+', ' ', desc).strip()
                         event_data['description'] = desc[:500]
                 except json.JSONDecodeError:
-                    pass
+                    # Ignore malformed or missing JSON-LD; not all events have valid schema.org data.
+                    if self.debug:
+                        self.log("JSON-LD parsing failed for event item", "warning")
             
             # Extract title from span.evcal_event_title
             title_elem = item.select_one('span.evcal_event_title')

@@ -95,20 +95,28 @@ class CelesteScraper(BaseVenueScraper):
                 date_match = re.search(r'(\d{1,2})-(\d{1,2})', date_text)
                 if date_match:
                     day, month = date_match.groups()
-                    # Determine year
-                    today = datetime.now()
-                    year = today.year
                     
-                    # If the event date is in the past, it's likely for next year
-                    try:
-                        event_date_this_year = datetime(year, int(month), int(day))
-                        if event_date_this_year.date() < today.date():
-                            year = year + 1
-                    except ValueError:
-                        # Invalid date, use current year
-                        pass
-                    
-                    event_data['date'] = f"{year}-{int(month):02d}-{int(day):02d}"
+                    # Validate day and month ranges
+                    day_int = int(day)
+                    month_int = int(month)
+                    if not (1 <= day_int <= 31 and 1 <= month_int <= 12):
+                        if self.debug:
+                            self.log(f"Invalid date found: day={day_int}, month={month_int} in '{date_text}'", "warning")
+                    else:
+                        # Determine year
+                        today = datetime.now()
+                        year = today.year
+                        
+                        # If the event date is in the past, it's likely for next year
+                        try:
+                            event_date_this_year = datetime(year, month_int, day_int)
+                            if event_date_this_year.date() < today.date():
+                                year = year + 1
+                        except ValueError:
+                            # Invalid date, use current year
+                            pass
+                        
+                        event_data['date'] = f"{year}-{month_int:02d}-{day_int:02d}"
                 
                 # Parse time: "HH:MM-HH:MM" or "HH:MM"
                 time_match = re.search(r'(\d{1,2}:\d{2})(?:-\d{1,2}:\d{2})?', date_text)

@@ -136,8 +136,8 @@ class ChelseaScraper(BaseVenueScraper):
             time_match = re.search(r'Doors?:\s*(\d{1,2})\.?(\d{2})h?|Start:\s*(\d{1,2})\.?(\d{2})h?', text_content)
             if time_match:
                 groups = time_match.groups()
-                hour = groups[0] or groups[2]
-                minute = groups[1] or groups[3]
+                hour = groups[0] if groups[0] is not None else groups[2]
+                minute = groups[1] if groups[1] is not None else groups[3]
                 if hour:
                     event_data['time'] = f"{int(hour):02d}:{minute}"
             
@@ -210,8 +210,15 @@ class ChelseaScraper(BaseVenueScraper):
                 if date_match:
                     day, month, year = date_match.groups()
                     if not year:
-                        from datetime import datetime
-                        year = datetime.now().year
+                        today = datetime.now()
+                        year = today.year
+                        # If the event date is in the past, it's likely for next year
+                        try:
+                            event_date_this_year = datetime(year, int(month), int(day))
+                            if event_date_this_year.date() < today.date():
+                                year = year + 1
+                        except ValueError:
+                            pass
                     elif len(str(year)) == 2:
                         year = 2000 + int(year)
                     event_data['date'] = f"{year}-{int(month):02d}-{int(day):02d}"

@@ -5,7 +5,7 @@ Extracts upcoming events from https://rhiz.wien/programm/
 
 The page structure shows events as:
 - Grid items with:
-  - .event-date a: date format "sa 061225 19:30" (sat 6 Dec 25 at 19:30)
+  - .event-date a: date format "sa 061225 19:30" - the regex skips the day prefix and parses "DDMMYY HH:MM"
   - .event-category: Live, DJ, etc.
   - .ev-body h3 a: event title
   - .ev-body h4 a: event subtitle

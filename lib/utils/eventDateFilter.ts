@@ -28,8 +28,13 @@ export function parseEventDate(event: { start_date_time?: string; date?: string 
   const isoMatch = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (isoMatch) {
     const [, year, month, day] = isoMatch;
+    // Validate parsed values
+    const y = parseInt(year, 10);
+    const m = parseInt(month, 10);
+    const d = parseInt(day, 10);
+    if (isNaN(y) || isNaN(m) || isNaN(d)) return null;
     // Create date at midnight UTC
-    return new Date(Date.UTC(parseInt(year), parseInt(month) - 1, parseInt(day), 0, 0, 0));
+    return new Date(Date.UTC(y, m - 1, d, 0, 0, 0));
   }
   
   // Fallback for other date formats

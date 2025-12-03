@@ -9,7 +9,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { MiniEventCard } from '@/components/MiniEventCard';
 
 interface WeekendNightlifeSectionProps {
@@ -28,16 +28,24 @@ const PRIORITY_VENUES = [
   'flex',
   'das werk',
   'u4',
-  'o - der klub',
-  'o-klub',
+  'o der klub',
   'o klub',
 ];
+
+// Utility to normalize venue names for comparison
+function normalizeVenueName(name: string): string {
+  return (name || '')
+    .toLowerCase()
+    .replace(/[\s\-]+/g, ' ') // replace hyphens and multiple spaces with single space
+    .replace(/[^\w\s]/g, '')  // remove special characters except spaces
+    .trim();
+}
 
 // Sort events by venue priority (preferred venues first), then by whether they have images
 function sortEventsByPriority(events: any[]): any[] {
   return [...events].sort((a, b) => {
-    const venueA = (a.custom_venue_name || a.venue || '').toLowerCase();
-    const venueB = (b.custom_venue_name || b.venue || '').toLowerCase();
+    const venueA = normalizeVenueName(a.custom_venue_name || a.venue || '');
+    const venueB = normalizeVenueName(b.custom_venue_name || b.venue || '');
     
     const priorityA = PRIORITY_VENUES.findIndex(v => venueA.includes(v));
     const priorityB = PRIORITY_VENUES.findIndex(v => venueB.includes(v));
@@ -110,7 +118,9 @@ function DaySection({
   city: string;
 }) {
   const [showAll, setShowAll] = useState(false);
-  const sortedEvents = sortEventsByPriority(events);
+  
+  // Memoize sorted events to avoid re-sorting on every render
+  const sortedEvents = useMemo(() => sortEventsByPriority(events), [events]);
   
   // Show 6 events initially, all when expanded
   const visibleEvents = showAll ? sortedEvents : sortedEvents.slice(0, 6);
@@ -142,6 +152,7 @@ function DaySection({
             onClick={() => setShowAll(!showAll)}
             className="weekend-show-more-btn"
             aria-expanded={showAll}
+            aria-label={`${showAll ? 'Weniger' : 'Mehr'} ${dayName} Events anzeigen`}
           >
             {showAll ? 'Weniger anzeigen' : `+${sortedEvents.length - 6} mehr anzeigen`}
           </button>
