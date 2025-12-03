@@ -1,4 +1,5 @@
 // Script to initialize hot cities data
+// Updated for new 12-category structure
 import { HotCity, HotCityWebsite } from '../app/lib/types';
 import { saveHotCities } from '../app/lib/hotCityStore';
 
@@ -18,7 +19,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Wiener Staatsoper',
         url: 'https://www.wiener-staatsoper.at',
-        categories: ['Live-Konzerte', 'Theater/Performance', 'Kultur/Traditionen'],
+        categories: ['Klassik & Oper', 'Theater & Comedy'],
         description: 'Vienna State Opera performances',
         priority: 9,
         isActive: true
@@ -27,7 +28,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Wiener Konzerthaus',
         url: 'https://konzerthaus.at',
-        categories: ['Live-Konzerte', 'Kultur/Traditionen'],
+        categories: ['Klassik & Oper', 'Live-Konzerte'],
         description: 'Vienna Concert House events',
         priority: 9,
         isActive: true
@@ -36,7 +37,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Flex Wien',
         url: 'https://flex.at',
-        categories: ['DJ Sets/Electronic', 'Clubs/Discos', 'Live-Konzerte'],
+        categories: ['Clubs & Nachtleben', 'Live-Konzerte'],
         description: 'Electronic music and club events',
         priority: 8,
         isActive: true
@@ -45,7 +46,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Belvedere Museum',
         url: 'https://www.belvedere.at',
-        categories: ['Museen', 'Kunst/Design'],
+        categories: ['Museen & Ausstellungen'],
         description: 'Art exhibitions and cultural events',
         priority: 8,
         isActive: true
@@ -84,7 +85,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Ars Electronica',
         url: 'https://ars.electronica.art',
-        categories: ['Kunst/Design', 'Bildung/Lernen', 'DJ Sets/Electronic'],
+        categories: ['Museen & Ausstellungen', 'Bildung & Workshops', 'Clubs & Nachtleben'],
         description: 'Digital arts and technology events',
         priority: 9,
         isActive: true
@@ -93,7 +94,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Brucknerhaus',
         url: 'https://www.brucknerhaus.at',
-        categories: ['Live-Konzerte', 'Kultur/Traditionen'],
+        categories: ['Klassik & Oper', 'Live-Konzerte'],
         description: 'Concert hall and classical music',
         priority: 9,
         isActive: true
@@ -102,7 +103,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Lentos Kunstmuseum',
         url: 'https://www.lentos.at',
-        categories: ['Museen', 'Kunst/Design'],
+        categories: ['Museen & Ausstellungen'],
         description: 'Modern and contemporary art',
         priority: 8,
         isActive: true
@@ -111,7 +112,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Posthof Linz',
         url: 'https://www.posthof.at',
-        categories: ['Live-Konzerte', 'Theater/Performance', 'DJ Sets/Electronic'],
+        categories: ['Live-Konzerte', 'Theater & Comedy', 'Clubs & Nachtleben'],
         description: 'Cultural center with diverse events',
         priority: 8,
         isActive: true
@@ -150,7 +151,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Amnesia Ibiza',
         url: 'https://www.amnesia.es',
-        categories: ['DJ Sets/Electronic', 'Clubs/Discos'],
+        categories: ['Clubs & Nachtleben'],
         description: 'World-famous superclub events',
         priority: 9,
         isActive: true
@@ -159,7 +160,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Pacha Ibiza',
         url: 'https://www.pacha.com',
-        categories: ['DJ Sets/Electronic', 'Clubs/Discos'],
+        categories: ['Clubs & Nachtleben'],
         description: 'Iconic club with international DJs',
         priority: 9,
         isActive: true
@@ -168,7 +169,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Ushuaïa Ibiza',
         url: 'https://www.ushuaiabeachhotel.com',
-        categories: ['DJ Sets/Electronic', 'Open Air'],
+        categories: ['Clubs & Nachtleben', 'Open Air & Festivals'],
         description: 'Beach club and outdoor parties',
         priority: 9,
         isActive: true
@@ -177,7 +178,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'DC10 Ibiza',
         url: 'https://www.dc10ibiza.com',
-        categories: ['DJ Sets/Electronic', 'Clubs/Discos'],
+        categories: ['Clubs & Nachtleben'],
         description: 'Underground techno club',
         priority: 8,
         isActive: true
@@ -216,7 +217,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Berghain',
         url: 'https://www.berghain.berlin',
-        categories: ['DJ Sets/Electronic', 'Clubs/Discos'],
+        categories: ['Clubs & Nachtleben'],
         description: 'World-famous techno club',
         priority: 9,
         isActive: true
@@ -225,7 +226,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Watergate',
         url: 'https://water-gate.de',
-        categories: ['DJ Sets/Electronic', 'Clubs/Discos'],
+        categories: ['Clubs & Nachtleben'],
         description: 'Techno and electronic music club',
         priority: 8,
         isActive: true
@@ -234,7 +235,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Berlin Philharmonic',
         url: 'https://www.berliner-philharmoniker.de',
-        categories: ['Live-Konzerte', 'Kultur/Traditionen'],
+        categories: ['Klassik & Oper'],
         description: 'Classical music and orchestra performances',
         priority: 9,
         isActive: true
@@ -243,7 +244,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Museum Island Berlin',
         url: 'https://www.smb.museum/museumsinsel-berlin/',
-        categories: ['Museen', 'Kunst/Design'],
+        categories: ['Museen & Ausstellungen'],
         description: 'Museum exhibitions and cultural events',
         priority: 8,
         isActive: true
@@ -252,7 +253,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'SO36 Berlin',
         url: 'https://www.so36.com',
-        categories: ['Live-Konzerte', 'LGBTQ+', 'Kultur/Traditionen'],
+        categories: ['Live-Konzerte', 'LGBTQ+'],
         description: 'Alternative venue for punk, indie, and LGBTQ+ events',
         priority: 8,
         isActive: true
@@ -270,7 +271,7 @@ const initialHotCities: HotCity[] = [
         id: generateWebsiteId(),
         name: 'Resident Advisor Berlin',
         url: 'https://ra.co/events/de/berlin',
-        categories: ['DJ Sets/Electronic', 'Clubs/Discos'],
+        categories: ['Clubs & Nachtleben'],
         description: 'Electronic music events listing',
         priority: 8,
         isActive: true

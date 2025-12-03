@@ -10,7 +10,7 @@ Configuration Format:
     'venue_address': 'Full Address',
     'base_url': 'https://venue-website.com',
     'events_url': 'https://venue-website.com/events',
-    'category': 'Clubs/Discos',
+    'category': 'Clubs & Nachtleben',
     'subcategory': 'Electronic',
     
     # Selectors for the event list page
@@ -46,7 +46,7 @@ VENUE_CONFIGS = {
         'venue_address': 'Spittelauer Lände 12, 1090 Wien',
         'base_url': 'https://www.grelleforelle.com',
         'events_url': 'https://www.grelleforelle.com/programm/',
-        'category': 'Clubs/Discos',
+        'category': 'Clubs & Nachtleben',
         'subcategory': 'Electronic',
         
         'list_selectors': {
@@ -75,7 +75,7 @@ VENUE_CONFIGS = {
         'venue_address': 'Donaukanal, Augartenbrücke 1, 1010 Wien',
         'base_url': 'https://flex.at',
         'events_url': 'https://flex.at/events/',  # ✓ KORRIGIERT: war /programm/
-        'category': 'Clubs/Discos',
+        'category': 'Clubs & Nachtleben',
         'subcategory': 'Mixed',
         
         'list_selectors': {
@@ -103,7 +103,7 @@ VENUE_CONFIGS = {
         'venue_address': 'Waldsteingartenstraße 135, 1020 Wien',
         'base_url': 'https://pratersauna.tv',
         'events_url': 'https://pratersauna.tv',  # ✓ KORRIGIERT: Hauptseite statt /events/
-        'category': 'Clubs/Discos',
+        'category': 'Clubs & Nachtleben',
         'subcategory': 'Electronic',
         
         'list_selectors': {
@@ -133,7 +133,7 @@ VENUE_CONFIGS = {
         'venue_address': 'Spittelauer Lände 12, 1090 Wien',
         'base_url': 'https://www.daswerk.org',  # ✓ KORRIGIERT: .org statt .at
         'events_url': 'https://www.daswerk.org/programm/',  # ✓ KORRIGIERT: Domain
-        'category': 'Clubs/Discos',
+        'category': 'Clubs & Nachtleben',
         'subcategory': 'Mixed',
         
         'list_selectors': {
@@ -160,7 +160,7 @@ VENUE_CONFIGS = {
         'venue_address': 'Schönbrunner Straße 222, 1120 Wien',
         'base_url': 'https://www.u4.at',
         'events_url': 'https://www.u4.at/events-veranstaltungen/',  # ✓ VERBESSERT
-        'category': 'Clubs/Discos',
+        'category': 'Clubs & Nachtleben',
         'subcategory': 'Mixed',
         
         'list_selectors': {
@@ -191,7 +191,7 @@ VENUE_CONFIGS = {
         'venue_address': 'Burgring 1, 1010 Wien',
         'base_url': 'https://volksgarten.at',
         'events_url': 'https://volksgarten.at/programm/',  # ✓ UPDATED: Events page
-        'category': 'Clubs/Discos',
+        'category': 'Clubs & Nachtleben',
         'subcategory': 'Electronic',
         
         'list_selectors': {
@@ -219,7 +219,7 @@ VENUE_CONFIGS = {
         'venue_address': 'Burgring 3, 1010 Wien',
         'base_url': 'https://www.babenbergerpassage.at',
         'events_url': 'https://www.babenbergerpassage.at',
-        'category': 'Clubs/Discos',
+        'category': 'Clubs & Nachtleben',
         'subcategory': 'Mixed',
         
         # ⚠️ PROBLEM: Website zeigt nur wiederkehrende Events (Do/Fr/Sa)
@@ -292,7 +292,7 @@ VENUE_CONFIGS = {
         'venue_address': 'Neubaugasse 2, 1070 Wien',
         'base_url': 'https://camera-club.at',
         'events_url': 'https://camera-club.at/events/list/',  # WordPress Event-Liste
-        'category': 'Clubs/Discos',
+        'category': 'Clubs & Nachtleben',
         'subcategory': 'Electronic',
         
         # ⚠️ WICHTIG: Website sagt "Events findest du auf Instagram/Facebook"
@@ -325,7 +325,7 @@ VENUE_CONFIGS = {
         'venue_address': 'Hamburgerstraße 18, 1050 Wien',
         'base_url': 'https://www.celeste.co.at',
         'events_url': 'https://www.celeste.co.at',  # Events auf Hauptseite
-        'category': 'Clubs/Discos',
+        'category': 'Clubs & Nachtleben',
         'subcategory': 'Electronic',
         
         'list_selectors': {
@@ -364,7 +364,7 @@ VENUE_CONFIGS = {
         'venue_address': 'Lerchenfelder Gürtel 29-31, 1080 Wien',
         'base_url': 'https://www.chelsea.co.at',
         'events_url': 'https://www.chelsea.co.at/concerts.php',  # ✓ Concerts page works
-        'category': 'Clubs/Discos',
+        'category': 'Clubs & Nachtleben',
         'subcategory': 'Mixed',
         
         # Chelsea has separate pages for concerts and clubs
@@ -398,7 +398,7 @@ VENUE_CONFIGS = {
         'venue_address': 'Karlsplatz 5, 1010 Wien',  # ✓ Otto Wagner Pavillon
         'base_url': 'https://club-u.at',
         'events_url': 'https://club-u.at',  # ✓ Hauptseite, dann zu Events navigieren
-        'category': 'Clubs/Discos',
+        'category': 'Clubs & Nachtleben',
         'subcategory': 'Mixed',
         
         # ⚠️ PROBLEM: Website zeigt oft "coming soon" oder nur aktuelle Events
@@ -428,7 +428,7 @@ VENUE_CONFIGS = {
         'venue_address': 'Donaukanal, Karl-Schweighofer-Gasse 8, 1070 Wien',
         'base_url': 'https://www.donautechno.com',
         'events_url': 'https://www.donautechno.com',  # Hauptseite
-        'category': 'Clubs/Discos',
+        'category': 'Clubs & Nachtleben',
         'subcategory': 'Techno',
         
         # ⚠️ PROBLEM: Website zeigt hauptsächlich wöchentliche Residents, keine Event-Liste
@@ -465,7 +465,7 @@ VENUE_CONFIGS = {
         'venue_address': 'Praterstern 5, 1020 Wien',
         'base_url': 'https://flucc.at',  # ✓ flucc.at (nicht www.fluc.at!)
         'events_url': 'https://flucc.at/musik/',  # ✓ Musik-Programm
-        'category': 'Clubs/Discos',
+        'category': 'Clubs & Nachtleben',
         'subcategory': 'Mixed',
         
         # ⚠️ WICHTIG: Alte Domain fluc.at leitet zu flucc.at
@@ -502,7 +502,7 @@ VENUE_CONFIGS = {
         'venue_address': 'Passage Opernring/Operngasse, 1010 Wien',  # ✓ Bei Staatsoper
         'base_url': 'https://o-klub.at',
         'events_url': 'https://o-klub.at/events/',  # ✓ Events-Page
-        'category': 'Clubs/Discos',
+        'category': 'Clubs & Nachtleben',
         'subcategory': 'Electronic',
         
         # Modernes Club-Website Design
@@ -543,7 +543,7 @@ VENUE_CONFIGS = {
         'venue_address': 'Burggasse 104, 1070 Wien',
         'base_url': 'https://ponyhof-official.at',
         'events_url': 'https://ponyhof-official.at',
-        'category': 'Clubs/Discos',
+        'category': 'Clubs & Nachtleben',
         'subcategory': 'Mixed',
         
         # ⚠️ KRITISCH: Ponyhof hat im Juli 2025 geschlossen!
@@ -572,7 +572,7 @@ VENUE_CONFIGS = {
         'venue_address': 'Riesenradplatz 7, 1020 Wien',
         'base_url': 'https://praterdome.at',
         'events_url': 'https://praterdome.at/events',  # ✓ Events-Page
-        'category': 'Clubs/Discos',
+        'category': 'Clubs & Nachtleben',
         'subcategory': 'Electronic',
         
         # Großer Club mit 3 Floors und wiederkehrenden Events
@@ -617,7 +617,7 @@ VENUE_CONFIGS = {
         'venue_address': 'Praterstraße 38, 1020 Wien',
         'base_url': 'https://praterstrasse.wien',
         'events_url': 'https://praterstrasse.wien/en/praterstrasse-tickets-9djnDeMk/',  # ✓ Tickets-Page
-        'category': 'Clubs/Discos',
+        'category': 'Clubs & Nachtleben',
         'subcategory': 'Electronic',
         
         # Alternative: Website zeigt Events strukturiert
@@ -695,7 +695,7 @@ VENUE_CONFIGS = {
         'venue_address': 'Lerchenfelder Gürtel 37, 1160 Wien',  # ✓ Bei U6 Thaliastraße
         'base_url': 'https://www.theloft.at',
         'events_url': 'https://www.theloft.at/programm/',  # ✓ Programm-Page
-        'category': 'Clubs/Discos',
+        'category': 'Clubs & Nachtleben',
         'subcategory': 'Electronic',
         
         # The Loft hat sehr strukturiertes Programm
@@ -738,7 +738,7 @@ VENUE_CONFIGS = {
         'venue_address': 'Waldsteingartenstraße 135, 1020 Wien',  # ✓ Im Prater
         'base_url': 'https://vieipee.com',
         'events_url': 'https://vieipee.com',  # Hauptseite
-        'category': 'Clubs/Discos',
+        'category': 'Clubs & Nachtleben',
         'subcategory': 'Hip Hop',  # ✓ Wiens erster Hip-Hop Club
         
         # VIEiPEE ist spezialisiert auf Hip-Hop/Urban
@@ -780,7 +780,7 @@ VENUE_CONFIGS = {
         'venue_address': 'Lerchenfeldergürtel, Stadtbahnbogen 37-38, 1080 Wien',
         'base_url': 'https://rhiz.wien',
         'events_url': 'https://rhiz.wien/programm/',  # ✓ Programm-Page
-        'category': 'Clubs/Discos',
+        'category': 'Clubs & Nachtleben',
         'subcategory': 'Electronic',
         
         # rhiz hat sehr gut strukturiertes Programm
@@ -817,7 +817,7 @@ VENUE_CONFIGS = {
         'venue_address': 'Various locations in Wien',
         'base_url': 'https://www.patroc.com',
         'events_url': 'https://www.patroc.com/de/gay/wien/',
-        'category': 'Clubs/Discos',
+        'category': 'Clubs & Nachtleben',
         'subcategory': 'LGBTQ+',
         
         # Patroc aggregates gay events from multiple venues in Vienna
@@ -850,7 +850,7 @@ VENUE_CONFIGS = {
         'venue_address': 'Full Address, Postal Code Wien',
         'base_url': 'https://venue-website.com',
         'events_url': 'https://venue-website.com/events/',
-        'category': 'Clubs/Discos',  # or 'Concerts', 'Bars', etc.
+        'category': 'Clubs & Nachtleben',  # or 'Concerts', 'Bars', etc.
         'subcategory': 'Electronic',  # or 'Mixed', 'Rock', etc.
         
         'list_selectors': {

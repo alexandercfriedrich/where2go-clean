@@ -318,7 +318,7 @@ export async function GET() {
       "venue_name": "Grelle Forelle",
       "start_date_time": "2025-01-20T23:00:00.000Z",
       "source": "grelle-forelle-scraper",
-      "category": "Clubs/Discos"
+      "category": "Clubs & Nachtleben"
     }],
     "options": {
       "source": "grelle-forelle-scraper",

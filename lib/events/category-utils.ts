@@ -1,6 +1,7 @@
 /**
  * Category Utilities for Discovery UI
  * Uses existing eventCategories.ts for mapping
+ * Updated for new 12-category structure
  */
 
 import { EVENT_CATEGORIES, EVENT_CATEGORY_SUBCATEGORIES, normalizeCategory } from '../../app/lib/eventCategories';
@@ -12,63 +13,75 @@ export interface CategoryConfig {
   color: string;
 }
 
-// Map main categories to display config
+// Map main categories to display config - NEW 12-CATEGORY STRUCTURE
 export const CATEGORY_CONFIGS: Record<string, CategoryConfig> = {
-  'Musik & Nachtleben': {
-    name: 'Musik & Nachtleben',
+  // 1. Clubs & Nachtleben 🎵
+  'Clubs & Nachtleben': {
+    name: 'Clubs & Nachtleben',
     icon: '🎵',
     color: '#f59e0b'
   },
-  'Theater/Performance': {
-    name: 'Theater/Performance',
+  // 2. Live-Konzerte 🎸
+  'Live-Konzerte': {
+    name: 'Live-Konzerte',
+    icon: '🎸',
+    color: '#ef4444'
+  },
+  // 3. Klassik & Oper 🎻
+  'Klassik & Oper': {
+    name: 'Klassik & Oper',
+    icon: '🎻',
+    color: '#b91c1c'
+  },
+  // 4. Theater & Comedy 🎭
+  'Theater & Comedy': {
+    name: 'Theater & Comedy',
     icon: '🎭',
     color: '#ec4899'
   },
+  // 5. Museen & Ausstellungen 🏛️
   'Museen & Ausstellungen': {
     name: 'Museen & Ausstellungen',
     icon: '🏛️',
     color: '#8b5cf6'
   },
+  // 6. Film & Kino 🎬
   'Film & Kino': {
     name: 'Film & Kino',
     icon: '🎬',
     color: '#6366f1'
   },
+  // 7. Open Air & Festivals 🎪
   'Open Air & Festivals': {
     name: 'Open Air & Festivals',
     icon: '🎪',
     color: '#14b8a6'
   },
-  'Food & Culinary': {
-    name: 'Food & Culinary',
-    icon: '☕',
+  // 8. Kulinarik & Märkte 🍽️
+  'Kulinarik & Märkte': {
+    name: 'Kulinarik & Märkte',
+    icon: '🍽️',
     color: '#10b981'
   },
-  'Märkte & Shopping': {
-    name: 'Märkte & Shopping',
-    icon: '🛍️',
-    color: '#f97316'
-  },
+  // 9. Sport & Fitness ⚽
   'Sport & Fitness': {
     name: 'Sport & Fitness',
     icon: '⚽',
     color: '#3b82f6'
   },
-  'Kultur & Bildung': {
-    name: 'Kultur & Bildung',
+  // 10. Bildung & Workshops 📚
+  'Bildung & Workshops': {
+    name: 'Bildung & Workshops',
     icon: '📚',
     color: '#06b6d4'
   },
+  // 11. Familie & Kinder 👨‍👩‍👧‍👦
   'Familie & Kinder': {
     name: 'Familie & Kinder',
     icon: '👨‍👩‍👧‍👦',
     color: '#84cc16'
   },
-  'Business & Networking': {
-    name: 'Business & Networking',
-    icon: '💼',
-    color: '#64748b'
-  },
+  // 12. LGBTQ+ 🏳️‍🌈
   'LGBTQ+': {
     name: 'LGBTQ+',
     icon: '🏳️‍🌈',

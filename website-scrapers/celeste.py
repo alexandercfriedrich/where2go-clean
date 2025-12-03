@@ -20,7 +20,7 @@ class CelesteScraper(BaseVenueScraper):
     VENUE_ADDRESS = "Hamburgerstraße 18, 1050 Wien"
     BASE_URL = "https://www.celeste.co.at"
     EVENTS_URL = "https://www.celeste.co.at"
-    CATEGORY = "Clubs/Discos"
+    CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Cocktail Bar"
     
     def scrape_events(self) -> List[Dict]:

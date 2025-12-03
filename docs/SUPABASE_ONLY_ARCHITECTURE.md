@@ -98,7 +98,7 @@ import { EventRepository } from '@/lib/repositories/EventRepository';
 const events = await EventRepository.getEvents({
   city: 'Wien',
   date: '2024-11-28',
-  category: 'Musik & Nachtleben', // optional
+  category: 'Clubs & Nachtleben', // optional
   limit: 100
 });
 

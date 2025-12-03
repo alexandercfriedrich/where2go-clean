@@ -48,20 +48,39 @@ export class EventAggregator {
   private extractCategoryFromQuery(query: string): string | undefined {
     if (!query) return;
     const lower = query.toLowerCase();
+    // Updated for new 12-category structure
     const hints: { [k: string]: string } = {
-      'dj sets': 'DJ Sets/Electronic',
-      'electronic': 'DJ Sets/Electronic',
-      'club': 'Clubs/Discos',
-      'disco': 'Clubs/Discos',
+      'dj sets': 'Clubs & Nachtleben',
+      'electronic': 'Clubs & Nachtleben',
+      'club': 'Clubs & Nachtleben',
+      'disco': 'Clubs & Nachtleben',
+      'party': 'Clubs & Nachtleben',
+      'nachtleben': 'Clubs & Nachtleben',
       'konzert': 'Live-Konzerte',
       'concert': 'Live-Konzerte',
       'musik': 'Live-Konzerte',
-      'kultur': 'Kultur/Traditionen',
-      'tradition': 'Kultur/Traditionen',
-      'theater': 'Theater/Performance',
-      'performance': 'Theater/Performance',
-      'festival': 'Open Air',
-      'open air': 'Open Air'
+      'live': 'Live-Konzerte',
+      'klassik': 'Klassik & Oper',
+      'classical': 'Klassik & Oper',
+      'oper': 'Klassik & Oper',
+      'opera': 'Klassik & Oper',
+      'orchester': 'Klassik & Oper',
+      'kultur': 'Bildung & Workshops',
+      'tradition': 'Bildung & Workshops',
+      'workshop': 'Bildung & Workshops',
+      'seminar': 'Bildung & Workshops',
+      'theater': 'Theater & Comedy',
+      'theatre': 'Theater & Comedy',
+      'performance': 'Theater & Comedy',
+      'comedy': 'Theater & Comedy',
+      'kabarett': 'Theater & Comedy',
+      'festival': 'Open Air & Festivals',
+      'open air': 'Open Air & Festivals',
+      'outdoor': 'Open Air & Festivals',
+      'food': 'Kulinarik & Märkte',
+      'kulinarik': 'Kulinarik & Märkte',
+      'markt': 'Kulinarik & Märkte',
+      'market': 'Kulinarik & Märkte'
     };
     for (const [kw, cat] of Object.entries(hints)) {
       if (lower.includes(kw)) return normalizeCategory(cat);

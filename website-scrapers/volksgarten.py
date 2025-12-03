@@ -31,7 +31,7 @@ class VolksgartenScraper(BaseVenueScraper):
     VENUE_ADDRESS = "Burgring 1, 1010 Wien"
     BASE_URL = "https://volksgarten.at"
     EVENTS_URL = "https://volksgarten.at/programm/"  # Updated to use programm page
-    CATEGORY = "Clubs/Discos"
+    CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Electronic"
     
     def scrape_events(self) -> List[Dict]:

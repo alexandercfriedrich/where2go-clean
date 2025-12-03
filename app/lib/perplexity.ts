@@ -257,51 +257,115 @@ Example format:
   }
 
   function getCategorySpecificStrategies(category: string, city: string): string {
+    // Updated for new 12-category structure
     const strategies: { [key: string]: string } = {
+      "Clubs & Nachtleben": `
+ELECTRONIC MUSIC & NIGHTLIFE FOCUS:
+- Check all nightclubs, clubs, and electronic music venues
+- Look for DJ events, parties, and dance nights
+- Search for underground and warehouse parties
+- Check for techno/house/EDM/drum&bass events
+- Look for bar events, lounge events, and rooftop parties
+- Include after-hours events and rave announcements`,
+
       "Live-Konzerte": `
-MUSIC VENUE FOCUS:
+LIVE MUSIC & CONCERT FOCUS:
 - Check all concert halls, music venues, clubs with live music
-- Look for acoustic sessions in cafes/bars
-- Search for street performances and busking events
+- Look for rock, pop, jazz, hip-hop, indie, world music concerts
+- Search for acoustic sessions in cafes/bars
 - Check local band social media for gig announcements
-- Look for music festivals or festival fringe events
-- Include jam sessions and open mic nights`,
+- Look for singer-songwriter nights and open mic events
+- Include jam sessions and live band performances`,
 
-      "DJ Sets/Electronic": `
-ELECTRONIC MUSIC FOCUS:
-- Check all nightclubs and electronic music venues
-- Look for underground and warehouse parties
-- Search for DJ set announcements on SoundCloud/Facebook
-- Check electronic music community groups
-- Look for techno/house/trance event series
-- Include rooftop and outdoor electronic events`,
+      "Klassik & Oper": `
+CLASSICAL MUSIC & OPERA FOCUS:
+- Check all opera houses, concert halls, and classical venues
+- Look for orchestral performances and symphony concerts
+- Search for chamber music and string quartet events
+- Check for piano recitals and violin concerts
+- Look for opera performances and operette shows
+- Include baroque music events and contemporary classical`,
 
-      "Theater/Performance": `
-THEATER FOCUS:
+      "Theater & Comedy": `
+THEATER & COMEDY FOCUS:
 - Check all theaters, cultural centers, performance spaces
-- Look for experimental and fringe theater
-- Search for street theater and outdoor performances
-- Check university drama departments
-- Look for comedy shows and cabaret
-- Include interactive and immersive theater`,
+- Look for musicals, drama productions, and stage shows
+- Search for comedy shows, stand-up, and cabaret (Kabarett)
+- Check for improv comedy and sketch comedy
+- Look for ballet and contemporary dance performances
+- Include experimental theater and physical theater`,
 
-      "Museen": `
-MUSEUM FOCUS:
+      "Museen & Ausstellungen": `
+MUSEUM & EXHIBITION FOCUS:
 - Check all museums, galleries, cultural institutions
 - Look for special exhibitions and opening nights
 - Search for museum night events and late openings
-- Check for guided tours and lectures
+- Check for guided tours and curator talks
 - Look for interactive and family-friendly museum events
-- Include private galleries and art spaces`,
+- Include private galleries, art spaces, and street art events`,
 
-      "Food/Culinary": `
-FOOD EVENT FOCUS:
+      "Film & Kino": `
+FILM & CINEMA FOCUS:
+- Check all cinemas, arthouse theaters, and film venues
+- Look for film premieres and special screenings
+- Search for film festivals and documentary screenings
+- Check for open air cinema and outdoor screenings
+- Look for director Q&As and film discussions
+- Include classic film nights and cult classics screenings`,
+
+      "Open Air & Festivals": `
+OUTDOOR EVENTS & FESTIVALS FOCUS:
+- Check for outdoor festivals and open air events
+- Look for street festivals and city events
+- Search for music festivals and summer festivals
+- Check for beer garden events and garden parties
+- Look for nature activities and park events
+- Include sunset sessions and night market events`,
+
+      "Kulinarik & Märkte": `
+FOOD & MARKET FOCUS:
 - Check restaurants for special dinners and tastings
-- Look for food festivals and markets
-- Search for cooking classes and wine tastings  
-- Check brewery/winery events and tours
-- Look for pop-up restaurants and food trucks
-- Include culinary workshops and demonstrations`
+- Look for food festivals, markets, and food truck events
+- Search for wine tastings, beer tastings, and cocktail events
+- Check for cooking classes and culinary workshops
+- Look for flea markets, vintage markets, and Christmas markets
+- Include farmers markets and artisan market events`,
+
+      "Sport & Fitness": `
+SPORT & FITNESS FOCUS:
+- Check for sports events, competitions, and tournaments
+- Look for running events, marathons, and cycling events
+- Search for yoga classes, fitness events, and wellness events
+- Check for team sports, water sports, and extreme sports
+- Look for e-sports tournaments and gaming events
+- Include outdoor yoga and meditation sessions`,
+
+      "Bildung & Workshops": `
+EDUCATION & WORKSHOP FOCUS:
+- Check for workshops, seminars, and training events
+- Look for tech talks, coding workshops, and hackathons
+- Search for language classes and creative workshops
+- Check for university lectures and public talks
+- Look for cultural workshops and heritage tours
+- Include business events, conferences, and networking meetups`,
+
+      "Familie & Kinder": `
+FAMILY & KIDS FOCUS:
+- Check for family-friendly events and kids activities
+- Look for children's theater and puppet shows
+- Search for educational activities and STEM events for kids
+- Check for family festivals and outdoor play events
+- Look for children's workshops and creative learning
+- Include parent-child activities and nature discovery events`,
+
+      "LGBTQ+": `
+LGBTQ+ & PRIDE FOCUS:
+- Check for pride events and queer parties
+- Look for LGBTQ+ community events and meetups
+- Search for drag shows, drag brunches, and drag performances
+- Check for queer theater and LGBTQ+ film screenings
+- Look for rainbow markets and pride celebrations
+- Include gay clubs, lesbian bars, and queer nightlife events`
     };
 
     return strategies[category] || `
@@ -686,32 +750,53 @@ NO explanatory text outside the JSON structure.`;
       }
     }
     
-    // Fuzzy keyword matching
+    // Fuzzy keyword matching - Updated for new 12-category structure
     const keywords = {
-      'music': 'Musik & Nachtleben',
-      'concert': 'Musik & Nachtleben',
-      'dj': 'Musik & Nachtleben',
-      'theater': 'Theater/Performance',
-      'performance': 'Theater/Performance',
+      'music': 'Live-Konzerte',
+      'concert': 'Live-Konzerte',
+      'live': 'Live-Konzerte',
+      'dj': 'Clubs & Nachtleben',
+      'club': 'Clubs & Nachtleben',
+      'party': 'Clubs & Nachtleben',
+      'disco': 'Clubs & Nachtleben',
+      'electronic': 'Clubs & Nachtleben',
+      'classical': 'Klassik & Oper',
+      'klassik': 'Klassik & Oper',
+      'opera': 'Klassik & Oper',
+      'oper': 'Klassik & Oper',
+      'orchestra': 'Klassik & Oper',
+      'theater': 'Theater & Comedy',
+      'theatre': 'Theater & Comedy',
+      'performance': 'Theater & Comedy',
+      'comedy': 'Theater & Comedy',
+      'kabarett': 'Theater & Comedy',
       'museum': 'Museen & Ausstellungen',
       'exhibition': 'Museen & Ausstellungen',
+      'gallery': 'Museen & Ausstellungen',
       'film': 'Film & Kino',
       'movie': 'Film & Kino',
+      'cinema': 'Film & Kino',
       'festival': 'Open Air & Festivals',
       'outdoor': 'Open Air & Festivals',
-      'food': 'Food & Culinary',
-      'restaurant': 'Food & Culinary',
-      'market': 'Märkte & Shopping',
-      'shopping': 'Märkte & Shopping',
+      'openair': 'Open Air & Festivals',
+      'food': 'Kulinarik & Märkte',
+      'restaurant': 'Kulinarik & Märkte',
+      'culinary': 'Kulinarik & Märkte',
+      'market': 'Kulinarik & Märkte',
+      'shopping': 'Kulinarik & Märkte',
+      'markt': 'Kulinarik & Märkte',
       'sport': 'Sport & Fitness',
       'fitness': 'Sport & Fitness',
-      'culture': 'Kultur & Bildung',
-      'education': 'Kultur & Bildung',
+      'wellness': 'Sport & Fitness',
+      'culture': 'Bildung & Workshops',
+      'education': 'Bildung & Workshops',
+      'workshop': 'Bildung & Workshops',
+      'seminar': 'Bildung & Workshops',
+      'business': 'Bildung & Workshops',
+      'networking': 'Bildung & Workshops',
       'family': 'Familie & Kinder',
       'kids': 'Familie & Kinder',
-      'business': 'Business & Networking',
-      'networking': 'Business & Networking',
-      'wellness': 'Sport & Fitness',
+      'kinder': 'Familie & Kinder',
       'community': 'LGBTQ+',
       'pride': 'LGBTQ+',
       'queer': 'LGBTQ+',

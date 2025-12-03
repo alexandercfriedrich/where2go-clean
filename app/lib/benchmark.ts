@@ -114,7 +114,7 @@ export async function benchmarkQueries(options?: {
   const {
     cities = ['Wien'],
     dates = [new Date().toISOString().split('T')[0]],
-    categories = ['Musik & Nachtleben', 'Kunst & Kultur'],
+    categories = ['Clubs & Nachtleben', 'Live-Konzerte'],
     searchTerms = ['concert', 'jazz']
   } = options || {}
 

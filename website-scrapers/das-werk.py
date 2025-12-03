@@ -27,7 +27,7 @@ class DasWerkScraper(BaseVenueScraper):
     VENUE_ADDRESS = "Spittelauer Lände 12, 1090 Wien"
     BASE_URL = "https://www.daswerk.org"
     EVENTS_URL = "https://www.daswerk.org/programm/"
-    CATEGORY = "Clubs/Discos"
+    CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Mixed"
     
     def scrape_events(self) -> List[Dict]:

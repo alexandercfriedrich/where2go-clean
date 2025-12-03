@@ -92,28 +92,40 @@ app/page.tsx (UI)
 
 ## Coverage Statistics
 
-**Categories Mapped:** 21/21 (100%)
-- DJ Sets/Electronic ✓
-- Clubs/Discos ✓
+**NEW 12-Category Structure (2025):**
+- Clubs & Nachtleben ✓
 - Live-Konzerte ✓
-- Theater/Performance ✓
-- Open Air ✓
-- Museen ✓
-- Comedy/Kabarett ✓
-- Film ✓
-- Kunst/Design ✓
-- Kultur/Traditionen ✓
+- Klassik & Oper ✓
+- Theater & Comedy ✓
+- Museen & Ausstellungen ✓
+- Film & Kino ✓
+- Open Air & Festivals ✓
+- Kulinarik & Märkte ✓
+- Sport & Fitness ✓
+- Bildung & Workshops ✓
+- Familie & Kinder ✓
 - LGBTQ+ ✓
-- Bildung/Lernen ✓
-- Networking/Business ✓
-- Sport ✓
-- Natur/Outdoor ✓
-- Wellness/Spirituell ✓
-- Soziales/Community ✓
-- Märkte/Shopping ✓
-- Food/Culinary ✓
-- Familien/Kids ✓
-- Sonstiges/Other ✓
+
+**Legacy Categories (backward compatibility):**
+- DJ Sets/Electronic → Clubs & Nachtleben
+- Clubs/Discos → Clubs & Nachtleben
+- Theater/Performance → Theater & Comedy
+- Open Air → Open Air & Festivals
+- Museen → Museen & Ausstellungen
+- Comedy/Kabarett → Theater & Comedy
+- Film → Film & Kino
+- Kunst/Design → Museen & Ausstellungen
+- Kultur/Traditionen → Bildung & Workshops
+- Bildung/Lernen → Bildung & Workshops
+- Networking/Business → Bildung & Workshops
+- Sport → Sport & Fitness
+- Natur/Outdoor → Open Air & Festivals
+- Wellness/Spirituell → Sport & Fitness
+- Soziales/Community → Familie & Kinder
+- Märkte/Shopping → Kulinarik & Märkte
+- Food/Culinary → Kulinarik & Märkte
+- Familien/Kids → Familie & Kinder
+- Business & Networking → Bildung & Workshops (REMOVED as main category)
 
 **Wien.info Labels Covered:** 20 official labels + 7 variants = 27 total
 

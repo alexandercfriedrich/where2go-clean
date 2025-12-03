@@ -11,7 +11,7 @@ class VieipeeScraper(BaseVenueScraper):
     VENUE_ADDRESS = "Währinger Straße 3, 1090 Wien"
     BASE_URL = "https://vieipee.com"
     EVENTS_URL = "https://vieipee.com"
-    CATEGORY = "Clubs/Discos"
+    CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Mixed"
     
     def scrape_events(self) -> List[Dict]:

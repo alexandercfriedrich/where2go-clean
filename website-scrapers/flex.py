@@ -29,7 +29,7 @@ class FlexScraper(BaseVenueScraper):
     VENUE_ADDRESS = "Donaukanal, Augartenbrücke 1, 1010 Wien"
     BASE_URL = "https://flex.at"
     EVENTS_URL = "https://flex.at/events/list/"
-    CATEGORY = "Clubs/Discos"
+    CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Mixed"
     
     def scrape_events(self) -> List[Dict]:

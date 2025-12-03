@@ -1,4 +1,5 @@
 // Single Source of Truth (SSOT) for Wien.info <-> where2go mapping and helpers.
+// Updated for new 12-category structure
 // - Forward mapping (where2go -> official Wien.info labels -> F1 IDs)
 // - Reverse mapping (official label -> preferred where2go main category)
 // - Label canonicalization (aliases -> official labels)
@@ -22,10 +23,47 @@ export const WIEN_INFO_F1_BY_LABEL: Record<string, number> = {
 };
 
 // where2go main categories -> list of official wien.info labels
+// Updated for new 12-category structure
 export const WHERE2GO_TO_WIENINFO: Record<string, string[]> = {
+  // 1. Clubs & Nachtleben
+  'Clubs & Nachtleben': ['Rock, Pop, Jazz und mehr'],
+  
+  // 2. Live-Konzerte
+  'Live-Konzerte': ['Rock, Pop, Jazz und mehr'],
+  
+  // 3. Klassik & Oper
+  'Klassik & Oper': ['Klassisch'],
+  
+  // 4. Theater & Comedy
+  'Theater & Comedy': ['Musical, Tanz und Performance', 'Theater und Kabarett'],
+  
+  // 5. Museen & Ausstellungen
+  'Museen & Ausstellungen': ['Ausstellungen'],
+  
+  // 6. Film & Kino
+  'Film & Kino': ['Film und Sommerkino'],
+  
+  // 7. Open Air & Festivals
+  'Open Air & Festivals': ['Führungen, Spaziergänge & Touren', 'Sport, Bewegung und Freizeit', 'Typisch Wien'],
+  
+  // 8. Kulinarik & Märkte (merged Food & Markets)
+  'Kulinarik & Märkte': ['Kulinarik', 'Märkte und Messen'],
+  
+  // 9. Sport & Fitness
+  'Sport & Fitness': ['Sport, Bewegung und Freizeit'],
+  
+  // 10. Bildung & Workshops (includes former Business & Networking)
+  'Bildung & Workshops': ['Führungen, Spaziergänge & Touren', 'Typisch Wien'],
+  
+  // 11. Familie & Kinder
+  'Familie & Kinder': ['Familien, Kids'],
+  
+  // 12. LGBTQ+
+  'LGBTQ+': ['Wien für Jugendliche, LGBTQIA+'],
+  
+  // Legacy mappings for backward compatibility
   'DJ Sets/Electronic': ['Rock, Pop, Jazz und mehr'],
   'Clubs/Discos': ['Rock, Pop, Jazz und mehr'],
-  'Live-Konzerte': ['Rock, Pop, Jazz und mehr', 'Klassisch'],
   'Theater/Performance': ['Musical, Tanz und Performance', 'Theater und Kabarett'],
   'Open Air': ['Führungen, Spaziergänge & Touren', 'Sport, Bewegung und Freizeit'],
   'Museen': ['Ausstellungen'],
@@ -33,7 +71,6 @@ export const WHERE2GO_TO_WIENINFO: Record<string, string[]> = {
   'Film': ['Film und Sommerkino'],
   'Kunst/Design': ['Ausstellungen'],
   'Kultur/Traditionen': ['Typisch Wien', 'Führungen, Spaziergänge & Touren'],
-  'LGBTQ+': ['Wien für Jugendliche, LGBTQIA+'],
   'Bildung/Lernen': ['Führungen, Spaziergänge & Touren'],
   'Networking/Business': ['Führungen, Spaziergänge & Touren'],
   'Sport': ['Sport, Bewegung und Freizeit'],
@@ -43,6 +80,11 @@ export const WHERE2GO_TO_WIENINFO: Record<string, string[]> = {
   'Märkte/Shopping': ['Märkte und Messen'],
   'Food/Culinary': ['Kulinarik'],
   'Familien/Kids': ['Familien, Kids'],
+  'Musik & Nachtleben': ['Rock, Pop, Jazz und mehr'],
+  'Food & Culinary': ['Kulinarik'],
+  'Märkte & Shopping': ['Märkte und Messen'],
+  'Kultur & Bildung': ['Führungen, Spaziergänge & Touren', 'Typisch Wien'],
+  'Business & Networking': ['Führungen, Spaziergänge & Touren'],
   'Sonstiges/Other': [] // No specific mapping - uses all categories
 };
 
@@ -106,45 +148,50 @@ export const WIENINFO_LABEL_ALIASES: Record<string, string> = {
 };
 
 // Reverse mapping: Wien.info raw category label -> where2go main category
+// Updated for new 12-category structure
 // This is the SSOT for category mapping from Wien.info to our categories
 // Ambiguities are resolved to the broadest sensible default (consistent with UI filters)
 const WIENINFO_LABEL_TO_MAIN_CATEGORY: Record<string, string> = {
-  // Classical and concerts
-  'Klassisch': 'Theater/Performance',  // Classical performances are more theater-like
+  // Classical -> Klassik & Oper (NEW!)
+  'Klassisch': 'Klassik & Oper',
+  
+  // Rock, Pop, Jazz -> Live-Konzerte
   'Rock, Pop, Jazz und mehr': 'Live-Konzerte',
   'Konzerte': 'Live-Konzerte',
   
-  // Theater and performance
-  'Theater und Kabarett': 'Theater/Performance',
-  'Musical, Tanz und Performance': 'Theater/Performance',
-  'Oper und Operette': 'Theater/Performance',
+  // Theater and performance -> Theater & Comedy
+  'Theater und Kabarett': 'Theater & Comedy',
+  'Musical, Tanz und Performance': 'Theater & Comedy',
+  'Oper und Operette': 'Klassik & Oper',  // Opera goes to Klassik & Oper
   
   // Museums and exhibitions
-  'Ausstellungen': 'Museen',
+  'Ausstellungen': 'Museen & Ausstellungen',
   
-  // Markets and festivals
-  'Märkte und Messen': 'Märkte/Shopping',  // Markets are shopping, not Open Air
-  'Festivals, Feste, und Shows': 'Open Air',
+  // Markets -> Kulinarik & Märkte
+  'Märkte und Messen': 'Kulinarik & Märkte',
+  
+  // Festivals -> Open Air & Festivals
+  'Festivals, Feste, und Shows': 'Open Air & Festivals',
   
   // Entertainment
-  'Film und Sommerkino': 'Film',
+  'Film und Sommerkino': 'Film & Kino',
   
-  // Culture and traditions
-  'Typisch Wien': 'Kultur/Traditionen',
-  'Führungen, Spaziergänge & Touren': 'Kultur/Traditionen',
+  // Culture and traditions -> Bildung & Workshops
+  'Typisch Wien': 'Bildung & Workshops',
+  'Führungen, Spaziergänge & Touren': 'Bildung & Workshops',
   
   // Family and kids
-  'Kinder und Familie': 'Familien/Kids',
-  'Familien, Kids': 'Familien/Kids',
+  'Kinder und Familie': 'Familie & Kinder',
+  'Familien, Kids': 'Familie & Kinder',
   
   // LGBTQ
   'Wien für Jugendliche, LGBTQIA+': 'LGBTQ+',
   
   // Sport
-  'Sport, Bewegung und Freizeit': 'Sport',
+  'Sport, Bewegung und Freizeit': 'Sport & Fitness',
   
-  // Food
-  'Kulinarik': 'Food/Culinary',
+  // Food -> Kulinarik & Märkte
+  'Kulinarik': 'Kulinarik & Märkte',
 };
 
 // Export alias for backward compatibility with tests

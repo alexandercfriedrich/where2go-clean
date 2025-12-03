@@ -27,7 +27,7 @@ class PratersaunaScraper(BaseVenueScraper):
     VENUE_ADDRESS = "Waldsteingartenstraße 135, 1020 Wien"
     BASE_URL = "https://pratersauna.tv"
     EVENTS_URL = "https://pratersauna.tv"
-    CATEGORY = "Clubs/Discos"
+    CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Electronic"
     
     def scrape_events(self) -> List[Dict]:

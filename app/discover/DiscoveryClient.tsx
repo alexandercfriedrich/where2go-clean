@@ -5,7 +5,7 @@
  * Handles client-side interactivity and state
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ThemeProvider } from '@/components/ui/ThemeProvider';
 import { SectionHeader } from '@/components/discovery/SectionHeader';
 import { DiscoveryNav } from '@/components/discovery/DiscoveryNav';
@@ -16,6 +16,7 @@ import { EventCard } from '@/components/EventCard';
 import { FAQSection } from '@/components/FAQSection';
 import { HowToSection } from '@/components/HowToSection';
 import { DateFilterLinks } from '@/components/discovery/DateFilterLinks';
+import { WeekendNightlifeSection } from '@/components/discovery/WeekendNightlifeSection';
 import { discoverPageFAQs, discoverPageHowTo } from '@/lib/content/discoverPageContent';
 import { VenueStats } from '@/components/VenueStats';
 import { filterEventsByDateRange } from '../../lib/utils/eventDateFilter';
@@ -24,23 +25,34 @@ interface DiscoveryClientProps {
   initialTrendingEvents: any[];
   initialWeekendEvents: any[];
   initialPersonalizedEvents: any[];
+  initialWeekendNightlifeEvents?: {
+    friday: any[];
+    saturday: any[];
+    sunday: any[];
+  };
   city: string;
+  initialDateFilter?: string;
 }
 
 export default function DiscoveryClient({
   initialTrendingEvents,
   initialWeekendEvents,
   initialPersonalizedEvents,
+  initialWeekendNightlifeEvents = { friday: [], saturday: [], sunday: [] },
   city,
+  initialDateFilter = 'all',
 }: DiscoveryClientProps) {
   const [mounted, setMounted] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [selectedDateFilter, setSelectedDateFilter] = useState<string>('all');
+  const [selectedDateFilter, setSelectedDateFilter] = useState<string>(initialDateFilter);
   const [filteredEvents, setFilteredEvents] = useState({
     personalized: initialPersonalizedEvents,
     trending: initialTrendingEvents,
     weekend: initialWeekendEvents,
   });
+  
+  // Ref for the events section to scroll to
+  const eventsGridRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -135,7 +147,18 @@ export default function DiscoveryClient({
             />
             <CategoryBrowser 
               onCategoryClick={(cat) => {
-                setSelectedCategory(selectedCategory === cat ? null : cat);
+                const newCategory = selectedCategory === cat ? null : cat;
+                setSelectedCategory(newCategory);
+                
+                // Smooth scroll to events section after category is selected
+                if (newCategory && eventsGridRef.current) {
+                  setTimeout(() => {
+                    eventsGridRef.current?.scrollIntoView({ 
+                      behavior: 'smooth', 
+                      block: 'start' 
+                    });
+                  }, 100);
+                }
               }}
               selectedCategory={selectedCategory || undefined}
             />
@@ -154,9 +177,17 @@ export default function DiscoveryClient({
             )}
           </section>
 
+          {/* Weekend Nightlife Section - Clubs & Nachtleben from Venue Scrapers */}
+          {!selectedCategory && (
+            <WeekendNightlifeSection 
+              events={initialWeekendNightlifeEvents} 
+              city={city} 
+            />
+          )}
+
           {/* For You Section - Show ALL events when category is selected */}
           {filteredEvents.personalized.length > 0 && (
-            <section className="mb-16" aria-label="Personalized event recommendations">
+            <section ref={eventsGridRef} className="mb-16" aria-label="Personalized event recommendations">
               <SectionHeader
                 title={selectedCategory ? `${selectedCategory} Events` : "For You"}
                 subtitle={selectedCategory 

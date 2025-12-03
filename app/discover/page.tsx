@@ -5,8 +5,11 @@
 
 import { Metadata } from 'next';
 import DiscoveryClient from './DiscoveryClient';
-import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents } from '../../lib/events/queries';
+import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getWeekendNightlifeEvents } from '../../lib/events/queries';
 import { discoverPageMetadata } from '../lib/content/discoverPageContent';
+
+// Force dynamic rendering to always fetch fresh event data
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: discoverPageMetadata.title,
@@ -34,23 +37,42 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function DiscoverPage() {
-  // Fetch initial data server-side
-  const city = 'Wien';
+interface PageProps {
+  searchParams: Promise<{ city?: string; date?: string }>;
+}
+
+export default async function DiscoverPage({ searchParams }: PageProps) {
+  // Await searchParams (Next.js 15 requires this)
+  const params = await searchParams;
+  
+  // Get city and date filter from URL params
+  const city = params.city || 'Wien';
+  const initialDateFilter = params.date || 'all';
   
   try {
-    const [trendingEvents, weekendEvents, personalizedEvents] = await Promise.all([
-      getTrendingEvents({ city, limit: 12 }),
-      getWeekendEvents({ city, limit: 8 }),
-      getPersonalizedEvents({ city, limit: 20 }),
+    const [trendingEvents, weekendEvents, personalizedEvents, weekendNightlifeEvents] = await Promise.all([
+      getTrendingEvents({ city, limit: 50 }), // Increased limit for better filtering
+      getWeekendEvents({ city, limit: 30 }),
+      getPersonalizedEvents({ city, limit: 100 }), // Increased for 30-day range
+      getWeekendNightlifeEvents({ city }),
     ]);
+
+    // Log weekend nightlife results for debugging
+    console.log('[DiscoverPage] Weekend nightlife events fetched:', {
+      friday: weekendNightlifeEvents.friday.length,
+      saturday: weekendNightlifeEvents.saturday.length,
+      sunday: weekendNightlifeEvents.sunday.length,
+      total: weekendNightlifeEvents.friday.length + weekendNightlifeEvents.saturday.length + weekendNightlifeEvents.sunday.length,
+    });
 
     return (
       <DiscoveryClient
         initialTrendingEvents={trendingEvents}
         initialWeekendEvents={weekendEvents}
         initialPersonalizedEvents={personalizedEvents}
+        initialWeekendNightlifeEvents={weekendNightlifeEvents}
         city={city}
+        initialDateFilter={initialDateFilter}
       />
     );
   } catch (error) {
@@ -62,7 +84,9 @@ export default async function DiscoverPage() {
         initialTrendingEvents={[]}
         initialWeekendEvents={[]}
         initialPersonalizedEvents={[]}
+        initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city={city}
+        initialDateFilter={initialDateFilter}
       />
     );
   }

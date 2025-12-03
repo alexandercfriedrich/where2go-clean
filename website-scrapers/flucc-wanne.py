@@ -27,7 +27,7 @@ class FluccWanneScraper(BaseVenueScraper):
     VENUE_ADDRESS = "Praterstern 5, 1020 Wien"
     BASE_URL = "https://flucc.at"
     EVENTS_URL = "https://flucc.at"
-    CATEGORY = "Clubs/Discos"
+    CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Mixed"
     
     def scrape_events(self) -> List[Dict]:

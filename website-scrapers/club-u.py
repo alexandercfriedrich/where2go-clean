@@ -11,7 +11,7 @@ class ClubUScraper(BaseVenueScraper):
     VENUE_ADDRESS = "Karlsplatz 1, 1010 Wien"
     BASE_URL = "https://club-u.at"
     EVENTS_URL = "https://club-u.at"
-    CATEGORY = "Clubs/Discos"
+    CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Electronic"
     
     def scrape_events(self) -> List[Dict]:

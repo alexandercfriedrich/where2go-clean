@@ -27,7 +27,7 @@ class SassScraper(BaseVenueScraper):
     VENUE_ADDRESS = "Karlsplatz 1, 1010 Wien"
     BASE_URL = "https://sassvienna.com"
     EVENTS_URL = "https://sassvienna.com/de/programm"
-    CATEGORY = "Bars"
+    CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Live Music"
     
     def scrape_events(self) -> List[Dict]:

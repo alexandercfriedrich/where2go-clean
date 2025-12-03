@@ -62,7 +62,7 @@ class BaseVenueScraper(ABC):
     COUNTRY = "Austria"
     BASE_URL = "https://example.com"
     EVENTS_URL = "https://example.com/events"
-    CATEGORY = "Clubs/Discos"
+    CATEGORY = "Clubs & Nachtleben"  # Updated for new 12-category structure
     SUBCATEGORY = "Electronic"
     VENUE_LOGO_URL = None  # Fallback image if no event image found
     

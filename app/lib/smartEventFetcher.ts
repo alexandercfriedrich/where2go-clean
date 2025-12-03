@@ -22,20 +22,21 @@ import { getHotCity } from './hotCityStore';
 
 /**
  * Optimized category set - 12 compact main categories for efficient AI querying
+ * Updated for new 12-category structure (Business & Networking removed)
  * These match the EVENT_CATEGORIES from eventCategories.ts
  */
 export const OPTIMIZED_CATEGORIES = [
-  'Musik & Nachtleben',
-  'Theater/Performance',
+  'Clubs & Nachtleben',
+  'Live-Konzerte',
+  'Klassik & Oper',
+  'Theater & Comedy',
   'Museen & Ausstellungen',
   'Film & Kino',
   'Open Air & Festivals',
-  'Food & Culinary',
-  'Märkte & Shopping',
+  'Kulinarik & Märkte',
   'Sport & Fitness',
-  'Kultur & Bildung',
+  'Bildung & Workshops',
   'Familie & Kinder',
-  'Business & Networking',
   'LGBTQ+'
 ] as const;
 

@@ -27,7 +27,7 @@ class OKlubScraper(BaseVenueScraper):
     VENUE_ADDRESS = "Passage Opernring/Operngasse, 1010 Wien"
     BASE_URL = "https://o-klub.at"
     EVENTS_URL = "https://o-klub.at/events/"
-    CATEGORY = "Clubs/Discos"
+    CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Electronic"
     
     def scrape_events(self) -> List[Dict]:

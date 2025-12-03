@@ -30,7 +30,7 @@ class BabenbergerPassageScraper(BaseVenueScraper):
     VENUE_ADDRESS = "Burgring 3, 1010 Wien"
     BASE_URL = "https://www.babenbergerpassage.at"
     EVENTS_URL = "https://www.babenbergerpassage.at"
-    CATEGORY = "Clubs/Discos"
+    CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Mixed"
     
     def scrape_events(self) -> List[Dict]:

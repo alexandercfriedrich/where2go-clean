@@ -20,7 +20,7 @@ class TheLoftScraper(BaseVenueScraper):
     VENUE_ADDRESS = "Lerchenfelder Gürtel 37, 1160 Wien"
     BASE_URL = "https://www.theloft.at"
     EVENTS_URL = "https://www.theloft.at/programm/"
-    CATEGORY = "Clubs/Discos"
+    CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Mixed"
     
     def scrape_events(self) -> List[Dict]:

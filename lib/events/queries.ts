@@ -183,6 +183,92 @@ export async function getEventsByCategory(
 }
 
 /**
+ * Get weekend nightlife events - simplified query
+ * Returns events for Clubs & Nachtleben category for Fr/Sa/So of this weekend
+ */
+export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
+  const { city = 'Wien' } = params;
+  
+  // Calculate weekend dates (Fr/Sa/So)
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0=Sun, 5=Fri, 6=Sat
+  
+  // Calculate days until Friday
+  let daysUntilFriday: number;
+  if (dayOfWeek === 5) daysUntilFriday = 0;      // Friday -> this Friday
+  else if (dayOfWeek === 6) daysUntilFriday = -1; // Saturday -> last Friday
+  else if (dayOfWeek === 0) daysUntilFriday = -2; // Sunday -> last Friday
+  else daysUntilFriday = 5 - dayOfWeek;          // Mon-Thu -> next Friday
+  
+  const friday = new Date(now);
+  friday.setDate(now.getDate() + daysUntilFriday);
+  friday.setHours(0, 0, 0, 0);
+  
+  const saturday = new Date(friday);
+  saturday.setDate(friday.getDate() + 1);
+  
+  const sunday = new Date(friday);
+  sunday.setDate(friday.getDate() + 2);
+  
+  const monday = new Date(friday);
+  monday.setDate(friday.getDate() + 3);
+  monday.setHours(0, 0, 0, 0);
+  
+  // Date strings for filtering
+  const fridayStr = friday.toISOString().split('T')[0];
+  const saturdayStr = saturday.toISOString().split('T')[0];
+  const sundayStr = sunday.toISOString().split('T')[0];
+  
+  // Log query parameters
+  console.log('[getWeekendNightlifeEvents] Query params:', {
+    city,
+    now: now.toISOString(),
+    dayOfWeek,
+    daysUntilFriday,
+    fridayStart: friday.toISOString(),
+    mondayEnd: monday.toISOString(),
+    fridayStr,
+    saturdayStr,
+    sundayStr,
+  });
+  
+  // Simple query: get all Clubs & Nachtleben events for Fr/Sa/So
+  const { data, error } = await supabase
+    .from('events')
+    .select('*')
+    .eq('city', city)
+    .eq('category', 'Clubs & Nachtleben')
+    .gte('start_date_time', friday.toISOString())
+    .lt('start_date_time', monday.toISOString())
+    .neq('is_cancelled', true)
+    .order('start_date_time', { ascending: true });
+
+  if (error) {
+    console.error('[getWeekendNightlifeEvents] Error:', error);
+    return { friday: [], saturday: [], sunday: [] };
+  }
+
+  const events = data || [];
+  
+  console.log('[getWeekendNightlifeEvents] Raw events found:', events.length);
+  
+  // Group by day
+  const result = {
+    friday: events.filter((e: any) => e.start_date_time?.startsWith(fridayStr)).slice(0, 6),
+    saturday: events.filter((e: any) => e.start_date_time?.startsWith(saturdayStr)).slice(0, 6),
+    sunday: events.filter((e: any) => e.start_date_time?.startsWith(sundayStr)).slice(0, 6),
+  };
+  
+  console.log('[getWeekendNightlifeEvents] Grouped results:', {
+    friday: result.friday.length,
+    saturday: result.saturday.length,
+    sunday: result.sunday.length,
+  });
+  
+  return result;
+}
+
+/**
  * Simple distance calculation (Haversine formula)
  */
 function calculateDistanceSimple(

@@ -31,7 +31,7 @@ class PatrocWienGayScraper(BaseVenueScraper):
     VENUE_ADDRESS = "Wien"  # Default city
     BASE_URL = "https://www.patroc.com"
     EVENTS_URL = "https://www.patroc.com/de/gay/wien/"
-    CATEGORY = "Musik & Nachtleben"
+    CATEGORY = "LGBTQ+"
     SUBCATEGORY = "LGBTQ+"
     
     def scrape_events(self) -> List[Dict]:

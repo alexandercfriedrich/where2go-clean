@@ -20,7 +20,7 @@ class U4Scraper(BaseVenueScraper):
     VENUE_ADDRESS = "Schönbrunner Straße 222, 1120 Wien"
     BASE_URL = "https://www.u4.at"
     EVENTS_URL = "https://www.u4.at/events-veranstaltungen/"
-    CATEGORY = "Clubs/Discos"
+    CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Mixed"
     
     def scrape_events(self) -> List[Dict]:

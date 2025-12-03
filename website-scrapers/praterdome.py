@@ -27,7 +27,7 @@ class PraterdomeScraper(BaseVenueScraper):
     VENUE_ADDRESS = "Riesenradplatz 7, 1020 Wien"
     BASE_URL = "https://praterdome.at"
     EVENTS_URL = "https://praterdome.at/events"
-    CATEGORY = "Clubs/Discos"
+    CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Electronic"
     
     def scrape_events(self) -> List[Dict]:

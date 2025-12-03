@@ -334,7 +334,7 @@ python3 generic_scraper.py <venue> --dry-run --debug
     'venue_address': 'Full Address, Postal Code Wien',
     'base_url': 'https://venue-website.com',
     'events_url': 'https://venue-website.com/events/',  # Verified!
-    'category': 'Clubs/Discos',
+    'category': 'Clubs & Nachtleben',
     'subcategory': 'Electronic',
     
     'list_selectors': {

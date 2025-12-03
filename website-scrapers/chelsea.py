@@ -20,7 +20,7 @@ class ChelseaScraper(BaseVenueScraper):
         "https://www.chelsea.co.at/concerts.php",
         "https://www.chelsea.co.at/clubs.php"
     ]
-    CATEGORY = "Clubs/Discos"
+    CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Mixed"
     
     def scrape_events(self) -> List[Dict]:
