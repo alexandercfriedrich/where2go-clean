@@ -2,10 +2,19 @@
 """
 The Loft Event Scraper
 Extracts upcoming events from https://www.theloft.at/programm/
+
+The page structure shows events as:
+- Links with div.box-wrap containing:
+  - div.datum: date (format: "Di. 9.12.2025")
+  - span.open: time (format: "19:00")
+  - span.preis: price
+  - div.content-middle: event title
+  - div.content-right: room (Wohnzimmer, Oben, Unten)
 """
 
 import sys
 import os
+import re
 from typing import List, Dict, Optional
 import argparse
 
@@ -33,17 +42,16 @@ class TheLoftScraper(BaseVenueScraper):
         
         events = []
         
-        # Try common event selectors
-        event_items = soup.select('article.event, div.event, article, .event-item, div[class*="event"]')
-        event_items = [item for item in event_items if item.get_text(strip=True) and len(item.get_text(strip=True)) > 20]
+        # Find all event links with box-wrap structure
+        event_links = soup.select('a:has(div.box-wrap)')
         
-        self.log(f"Found {len(event_items)} potential events")
+        self.log(f"Found {len(event_links)} events")
         
-        for idx, item in enumerate(event_items[:50], 1):  # Limit to 50
+        for idx, link in enumerate(event_links[:50], 1):  # Limit to 50
             if self.debug:
-                self.log(f"Processing event {idx}/{len(event_items)}", "debug")
+                self.log(f"Processing event {idx}/{len(event_links)}", "debug")
             
-            event_data = self._parse_event_item(item)
+            event_data = self._parse_event_link(link)
             
             if event_data and event_data.get('title'):
                 events.append(event_data)
@@ -53,8 +61,8 @@ class TheLoftScraper(BaseVenueScraper):
         
         return events
     
-    def _parse_event_item(self, item) -> Optional[Dict]:
-        """Parse a single event item"""
+    def _parse_event_link(self, link) -> Optional[Dict]:
+        """Parse a single event link with box-wrap structure"""
         try:
             event_data = {
                 'title': None,
@@ -68,51 +76,58 @@ class TheLoftScraper(BaseVenueScraper):
                 'artists': [],
             }
             
-            # Extract title
-            title_elem = item.select_one('h1, h2, h3, .title, .event-title')
+            # Get link URL
+            href = link.get('href')
+            if href:
+                if not href.startswith('http'):
+                    href = self.BASE_URL.rstrip('/') + href
+                event_data['detail_url'] = href
+            
+            # Get the box-wrap div
+            box = link.select_one('div.box-wrap')
+            if not box:
+                return None
+            
+            # Extract title from content-middle
+            title_elem = box.select_one('div.content-middle')
             if title_elem:
                 event_data['title'] = title_elem.get_text(strip=True)
             
-            # Extract date
-            date_elem = item.select_one('.date, .event-date, time')
+            # Extract date from datum (format: "Di. 9.12.2025")
+            date_elem = box.select_one('div.datum')
             if date_elem:
                 date_text = date_elem.get_text(strip=True)
-                event_data['date'] = self.parse_german_date(date_text)
-                event_data['time'] = self.parse_time(date_text)
+                # Parse date: "Di. 9.12.2025" or "Fr. 12.12.2025"
+                date_match = re.search(r'(\d{1,2})\.(\d{1,2})\.(\d{4})', date_text)
+                if date_match:
+                    day, month, year = date_match.groups()
+                    event_data['date'] = f"{year}-{int(month):02d}-{int(day):02d}"
             
-            # If no date element, try parsing from full text
-            if not event_data.get('date'):
-                text = item.get_text()
-                event_data['date'] = self.parse_german_date(text)
-                event_data['time'] = self.parse_time(text)
+            # Extract time from open span
+            time_elem = box.select_one('span.open')
+            if time_elem:
+                event_data['time'] = time_elem.get_text(strip=True)
             
-            # Extract link
-            link = item.select_one('a[href]')
-            if link:
-                href = link.get('href')
-                if href and not href.startswith('http'):
-                    href = self.BASE_URL.rstrip('/') + '/' + href.lstrip('/')
-                event_data['detail_url'] = href
+            # Extract price from preis span
+            price_elem = box.select_one('span.preis')
+            if price_elem:
+                price_text = price_elem.get_text(strip=True)
+                # Remove "Eintritt: " prefix
+                price_text = re.sub(r'^Eintritt:\s*', '', price_text)
+                event_data['price'] = price_text
             
-            # Extract image
-            img = item.select_one('img')
-            if img:
-                src = img.get('src') or img.get('data-src')
-                if src and 'logo' not in src.lower():
-                    if not src.startswith('http'):
-                        src = self.BASE_URL.rstrip('/') + '/' + src.lstrip('/')
-                    event_data['image_url'] = src
-            
-            # Extract description
-            desc = item.select_one('.description, .excerpt, p')
-            if desc:
-                event_data['description'] = desc.get_text(strip=True)[:300]
+            # Extract room/location from content-right
+            room_elem = box.select_one('div.content-right')
+            if room_elem:
+                room = room_elem.get_text(strip=True)
+                event_data['artists'] = [f"The Loft {room}"]
+                event_data['description'] = f"Location: {room}"
             
             return event_data if event_data['title'] else None
             
         except Exception as e:
             if self.debug:
-                self.log(f"Error parsing event item: {e}", "error")
+                self.log(f"Error parsing event link: {e}", "error")
             return None
 
 
