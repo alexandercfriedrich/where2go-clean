@@ -89,19 +89,34 @@ export async function fetchWienInfoEvents(opts: FetchWienInfoOptions): Promise<W
 
   try {
     // 1) Normalize UI super-categories to main categories for F1 mapping
+    // Updated for new 12-category structure
     const uiSuperToMain: Record<string, string> = {
-      'Museen & Ausstellungen': 'Museen',
-      'Film & Kino': 'Film',
-      'Open Air & Festivals': 'Open Air',
-      'Musik & Nachtleben': 'Live-Konzerte',
-      'Märkte & Shopping': 'Märkte/Shopping',
-      'Food & Culinary': 'Food/Culinary',
-      'LGBTQ+': 'Soziales/Community',
-      'Sport & Fitness': 'Sport',
-      'Kultur & Bildung': 'Kultur/Traditionen',
-      'Business & Networking': 'Networking/Business',
-      'Familie & Kinder': 'Familien/Kids',
-      'Theater/Performance': 'Theater/Performance'
+      // New 12-category structure
+      'Clubs & Nachtleben': 'Clubs & Nachtleben',
+      'Live-Konzerte': 'Live-Konzerte',
+      'Klassik & Oper': 'Klassik & Oper',
+      'Theater & Comedy': 'Theater & Comedy',
+      'Museen & Ausstellungen': 'Museen & Ausstellungen',
+      'Film & Kino': 'Film & Kino',
+      'Open Air & Festivals': 'Open Air & Festivals',
+      'Kulinarik & Märkte': 'Kulinarik & Märkte',
+      'Sport & Fitness': 'Sport & Fitness',
+      'Bildung & Workshops': 'Bildung & Workshops',
+      'Familie & Kinder': 'Familie & Kinder',
+      'LGBTQ+': 'LGBTQ+',
+      
+      // Legacy category mappings for backward compatibility
+      'Musik & Nachtleben': 'Clubs & Nachtleben',
+      'Theater/Performance': 'Theater & Comedy',
+      'Food & Culinary': 'Kulinarik & Märkte',
+      'Märkte & Shopping': 'Kulinarik & Märkte',
+      'Kultur & Bildung': 'Bildung & Workshops',
+      'Business & Networking': 'Bildung & Workshops',
+      'Museen': 'Museen & Ausstellungen',
+      'Film': 'Film & Kino',
+      'Open Air': 'Open Air & Festivals',
+      'Sport': 'Sport & Fitness',
+      'Familien/Kids': 'Familie & Kinder'
     };
 
     // Normalize categories before F1 lookup
@@ -322,7 +337,7 @@ function expandWienInfoEventDates(
 
   // Common event data (shared across all dates)
   const canonical = canonicalizeWienInfoLabel(wienInfoEvent.category || '');
-  const category = mapWienInfoCategoryLabelToWhereToGo(canonical) ?? 'Kultur/Traditionen';
+  const category = mapWienInfoCategoryLabelToWhereToGo(canonical) ?? 'Bildung & Workshops';
 
   const fullUrl = wienInfoEvent.url?.startsWith('http')
     ? wienInfoEvent.url
@@ -505,7 +520,7 @@ function normalizeWienInfoEvent(
   toISO: string
 ): EventData {
   const canonical = canonicalizeWienInfoLabel(wienInfoEvent.category || '');
-  const category = mapWienInfoCategoryLabelToWhereToGo(canonical) ?? 'Kultur/Traditionen';
+  const category = mapWienInfoCategoryLabelToWhereToGo(canonical) ?? 'Bildung & Workshops';
 
   const { date: primaryDate, time } = pickDateTimeWithinWindow(wienInfoEvent, fromISO, toISO);
 
