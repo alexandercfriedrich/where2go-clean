@@ -25,7 +25,7 @@ export async function getTrendingEvents(params: EventQueryParams = {}) {
     .select('*')
     .eq('city', city)
     .gte('start_date_time', now)
-    .eq('is_cancelled', false)
+    .neq('is_cancelled', true)
     .order('popularity_score', { ascending: false })
     .order('view_count', { ascending: false })
     .range(offset, offset + limit - 1);
@@ -63,7 +63,7 @@ export async function getWeekendEvents(params: EventQueryParams = {}) {
     .eq('city', city)
     .gte('start_date_time', friday.toISOString())
     .lte('start_date_time', monday.toISOString())
-    .eq('is_cancelled', false)
+    .neq('is_cancelled', true)
     .order('is_featured', { ascending: false })
     .order('popularity_score', { ascending: false })
     .limit(limit);
@@ -93,7 +93,7 @@ export async function getNearbyEvents(
     .select('*')
     .eq('city', city)
     .gte('start_date_time', now)
-    .eq('is_cancelled', false)
+    .neq('is_cancelled', true)
     .not('latitude', 'is', null)
     .not('longitude', 'is', null)
     .limit(limit * 2) as any; // Fetch more to filter by distance
@@ -141,7 +141,7 @@ export async function getPersonalizedEvents(params: EventQueryParams = {}) {
     .select('*')
     .eq('city', city)
     .gte('start_date_time', now)
-    .eq('is_cancelled', false)
+    .neq('is_cancelled', true)
     .order('start_date_time', { ascending: true })
     .limit(limit);
 
@@ -170,7 +170,7 @@ export async function getEventsByCategory(
     .eq('city', city)
     .eq('category', category)
     .gte('start_date_time', now)
-    .eq('is_cancelled', false)
+    .neq('is_cancelled', true)
     .order('start_date_time', { ascending: true })
     .limit(limit);
 
@@ -227,7 +227,7 @@ export async function getUpcomingEvents(
     .eq('city', city)
     .gte('start_date_time', now.toISOString())
     .lte('start_date_time', endDate.toISOString())
-    .eq('is_cancelled', false)
+    .neq('is_cancelled', true)
     .order('start_date_time', { ascending: true })
     .limit(limit);
 
