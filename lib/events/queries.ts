@@ -216,25 +216,39 @@ export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
   mondayEnd.setDate(friday.getDate() + 3);
   mondayEnd.setHours(4, 0, 0, 0);
   
-  // Fetch Clubs & Nachtleben events from venue scrapers for the weekend
-  const { data, error } = await supabase
+  // Nightlife category names (current and legacy)
+  const nightlifeCategories = ['Clubs & Nachtleben', 'Musik & Nachtleben', 'Bars'];
+  
+  // Fetch nightlife events for the weekend
+  // Try with scraper source first, then fall back to all sources
+  let { data, error } = await supabase
     .from('events')
     .select('*')
     .eq('city', city)
-    .eq('category', 'Clubs & Nachtleben')
-    .ilike('source', '%scraper%')
+    .in('category', nightlifeCategories)
     .gte('start_date_time', friday.toISOString())
     .lt('start_date_time', mondayEnd.toISOString())
     .neq('is_cancelled', true)
     .order('start_date_time', { ascending: true })
-    .limit(limit * 2); // Fetch more to ensure we have enough after grouping
+    .limit(limit * 3); // Fetch more to ensure we have enough after grouping
 
   if (error) {
     console.error('Error fetching weekend nightlife events:', error);
     return { friday: [], saturday: [], sunday: [] };
   }
 
-  const events = data || [];
+  let events = data || [];
+  
+  // Prefer scraper events if available
+  const scraperEvents = events.filter((e: any) => 
+    e.source?.toLowerCase().includes('scraper') || 
+    e.source?.toLowerCase().includes('venue')
+  );
+  
+  // Use scraper events if we have enough, otherwise use all events
+  if (scraperEvents.length >= 6) {
+    events = scraperEvents;
+  }
   
   // Group events by day
   const fridayDate = friday.toISOString().split('T')[0];
