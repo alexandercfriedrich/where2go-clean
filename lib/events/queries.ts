@@ -193,13 +193,17 @@ export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
   const now = new Date();
   const dayOfWeek = now.getDay();
   
-  // If it's already the weekend, use this weekend
+  // If it's already the weekend (Fri/Sat/Sun), use this weekend
   // Otherwise use next weekend
   let daysUntilFriday = (5 - dayOfWeek + 7) % 7;
-  if (daysUntilFriday === 0 && dayOfWeek === 5) {
-    daysUntilFriday = 0; // It's Friday, use today
+  if (dayOfWeek === 5) {
+    daysUntilFriday = 0; // Friday
+  } else if (dayOfWeek === 6) {
+    daysUntilFriday = -1; // Saturday -> go back to Friday
+  } else if (dayOfWeek === 0) {
+    daysUntilFriday = -2; // Sunday -> go back to Friday
   } else if (daysUntilFriday === 0) {
-    daysUntilFriday = 7; // Not Friday, get next Friday
+    daysUntilFriday = 7; // Not weekend, get next Friday
   }
   
   const friday = new Date(now);
@@ -219,8 +223,14 @@ export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
   // Nightlife category names (current and legacy)
   const nightlifeCategories = ['Clubs & Nachtleben', 'Musik & Nachtleben', 'Bars'];
   
+  console.log('[getWeekendNightlifeEvents] Query params:', {
+    city,
+    categories: nightlifeCategories,
+    fridayStart: friday.toISOString(),
+    mondayEnd: mondayEnd.toISOString(),
+  });
+  
   // Fetch nightlife events for the weekend
-  // Try with scraper source first, then fall back to all sources
   let { data, error } = await supabase
     .from('events')
     .select('*')
@@ -233,11 +243,31 @@ export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
     .limit(limit * 3); // Fetch more to ensure we have enough after grouping
 
   if (error) {
-    console.error('Error fetching weekend nightlife events:', error);
+    console.error('[getWeekendNightlifeEvents] Error:', error);
     return { friday: [], saturday: [], sunday: [] };
   }
 
   let events = data || [];
+  console.log('[getWeekendNightlifeEvents] Raw events found:', events.length);
+  
+  // If no events found for this weekend, try fetching upcoming nightlife events
+  if (events.length === 0) {
+    console.log('[getWeekendNightlifeEvents] No weekend events, fetching upcoming nightlife...');
+    const { data: upcomingData, error: upcomingError } = await supabase
+      .from('events')
+      .select('*')
+      .eq('city', city)
+      .in('category', nightlifeCategories)
+      .gte('start_date_time', now.toISOString())
+      .neq('is_cancelled', true)
+      .order('start_date_time', { ascending: true })
+      .limit(limit);
+    
+    if (!upcomingError && upcomingData && upcomingData.length > 0) {
+      console.log('[getWeekendNightlifeEvents] Found upcoming events:', upcomingData.length);
+      events = upcomingData;
+    }
+  }
   
   // Prefer scraper events if available
   const scraperEvents = events.filter((e: any) => 
@@ -260,6 +290,12 @@ export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
     saturday: events.filter((e: any) => e.start_date_time?.startsWith(saturdayDate)).slice(0, 6),
     sunday: events.filter((e: any) => e.start_date_time?.startsWith(sundayDate)).slice(0, 6),
   };
+  
+  console.log('[getWeekendNightlifeEvents] Grouped results:', {
+    friday: grouped.friday.length,
+    saturday: grouped.saturday.length,
+    sunday: grouped.sunday.length,
+  });
   
   return grouped;
 }

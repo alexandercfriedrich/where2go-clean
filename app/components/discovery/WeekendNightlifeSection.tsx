@@ -34,9 +34,14 @@ function getWeekendDates(): { friday: Date; saturday: Date; sunday: Date } {
   const now = new Date();
   const dayOfWeek = now.getDay();
   
+  // If it's already the weekend (Fri/Sat/Sun), use this weekend
   let daysUntilFriday = (5 - dayOfWeek + 7) % 7;
-  if (daysUntilFriday === 0 && dayOfWeek === 5) {
+  if (dayOfWeek === 5) {
     daysUntilFriday = 0;
+  } else if (dayOfWeek === 6) {
+    daysUntilFriday = -1;
+  } else if (dayOfWeek === 0) {
+    daysUntilFriday = -2;
   } else if (daysUntilFriday === 0) {
     daysUntilFriday = 7;
   }
@@ -57,17 +62,18 @@ function getWeekendDates(): { friday: Date; saturday: Date; sunday: Date } {
 export function WeekendNightlifeSection({ events, city = 'Wien' }: WeekendNightlifeSectionProps) {
   const dates = getWeekendDates();
   
-  const hasEvents = events.friday.length > 0 || events.saturday.length > 0 || events.sunday.length > 0;
+  const hasGroupedEvents = events.friday.length > 0 || events.saturday.length > 0 || events.sunday.length > 0;
   
-  if (!hasEvents) {
+  // If no events at all, don't render anything
+  if (!hasGroupedEvents) {
     return null;
   }
 
   return (
-    <section className="weekend-nightlife-section" aria-label="Weekend Nightlife Events">
+    <section className="weekend-nightlife-section mb-16" aria-label="Weekend Nightlife Events">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-white mb-2">🎵 Clubs & Nachtleben</h2>
-        <p className="text-gray-400 text-sm">Die besten Club-Events dieses Wochenende</p>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">🎵 Clubs & Nachtleben</h2>
+        <p className="text-gray-600 dark:text-gray-400 text-sm">Die besten Club-Events dieses Wochenende</p>
       </div>
 
       {/* Friday */}
