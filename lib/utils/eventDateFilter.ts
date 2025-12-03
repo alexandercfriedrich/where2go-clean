@@ -48,6 +48,28 @@ export function filterOutPastEvents<T extends { start_date_time?: string; date?:
 }
 
 /**
+ * Get Sunday of the current week (end of week)
+ */
+export function getSundayOfWeek(date: Date): Date {
+  const dayOfWeek = date.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+  const daysUntilSunday = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+  const sunday = new Date(date);
+  sunday.setDate(date.getDate() + daysUntilSunday);
+  return sunday;
+}
+
+/**
+ * Get Monday of next week
+ */
+export function getNextMonday(date: Date): Date {
+  const dayOfWeek = date.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+  const daysUntilNextMonday = dayOfWeek === 0 ? 1 : 8 - dayOfWeek;
+  const nextMonday = new Date(date);
+  nextMonday.setDate(date.getDate() + daysUntilNextMonday);
+  return nextMonday;
+}
+
+/**
  * Filter events by specific date range
  */
 export function filterEventsByDateRange<T extends { start_date_time?: string; date?: string }>(
@@ -61,6 +83,7 @@ export function filterEventsByDateRange<T extends { start_date_time?: string; da
   if (filter === 'all') return futureEvents;
   
   const today = getToday();
+  const dayOfWeek = today.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
   
   return futureEvents.filter((event) => {
     const eventDateOnly = parseEventDate(event);
@@ -77,46 +100,59 @@ export function filterEventsByDateRange<T extends { start_date_time?: string; da
       }
         
       case 'this-week': {
-        const weekEnd = new Date(today);
-        weekEnd.setDate(weekEnd.getDate() + 7);
-        return eventDateOnly >= today && eventDateOnly < weekEnd;
+        // From today until end of Sunday (inclusive)
+        // "Diese Woche" = alle events bis inkl. kommenden Sonntag
+        const sunday = getSundayOfWeek(today);
+        const mondayAfter = new Date(sunday);
+        mondayAfter.setDate(sunday.getDate() + 1);
+        return eventDateOnly >= today && eventDateOnly < mondayAfter;
       }
         
       case 'weekend':
       case 'this-weekend': {
-        // Calculate current or next weekend (Friday, Saturday, and Sunday)
-        const dayOfWeek = today.getDay();
-        let daysUntilWeekendStart: number;
+        // Weekend behavior based on current day:
+        // - If Friday (5): show Fr, Sa, So
+        // - If Saturday (6): show Sa, So  
+        // - If Sunday (0): show only So
+        // - If Mon-Thu: show next Fr, Sa, So
+        
+        let weekendStart: Date;
+        let weekendEnd: Date; // Exclusive (Monday after weekend)
         
         if (dayOfWeek === 5) {
-          // Today is Friday - weekend starts today
-          daysUntilWeekendStart = 0;
+          // Today is Friday - show Fr, Sa, So
+          weekendStart = new Date(today);
+          weekendEnd = new Date(today);
+          weekendEnd.setDate(today.getDate() + 3); // Monday
         } else if (dayOfWeek === 6) {
-          // Today is Saturday - weekend started yesterday (Friday)
-          daysUntilWeekendStart = -1;
+          // Today is Saturday - show Sa, So only
+          weekendStart = new Date(today);
+          weekendEnd = new Date(today);
+          weekendEnd.setDate(today.getDate() + 2); // Monday
         } else if (dayOfWeek === 0) {
-          // Today is Sunday - weekend started two days ago (Friday)
-          daysUntilWeekendStart = -2;
+          // Today is Sunday - show only Sunday
+          weekendStart = new Date(today);
+          weekendEnd = new Date(today);
+          weekendEnd.setDate(today.getDate() + 1); // Monday
         } else {
-          // Monday to Thursday - calculate days until next Friday
-          daysUntilWeekendStart = 5 - dayOfWeek;
+          // Monday (1) to Thursday (4) - show next Friday, Saturday, Sunday
+          const daysUntilFriday = 5 - dayOfWeek;
+          weekendStart = new Date(today);
+          weekendStart.setDate(today.getDate() + daysUntilFriday);
+          weekendEnd = new Date(weekendStart);
+          weekendEnd.setDate(weekendStart.getDate() + 3); // Monday after weekend
         }
-        
-        const weekendStart = new Date(today);
-        weekendStart.setDate(today.getDate() + daysUntilWeekendStart);
-        
-        const weekendEnd = new Date(weekendStart);
-        weekendEnd.setDate(weekendStart.getDate() + 3);
         
         return eventDateOnly >= weekendStart && eventDateOnly < weekendEnd;
       }
         
       case 'next-week': {
-        const nextWeekStart = new Date(today);
-        nextWeekStart.setDate(nextWeekStart.getDate() + 7);
-        const nextWeekEnd = new Date(nextWeekStart);
-        nextWeekEnd.setDate(nextWeekEnd.getDate() + 7);
-        return eventDateOnly >= nextWeekStart && eventDateOnly < nextWeekEnd;
+        // From next Monday to next Sunday (inclusive)
+        // "Nächste Woche" = Mo-So der nächsten Woche
+        const nextMonday = getNextMonday(today);
+        const sundayAfterNextWeek = new Date(nextMonday);
+        sundayAfterNextWeek.setDate(nextMonday.getDate() + 7); // Monday after next Sunday
+        return eventDateOnly >= nextMonday && eventDateOnly < sundayAfterNextWeek;
       }
         
       default:
