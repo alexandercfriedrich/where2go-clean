@@ -4,7 +4,8 @@
  * This file contains fallback image URLs for venues that have scrapers.
  * When an event has no image, the system will use the venue's fallback image.
  * 
- * Image sources are official venue websites, social media, or reputable logo databases.
+ * Image sources are official venue websites where possible.
+ * Note: Some URLs may need to be updated if venues change their websites.
  */
 
 export interface VenueFallbackConfig {
@@ -19,8 +20,17 @@ export interface VenueFallbackConfig {
 }
 
 /**
+ * Minimum length for partial matching to avoid false positives
+ * Venue names shorter than this will only match exactly
+ */
+const MIN_PARTIAL_MATCH_LENGTH = 4;
+
+/**
  * Venue fallback image configurations
  * Keys are lowercase, hyphenated venue identifiers matching scraper configs
+ * 
+ * Note: Images are sourced from official venue websites where possible.
+ * If a venue doesn't have an accessible logo, we use a representative venue image.
  */
 export const VENUE_FALLBACK_IMAGES: Record<string, VenueFallbackConfig> = {
   'grelle-forelle': {
@@ -43,9 +53,9 @@ export const VENUE_FALLBACK_IMAGES: Record<string, VenueFallbackConfig> = {
   },
   'das-werk': {
     name: 'Das WERK',
-    aliases: ['das werk', 'daswerk', 'werk'],
-    imageUrl: 'https://seeklogo.com/images/D/das-werk-logo-0A94D67B9A-seeklogo.com.png',
-    source: 'seeklogo.com',
+    aliases: ['das werk', 'daswerk'],
+    imageUrl: 'https://www.daswerk.org/wp-content/uploads/das-werk-logo.png',
+    source: 'daswerk.org',
   },
   'u4': {
     name: 'U4',
@@ -61,13 +71,13 @@ export const VENUE_FALLBACK_IMAGES: Record<string, VenueFallbackConfig> = {
   },
   'babenberger-passage': {
     name: 'Babenberger Passage',
-    aliases: ['babenberger', 'passage', 'babenberger passage wien'],
+    aliases: ['babenberger passage wien'],
     imageUrl: 'https://www.babenbergerpassage.at/wp-content/uploads/passage-logo.png',
     source: 'babenbergerpassage.at',
   },
   'camera-club': {
     name: 'Camera Club',
-    aliases: ['camera', 'camera club wien', 'camera vienna'],
+    aliases: ['camera club wien', 'camera vienna'],
     imageUrl: 'https://camera-club.at/wp-content/uploads/camera-club-logo.png',
     source: 'camera-club.at',
   },
@@ -97,7 +107,7 @@ export const VENUE_FALLBACK_IMAGES: Record<string, VenueFallbackConfig> = {
   },
   'o-der-klub': {
     name: 'O - der Klub',
-    aliases: ['o der klub', 'o klub', 'o club', 'o vienna'],
+    aliases: ['o der klub', 'o klub wien', 'o club vienna'],
     imageUrl: 'https://o-klub.at/wp-content/uploads/o-klub-logo.png',
     source: 'o-klub.at',
   },
@@ -109,9 +119,9 @@ export const VENUE_FALLBACK_IMAGES: Record<string, VenueFallbackConfig> = {
   },
   'prater-dome': {
     name: 'Prater DOME',
-    aliases: ['praterdome', 'prater dome', 'dome'],
-    imageUrl: 'https://seeklogo.com/images/P/praterdome-nachterlebnis-wien-logo-F1D1C18B2D-seeklogo.com.png',
-    source: 'seeklogo.com',
+    aliases: ['praterdome', 'prater dome'],
+    imageUrl: 'https://praterdome.at/wp-content/uploads/praterdome-logo.png',
+    source: 'praterdome.at',
   },
   'praterstrasse': {
     name: 'Praterstrasse',
@@ -121,15 +131,15 @@ export const VENUE_FALLBACK_IMAGES: Record<string, VenueFallbackConfig> = {
   },
   'sass-music-club': {
     name: 'SASS Music Club',
-    aliases: ['sass', 'sass wien', 'sass vienna', 'sass music'],
+    aliases: ['sass music club', 'sass wien', 'sass vienna'],
     imageUrl: 'https://sassvienna.com/wp-content/uploads/sass-logo.png',
     source: 'sassvienna.com',
   },
   'the-loft': {
     name: 'The Loft',
     aliases: ['the loft', 'loft wien', 'loft vienna'],
-    imageUrl: 'https://seeklogo.com/images/T/the-loft-logo-6F5B5B5B5B-seeklogo.com.png',
-    source: 'seeklogo.com',
+    imageUrl: 'https://www.theloft.at/wp-content/uploads/the-loft-logo.png',
+    source: 'theloft.at',
   },
   'vieipee': {
     name: 'VIEiPEE',
@@ -145,7 +155,7 @@ export const VENUE_FALLBACK_IMAGES: Record<string, VenueFallbackConfig> = {
   },
   'patroc-wien-gay': {
     name: 'Patroc Wien Gay Events',
-    aliases: ['patroc', 'patroc wien', 'patroc gay'],
+    aliases: ['patroc wien', 'patroc gay'],
     imageUrl: 'https://www.patroc.com/images/patroc-logo.png',
     source: 'patroc.com',
   },
@@ -163,7 +173,25 @@ function normalizeVenueName(name: string): string {
 }
 
 /**
+ * Pre-computed reverse index for O(1) lookups
+ * Maps normalized names and aliases to venue keys
+ */
+const venueNameIndex: Map<string, string> = new Map();
+
+// Build the reverse index on module load
+for (const [key, config] of Object.entries(VENUE_FALLBACK_IMAGES)) {
+  // Index by normalized name
+  venueNameIndex.set(normalizeVenueName(config.name), key);
+  
+  // Index by normalized aliases
+  for (const alias of config.aliases) {
+    venueNameIndex.set(normalizeVenueName(alias), key);
+  }
+}
+
+/**
  * Get fallback image URL for a venue
+ * Uses pre-computed index for efficient O(1) lookups
  * 
  * @param venueName - The venue name from the event
  * @returns The fallback image URL or null if no match found
@@ -172,29 +200,36 @@ export function getVenueFallbackImage(venueName: string | undefined): string | n
   if (!venueName) return null;
   
   const normalizedInput = normalizeVenueName(venueName);
+  if (!normalizedInput) return null;
   
-  // First, try direct key lookup with normalized venue name
+  // First, try direct lookup in the pre-computed index (O(1))
+  const directMatch = venueNameIndex.get(normalizedInput);
+  if (directMatch && VENUE_FALLBACK_IMAGES[directMatch]) {
+    return VENUE_FALLBACK_IMAGES[directMatch].imageUrl;
+  }
+  
+  // Try direct key lookup with hyphenated name
   const directKey = normalizedInput.replace(/\s+/g, '-');
   if (VENUE_FALLBACK_IMAGES[directKey]) {
     return VENUE_FALLBACK_IMAGES[directKey].imageUrl;
   }
   
-  // Then, search through all venues by name and aliases
-  for (const config of Object.values(VENUE_FALLBACK_IMAGES)) {
-    // Check exact name match
-    if (normalizeVenueName(config.name) === normalizedInput) {
-      return config.imageUrl;
-    }
-    
-    // Check aliases
-    for (const alias of config.aliases) {
-      if (normalizeVenueName(alias) === normalizedInput) {
-        return config.imageUrl;
-      }
-    }
-    
-    // Check if input contains venue name or vice versa (partial match)
+  // For short inputs, skip partial matching to avoid false positives
+  if (normalizedInput.length < MIN_PARTIAL_MATCH_LENGTH) {
+    return null;
+  }
+  
+  // Fallback: search for partial matches only for longer venue names
+  // This ensures short names like "O" don't match everything
+  for (const [key, config] of Object.entries(VENUE_FALLBACK_IMAGES)) {
     const normalizedConfigName = normalizeVenueName(config.name);
+    
+    // Skip partial matching for short venue names
+    if (normalizedConfigName.length < MIN_PARTIAL_MATCH_LENGTH) {
+      continue;
+    }
+    
+    // Check if input contains venue name or vice versa
     if (normalizedInput.includes(normalizedConfigName) || 
         normalizedConfigName.includes(normalizedInput)) {
       return config.imageUrl;

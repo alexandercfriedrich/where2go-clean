@@ -48,8 +48,8 @@ describe('venueFallbackImages', () => {
       expect(result).toBe(VENUE_FALLBACK_IMAGES['pratersauna'].imageUrl);
     });
 
-    it('should find U4 by name', () => {
-      const result = getVenueFallbackImage('U4');
+    it('should find U4 by alias with qualifier', () => {
+      const result = getVenueFallbackImage('U4 Wien');
       expect(result).toBe(VENUE_FALLBACK_IMAGES['u4'].imageUrl);
     });
 
@@ -73,10 +73,27 @@ describe('venueFallbackImages', () => {
       expect(result).toBe(VENUE_FALLBACK_IMAGES['sass-music-club'].imageUrl);
     });
 
-    it('should find venue by partial match', () => {
+    it('should find venue by partial match for longer names', () => {
       // "flucc" should match "Flucc / Flucc Wanne"
       const result = getVenueFallbackImage('Flucc');
       expect(result).toBe(VENUE_FALLBACK_IMAGES['flucc'].imageUrl);
+    });
+
+    it('should NOT match short venue names with partial matching to avoid false positives', () => {
+      // Single letter "U" should not match U4 (would cause too many false positives)
+      const result = getVenueFallbackImage('U');
+      expect(result).toBeNull();
+    });
+
+    it('should return null for short generic words that could cause false positives', () => {
+      // "O" could match many things, should not match "O - der Klub"
+      const result = getVenueFallbackImage('O');
+      expect(result).toBeNull();
+    });
+
+    it('should find O der Klub by specific alias', () => {
+      const result = getVenueFallbackImage('O der Klub');
+      expect(result).toBe(VENUE_FALLBACK_IMAGES['o-der-klub'].imageUrl);
     });
   });
 
@@ -118,6 +135,15 @@ describe('venueFallbackImages', () => {
     it('should have at least 10 venues configured', () => {
       const venueCount = Object.keys(VENUE_FALLBACK_IMAGES).length;
       expect(venueCount).toBeGreaterThanOrEqual(10);
+    });
+
+    it('should use official venue sources (not third-party logo sites)', () => {
+      for (const [key, config] of Object.entries(VENUE_FALLBACK_IMAGES)) {
+        // Ensure we're not using third-party logo aggregator sites
+        expect(config.source).not.toContain('seeklogo');
+        expect(config.source).not.toContain('brandsoftheworld');
+        expect(config.source).not.toContain('freepng');
+      }
     });
   });
 });
