@@ -758,7 +758,7 @@ body {
 }
 
 @media (max-width: 768px) {
-  /* Mobile: horizontal scroll with snap */
+  /* Mobile: horizontal scroll with snap - always swipeable */
   .weekend-events-container {
     position: relative;
   }
@@ -783,9 +783,9 @@ body {
     min-width: calc(50% - 6px);
   }
   
+  /* Keep horizontal scroll even when expanded - don't wrap to new rows */
   .weekend-events-expanded {
-    flex-wrap: wrap;
-    overflow-x: visible;
+    /* Maintain horizontal scroll - don't use flex-wrap */
   }
   
   .weekend-show-more-btn {
