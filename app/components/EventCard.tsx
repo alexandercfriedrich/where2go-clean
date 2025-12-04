@@ -10,6 +10,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { normalizeCitySlug } from '@/lib/slugGenerator';
+import { getVenueFallbackImage } from '@/lib/venueFallbackImages';
 import { AddToCalendar } from './discovery/AddToCalendar';
 import { ShareButtons } from './discovery/ShareButtons';
 import { FavoriteButton } from './discovery/FavoriteButton';
@@ -154,9 +155,10 @@ export function EventCard({
   const eventDetailUrl = databaseSlug ? `/events/${citySlug}/${databaseSlug}` : null;
   
   // Get first image from image_urls array or use imageUrl field
+  // If no event image, fall back to venue logo image
   const eventImage = (event as any).image_urls && (event as any).image_urls.length > 0
     ? (event as any).image_urls[0]
-    : event.imageUrl;
+    : event.imageUrl || getVenueFallbackImage(venue);
   
   // Price display - check multiple fields that might contain price information
   let priceDisplay = 'Preis auf Anfrage';
