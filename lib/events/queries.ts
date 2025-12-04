@@ -183,16 +183,26 @@ export async function getEventsByCategory(
 }
 
 /**
+ * Helper to format date as YYYY-MM-DD string
+ */
+function formatDateStr(year: number, month: number, day: number): string {
+  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/**
  * Get weekend nightlife events - simplified query
  * Returns events for Clubs & Nachtleben category for Fr/Sa/So of this weekend
  * Events are sorted by image presence and source (scraper > AI > API)
+ * 
+ * SIMPLIFIED APPROACH: Uses local dates and simple string matching.
+ * Events in the database are stored with ISO strings and we match based on the date portion.
  */
 export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
   const { city = 'Wien' } = params;
   
-  // Calculate weekend dates (Fr/Sa/So)
+  // Calculate weekend dates (Fr/Sa/So) using local time
   const now = new Date();
-  const dayOfWeek = now.getDay(); // 0=Sun, 5=Fri, 6=Sat
+  const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat
   
   // Calculate days until Friday
   let daysUntilFriday: number;
@@ -201,70 +211,80 @@ export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
   else if (dayOfWeek === 0) daysUntilFriday = -2; // Sunday -> last Friday
   else daysUntilFriday = 5 - dayOfWeek;          // Mon-Thu -> next Friday
   
-  const friday = new Date(now);
-  friday.setDate(now.getDate() + daysUntilFriday);
-  friday.setHours(0, 0, 0, 0);
+  // Create date strings directly (YYYY-MM-DD format) - no timezone conversion needed
+  const baseYear = now.getFullYear();
+  const baseMonth = now.getMonth();
+  const baseDay = now.getDate();
   
-  const saturday = new Date(friday);
-  saturday.setDate(friday.getDate() + 1);
+  const fridayDate = new Date(baseYear, baseMonth, baseDay + daysUntilFriday);
+  const fridayStr = formatDateStr(fridayDate.getFullYear(), fridayDate.getMonth(), fridayDate.getDate());
   
-  const sunday = new Date(friday);
-  sunday.setDate(friday.getDate() + 2);
+  const saturdayDate = new Date(baseYear, baseMonth, baseDay + daysUntilFriday + 1);
+  const saturdayStr = formatDateStr(saturdayDate.getFullYear(), saturdayDate.getMonth(), saturdayDate.getDate());
   
-  const monday = new Date(friday);
-  monday.setDate(friday.getDate() + 3);
-  monday.setHours(0, 0, 0, 0);
+  const sundayDate = new Date(baseYear, baseMonth, baseDay + daysUntilFriday + 2);
+  const sundayStr = formatDateStr(sundayDate.getFullYear(), sundayDate.getMonth(), sundayDate.getDate());
   
-  // Date strings for filtering
-  const fridayStr = friday.toISOString().split('T')[0];
-  const saturdayStr = saturday.toISOString().split('T')[0];
-  const sundayStr = sunday.toISOString().split('T')[0];
+  // Validate date strings are in expected format (YYYY-MM-DD)
+  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+  if (!datePattern.test(fridayStr) || !datePattern.test(saturdayStr) || !datePattern.test(sundayStr)) {
+    console.error('[getWeekendNightlifeEvents] Invalid date format generated:', { fridayStr, saturdayStr, sundayStr });
+    return { friday: [], saturday: [], sunday: [] };
+  }
   
-  // Log query parameters
+  // Create date range for the weekend (Friday 00:00:00 to Monday 00:00:00)
+  // This ensures we capture all events on Friday, Saturday, and Sunday
+  const mondayDate = new Date(baseYear, baseMonth, baseDay + daysUntilFriday + 3);
+  const mondayStr = formatDateStr(mondayDate.getFullYear(), mondayDate.getMonth(), mondayDate.getDate());
+  
+  // Log query parameters for debugging
   console.log('[getWeekendNightlifeEvents] Query params:', {
     city,
     now: now.toISOString(),
+    localDate: formatDateStr(baseYear, baseMonth, baseDay),
     dayOfWeek,
     daysUntilFriday,
-    fridayStart: friday.toISOString(),
-    mondayEnd: monday.toISOString(),
     fridayStr,
     saturdayStr,
     sundayStr,
+    mondayStr,
+    queryRange: `>= ${fridayStr}T00:00:00.000Z AND < ${mondayStr}T00:00:00.000Z`,
   });
   
-  // Simple query: get all Clubs & Nachtleben events for Fr/Sa/So
+  // Query: get all Clubs & Nachtleben events for Fr/Sa/So using date range
+  // Uses >= fridayStr (Friday 00:00) and < mondayStr (Monday 00:00) to capture the full weekend
   const { data, error } = await supabase
     .from('events')
     .select('*')
     .eq('city', city)
     .eq('category', 'Clubs & Nachtleben')
-    .gte('start_date_time', friday.toISOString())
-    .lt('start_date_time', monday.toISOString())
+    .gte('start_date_time', `${fridayStr}T00:00:00.000Z`)
+    .lt('start_date_time', `${mondayStr}T00:00:00.000Z`)
     .neq('is_cancelled', true)
     .order('start_date_time', { ascending: true });
 
   if (error) {
     console.error('[getWeekendNightlifeEvents] Error:', error);
+    console.error('[getWeekendNightlifeEvents] Query attempted with:', { fridayStr, saturdayStr, sundayStr });
     return { friday: [], saturday: [], sunday: [] };
   }
 
   const events = data || [];
   
   console.log('[getWeekendNightlifeEvents] Raw events found:', events.length);
+  if (events.length > 0) {
+    console.log('[getWeekendNightlifeEvents] Sample event dates:', events.slice(0, 3).map((e: any) => e.start_date_time));
+  }
   
   // Sort events by image presence and source priority
-  // Priority: scraper with image > AI with image > API with image > scraper no image > AI no image > API no image
   const sortByImageAndSource = (evts: any[]) => {
     return [...evts].sort((a, b) => {
       const hasImageA = !!(a.image_urls?.length || a.image_url);
       const hasImageB = !!(b.image_urls?.length || b.image_url);
       
-      // Events with images come first
       if (hasImageA && !hasImageB) return -1;
       if (!hasImageA && hasImageB) return 1;
       
-      // Within same image status, sort by source priority
       const getSourcePriority = (source: string | undefined) => {
         if (!source) return 3;
         const s = source.toLowerCase();
@@ -278,11 +298,13 @@ export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
     });
   };
   
-  // Group by day and sort by priority - get more events for "show more" functionality
+  // Group by day - extract date from start_date_time string directly (first 10 chars = YYYY-MM-DD)
+  const getEventDate = (e: any) => e.start_date_time?.substring(0, 10) || '';
+  
   const result = {
-    friday: sortByImageAndSource(events.filter((e: any) => e.start_date_time?.startsWith(fridayStr))).slice(0, 20),
-    saturday: sortByImageAndSource(events.filter((e: any) => e.start_date_time?.startsWith(saturdayStr))).slice(0, 20),
-    sunday: sortByImageAndSource(events.filter((e: any) => e.start_date_time?.startsWith(sundayStr))).slice(0, 20),
+    friday: sortByImageAndSource(events.filter((e: any) => getEventDate(e) === fridayStr)).slice(0, 20),
+    saturday: sortByImageAndSource(events.filter((e: any) => getEventDate(e) === saturdayStr)).slice(0, 20),
+    sunday: sortByImageAndSource(events.filter((e: any) => getEventDate(e) === sundayStr)).slice(0, 20),
   };
   
   console.log('[getWeekendNightlifeEvents] Grouped results:', {

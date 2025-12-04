@@ -63,6 +63,16 @@ const nextConfig = {
       },
     ],
   },
+  // Redirect /discover to / (home is now the discover page)
+  async redirects() {
+    return [
+      {
+        source: '/discover',
+        destination: '/',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;

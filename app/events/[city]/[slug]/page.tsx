@@ -314,7 +314,7 @@ export default async function EventPage({ params }: EventPageProps) {
             <nav style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'rgba(255, 255, 255, 0.6)' }}>
               <Link href="/" style={{ color: 'rgba(255, 255, 255, 0.6)', textDecoration: 'none' }}>Home</Link>
               <span>/</span>
-              <Link href="/discover" style={{ color: 'rgba(255, 255, 255, 0.6)', textDecoration: 'none' }}>Events</Link>
+              <Link href="/" style={{ color: 'rgba(255, 255, 255, 0.6)', textDecoration: 'none' }}>Events</Link>
               <span>/</span>
               <Link href={`/${citySlug}`} style={{ color: 'rgba(255, 255, 255, 0.6)', textDecoration: 'none' }}>{event.city}</Link>
               <span>/</span>
@@ -628,7 +628,7 @@ export default async function EventPage({ params }: EventPageProps) {
           {/* Back to Events Link */}
           <div style={{ marginTop: '32px', textAlign: 'center' }}>
             <Link 
-              href="/discover"
+              href="/"
               style={{ 
                 display: 'inline-flex',
                 alignItems: 'center',
