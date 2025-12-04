@@ -212,27 +212,36 @@ export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
   else daysUntilFriday = 5 - dayOfWeek;          // Mon-Thu -> next Friday
   
   // Create date strings directly (YYYY-MM-DD format) - no timezone conversion needed
-  const fridayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntilFriday);
-  const saturdayDate = new Date(fridayDate.getFullYear(), fridayDate.getMonth(), fridayDate.getDate() + 1);
-  const sundayDate = new Date(fridayDate.getFullYear(), fridayDate.getMonth(), fridayDate.getDate() + 2);
-  const mondayDate = new Date(fridayDate.getFullYear(), fridayDate.getMonth(), fridayDate.getDate() + 3);
+  const baseYear = now.getFullYear();
+  const baseMonth = now.getMonth();
+  const baseDay = now.getDate();
   
+  const fridayDate = new Date(baseYear, baseMonth, baseDay + daysUntilFriday);
   const fridayStr = formatDateStr(fridayDate.getFullYear(), fridayDate.getMonth(), fridayDate.getDate());
+  
+  const saturdayDate = new Date(baseYear, baseMonth, baseDay + daysUntilFriday + 1);
   const saturdayStr = formatDateStr(saturdayDate.getFullYear(), saturdayDate.getMonth(), saturdayDate.getDate());
+  
+  const sundayDate = new Date(baseYear, baseMonth, baseDay + daysUntilFriday + 2);
   const sundayStr = formatDateStr(sundayDate.getFullYear(), sundayDate.getMonth(), sundayDate.getDate());
-  const mondayStr = formatDateStr(mondayDate.getFullYear(), mondayDate.getMonth(), mondayDate.getDate());
+  
+  // Validate date strings are in expected format (YYYY-MM-DD) for security
+  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+  if (!datePattern.test(fridayStr) || !datePattern.test(saturdayStr) || !datePattern.test(sundayStr)) {
+    console.error('[getWeekendNightlifeEvents] Invalid date format generated:', { fridayStr, saturdayStr, sundayStr });
+    return { friday: [], saturday: [], sunday: [] };
+  }
   
   // Log query parameters for debugging
   console.log('[getWeekendNightlifeEvents] Query params:', {
     city,
     now: now.toISOString(),
-    localDate: `${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}`,
+    localDate: formatDateStr(baseYear, baseMonth, baseDay),
     dayOfWeek,
     daysUntilFriday,
     fridayStr,
     saturdayStr,
     sundayStr,
-    mondayStr,
   });
   
   // Query: get all Clubs & Nachtleben events where date portion matches Fr/Sa/So
