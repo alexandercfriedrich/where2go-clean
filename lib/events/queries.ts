@@ -232,6 +232,11 @@ export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
     return { friday: [], saturday: [], sunday: [] };
   }
   
+  // Create date range for the weekend (Friday 00:00:00 to Monday 00:00:00)
+  // This ensures we capture all events on Friday, Saturday, and Sunday
+  const mondayDate = new Date(baseYear, baseMonth, baseDay + daysUntilFriday + 3);
+  const mondayStr = formatDateStr(mondayDate.getFullYear(), mondayDate.getMonth(), mondayDate.getDate());
+  
   // Log query parameters for debugging
   console.log('[getWeekendNightlifeEvents] Query params:', {
     city,
@@ -242,16 +247,19 @@ export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
     fridayStr,
     saturdayStr,
     sundayStr,
+    mondayStr,
+    queryRange: `>= ${fridayStr} AND < ${mondayStr}`,
   });
   
-  // Query: get all Clubs & Nachtleben events where date portion matches Fr/Sa/So
-  // Use LIKE pattern to match any event starting with these dates
+  // Query: get all Clubs & Nachtleben events for Fr/Sa/So using date range
+  // Uses >= fridayStr (Friday 00:00) and < mondayStr (Monday 00:00) to capture the full weekend
   const { data, error } = await supabase
     .from('events')
     .select('*')
     .eq('city', city)
     .eq('category', 'Clubs & Nachtleben')
-    .or(`start_date_time.like.${fridayStr}%,start_date_time.like.${saturdayStr}%,start_date_time.like.${sundayStr}%`)
+    .gte('start_date_time', fridayStr)
+    .lt('start_date_time', mondayStr)
     .neq('is_cancelled', true)
     .order('start_date_time', { ascending: true });
 
