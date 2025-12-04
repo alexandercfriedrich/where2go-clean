@@ -183,76 +183,10 @@ export async function getEventsByCategory(
 }
 
 /**
- * Calculate weekend dates (Friday, Saturday, Sunday, Monday) using UTC.
- * This ensures consistent date calculations regardless of server timezone.
- * 
- * @param referenceDate - The reference date to calculate the weekend from (defaults to now)
- * @returns Object with UTC dates and date strings for Friday, Saturday, Sunday, Monday
+ * Helper to format date as YYYY-MM-DD string
  */
-export function calculateWeekendDatesUTC(referenceDate?: Date): {
-  fridayUTC: Date;
-  saturdayUTC: Date;
-  sundayUTC: Date;
-  mondayUTC: Date;
-  fridayStr: string;
-  saturdayStr: string;
-  sundayStr: string;
-  daysUntilFriday: number;
-} {
-  const now = referenceDate || new Date();
-  const dayOfWeekUTC = now.getUTCDay(); // 0=Sun, 5=Fri, 6=Sat (UTC)
-  
-  // Calculate days until Friday (using UTC day of week)
-  let daysUntilFriday: number;
-  if (dayOfWeekUTC === 5) daysUntilFriday = 0;      // Friday -> this Friday
-  else if (dayOfWeekUTC === 6) daysUntilFriday = -1; // Saturday -> last Friday
-  else if (dayOfWeekUTC === 0) daysUntilFriday = -2; // Sunday -> last Friday
-  else daysUntilFriday = 5 - dayOfWeekUTC;          // Mon-Thu -> next Friday
-  
-  // Create UTC dates at midnight
-  const fridayUTC = new Date(Date.UTC(
-    now.getUTCFullYear(),
-    now.getUTCMonth(),
-    now.getUTCDate() + daysUntilFriday,
-    0, 0, 0, 0
-  ));
-  
-  const saturdayUTC = new Date(Date.UTC(
-    fridayUTC.getUTCFullYear(),
-    fridayUTC.getUTCMonth(),
-    fridayUTC.getUTCDate() + 1,
-    0, 0, 0, 0
-  ));
-  
-  const sundayUTC = new Date(Date.UTC(
-    fridayUTC.getUTCFullYear(),
-    fridayUTC.getUTCMonth(),
-    fridayUTC.getUTCDate() + 2,
-    0, 0, 0, 0
-  ));
-  
-  const mondayUTC = new Date(Date.UTC(
-    fridayUTC.getUTCFullYear(),
-    fridayUTC.getUTCMonth(),
-    fridayUTC.getUTCDate() + 3,
-    0, 0, 0, 0
-  ));
-  
-  // Date strings for filtering - extract directly from UTC dates
-  const fridayStr = fridayUTC.toISOString().split('T')[0];
-  const saturdayStr = saturdayUTC.toISOString().split('T')[0];
-  const sundayStr = sundayUTC.toISOString().split('T')[0];
-  
-  return {
-    fridayUTC,
-    saturdayUTC,
-    sundayUTC,
-    mondayUTC,
-    fridayStr,
-    saturdayStr,
-    sundayStr,
-    daysUntilFriday,
-  };
+function formatDateStr(year: number, month: number, day: number): string {
+  return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 }
 
 /**
@@ -260,69 +194,80 @@ export function calculateWeekendDatesUTC(referenceDate?: Date): {
  * Returns events for Clubs & Nachtleben category for Fr/Sa/So of this weekend
  * Events are sorted by image presence and source (scraper > AI > API)
  * 
- * IMPORTANT: All date calculations use UTC to ensure consistent behavior across timezones.
- * Event dates in the database are stored as ISO strings (e.g., "2025-12-05T20:00:00.000Z")
- * and we extract the date portion directly for grouping.
+ * SIMPLIFIED APPROACH: Uses local dates and simple string matching.
+ * Events in the database are stored with ISO strings and we match based on the date portion.
  */
 export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
   const { city = 'Wien' } = params;
   
-  // Calculate weekend dates using UTC helper
+  // Calculate weekend dates (Fr/Sa/So) using local time
   const now = new Date();
-  const {
-    fridayUTC,
-    mondayUTC,
-    fridayStr,
-    saturdayStr,
-    sundayStr,
-    daysUntilFriday,
-  } = calculateWeekendDatesUTC(now);
+  const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, ..., 5=Fri, 6=Sat
   
-  // Log query parameters
+  // Calculate days until Friday
+  let daysUntilFriday: number;
+  if (dayOfWeek === 5) daysUntilFriday = 0;      // Friday -> this Friday
+  else if (dayOfWeek === 6) daysUntilFriday = -1; // Saturday -> last Friday
+  else if (dayOfWeek === 0) daysUntilFriday = -2; // Sunday -> last Friday
+  else daysUntilFriday = 5 - dayOfWeek;          // Mon-Thu -> next Friday
+  
+  // Create date strings directly (YYYY-MM-DD format) - no timezone conversion needed
+  const fridayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + daysUntilFriday);
+  const saturdayDate = new Date(fridayDate.getFullYear(), fridayDate.getMonth(), fridayDate.getDate() + 1);
+  const sundayDate = new Date(fridayDate.getFullYear(), fridayDate.getMonth(), fridayDate.getDate() + 2);
+  const mondayDate = new Date(fridayDate.getFullYear(), fridayDate.getMonth(), fridayDate.getDate() + 3);
+  
+  const fridayStr = formatDateStr(fridayDate.getFullYear(), fridayDate.getMonth(), fridayDate.getDate());
+  const saturdayStr = formatDateStr(saturdayDate.getFullYear(), saturdayDate.getMonth(), saturdayDate.getDate());
+  const sundayStr = formatDateStr(sundayDate.getFullYear(), sundayDate.getMonth(), sundayDate.getDate());
+  const mondayStr = formatDateStr(mondayDate.getFullYear(), mondayDate.getMonth(), mondayDate.getDate());
+  
+  // Log query parameters for debugging
   console.log('[getWeekendNightlifeEvents] Query params:', {
     city,
     now: now.toISOString(),
-    dayOfWeekUTC: now.getUTCDay(),
+    localDate: `${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}`,
+    dayOfWeek,
     daysUntilFriday,
-    fridayStart: fridayUTC.toISOString(),
-    mondayEnd: mondayUTC.toISOString(),
     fridayStr,
     saturdayStr,
     sundayStr,
+    mondayStr,
   });
   
-  // Simple query: get all Clubs & Nachtleben events for Fr/Sa/So
+  // Query: get all Clubs & Nachtleben events where date portion matches Fr/Sa/So
+  // Use LIKE pattern to match any event starting with these dates
   const { data, error } = await supabase
     .from('events')
     .select('*')
     .eq('city', city)
     .eq('category', 'Clubs & Nachtleben')
-    .gte('start_date_time', fridayUTC.toISOString())
-    .lt('start_date_time', mondayUTC.toISOString())
+    .or(`start_date_time.like.${fridayStr}%,start_date_time.like.${saturdayStr}%,start_date_time.like.${sundayStr}%`)
     .neq('is_cancelled', true)
     .order('start_date_time', { ascending: true });
 
   if (error) {
     console.error('[getWeekendNightlifeEvents] Error:', error);
+    console.error('[getWeekendNightlifeEvents] Query attempted with:', { fridayStr, saturdayStr, sundayStr });
     return { friday: [], saturday: [], sunday: [] };
   }
 
   const events = data || [];
   
   console.log('[getWeekendNightlifeEvents] Raw events found:', events.length);
+  if (events.length > 0) {
+    console.log('[getWeekendNightlifeEvents] Sample event dates:', events.slice(0, 3).map((e: any) => e.start_date_time));
+  }
   
   // Sort events by image presence and source priority
-  // Priority: scraper with image > AI with image > API with image > scraper no image > AI no image > API no image
   const sortByImageAndSource = (evts: any[]) => {
     return [...evts].sort((a, b) => {
       const hasImageA = !!(a.image_urls?.length || a.image_url);
       const hasImageB = !!(b.image_urls?.length || b.image_url);
       
-      // Events with images come first
       if (hasImageA && !hasImageB) return -1;
       if (!hasImageA && hasImageB) return 1;
       
-      // Within same image status, sort by source priority
       const getSourcePriority = (source: string | undefined) => {
         if (!source) return 3;
         const s = source.toLowerCase();
@@ -336,11 +281,13 @@ export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
     });
   };
   
-  // Group by day and sort by priority - get more events for "show more" functionality
+  // Group by day - extract date from start_date_time string directly (first 10 chars = YYYY-MM-DD)
+  const getEventDate = (e: any) => e.start_date_time?.substring(0, 10) || '';
+  
   const result = {
-    friday: sortByImageAndSource(events.filter((e: any) => e.start_date_time?.startsWith(fridayStr))).slice(0, 20),
-    saturday: sortByImageAndSource(events.filter((e: any) => e.start_date_time?.startsWith(saturdayStr))).slice(0, 20),
-    sunday: sortByImageAndSource(events.filter((e: any) => e.start_date_time?.startsWith(sundayStr))).slice(0, 20),
+    friday: sortByImageAndSource(events.filter((e: any) => getEventDate(e) === fridayStr)).slice(0, 20),
+    saturday: sortByImageAndSource(events.filter((e: any) => getEventDate(e) === saturdayStr)).slice(0, 20),
+    sunday: sortByImageAndSource(events.filter((e: any) => getEventDate(e) === sundayStr)).slice(0, 20),
   };
   
   console.log('[getWeekendNightlifeEvents] Grouped results:', {
