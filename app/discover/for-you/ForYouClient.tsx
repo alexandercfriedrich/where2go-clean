@@ -79,7 +79,7 @@ export function ForYouClient({ initialEvents, city }: ForYouClientProps) {
           <div className="mb-8">
             <div className="flex items-center gap-2 mb-2">
               <Link 
-                href="/discover"
+                href="/"
                 className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
               >
                 ← Back to Discover
@@ -113,7 +113,7 @@ export function ForYouClient({ initialEvents, city }: ForYouClientProps) {
                   : 'Browse more events to help us learn your preferences!'}
               </p>
               <Link
-                href="/discover"
+                href="/"
                 className="inline-block px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
               >
                 Browse All Events

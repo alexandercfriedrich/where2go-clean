@@ -84,7 +84,7 @@ export default async function VenuePage({ params }: VenuePageProps) {
       <div className="border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <Link
-            href="/discover"
+            href="/"
             className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
           >
             <svg

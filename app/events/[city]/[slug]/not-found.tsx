@@ -20,7 +20,7 @@ export default function NotFound() {
             Zur Startseite
           </Link>
           <Link
-            href="/discover"
+            href="/"
             className="bg-white/10 hover:bg-white/20 text-white font-semibold py-3 px-6 rounded-lg transition-colors"
           >
             Events entdecken
