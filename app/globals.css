@@ -785,7 +785,7 @@ body {
   
   /* Keep horizontal scroll even when expanded - don't wrap to new rows */
   .weekend-events-expanded {
-    /* Maintain horizontal scroll - don't use flex-wrap */
+    flex-wrap: nowrap; /* Maintain horizontal scroll - don't use flex-wrap */
   }
   
   .weekend-show-more-btn {

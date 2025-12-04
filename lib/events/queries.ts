@@ -225,7 +225,7 @@ export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
   const sundayDate = new Date(baseYear, baseMonth, baseDay + daysUntilFriday + 2);
   const sundayStr = formatDateStr(sundayDate.getFullYear(), sundayDate.getMonth(), sundayDate.getDate());
   
-  // Validate date strings are in expected format (YYYY-MM-DD) for security
+  // Validate date strings are in expected format (YYYY-MM-DD)
   const datePattern = /^\d{4}-\d{2}-\d{2}$/;
   if (!datePattern.test(fridayStr) || !datePattern.test(saturdayStr) || !datePattern.test(sundayStr)) {
     console.error('[getWeekendNightlifeEvents] Invalid date format generated:', { fridayStr, saturdayStr, sundayStr });
@@ -248,7 +248,7 @@ export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
     saturdayStr,
     sundayStr,
     mondayStr,
-    queryRange: `>= ${fridayStr} AND < ${mondayStr}`,
+    queryRange: `>= ${fridayStr}T00:00:00.000Z AND < ${mondayStr}T00:00:00.000Z`,
   });
   
   // Query: get all Clubs & Nachtleben events for Fr/Sa/So using date range
@@ -258,8 +258,8 @@ export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
     .select('*')
     .eq('city', city)
     .eq('category', 'Clubs & Nachtleben')
-    .gte('start_date_time', fridayStr)
-    .lt('start_date_time', mondayStr)
+    .gte('start_date_time', `${fridayStr}T00:00:00.000Z`)
+    .lt('start_date_time', `${mondayStr}T00:00:00.000Z`)
     .neq('is_cancelled', true)
     .order('start_date_time', { ascending: true });
 
