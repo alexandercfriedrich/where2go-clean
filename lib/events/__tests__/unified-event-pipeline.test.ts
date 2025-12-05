@@ -29,12 +29,17 @@ vi.mock('@/lib/repositories/VenueRepository', () => ({
 vi.mock('@/lib/repositories/EventRepository', () => ({
   EventRepository: {
     fetchRelevantExistingEvents: vi.fn().mockResolvedValue([]),
+    fetchRelevantExistingEventsForEnrichment: vi.fn().mockResolvedValue([]),
     linkEventsToVenues: vi.fn().mockResolvedValue({ events_linked: 0, events_processed: 0 })
   }
 }));
 
 vi.mock('@/lib/eventDeduplication', () => ({
-  deduplicateEvents: vi.fn((newEvents) => newEvents)
+  deduplicateEventsWithEnrichment: vi.fn((newEvents) => ({
+    uniqueEvents: newEvents,
+    eventsToEnrich: [],
+    skippedDuplicates: 0
+  }))
 }));
 
 vi.mock('@/lib/slugGenerator', () => ({
@@ -99,6 +104,7 @@ describe('Unified Event Pipeline', () => {
         eventsProcessed: 10,
         eventsInserted: 8,
         eventsUpdated: 0,
+        eventsEnriched: 2,
         eventsFailed: 2,
         eventsSkippedAsDuplicates: 1,
         venuesCreated: 3,
@@ -110,6 +116,7 @@ describe('Unified Event Pipeline', () => {
       expect(result.success).toBe(true);
       expect(result.eventsProcessed).toBe(10);
       expect(result.eventsInserted).toBe(8);
+      expect(result.eventsEnriched).toBe(2);
       expect(result.eventsFailed).toBe(2);
       expect(result.eventsSkippedAsDuplicates).toBe(1);
       expect(result.venuesCreated).toBe(3);
