@@ -115,7 +115,7 @@ describe('venueFallbackImages', () => {
 
   describe('VENUE_FALLBACK_IMAGES configuration', () => {
     it('should have valid structure for all entries', () => {
-      for (const [key, config] of Object.entries(VENUE_FALLBACK_IMAGES)) {
+      for (const config of Object.values(VENUE_FALLBACK_IMAGES)) {
         expect(config.name).toBeDefined();
         expect(typeof config.name).toBe('string');
         expect(config.name.length).toBeGreaterThan(0);
@@ -139,7 +139,7 @@ describe('venueFallbackImages', () => {
     });
 
     it('should use official venue sources (not third-party logo sites)', () => {
-      for (const [key, config] of Object.entries(VENUE_FALLBACK_IMAGES)) {
+      for (const config of Object.values(VENUE_FALLBACK_IMAGES)) {
         // Ensure we're not using third-party logo aggregator sites
         expect(config.source).not.toContain('seeklogo');
         expect(config.source).not.toContain('brandsoftheworld');

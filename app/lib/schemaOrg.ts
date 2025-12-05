@@ -1,6 +1,7 @@
 // Schema.org structured data utilities for SEO
 import { EventData } from './types';
 import { normalizeCitySlug } from './slugGenerator';
+import { getVenueFallbackImage } from './venueFallbackImages';
 
 /**
  * Generates Schema.org WebSite structured data
@@ -74,9 +75,10 @@ export function generateEventSchema(event: EventData, baseUrl: string = 'https:/
   // Description (required by Google) - use event description or generate from title
   schema.description = event.description || `${event.title} - Veranstaltung in ${event.city || 'Wien'}`;
 
-  // Image (recommended by Google) - use event image or omit if not available
-  if (event.imageUrl) {
-    schema.image = [event.imageUrl];
+  // Image (recommended by Google) - use event image or venue fallback
+  const imageUrl = event.imageUrl || getVenueFallbackImage(event.venue);
+  if (imageUrl) {
+    schema.image = [imageUrl];
   }
 
   // Offers (pricing) - always include for Google

@@ -228,7 +228,7 @@ export function getVenueFallbackImage(venueName: string | undefined): string | n
   
   // Fallback: search for partial matches only for longer venue names
   // This ensures short names like "O" don't match everything
-  for (const [key, config] of Object.entries(VENUE_FALLBACK_IMAGES)) {
+  for (const config of Object.values(VENUE_FALLBACK_IMAGES)) {
     const normalizedConfigName = normalizeVenueName(config.name);
     
     // Skip partial matching for short venue names

@@ -156,8 +156,9 @@ export function EventCard({
   
   // Get first image from image_urls array or use imageUrl field
   // If no event image, fall back to venue logo image
-  const eventImage = (event as any).image_urls && (event as any).image_urls.length > 0
-    ? (event as any).image_urls[0]
+  const imageUrls = 'image_urls' in event ? event.image_urls : undefined;
+  const eventImage = imageUrls && imageUrls.length > 0
+    ? imageUrls[0]
     : event.imageUrl || getVenueFallbackImage(venue);
   
   // Price display - check multiple fields that might contain price information

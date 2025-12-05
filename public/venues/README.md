@@ -39,4 +39,4 @@ The venue key is the hyphenated version of the venue name, matching the scraper 
 
 ## Placeholder
 
-If a venue-specific image isn't available, `placeholder.svg` is used as the default fallback.
+If a venue-specific image isn't available, a CSS gradient is used as the default fallback.

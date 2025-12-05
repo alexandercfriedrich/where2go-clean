@@ -11,6 +11,7 @@ import Image from 'next/image';
 import { supabase } from '@/lib/supabase/client';
 import { generateEventSchema, generateBreadcrumbSchema } from '@/lib/schemaOrg';
 import { normalizeCitySlug } from '@/lib/slugGenerator';
+import { getVenueFallbackImage } from '@/lib/venueFallbackImages';
 import SchemaOrg from '@/components/SchemaOrg';
 import { SearchBar } from '@/components/discovery/SearchBar';
 import type { EventData } from '@/lib/types';
@@ -184,6 +185,9 @@ export async function generateMetadata({ params }: EventPageProps): Promise<Meta
     ? event.description.substring(0, 155) + '...'
     : `${event.title} am ${formatGermanDate(event.date)}${event.time ? ` um ${event.time} Uhr` : ''} im ${event.venue}. Alle Infos und Tickets.`;
 
+  // Get image URL with venue fallback for OpenGraph
+  const imageUrl = event.imageUrl || getVenueFallbackImage(event.venue);
+
   return {
     title: title,
     description: description,
@@ -191,7 +195,7 @@ export async function generateMetadata({ params }: EventPageProps): Promise<Meta
     openGraph: {
       title: event.title,
       description: description,
-      images: event.imageUrl ? [{ url: event.imageUrl, width: 1200, height: 630 }] : [],
+      images: imageUrl ? [{ url: imageUrl, width: 1200, height: 630 }] : [],
       locale: 'de_AT',
       type: 'website',
       siteName: 'Where2Go',

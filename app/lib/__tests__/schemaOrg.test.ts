@@ -188,7 +188,7 @@ describe('Schema.org Utilities', () => {
 
       const schema = generateEventSchema(event);
       
-      expect(schema.image).toBe('https://example.com/image.jpg');
+      expect(schema.image).toEqual(['https://example.com/image.jpg']);
     });
 
     it('should handle free events correctly', () => {
