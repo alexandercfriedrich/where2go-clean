@@ -480,6 +480,10 @@ export async function processEvents(
 
   result.duration = Date.now() - startTime;
 
+  // Always log summary of events and venues processed
+  console.log(`[PIPELINE:SUMMARY] Events: ${result.eventsInserted} inserted, ${result.eventsEnriched} enriched/updated, ${result.eventsSkippedAsDuplicates} duplicates skipped, ${result.eventsFailed} failed`);
+  console.log(`[PIPELINE:SUMMARY] Venues: ${result.venuesCreated} created, ${result.venuesReused} reused`);
+
   if (debug) {
     console.log('[PIPELINE:COMPLETE]', {
       processed: result.eventsProcessed,
