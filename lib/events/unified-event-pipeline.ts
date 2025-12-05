@@ -521,7 +521,18 @@ function normalizeEventInput(raw: RawEventInput, defaultCity: string): Normalize
     return null;
   }
 
-  const endDateTime = raw.end_date_time ? parseDateTime(raw.end_date_time) : null;
+  let endDateTime = raw.end_date_time ? parseDateTime(raw.end_date_time) : null;
+  
+  // Validate date range: end_date_time must be >= start_date_time
+  // If end_date_time is before start_date_time, set it to null to satisfy DB constraint
+  if (endDateTime) {
+    const startDate = new Date(startDateTime);
+    const endDate = new Date(endDateTime);
+    if (endDate < startDate) {
+      // Invalid date range - set end_date_time to null
+      endDateTime = null;
+    }
+  }
 
   return {
     title: raw.title.trim(),
