@@ -311,6 +311,7 @@ export class EventRepository {
    * Fetch existing events for deduplication check
    * Only fetches events from same date and city to minimize data transfer
    * Returns events in EventData format for compatibility with deduplication logic
+   * Uses case-insensitive matching for city names
    * 
    * @param date - Date string in YYYY-MM-DD format
    * @param city - City name
@@ -326,11 +327,14 @@ export class EventRepository {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
     
+    // Use case-insensitive matching for city
+    const normalizedCity = city.trim().toLowerCase();
+    
     // Use a type-safe query with explicit type annotation
     const { data, error } = await supabase
       .from('events')
       .select('id, title, city, start_date_time, source, category, custom_venue_name')
-      .eq('city', city)
+      .ilike('city', normalizedCity)
       .gte('start_date_time', startOfDay.toISOString())
       .lte('start_date_time', endOfDay.toISOString()) as {
         data: Array<{
@@ -379,6 +383,7 @@ export class EventRepository {
   /**
    * Fetch existing events for enrichment with more fields
    * Returns events with all fields needed for enrichment comparison
+   * Uses case-insensitive matching for city names
    * 
    * @param date - Date string in YYYY-MM-DD format
    * @param city - City name
@@ -394,6 +399,9 @@ export class EventRepository {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
     
+    // Use case-insensitive matching for city
+    const normalizedCity = city.trim().toLowerCase();
+    
     // Fetch more fields for enrichment comparison
     const { data, error } = await supabase
       .from('events')
@@ -403,7 +411,7 @@ export class EventRepository {
         image_urls, price_info, website_url, booking_url, ticket_url,
         latitude, longitude
       `)
-      .eq('city', city)
+      .ilike('city', normalizedCity)
       .gte('start_date_time', startOfDay.toISOString())
       .lte('start_date_time', endOfDay.toISOString()) as {
         data: Array<{
