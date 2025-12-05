@@ -129,3 +129,151 @@ export function deduplicateEvents(
     return !isDuplicate;
   });
 }
+
+/**
+ * Result of enrichment comparison
+ */
+export interface EnrichmentResult {
+  /** The enriched event data with merged fields */
+  enrichedEvent: EventData;
+  /** Whether any fields were actually changed */
+  hasChanges: boolean;
+  /** List of fields that were updated */
+  changedFields: string[];
+}
+
+/**
+ * Enriches an existing event with data from a new duplicate event.
+ * Follows these rules:
+ * - Prefer longer descriptions
+ * - Add missing image URLs
+ * - Fill in missing fields from new event
+ * 
+ * @param existingEvent - The event already in the database
+ * @param newEvent - The new duplicate event with potentially better data
+ * @returns EnrichmentResult with the merged event and change tracking
+ */
+export function enrichEventWithDuplicate(
+  existingEvent: EventData,
+  newEvent: EventData
+): EnrichmentResult {
+  const changedFields: string[] = [];
+  const enrichedEvent = { ...existingEvent };
+
+  // Prefer longer description
+  const existingDesc = existingEvent.description || '';
+  const newDesc = newEvent.description || '';
+  if (newDesc.length > existingDesc.length) {
+    enrichedEvent.description = newDesc;
+    changedFields.push('description');
+  }
+
+  // Add missing image URL
+  if (!existingEvent.imageUrl && newEvent.imageUrl) {
+    enrichedEvent.imageUrl = newEvent.imageUrl;
+    changedFields.push('imageUrl');
+  }
+
+  // Fill in missing fields from new event (only if existing is empty/undefined)
+  const fieldsToEnrich: (keyof EventData)[] = [
+    'address',
+    'venue',
+    'price',
+    'website',
+    'bookingLink',
+    'eventType',
+    'ageRestrictions',
+    'endTime',
+    'latitude',
+    'longitude',
+  ];
+
+  for (const field of fieldsToEnrich) {
+    const existingValue = existingEvent[field];
+    const newValue = newEvent[field];
+    
+    // Only fill if existing is empty/undefined and new has a value
+    if ((existingValue === undefined || existingValue === null || existingValue === '') && 
+        newValue !== undefined && newValue !== null && newValue !== '') {
+      (enrichedEvent as Record<string, unknown>)[field] = newValue;
+      changedFields.push(field);
+    }
+  }
+
+  return {
+    enrichedEvent,
+    hasChanges: changedFields.length > 0,
+    changedFields
+  };
+}
+
+/**
+ * Result of deduplication with enrichment
+ */
+export interface DeduplicationWithEnrichmentResult {
+  /** Events that are unique and should be inserted */
+  uniqueEvents: EventData[];
+  /** Existing events that should be updated with enriched data */
+  eventsToEnrich: Array<{
+    existingEvent: EventData;
+    enrichedEvent: EventData;
+    changedFields: string[];
+  }>;
+  /** Count of duplicates that had no enrichment opportunities */
+  skippedDuplicates: number;
+}
+
+/**
+ * Deduplicates events and identifies enrichment opportunities.
+ * Unlike simple deduplication, this returns information about which
+ * existing events should be updated with new data.
+ * 
+ * @param newEvents - Events to check for duplicates
+ * @param existingEvents - Events already in database (from same day/city)
+ * @returns Object with unique events and enrichment opportunities
+ */
+export function deduplicateEventsWithEnrichment(
+  newEvents: EventData[], 
+  existingEvents: EventData[]
+): DeduplicationWithEnrichmentResult {
+  const uniqueEvents: EventData[] = [];
+  const eventsToEnrich: Array<{
+    existingEvent: EventData;
+    enrichedEvent: EventData;
+    changedFields: string[];
+  }> = [];
+  let skippedDuplicates = 0;
+
+  for (const newEvent of newEvents) {
+    // Find duplicate in existing events
+    const duplicateEvent = existingEvents.find(existing => 
+      areEventsDuplicates(existing, newEvent)
+    );
+
+    if (!duplicateEvent) {
+      // No duplicate found, this is a unique event
+      uniqueEvents.push(newEvent);
+    } else {
+      // Found a duplicate - check if we can enrich it
+      const enrichmentResult = enrichEventWithDuplicate(duplicateEvent, newEvent);
+      
+      if (enrichmentResult.hasChanges) {
+        // Only add to enrichment list if there are actual changes
+        eventsToEnrich.push({
+          existingEvent: duplicateEvent,
+          enrichedEvent: enrichmentResult.enrichedEvent,
+          changedFields: enrichmentResult.changedFields
+        });
+      } else {
+        // Duplicate with no enrichment opportunity
+        skippedDuplicates++;
+      }
+    }
+  }
+
+  return {
+    uniqueEvents,
+    eventsToEnrich,
+    skippedDuplicates
+  };
+}

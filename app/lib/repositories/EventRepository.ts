@@ -311,6 +311,7 @@ export class EventRepository {
    * Fetch existing events for deduplication check
    * Only fetches events from same date and city to minimize data transfer
    * Returns events in EventData format for compatibility with deduplication logic
+   * Uses case-insensitive matching for city names
    * 
    * @param date - Date string in YYYY-MM-DD format
    * @param city - City name
@@ -326,11 +327,14 @@ export class EventRepository {
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
     
+    // Use case-insensitive matching for city
+    const normalizedCity = city.trim().toLowerCase();
+    
     // Use a type-safe query with explicit type annotation
     const { data, error } = await supabase
       .from('events')
       .select('id, title, city, start_date_time, source, category, custom_venue_name')
-      .eq('city', city)
+      .ilike('city', normalizedCity)
       .gte('start_date_time', startOfDay.toISOString())
       .lte('start_date_time', endOfDay.toISOString()) as {
         data: Array<{
@@ -370,6 +374,99 @@ export class EventRepository {
         venue: dbEvent.custom_venue_name || '',
         price: '',
         website: '',
+        city: dbEvent.city || '',
+        source: (dbEvent.source || 'ai') as 'cache' | 'ai' | 'rss' | 'ra' | string
+      };
+    });
+  }
+
+  /**
+   * Fetch existing events for enrichment with more fields
+   * Returns events with all fields needed for enrichment comparison
+   * Uses case-insensitive matching for city names
+   * 
+   * @param date - Date string in YYYY-MM-DD format
+   * @param city - City name
+   * @returns Array of EventData objects from the database with enrichable fields
+   */
+  static async fetchRelevantExistingEventsForEnrichment(
+    date: string,
+    city: string
+  ): Promise<EventData[]> {
+    const startOfDay = new Date(date);
+    startOfDay.setHours(0, 0, 0, 0);
+    
+    const endOfDay = new Date(date);
+    endOfDay.setHours(23, 59, 59, 999);
+    
+    // Use case-insensitive matching for city
+    const normalizedCity = city.trim().toLowerCase();
+    
+    // Fetch more fields for enrichment comparison
+    const { data, error } = await supabase
+      .from('events')
+      .select(`
+        id, title, city, start_date_time, source, category, 
+        custom_venue_name, custom_venue_address, description,
+        image_urls, price_info, website_url, booking_url, ticket_url,
+        latitude, longitude
+      `)
+      .ilike('city', normalizedCity)
+      .gte('start_date_time', startOfDay.toISOString())
+      .lte('start_date_time', endOfDay.toISOString()) as {
+        data: Array<{
+          id: string;
+          title: string;
+          city: string;
+          start_date_time: string;
+          source: string;
+          category: string;
+          custom_venue_name: string | null;
+          custom_venue_address: string | null;
+          description: string | null;
+          image_urls: string[] | null;
+          price_info: string | null;
+          website_url: string | null;
+          booking_url: string | null;
+          ticket_url: string | null;
+          latitude: number | null;
+          longitude: number | null;
+        }> | null;
+        error: any;
+      };
+    
+    if (error) {
+      console.error('[EventRepository:Enrich] Error fetching existing events:', error);
+      return [];
+    }
+    
+    if (!data || data.length === 0) {
+      return [];
+    }
+    
+    // Convert DB events to EventData format with all enrichable fields
+    return data.map(dbEvent => {
+      // Extract date and time from ISO timestamp
+      const startDateTime = dbEvent.start_date_time || '';
+      const dateMatch = startDateTime.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
+      const eventDate = dateMatch ? dateMatch[1] : startDateTime.split('T')[0] || '';
+      const time = dateMatch ? dateMatch[2] : '';
+
+      return {
+        title: dbEvent.title || '',
+        category: dbEvent.category || '',
+        date: eventDate,
+        time: time,
+        venue: dbEvent.custom_venue_name || '',
+        address: dbEvent.custom_venue_address || undefined,
+        description: dbEvent.description || undefined,
+        imageUrl: dbEvent.image_urls?.[0] || undefined,
+        price: dbEvent.price_info || '',
+        website: dbEvent.website_url || '',
+        bookingLink: dbEvent.booking_url || undefined,
+        ticketPrice: dbEvent.ticket_url || undefined,
+        latitude: dbEvent.latitude || undefined,
+        longitude: dbEvent.longitude || undefined,
         city: dbEvent.city || '',
         source: (dbEvent.source || 'ai') as 'cache' | 'ai' | 'rss' | 'ra' | string
       };

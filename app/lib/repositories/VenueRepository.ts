@@ -65,13 +65,18 @@ export class VenueRepository {
 
   /**
    * Get venue by name and city (for lookups during event import)
+   * Uses case-insensitive matching to prevent duplicate venues with different casing
    */
   static async getVenueByName(name: string, city: string): Promise<DbVenue | null> {
+    // Normalize name for case-insensitive comparison
+    const normalizedName = name.trim().toLowerCase()
+    const normalizedCity = city.trim().toLowerCase()
+    
     const { data, error } = await supabase
       .from('venues')
       .select('*')
-      .eq('name', name)
-      .eq('city', city)
+      .ilike('name', normalizedName)
+      .ilike('city', normalizedCity)
       .maybeSingle()
 
     if (error) {

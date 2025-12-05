@@ -17,7 +17,7 @@
 
 import { supabaseAdmin } from '@/lib/supabase/client';
 import { VenueRepository } from '@/lib/repositories/VenueRepository';
-import { deduplicateEvents } from '@/lib/eventDeduplication';
+import { deduplicateEventsWithEnrichment } from '@/lib/eventDeduplication';
 import { EventRepository } from '@/lib/repositories/EventRepository';
 import type { EventData } from '@/lib/types';
 import type { Database } from '@/lib/supabase/types';
@@ -88,6 +88,7 @@ export interface PipelineResult {
   eventsProcessed: number;
   eventsInserted: number;
   eventsUpdated: number;
+  eventsEnriched: number;
   eventsFailed: number;
   eventsSkippedAsDuplicates: number;
   venuesCreated: number;
@@ -153,6 +154,7 @@ export async function processEvents(
     eventsProcessed: 0,
     eventsInserted: 0,
     eventsUpdated: 0,
+    eventsEnriched: 0,
     eventsFailed: 0,
     eventsSkippedAsDuplicates: 0,
     venuesCreated: 0,
@@ -190,13 +192,18 @@ export async function processEvents(
     }
 
     // ═══════════════════════════════════════════════════════════
-    // STEP 2: DEDUPLICATE (within batch and against DB)
+    // STEP 2: DEDUPLICATE AND ENRICH (within batch and against DB)
     // ═══════════════════════════════════════════════════════════
     let eventsToProcess = normalizedEvents;
+    let eventsToEnrich: Array<{
+      existingEvent: EventData;
+      enrichedEvent: EventData;
+      changedFields: string[];
+    }> = [];
     
     if (!skipDeduplication) {
       if (debug) {
-        console.log('[PIPELINE:STEP2] Deduplicating events...');
+        console.log('[PIPELINE:STEP2] Deduplicating and enriching events...');
       }
       
       // Convert to EventData format for deduplication
@@ -205,30 +212,116 @@ export async function processEvents(
       // Get unique dates from events
       const uniqueDates = [...new Set(eventsAsEventData.map(e => e.date))];
       
-      // Fetch existing events for those dates
+      // Fetch existing events for those dates (with more fields for enrichment)
       let existingEvents: EventData[] = [];
       for (const date of uniqueDates) {
-        const existing = await EventRepository.fetchRelevantExistingEvents(date, city);
+        const existing = await EventRepository.fetchRelevantExistingEventsForEnrichment(date, city);
         existingEvents = existingEvents.concat(existing);
       }
       
-      // Deduplicate against existing events
-      // deduplicateEvents returns events from eventsAsEventData that are NOT duplicates of existingEvents
-      const dedupedEventsData = deduplicateEvents(eventsAsEventData, existingEvents);
+      // Deduplicate with enrichment - returns unique events AND enrichment opportunities
+      const dedupResult = deduplicateEventsWithEnrichment(eventsAsEventData, existingEvents);
+      
       // Build a set of titles that passed the deduplication check (non-duplicates)
-      const dedupedTitles = new Set(dedupedEventsData.map(e => e.title.toLowerCase()));
+      const dedupedTitles = new Set(dedupResult.uniqueEvents.map(e => e.title.toLowerCase()));
       
       // Filter normalized events to keep only those that passed deduplication
-      // (i.e., events whose titles are in dedupedTitles are the unique ones we want to keep)
       eventsToProcess = normalizedEvents.filter(e => 
         dedupedTitles.has(e.title.toLowerCase())
       );
       
-      result.eventsSkippedAsDuplicates = normalizedEvents.length - eventsToProcess.length;
+      // Store enrichment opportunities for later processing
+      eventsToEnrich = dedupResult.eventsToEnrich;
+      
+      result.eventsSkippedAsDuplicates = dedupResult.skippedDuplicates;
       
       if (debug) {
-        console.log(`[PIPELINE:STEP2] After dedup: ${eventsToProcess.length} events (${result.eventsSkippedAsDuplicates} duplicates removed)`);
+        console.log(`[PIPELINE:STEP2] After dedup: ${eventsToProcess.length} unique events, ${eventsToEnrich.length} events to enrich, ${dedupResult.skippedDuplicates} skipped duplicates`);
       }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // STEP 2b: PROCESS ENRICHMENT UPDATES
+    // Only update events when there are actual changes (performance optimization)
+    // ═══════════════════════════════════════════════════════════
+    if (eventsToEnrich.length > 0 && !dryRun) {
+      if (debug) {
+        console.log(`[PIPELINE:STEP2b] Processing ${eventsToEnrich.length} enrichment updates...`);
+      }
+      
+      for (const enrichment of eventsToEnrich) {
+        try {
+          // Build update object with only changed fields
+          const updateData: Record<string, unknown> = {};
+          
+          for (const field of enrichment.changedFields) {
+            const eventDataField = field as keyof EventData;
+            if (eventDataField === 'description') {
+              updateData['description'] = enrichment.enrichedEvent.description;
+            } else if (eventDataField === 'imageUrl') {
+              // Map imageUrl to image_urls array in DB format
+              updateData['image_urls'] = enrichment.enrichedEvent.imageUrl 
+                ? [enrichment.enrichedEvent.imageUrl] 
+                : null;
+            } else if (eventDataField === 'address') {
+              updateData['custom_venue_address'] = enrichment.enrichedEvent.address;
+            } else if (eventDataField === 'venue') {
+              updateData['custom_venue_name'] = enrichment.enrichedEvent.venue;
+            } else if (eventDataField === 'price') {
+              updateData['price_info'] = enrichment.enrichedEvent.price;
+            } else if (eventDataField === 'website') {
+              updateData['website_url'] = enrichment.enrichedEvent.website;
+            } else if (eventDataField === 'bookingLink') {
+              updateData['booking_url'] = enrichment.enrichedEvent.bookingLink;
+            } else if (eventDataField === 'latitude') {
+              updateData['latitude'] = enrichment.enrichedEvent.latitude;
+            } else if (eventDataField === 'longitude') {
+              updateData['longitude'] = enrichment.enrichedEvent.longitude;
+            }
+          }
+          
+          // Only update if we have fields to update
+          if (Object.keys(updateData).length > 0) {
+            // Update by matching on title, start_date_time, and city
+            // Handle special time values like 'ganztags' (all-day events)
+            const startDateTime = parseEnrichmentDateTime(
+              enrichment.existingEvent.date, 
+              enrichment.existingEvent.time
+            );
+            
+            const { error } = await (supabaseAdmin as any)
+              .from('events')
+              .update(updateData)
+              .eq('title', enrichment.existingEvent.title)
+              .eq('start_date_time', startDateTime)
+              .eq('city', enrichment.existingEvent.city || city);
+            
+            if (error) {
+              result.errors.push(`Enrichment failed for "${enrichment.existingEvent.title}": ${error.message}`);
+              if (debug) {
+                console.error(`[PIPELINE:ENRICH:ERROR] Failed to enrich event:`, error);
+              }
+            } else {
+              result.eventsEnriched++;
+              if (debug) {
+                console.log(`[PIPELINE:ENRICH] Updated "${enrichment.existingEvent.title}" with fields: ${enrichment.changedFields.join(', ')}`);
+              }
+            }
+          }
+        } catch (enrichError: any) {
+          result.errors.push(`Enrichment exception for "${enrichment.existingEvent.title}": ${enrichError.message}`);
+          if (debug) {
+            console.error(`[PIPELINE:ENRICH:ERROR] Exception during enrichment:`, enrichError);
+          }
+        }
+      }
+    } else if (eventsToEnrich.length > 0 && dryRun) {
+      if (debug) {
+        for (const enrichment of eventsToEnrich) {
+          console.log(`[PIPELINE:DRY-RUN:ENRICH] Would update "${enrichment.existingEvent.title}" with fields: ${enrichment.changedFields.join(', ')}`);
+        }
+      }
+      result.eventsEnriched = eventsToEnrich.length;
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -387,10 +480,15 @@ export async function processEvents(
 
   result.duration = Date.now() - startTime;
 
+  // Always log summary of events and venues processed
+  console.log(`[PIPELINE:SUMMARY] Events: ${result.eventsInserted} inserted, ${result.eventsEnriched} enriched/updated, ${result.eventsSkippedAsDuplicates} duplicates skipped, ${result.eventsFailed} failed`);
+  console.log(`[PIPELINE:SUMMARY] Venues: ${result.venuesCreated} created, ${result.venuesReused} reused`);
+
   if (debug) {
     console.log('[PIPELINE:COMPLETE]', {
       processed: result.eventsProcessed,
       inserted: result.eventsInserted,
+      enriched: result.eventsEnriched,
       failed: result.eventsFailed,
       duplicates: result.eventsSkippedAsDuplicates,
       venuesCreated: result.venuesCreated,
@@ -427,7 +525,18 @@ function normalizeEventInput(raw: RawEventInput, defaultCity: string): Normalize
     return null;
   }
 
-  const endDateTime = raw.end_date_time ? parseDateTime(raw.end_date_time) : null;
+  let endDateTime = raw.end_date_time ? parseDateTime(raw.end_date_time) : null;
+  
+  // Validate date range: end_date_time must be >= start_date_time
+  // If end_date_time is before start_date_time, set it to null to satisfy DB constraint
+  if (endDateTime) {
+    const startDate = new Date(startDateTime);
+    const endDate = new Date(endDateTime);
+    if (endDate < startDate) {
+      // Invalid date range - set end_date_time to null
+      endDateTime = null;
+    }
+  }
 
   return {
     title: raw.title.trim(),
@@ -473,6 +582,29 @@ function parseDateTime(input: string | Date): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Parse date and time for enrichment update queries
+ * Handles special time values like 'ganztags' (all-day events)
+ * This matches the parsing logic in EventRepository.parseDateTime
+ */
+function parseEnrichmentDateTime(dateStr: string, timeStr: string | undefined): string {
+  if (!dateStr) return '';
+  
+  // Handle all-day events (ganztags, all day, ganztagig, etc.)
+  // Use 00:00:01 as the marker for all-day events to distinguish from midnight
+  if (timeStr && /ganztags|all[- ]?day|ganztagig|fullday/i.test(timeStr)) {
+    return `${dateStr}T00:00:01.000Z`;
+  }
+  
+  // Handle normal time strings (HH:mm format)
+  if (timeStr && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(timeStr)) {
+    return `${dateStr}T${timeStr}:00.000Z`;
+  }
+  
+  // Fallback to midnight if no valid time
+  return `${dateStr}T00:00:00.000Z`;
 }
 
 /**

@@ -3,7 +3,9 @@ import {
   levenshteinDistance,
   calculateStringSimilarity,
   areEventsDuplicates,
-  deduplicateEvents
+  deduplicateEvents,
+  enrichEventWithDuplicate,
+  deduplicateEventsWithEnrichment
 } from '../eventDeduplication';
 import { EventData } from '../types';
 
@@ -276,6 +278,222 @@ describe('Event Deduplication Utilities', () => {
       
       const result = deduplicateEvents(newEvents, existingEvents);
       expect(result).toHaveLength(1);
+    });
+  });
+
+  describe('enrichEventWithDuplicate', () => {
+    const baseEvent: EventData = {
+      title: 'Test Event',
+      category: 'Live-Konzerte',
+      date: '2025-11-20',
+      time: '19:00',
+      venue: 'Test Venue',
+      price: '',
+      website: '',
+      city: 'Wien'
+    };
+
+    it('should prefer longer description', () => {
+      const existingEvent = { ...baseEvent, description: 'Short' };
+      const newEvent = { ...baseEvent, description: 'This is a much longer description with more details' };
+
+      const result = enrichEventWithDuplicate(existingEvent, newEvent);
+
+      expect(result.hasChanges).toBe(true);
+      expect(result.changedFields).toContain('description');
+      expect(result.enrichedEvent.description).toBe('This is a much longer description with more details');
+    });
+
+    it('should not change description if existing is longer', () => {
+      const existingEvent = { ...baseEvent, description: 'This is a much longer description with more details' };
+      const newEvent = { ...baseEvent, description: 'Short' };
+
+      const result = enrichEventWithDuplicate(existingEvent, newEvent);
+
+      expect(result.changedFields).not.toContain('description');
+      expect(result.enrichedEvent.description).toBe('This is a much longer description with more details');
+    });
+
+    it('should add missing image URL', () => {
+      const existingEvent = { ...baseEvent };
+      const newEvent = { ...baseEvent, imageUrl: 'https://example.com/image.jpg' };
+
+      const result = enrichEventWithDuplicate(existingEvent, newEvent);
+
+      expect(result.hasChanges).toBe(true);
+      expect(result.changedFields).toContain('imageUrl');
+      expect(result.enrichedEvent.imageUrl).toBe('https://example.com/image.jpg');
+    });
+
+    it('should not overwrite existing image URL', () => {
+      const existingEvent = { ...baseEvent, imageUrl: 'https://existing.com/image.jpg' };
+      const newEvent = { ...baseEvent, imageUrl: 'https://new.com/image.jpg' };
+
+      const result = enrichEventWithDuplicate(existingEvent, newEvent);
+
+      expect(result.changedFields).not.toContain('imageUrl');
+      expect(result.enrichedEvent.imageUrl).toBe('https://existing.com/image.jpg');
+    });
+
+    it('should add missing fields from new event', () => {
+      const existingEvent = { ...baseEvent };
+      const newEvent = {
+        ...baseEvent,
+        address: 'New Address 123',
+        bookingLink: 'https://tickets.example.com',
+        latitude: 48.2082,
+        longitude: 16.3738
+      };
+
+      const result = enrichEventWithDuplicate(existingEvent, newEvent);
+
+      expect(result.hasChanges).toBe(true);
+      expect(result.changedFields).toContain('address');
+      expect(result.changedFields).toContain('bookingLink');
+      expect(result.changedFields).toContain('latitude');
+      expect(result.changedFields).toContain('longitude');
+      expect(result.enrichedEvent.address).toBe('New Address 123');
+      expect(result.enrichedEvent.bookingLink).toBe('https://tickets.example.com');
+      expect(result.enrichedEvent.latitude).toBe(48.2082);
+      expect(result.enrichedEvent.longitude).toBe(16.3738);
+    });
+
+    it('should not overwrite existing fields', () => {
+      const existingEvent = {
+        ...baseEvent,
+        address: 'Existing Address',
+        price: '€20'
+      };
+      const newEvent = {
+        ...baseEvent,
+        address: 'New Address',
+        price: '€25'
+      };
+
+      const result = enrichEventWithDuplicate(existingEvent, newEvent);
+
+      expect(result.changedFields).not.toContain('address');
+      expect(result.changedFields).not.toContain('price');
+      expect(result.enrichedEvent.address).toBe('Existing Address');
+      expect(result.enrichedEvent.price).toBe('€20');
+    });
+
+    it('should return hasChanges=false when no enrichment possible', () => {
+      const existingEvent = {
+        ...baseEvent,
+        description: 'Full description',
+        imageUrl: 'https://example.com/image.jpg',
+        address: 'Full Address'
+      };
+      const newEvent = {
+        ...baseEvent,
+        description: 'Short'
+      };
+
+      const result = enrichEventWithDuplicate(existingEvent, newEvent);
+
+      expect(result.hasChanges).toBe(false);
+      expect(result.changedFields).toHaveLength(0);
+    });
+  });
+
+  describe('deduplicateEventsWithEnrichment', () => {
+    const existingEvent: EventData = {
+      title: 'Jazz Night',
+      category: 'Live-Konzerte',
+      date: '2025-11-20',
+      time: '20:00',
+      venue: 'Blue Note',
+      price: '',
+      website: '',
+      city: 'Wien',
+      description: 'Short description'
+    };
+
+    it('should identify unique events', () => {
+      const newEvents: EventData[] = [
+        {
+          title: 'New Unique Event',
+          category: 'Theater',
+          date: '2025-11-20',
+          time: '19:00',
+          venue: 'Some Venue',
+          price: '€20',
+          website: '',
+          city: 'Wien'
+        }
+      ];
+      const existingEvents = [existingEvent];
+
+      const result = deduplicateEventsWithEnrichment(newEvents, existingEvents);
+
+      expect(result.uniqueEvents).toHaveLength(1);
+      expect(result.eventsToEnrich).toHaveLength(0);
+      expect(result.skippedDuplicates).toBe(0);
+    });
+
+    it('should identify enrichment opportunities', () => {
+      const newEvents: EventData[] = [
+        {
+          ...existingEvent,
+          description: 'This is a much longer description with many more details about the event',
+          imageUrl: 'https://example.com/image.jpg'
+        }
+      ];
+      const existingEvents = [existingEvent];
+
+      const result = deduplicateEventsWithEnrichment(newEvents, existingEvents);
+
+      expect(result.uniqueEvents).toHaveLength(0);
+      expect(result.eventsToEnrich).toHaveLength(1);
+      expect(result.eventsToEnrich[0].changedFields).toContain('description');
+      expect(result.eventsToEnrich[0].changedFields).toContain('imageUrl');
+      expect(result.skippedDuplicates).toBe(0);
+    });
+
+    it('should skip duplicates with no enrichment opportunity', () => {
+      const newEvents: EventData[] = [
+        { ...existingEvent }
+      ];
+      const existingEvents = [existingEvent];
+
+      const result = deduplicateEventsWithEnrichment(newEvents, existingEvents);
+
+      expect(result.uniqueEvents).toHaveLength(0);
+      expect(result.eventsToEnrich).toHaveLength(0);
+      expect(result.skippedDuplicates).toBe(1);
+    });
+
+    it('should handle mixed scenarios', () => {
+      const newEvents: EventData[] = [
+        // Unique event
+        {
+          title: 'Brand New Concert',
+          category: 'Live-Konzerte',
+          date: '2025-11-21',
+          time: '21:00',
+          venue: 'Some Venue',
+          price: '',
+          website: '',
+          city: 'Wien'
+        },
+        // Duplicate with enrichment
+        {
+          ...existingEvent,
+          description: 'A very long and detailed description that is much better than the existing one',
+          imageUrl: 'https://example.com/new-image.jpg'
+        },
+        // Duplicate without enrichment
+        { ...existingEvent }
+      ];
+      const existingEvents = [existingEvent];
+
+      const result = deduplicateEventsWithEnrichment(newEvents, existingEvents);
+
+      expect(result.uniqueEvents).toHaveLength(1);
+      expect(result.uniqueEvents[0].title).toBe('Brand New Concert');
+      expect(result.eventsToEnrich).toHaveLength(1);
+      expect(result.skippedDuplicates).toBe(1);
     });
   });
 });
