@@ -125,7 +125,8 @@ describe('venueFallbackImages', () => {
 
         expect(config.imageUrl).toBeDefined();
         expect(typeof config.imageUrl).toBe('string');
-        expect(config.imageUrl.startsWith('http')).toBe(true);
+        // Images should be local paths (starting with /) or URLs (starting with http)
+        expect(config.imageUrl.startsWith('/') || config.imageUrl.startsWith('http')).toBe(true);
 
         expect(config.source).toBeDefined();
         expect(typeof config.source).toBe('string');

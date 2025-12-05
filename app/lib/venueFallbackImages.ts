@@ -1,11 +1,16 @@
 /**
  * Venue Fallback Images
  * 
- * This file contains fallback image URLs for venues that have scrapers.
+ * This file contains fallback image paths for venues that have scrapers.
  * When an event has no image, the system will use the venue's fallback image.
  * 
- * Image sources are official venue websites where possible.
- * Note: Some URLs may need to be updated if venues change their websites.
+ * IMPORTANT: Images are stored locally in /public/venues/ directory.
+ * This ensures fast loading from our CDN without external dependencies.
+ * 
+ * To add a new venue image:
+ * 1. Download the venue logo/image from their official website
+ * 2. Save it to /public/venues/{venue-key}.png (or .jpg/.webp)
+ * 3. Add the entry to VENUE_FALLBACK_IMAGES below
  */
 
 export interface VenueFallbackConfig {
@@ -13,9 +18,9 @@ export interface VenueFallbackConfig {
   name: string;
   /** Alternative names or aliases for matching */
   aliases: string[];
-  /** Fallback image URL - typically venue logo or representative image */
+  /** Local path to the fallback image (stored in /public/venues/) */
   imageUrl: string;
-  /** Source attribution for the image */
+  /** Original source website for attribution */
   source: string;
 }
 
@@ -29,134 +34,136 @@ const MIN_PARTIAL_MATCH_LENGTH = 4;
  * Venue fallback image configurations
  * Keys are lowercase, hyphenated venue identifiers matching scraper configs
  * 
- * Note: Images are sourced from official venue websites where possible.
- * If a venue doesn't have an accessible logo, we use a representative venue image.
+ * Images are stored locally in /public/venues/ for:
+ * - Fast loading from CDN
+ * - No external dependencies
+ * - Consistent availability
  */
 export const VENUE_FALLBACK_IMAGES: Record<string, VenueFallbackConfig> = {
   'grelle-forelle': {
     name: 'Grelle Forelle',
     aliases: ['grelle forelle', 'grelleforelle'],
-    imageUrl: 'https://www.grelleforelle.com/wp-content/uploads/2023/01/GF_Logo_white.png',
+    imageUrl: '/venues/grelle-forelle.png',
     source: 'grelleforelle.com',
   },
   'flex': {
     name: 'Flex',
     aliases: ['flex wien', 'flex vienna'],
-    imageUrl: 'https://flex.at/wp-content/uploads/2024/01/flex-logo.png',
+    imageUrl: '/venues/flex.png',
     source: 'flex.at',
   },
   'pratersauna': {
     name: 'Pratersauna',
     aliases: ['prater sauna', 'pratersauna wien'],
-    imageUrl: 'https://pratersauna.tv/wp-content/uploads/2024/05/pratersauna-logo-new.png',
+    imageUrl: '/venues/pratersauna.png',
     source: 'pratersauna.tv',
   },
   'das-werk': {
     name: 'Das WERK',
     aliases: ['das werk', 'daswerk'],
-    imageUrl: 'https://www.daswerk.org/wp-content/uploads/das-werk-logo.png',
+    imageUrl: '/venues/das-werk.png',
     source: 'daswerk.org',
   },
   'u4': {
     name: 'U4',
     aliases: ['u4 wien', 'u4 club', 'u4 vienna'],
-    imageUrl: 'https://www.u4.at/wp-content/uploads/2023/u4-logo.png',
+    imageUrl: '/venues/u4.png',
     source: 'u4.at',
   },
   'volksgarten': {
     name: 'Volksgarten',
     aliases: ['volksgarten disco', 'volksgarten club', 'volksgarten wien'],
-    imageUrl: 'https://volksgarten.at/wp-content/uploads/volksgarten-logo.png',
+    imageUrl: '/venues/volksgarten.png',
     source: 'volksgarten.at',
   },
   'babenberger-passage': {
     name: 'Babenberger Passage',
     aliases: ['babenberger passage wien'],
-    imageUrl: 'https://www.babenbergerpassage.at/wp-content/uploads/passage-logo.png',
+    imageUrl: '/venues/babenberger-passage.png',
     source: 'babenbergerpassage.at',
   },
   'camera-club': {
     name: 'Camera Club',
     aliases: ['camera club wien', 'camera vienna'],
-    imageUrl: 'https://camera-club.at/wp-content/uploads/camera-club-logo.png',
+    imageUrl: '/venues/camera-club.png',
     source: 'camera-club.at',
   },
   'celeste': {
     name: 'Celeste',
     aliases: ['celeste wien', 'celeste club', 'celeste vienna'],
-    imageUrl: 'https://www.celeste.co.at/wp-content/uploads/celeste-logo.png',
+    imageUrl: '/venues/celeste.png',
     source: 'celeste.co.at',
   },
   'chelsea': {
     name: 'Chelsea',
     aliases: ['chelsea wien', 'chelsea club', 'chelsea gürtel'],
-    imageUrl: 'https://www.chelsea.co.at/wp-content/uploads/chelsea-logo.png',
+    imageUrl: '/venues/chelsea.png',
     source: 'chelsea.co.at',
   },
   'donau': {
     name: 'Donau',
     aliases: ['donau techno', 'donautechno', 'donau wien'],
-    imageUrl: 'https://www.donautechno.com/wp-content/uploads/donau-logo.png',
+    imageUrl: '/venues/donau.png',
     source: 'donautechno.com',
   },
   'flucc': {
     name: 'Flucc / Flucc Wanne',
     aliases: ['flucc', 'fluc', 'flucc wanne', 'flucc deck'],
-    imageUrl: 'https://flucc.at/wp-content/uploads/flucc-logo.png',
+    imageUrl: '/venues/flucc.png',
     source: 'flucc.at',
   },
   'o-der-klub': {
     name: 'O - der Klub',
     aliases: ['o der klub', 'o klub wien', 'o club vienna'],
-    imageUrl: 'https://o-klub.at/wp-content/uploads/o-klub-logo.png',
+    imageUrl: '/venues/o-der-klub.png',
     source: 'o-klub.at',
   },
   'ponyhof': {
     name: 'Ponyhof',
     aliases: ['ponyhof wien', 'ponyhof vienna'],
-    imageUrl: 'https://ponyhof-official.at/wp-content/uploads/ponyhof-logo.png',
+    imageUrl: '/venues/ponyhof.png',
     source: 'ponyhof-official.at',
   },
   'prater-dome': {
     name: 'Prater DOME',
     aliases: ['praterdome', 'prater dome'],
-    imageUrl: 'https://praterdome.at/wp-content/uploads/praterdome-logo.png',
+    imageUrl: '/venues/prater-dome.png',
     source: 'praterdome.at',
   },
   'praterstrasse': {
     name: 'Praterstrasse',
     aliases: ['praterstrasse wien', 'prst', 'prst praterstrasse'],
-    imageUrl: 'https://www.praterstrasse.wien/wp-content/uploads/praterstrasse-logo.png',
+    imageUrl: '/venues/praterstrasse.png',
     source: 'praterstrasse.wien',
   },
   'sass-music-club': {
     name: 'SASS Music Club',
     aliases: ['sass music club', 'sass wien', 'sass vienna'],
-    imageUrl: 'https://sassvienna.com/wp-content/uploads/sass-logo.png',
+    imageUrl: '/venues/sass-music-club.png',
     source: 'sassvienna.com',
   },
   'the-loft': {
     name: 'The Loft',
     aliases: ['the loft', 'loft wien', 'loft vienna'],
-    imageUrl: 'https://www.theloft.at/wp-content/uploads/the-loft-logo.png',
+    imageUrl: '/venues/the-loft.png',
     source: 'theloft.at',
   },
   'vieipee': {
     name: 'VIEiPEE',
     aliases: ['vieipee', 'vie i pee', 'vieipee wien'],
-    imageUrl: 'https://vieipee.com/wp-content/uploads/vieipee-logo.png',
+    imageUrl: '/venues/vieipee.png',
     source: 'vieipee.com',
   },
   'rhiz': {
     name: 'rhiz',
     aliases: ['rhiz wien', 'rhiz bar', 'rhiz club'],
-    imageUrl: 'https://rhiz.wien/wp-content/uploads/rhiz-logo.png',
+    imageUrl: '/venues/rhiz.png',
     source: 'rhiz.wien',
   },
   'patroc-wien-gay': {
     name: 'Patroc Wien Gay Events',
     aliases: ['patroc wien', 'patroc gay'],
-    imageUrl: 'https://www.patroc.com/images/patroc-logo.png',
+    imageUrl: '/venues/patroc-wien-gay.png',
     source: 'patroc.com',
   },
 };
