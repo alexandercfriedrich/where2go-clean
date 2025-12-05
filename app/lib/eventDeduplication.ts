@@ -183,7 +183,6 @@ export function enrichEventWithDuplicate(
     'bookingLink',
     'eventType',
     'ageRestrictions',
-    'ticketPrice',
     'endTime',
     'latitude',
     'longitude',

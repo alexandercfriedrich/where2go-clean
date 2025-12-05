@@ -273,8 +273,6 @@ export async function processEvents(
               updateData['website_url'] = enrichment.enrichedEvent.website;
             } else if (eventDataField === 'bookingLink') {
               updateData['booking_url'] = enrichment.enrichedEvent.bookingLink;
-            } else if (eventDataField === 'ticketPrice') {
-              updateData['ticket_url'] = enrichment.enrichedEvent.ticketPrice;
             } else if (eventDataField === 'latitude') {
               updateData['latitude'] = enrichment.enrichedEvent.latitude;
             } else if (eventDataField === 'longitude') {
@@ -285,7 +283,11 @@ export async function processEvents(
           // Only update if we have fields to update
           if (Object.keys(updateData).length > 0) {
             // Update by matching on title, start_date_time, and city
-            const startDateTime = `${enrichment.existingEvent.date}T${enrichment.existingEvent.time || '00:00'}:00.000Z`;
+            // Handle special time values like 'ganztags' (all-day events)
+            const startDateTime = parseEnrichmentDateTime(
+              enrichment.existingEvent.date, 
+              enrichment.existingEvent.time
+            );
             
             const { error } = await (supabaseAdmin as any)
               .from('events')
@@ -565,6 +567,29 @@ function parseDateTime(input: string | Date): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Parse date and time for enrichment update queries
+ * Handles special time values like 'ganztags' (all-day events)
+ * This matches the parsing logic in EventRepository.parseDateTime
+ */
+function parseEnrichmentDateTime(dateStr: string, timeStr: string | undefined): string {
+  if (!dateStr) return '';
+  
+  // Handle all-day events (ganztags, all day, ganztagig, etc.)
+  // Use 00:00:01 as the marker for all-day events to distinguish from midnight
+  if (timeStr && /ganztags|all[- ]?day|ganztagig|fullday/i.test(timeStr)) {
+    return `${dateStr}T00:00:01.000Z`;
+  }
+  
+  // Handle normal time strings (HH:mm format)
+  if (timeStr && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(timeStr)) {
+    return `${dateStr}T${timeStr}:00.000Z`;
+  }
+  
+  // Fallback to midnight if no valid time
+  return `${dateStr}T00:00:00.000Z`;
 }
 
 /**
