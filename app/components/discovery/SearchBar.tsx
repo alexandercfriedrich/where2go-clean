@@ -228,21 +228,28 @@ export function SearchBar({
   }, []);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!isOpen || results.length === 0) return;
-
     switch (e.key) {
       case 'ArrowDown':
-        e.preventDefault();
-        setSelectedIndex(prev => (prev < results.length - 1 ? prev + 1 : prev));
+        if (isOpen && results.length > 0) {
+          e.preventDefault();
+          setSelectedIndex(prev => (prev < results.length - 1 ? prev + 1 : prev));
+        }
         break;
       case 'ArrowUp':
-        e.preventDefault();
-        setSelectedIndex(prev => (prev > 0 ? prev - 1 : -1));
+        if (isOpen && results.length > 0) {
+          e.preventDefault();
+          setSelectedIndex(prev => (prev > 0 ? prev - 1 : -1));
+        }
         break;
       case 'Enter':
         e.preventDefault();
-        if (selectedIndex >= 0) {
+        if (isOpen && selectedIndex >= 0 && results.length > 0) {
+          // Navigate to selected result from dropdown
           navigateToResult(results[selectedIndex]);
+        } else if (query.length >= 2) {
+          // Navigate to search results page when Enter is pressed
+          setIsOpen(false);
+          router.push(`/search/results?q=${encodeURIComponent(query)}`);
         }
         break;
       case 'Escape':
