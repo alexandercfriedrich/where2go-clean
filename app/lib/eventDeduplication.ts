@@ -101,13 +101,13 @@ export function areEventsDuplicates(event1: EventData, event2: EventData): boole
     }
   }
   
-  // Rule 3: Must have >85% title similarity
+  // Rule 3: Must have >50% title similarity
   const title1 = (event1.title || '').toLowerCase().trim();
   const title2 = (event2.title || '').toLowerCase().trim();
   
   const similarity = calculateStringSimilarity(title1, title2);
   
-  return similarity > 0.85;
+  return similarity > 0.5;
 }
 
 /**

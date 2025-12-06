@@ -205,9 +205,9 @@ async function migrate(options: MigrationOptions): Promise<MigrationStats> {
         
         // Link events to venues after bulk insert
         // Note: Function signature changed - now uses sources array and similarity threshold
-        // Pass null for sources (all sources) and 0.7 for similarity threshold
+        // Pass null for sources (all sources) and 0.5 for similarity threshold
         if (result.inserted > 0) {
-          await EventRepository.linkEventsToVenues(null, 0.7, 'Redis-to-Postgres Migration');
+          await EventRepository.linkEventsToVenues(null, 0.5, 'Redis-to-Postgres Migration');
         }
       } else {
         const errorMsg = `Failed to import ${city}/${date}/${category}: ${result.errors.join(', ')}`

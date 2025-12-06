@@ -14,7 +14,7 @@ CREATE EXTENSION IF NOT EXISTS pg_trgm;
 -- 4. Optionally filters by source (if p_sources is provided)
 CREATE OR REPLACE FUNCTION link_events_to_venues(
   p_sources text[] DEFAULT NULL,
-  p_sim_match_threshold real DEFAULT 0.7,
+  p_sim_match_threshold real DEFAULT 0.5,
   OUT events_linked integer
 )
 RETURNS integer AS $$

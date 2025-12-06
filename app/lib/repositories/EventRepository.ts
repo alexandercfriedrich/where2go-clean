@@ -581,13 +581,13 @@ export class EventRepository {
    * - Return value is now a single integer, not a table
    * 
    * @param sources - Optional array of source names to filter events (null = all sources)
-   * @param similarityThreshold - Similarity threshold for fuzzy matching (0.0-1.0, default 0.7)
+   * @param similarityThreshold - Similarity threshold for fuzzy matching (0.0-1.0, default 0.5)
    * @param context - Context string for logging (e.g., 'Wien.info Importer', 'API Process')
    * @returns Object with events_linked count, or null on error
    */
   static async linkEventsToVenues(
     sources: string[] | null = null,
-    similarityThreshold: number = 0.7,
+    similarityThreshold: number = 0.5,
     context: string = 'EventRepository'
   ): Promise<{ events_linked: number } | null> {
     try {

@@ -419,7 +419,7 @@ export class EventAggregator {
 
         const sTitle = this.sim(normalizeForEventId(base.title), normalizeForEventId(list[j].title));
         const sVenue = this.sim(normalizeForEventId(base.venue), normalizeForEventId(list[j].venue || ''));
-        if (sTitle >= 0.92 && sVenue >= 0.7) {
+        if (sTitle >= 0.5 && sVenue >= 0.5) {
           // merge j into base
           base = {
             ...base,
