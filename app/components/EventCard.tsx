@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { normalizeCitySlug } from '@/lib/slugGenerator';
 import { getVenueFallbackImage } from '@/lib/venueFallbackImages';
 import { getFallbackColor, hasValidImage } from '@/lib/eventImageFallback';
+import { formatGermanDate, parseDateBadge } from '@/lib/dateUtils';
 import { AddToCalendar } from './discovery/AddToCalendar';
 import { ShareButtons } from './discovery/ShareButtons';
 import { FavoriteButton } from './discovery/FavoriteButton';
@@ -49,22 +50,6 @@ export interface UnifiedEventCardProps {
   showActions?: boolean;
   /** Optional: Show/hide info/ticket buttons */
   showButtons?: boolean;
-}
-
-// Helper function to format date in German format
-function formatGermanDate(dateStr: string): string {
-  try {
-    const date = new Date(dateStr);
-    const options: Intl.DateTimeFormatOptions = { 
-      weekday: 'short', 
-      day: '2-digit', 
-      month: '2-digit', 
-      year: 'numeric' 
-    };
-    return date.toLocaleDateString('de-DE', options);
-  } catch {
-    return dateStr;
-  }
 }
 
 // Helper to parse time from ISO datetime or separate time field
@@ -130,6 +115,7 @@ export function EventCard({
   const eventDate = getEventDate(event);
   const eventTime = getEventTime(event);
   const displayDate = eventDate ? formatGermanDate(eventDate) : '';
+  const dateBadge = displayDate ? parseDateBadge(displayDate) : { month: '', day: '' };
   
   // IMPORTANT: Only use slug from database to prevent URL mismatch
   // Database slugs include a UUID suffix (e.g., "event-title-2025-12-03-abc12345")
@@ -227,9 +213,9 @@ export function EventCard({
             )}
             
             {/* Date badge */}
-            {displayDate && (
+            {displayDate && dateBadge.month && dateBadge.day && (
               <div className="maja-event-image-date-badge">
-                {displayDate.split('.')[1]?.trim().toUpperCase() || ''} {displayDate.split('.')[0]}
+                {dateBadge.month} {dateBadge.day}
               </div>
             )}
             

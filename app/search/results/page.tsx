@@ -104,7 +104,7 @@ function SearchResultsContent() {
 
           const countMap: Record<string, number> = {};
           if (eventCounts) {
-            eventCounts.forEach((e: any) => {
+            eventCounts.forEach((e: { custom_venue_name: string }) => {
               countMap[e.custom_venue_name] = (countMap[e.custom_venue_name] || 0) + 1;
             });
           }
@@ -169,7 +169,7 @@ function SearchResultsContent() {
             Suchergebnisse
           </h1>
           <p className="text-lg text-gray-600 dark:text-gray-400">
-            Suche nach: <span className="font-semibold">&ldquo;{query}&rdquo;</span>
+            Suche nach: <span className="font-semibold">&ldquo;{query.replace(/</g, '&lt;').replace(/>/g, '&gt;')}&rdquo;</span>
           </p>
           
           {!loading && (
