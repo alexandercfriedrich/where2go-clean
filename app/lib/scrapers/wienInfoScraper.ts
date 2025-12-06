@@ -416,13 +416,8 @@ export class WienInfoScraper {
       return false;
     }
 
-    const timeSlot = matchingSlot;
-    if (!timeSlot) {
-      return false;
-    }
-
     // Build updated timestamp
-    const newStartDateTime = `${timeSlot.dateISO}T${timeSlot.time}:00.000Z`;
+    const newStartDateTime = `${matchingSlot.dateISO}T${matchingSlot.time}:00.000Z`;
 
     // Build update object
     const updateData: Record<string, any> = {
@@ -461,7 +456,7 @@ export class WienInfoScraper {
       // Also check error message as fallback since Supabase may wrap the error
       const isUniqueConstraintViolation = 
         error.code === '23505' || 
-        (error.message && error.message.includes('duplicate key value violates unique constraint'));
+        (error.message && error.message.toLowerCase().includes('violates unique constraint'));
       
       if (isUniqueConstraintViolation) {
         this.log(`Unique constraint violation for ${eventTitle}: ${error.message}. Skipping update.`, 'warn');
@@ -475,7 +470,7 @@ export class WienInfoScraper {
       return false;
     }
 
-    this.log(`Updated ${eventTitle}: ${timeSlot.time}`, 'info');
+    this.log(`Updated ${eventTitle}: ${matchingSlot.time}`, 'info');
     return true;
   }
 
