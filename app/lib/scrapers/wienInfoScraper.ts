@@ -13,9 +13,14 @@
  * but the event detail pages contain full time information (e.g., "19:30 Uhr").
  * 
  * Rate limiting is implemented to avoid overwhelming wien.info servers.
+ * 
+ * Integration: Uses EventRepository.upsertEvents() to update complete events
+ * (not just time data) with all scraped information.
  */
 
 import { supabaseAdmin } from '@/lib/supabase/client';
+import { EventRepository } from '@/lib/repositories/EventRepository';
+import type { EventData } from '@/lib/types';
 import pThrottle from 'p-throttle';
 
 // ═══════════════════════════════════════════════════════════════
@@ -76,7 +81,7 @@ export class WienInfoScraper {
   constructor(options: ScraperOptions = {}) {
     this.options = {
       dryRun: options.dryRun ?? false,
-      limit: options.limit ?? 10000, // Default to 10000 to process all events with missing times
+      limit: options.limit ?? 10000,
       debug: options.debug ?? false,
       rateLimit: options.rateLimit ?? 2,
       onlyMissingTimes: options.onlyMissingTimes ?? true,
@@ -144,23 +149,6 @@ export class WienInfoScraper {
 
   /**
    * Parse time slots from the "Termine" section of the event page
-   * 
-   * HTML structure:
-   * <h2>Termine</h2>
-   * <ul>
-   *   <li>
-   *     <span>Di</span>
-   *     <span>
-   *       <span>02.12.2025</span>
-   *       <span><span>19:30</span><span>Uhr</span></span>
-   *     </span>
-   *   </li>
-   * </ul>
-   * 
-   * Note: We use regex-based parsing instead of a full HTML parser (like jsdom/cheerio)
-   * to avoid adding new dependencies. The regex patterns are designed to handle the
-   * known Wien.info HTML structure. If the site structure changes significantly,
-   * these patterns may need updating.
    */
   private parseTimeSlots(html: string): ScrapedEventData['timeSlots'] {
     const timeSlots: ScrapedEventData['timeSlots'] = [];
@@ -175,7 +163,6 @@ export class WienInfoScraper {
     const termineSection = termineMatch[1];
 
     // Extract individual time entries from list items
-    // Pattern matches: day of week, date (DD.MM.YYYY), time (HH:mm)
     const entryRegex = /<li[^>]*>[\s\S]*?<span[^>]*>([A-Za-z]{2})<\/span>[\s\S]*?<span[^>]*>(\d{2}\.\d{2}\.\d{4})<\/span>[\s\S]*?<span>(\d{2}:\d{2})<\/span>/gi;
     
     let match;
@@ -206,7 +193,7 @@ export class WienInfoScraper {
   private parseVenueInfo(html: string): { name?: string; address?: string; phone?: string } {
     const venueInfo: { name?: string; address?: string; phone?: string } = {};
 
-    // Find venue section - use a more flexible pattern
+    // Find venue section
     const venueMatch = html.match(/<h2[^>]*>Veranstaltungsort<\/h2>([\s\S]*?)(?=<\/div>\s*<div class="h-\[1px\]|<h2[^>]*>|<\/article|<\/body)/i);
     if (!venueMatch) {
       this.log('No venue section found', 'debug');
@@ -215,8 +202,7 @@ export class WienInfoScraper {
 
     const venueSection = venueMatch[1];
 
-    // Extract venue name from itemprop="name" (can be in h3 or other tags)
-    // Pattern handles: <h3 itemprop="name">text</h3> or itemprop="name">text<
+    // Extract venue name
     const nameMatch = venueSection.match(/<h3[^>]*\s+itemprop="name"[^>]*>([^<]+)</i)
       || venueSection.match(/<[^>]+itemprop="name"[^>]*>([^<]+)</i)
       || venueSection.match(/itemprop="name"[^>]*>([^<]+)</i);
@@ -224,13 +210,13 @@ export class WienInfoScraper {
       venueInfo.name = nameMatch[1].trim();
     }
 
-    // Extract address from <address> tag
+    // Extract address
     const addressMatch = venueSection.match(/<address[^>]*>([^<]+)</i);
     if (addressMatch) {
       venueInfo.address = addressMatch[1].trim();
     }
 
-    // Extract phone from itemprop="telephone"
+    // Extract phone
     const phoneMatch = venueSection.match(/itemprop="telephone"[^>]*>([^<]+)</i)
       || venueSection.match(/<[^>]+itemprop="telephone">([^<]+)</i);
     if (phoneMatch) {
@@ -265,7 +251,7 @@ export class WienInfoScraper {
    * Parse category from page content
    */
   private parseCategory(html: string): string | undefined {
-    // Look for category in the structured section (svg icon + category text)
+    // Look for category in the structured section
     const categoryMatch = html.match(/<svg[^>]*masks\.svg[^>]*>[\s\S]*?<\/svg>\s*([^<]+)/i);
     if (categoryMatch) {
       return categoryMatch[1].trim();
@@ -285,8 +271,6 @@ export class WienInfoScraper {
 
   /**
    * Decode HTML entities
-   * Note: We decode &amp; last to avoid double-decoding issues
-   * (e.g., &amp;lt; should become &lt;, not <)
    */
   private decodeHtmlEntities(text: string): string {
     return text
@@ -295,7 +279,7 @@ export class WienInfoScraper {
       .replace(/&quot;/g, '"')
       .replace(/&#39;/g, "'")
       .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&');  // Decode &amp; last to avoid double-decoding
+      .replace(/&amp;/g, '&');
   }
 
   /**
@@ -332,11 +316,11 @@ export class WienInfoScraper {
     title: string;
     source_url: string;
     start_date_time: string;
+    city: string;
   }>> {
-    // Build base query
     const { data, error } = await supabaseAdmin
       .from('events')
-      .select('id, title, source_url, start_date_time')
+      .select('id, title, source_url, start_date_time, city')
       .eq('source', 'wien.info')
       .not('source_url', 'is', null)
       .like('source_url', '%wien.info%')
@@ -348,24 +332,21 @@ export class WienInfoScraper {
       return [];
     }
 
-    // Type assertion since we know the structure from the select clause
     const events = (data || []) as Array<{
       id: string;
       title: string;
       source_url: string | null;
       start_date_time: string;
+      city: string;
     }>;
 
     // Filter events with valid source_url
     let filteredEvents = events.filter(
-      (e): e is { id: string; title: string; source_url: string; start_date_time: string } => 
+      (e): e is { id: string; title: string; source_url: string; start_date_time: string; city: string } => 
         e.source_url !== null
     );
 
-    // If onlyMissingTimes is true, filter to events that need time scraping
-    // These are events stored with either:
-    // - 00:00:00 (original data had no specific time)
-    // - 00:00:01 (already marked as all-day in Supabase)
+    // If onlyMissingTimes is true, filter to events with placeholder times
     if (this.options.onlyMissingTimes) {
       filteredEvents = filteredEvents.filter(e => {
         const dateStr = e.start_date_time;
@@ -381,7 +362,6 @@ export class WienInfoScraper {
    * Extract date from timestamp (handles both "T" and space delimiters)
    */
   private extractDateISO(timestamp: string): string | null {
-    // Try to parse as Date first
     try {
       const parsed = new Date(timestamp);
       if (!isNaN(parsed.getTime())) {
@@ -389,7 +369,6 @@ export class WienInfoScraper {
       }
     } catch {}
 
-    // Fallback: regex split on 'T' or space
     const match = timestamp.match(/^(\d{4}-\d{2}-\d{2})[T ]/);
     return match ? match[1] : null;
   }
@@ -444,32 +423,35 @@ export class WienInfoScraper {
   }
 
   /**
-   * Update an event with scraped data
+   * Convert scraped data to EventData format for EventRepository
    * 
    * Matching strategy:
    * 1. Search for event by title + date (YYYY-MM-DD)
    * 2. If multiple events found with same title+date, match on time
    * 3. Check if scraped time matches current event time
-   * 4. If no time match but event has placeholder time (00:00:01) → update with first available scraped time
+   * 4. If no time match but event has placeholder time (00:00:01) → use first available scraped time
    * 5. If neither → skip and log
    */
   async updateEventWithScrapedData(
     eventId: string,
-    eventTitle: string,
-    currentStartDateTime: string,
+    currentEvent: {
+      title: string;
+      start_date_time: string;
+      city: string;
+    },
     scrapedData: ScrapedEventData
-  ): Promise<boolean> {
+  ): Promise<EventData | null> {
     // Extract date and time from current event timestamp
-    const currentDateISO = this.extractDateISO(currentStartDateTime);
-    const currentTime = this.extractTime(currentStartDateTime);
+    const currentDateISO = this.extractDateISO(currentEvent.start_date_time);
+    const currentTime = this.extractTime(currentEvent.start_date_time);
 
     if (!currentDateISO) {
-      this.log(`Could not parse date from: ${currentStartDateTime}`, 'error');
-      return false;
+      this.log(`Could not parse date from: ${currentEvent.start_date_time}`, 'error');
+      return null;
     }
 
     this.log(
-      `Processing "${eventTitle}" on ${currentDateISO} at ${currentTime || 'unknown'}`,
+      `Processing "${currentEvent.title}" on ${currentDateISO} at ${currentTime || 'unknown'}`,
       'debug'
     );
 
@@ -480,14 +462,14 @@ export class WienInfoScraper {
 
     if (matchingDateSlots.length === 0) {
       this.log(
-        `No time slots found for "${eventTitle}" on ${currentDateISO}. ` +
+        `No time slots found for "${currentEvent.title}" on ${currentDateISO}. ` +
         `Available dates: ${scrapedData.timeSlots.map(s => s.dateISO).join(', ')}`,
         'warn'
       );
       this.errors.push(
-        `No matching date for "${eventTitle}" on ${currentDateISO}`
+        `No matching date for "${currentEvent.title}" on ${currentDateISO}`
       );
-      return false;
+      return null;
     }
 
     // Find best matching time slot
@@ -495,63 +477,36 @@ export class WienInfoScraper {
 
     if (!selectedSlot) {
       this.log(
-        `No suitable time slot for "${eventTitle}" on ${currentDateISO}. ` +
+        `No suitable time slot for "${currentEvent.title}" on ${currentDateISO}. ` +
         `Current time: ${currentTime}, Available times: ${matchingDateSlots.map(s => s.time).join(', ')}`,
         'warn'
       );
       this.errors.push(
-        `No matching time for "${eventTitle}" (${currentTime}) on ${currentDateISO}`
+        `No matching time for "${currentEvent.title}" (${currentTime}) on ${currentDateISO}`
       );
-      return false;
+      return null;
     }
 
-    // Build updated timestamp
-    const newStartDateTime = `${selectedSlot.dateISO}T${selectedSlot.time}:00.000Z`;
-
-    // Build update object
-    const updateData: Record<string, any> = {
-      start_date_time: newStartDateTime,
-      updated_at: new Date().toISOString(),
+    // Convert scraped data to EventData format for EventRepository
+    const eventData: EventData = {
+      title: currentEvent.title,
+      date: selectedSlot.dateISO,
+      time: selectedSlot.time,
+      category: scrapedData.category || '',
+      venue: scrapedData.venueName || '',
+      address: scrapedData.venueAddress,
+      description: scrapedData.description,
+      website: '', // Keep existing website URL
+      city: currentEvent.city,
+      source: 'wien.info',
     };
 
-    // Add description if we have a better one
-    if (scrapedData.description) {
-      updateData.description = scrapedData.description;
-    }
-
-    // Add venue info if we scraped it
-    if (scrapedData.venueName) {
-      updateData.custom_venue_name = scrapedData.venueName;
-    }
-    if (scrapedData.venueAddress) {
-      updateData.custom_venue_address = scrapedData.venueAddress;
-    }
-
-    if (this.options.dryRun) {
-      this.log(
-        `[DRY-RUN] Would update "${eventTitle}": ${currentStartDateTime} → ${newStartDateTime}`,
-        'info'
-      );
-      return true;
-    }
-
-    // Update event in database
-    const { error } = await (supabaseAdmin as any)
-      .from('events')
-      .update(updateData)
-      .eq('id', eventId);
-
-    if (error) {
-      this.log(`Error updating "${eventTitle}": ${error.message}`, 'error');
-      this.errors.push(`Failed to update "${eventTitle}": ${error.message}`);
-      return false;
-    }
-
     this.log(
-      `Updated "${eventTitle}": ${currentStartDateTime} → ${newStartDateTime}`,
-      'info'
+      `Prepared event for update: "${currentEvent.title}" → ${selectedSlot.dateISO} ${selectedSlot.time}`,
+      'debug'
     );
-    return true;
+
+    return eventData;
   }
 
   /**
@@ -584,7 +539,9 @@ export class WienInfoScraper {
     let eventsScraped = 0;
     let eventsUpdated = 0;
     let eventsFailed = 0;
+    const eventsToUpdate: EventData[] = [];
 
+    // First phase: Scrape all events and prepare updates
     for (const event of events) {
       try {
         const scrapedData = await this.scrapeEventPage(event.source_url);
@@ -597,15 +554,18 @@ export class WienInfoScraper {
           continue;
         }
 
-        const updated = await this.updateEventWithScrapedData(
+        const updatedEvent = await this.updateEventWithScrapedData(
           event.id,
-          event.title,
-          event.start_date_time,
+          {
+            title: event.title,
+            start_date_time: event.start_date_time,
+            city: event.city,
+          },
           scrapedData
         );
 
-        if (updated) {
-          eventsUpdated++;
+        if (updatedEvent) {
+          eventsToUpdate.push(updatedEvent);
         } else {
           eventsFailed++;
         }
@@ -617,8 +577,33 @@ export class WienInfoScraper {
       }
     }
 
-    const duration = Date.now() - startTime;
+    // Second phase: Bulk update events via EventRepository
+    if (eventsToUpdate.length > 0) {
+      if (this.options.dryRun) {
+        this.log(`[DRY-RUN] Would update ${eventsToUpdate.length} events via EventRepository`, 'info');
+        eventsUpdated = eventsToUpdate.length;
+      } else {
+        try {
+          const result = await EventRepository.upsertEvents(
+            eventsToUpdate,
+            eventsToUpdate[0].city
+          );
 
+          if (result.success) {
+            eventsUpdated = result.upserted;
+            this.log(`Successfully upserted ${result.upserted} events via EventRepository`, 'info');
+          } else {
+            this.log(`EventRepository upsert failed`, 'error');
+            this.errors.push(`EventRepository upsert failed`);
+          }
+        } catch (error: any) {
+          this.log(`Error updating events via EventRepository: ${error.message}`, 'error');
+          this.errors.push(`EventRepository error: ${error.message}`);
+        }
+      }
+    }
+
+    const duration = Date.now() - startTime;
     this.log(`Scraping complete: ${eventsUpdated} updated, ${eventsFailed} failed in ${duration}ms`);
 
     return {
