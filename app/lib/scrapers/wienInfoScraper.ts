@@ -378,7 +378,80 @@ export class WienInfoScraper {
   }
 
   /**
+   * Extract date from timestamp (handles both "T" and space delimiters)
+   */
+  private extractDateISO(timestamp: string): string | null {
+    // Try to parse as Date first
+    try {
+      const parsed = new Date(timestamp);
+      if (!isNaN(parsed.getTime())) {
+        return parsed.toISOString().split('T')[0];
+      }
+    } catch {}
+
+    // Fallback: regex split on 'T' or space
+    const match = timestamp.match(/^(\d{4}-\d{2}-\d{2})[T ]/);
+    return match ? match[1] : null;
+  }
+
+  /**
+   * Extract time from timestamp (HH:mm format)
+   */
+  private extractTime(timestamp: string): string | null {
+    const match = timestamp.match(/([0-9]{1,2}):([0-9]{2})/);
+    return match ? `${match[1]}:${match[2]}` : null;
+  }
+
+  /**
+   * Check if a time is the placeholder time (00:00:00 or 00:00:01)
+   */
+  private isPlaceholderTime(timestamp: string): boolean {
+    const time = this.extractTime(timestamp);
+    return time === '00:00';
+  }
+
+  /**
+   * Find best matching time slot for an event
+   * 
+   * Algorithm:
+   * 1. Try to find exact time match in scraped slots
+   * 2. If no exact match but current time is placeholder (00:00:01) → use first available slot
+   * 3. Otherwise → no match
+   */
+  private findBestTimeSlot(
+    currentTime: string | null,
+    scrapedSlots: ScrapedEventData['timeSlots']
+  ): ScrapedEventData['timeSlots'][0] | null {
+    if (scrapedSlots.length === 0) return null;
+
+    // Case 1: Try exact time match
+    if (currentTime) {
+      const exactMatch = scrapedSlots.find(slot => slot.time === currentTime);
+      if (exactMatch) {
+        this.log(`Found exact time match: ${exactMatch.time}`, 'debug');
+        return exactMatch;
+      }
+    }
+
+    // Case 2: No exact match, but check if current time is placeholder
+    if (this.isPlaceholderTime(currentTime || '')) {
+      this.log(`No exact match, but current time is placeholder (${currentTime}). Using first available slot: ${scrapedSlots[0].time}`, 'info');
+      return scrapedSlots[0];
+    }
+
+    // Case 3: No match and not a placeholder
+    return null;
+  }
+
+  /**
    * Update an event with scraped data
+   * 
+   * Matching strategy:
+   * 1. Search for event by title + date (YYYY-MM-DD)
+   * 2. If multiple events found with same title+date, match on time
+   * 3. Check if scraped time matches current event time
+   * 4. If no time match but event has placeholder time (00:00:01) → update with first available scraped time
+   * 5. If neither → skip and log
    */
   async updateEventWithScrapedData(
     eventId: string,
@@ -386,31 +459,54 @@ export class WienInfoScraper {
     currentStartDateTime: string,
     scrapedData: ScrapedEventData
   ): Promise<boolean> {
-    // Find the matching time slot for this event's date
-    const currentDate = currentStartDateTime.split('T')[0]; // YYYY-MM-DD
-    
-    const matchingSlot = scrapedData.timeSlots.find(
-      slot => slot.dateISO === currentDate
-    );
+    // Extract date and time from current event timestamp
+    const currentDateISO = this.extractDateISO(currentStartDateTime);
+    const currentTime = this.extractTime(currentStartDateTime);
 
-    if (!matchingSlot) {
-      this.log(`No matching time slot found for ${eventTitle} on ${currentDate}`, 'debug');
-      // If no exact match, use the first time slot if available
-      if (scrapedData.timeSlots.length > 0) {
-        const firstSlot = scrapedData.timeSlots[0];
-        this.log(`Using first available time slot: ${firstSlot.dateISO} ${firstSlot.time}`, 'debug');
-      } else {
-        return false;
-      }
+    if (!currentDateISO) {
+      this.log(`Could not parse date from: ${currentStartDateTime}`, 'error');
+      return false;
     }
 
-    const timeSlot = matchingSlot || scrapedData.timeSlots[0];
-    if (!timeSlot) {
+    this.log(
+      `Processing "${eventTitle}" on ${currentDateISO} at ${currentTime || 'unknown'}`,
+      'debug'
+    );
+
+    // Find scraped time slot that matches the event's date
+    const matchingDateSlots = scrapedData.timeSlots.filter(
+      slot => slot.dateISO === currentDateISO
+    );
+
+    if (matchingDateSlots.length === 0) {
+      this.log(
+        `No time slots found for "${eventTitle}" on ${currentDateISO}. ` +
+        `Available dates: ${scrapedData.timeSlots.map(s => s.dateISO).join(', ')}`,
+        'warn'
+      );
+      this.errors.push(
+        `No matching date for "${eventTitle}" on ${currentDateISO}`
+      );
+      return false;
+    }
+
+    // Find best matching time slot
+    const selectedSlot = this.findBestTimeSlot(currentTime, matchingDateSlots);
+
+    if (!selectedSlot) {
+      this.log(
+        `No suitable time slot for "${eventTitle}" on ${currentDateISO}. ` +
+        `Current time: ${currentTime}, Available times: ${matchingDateSlots.map(s => s.time).join(', ')}`,
+        'warn'
+      );
+      this.errors.push(
+        `No matching time for "${eventTitle}" (${currentTime}) on ${currentDateISO}`
+      );
       return false;
     }
 
     // Build updated timestamp
-    const newStartDateTime = `${timeSlot.dateISO}T${timeSlot.time}:00.000Z`;
+    const newStartDateTime = `${selectedSlot.dateISO}T${selectedSlot.time}:00.000Z`;
 
     // Build update object
     const updateData: Record<string, any> = {
@@ -424,7 +520,6 @@ export class WienInfoScraper {
     }
 
     // Add venue info if we scraped it
-    // Note: We always update venue info when we have scraped data since we're enriching the record
     if (scrapedData.venueName) {
       updateData.custom_venue_name = scrapedData.venueName;
     }
@@ -433,24 +528,29 @@ export class WienInfoScraper {
     }
 
     if (this.options.dryRun) {
-      this.log(`[DRY-RUN] Would update event ${eventTitle}: ${currentStartDateTime} -> ${newStartDateTime}`, 'info');
+      this.log(
+        `[DRY-RUN] Would update "${eventTitle}": ${currentStartDateTime} → ${newStartDateTime}`,
+        'info'
+      );
       return true;
     }
 
-    // Use type assertion for the update operation due to Supabase SDK type inference limitations
-    // See: EventRepository.ts for similar pattern used across the codebase
+    // Update event in database
     const { error } = await (supabaseAdmin as any)
       .from('events')
       .update(updateData)
       .eq('id', eventId);
 
     if (error) {
-      this.log(`Error updating event ${eventTitle}: ${error.message}`, 'error');
-      this.errors.push(`Failed to update ${eventTitle}: ${error.message}`);
+      this.log(`Error updating "${eventTitle}": ${error.message}`, 'error');
+      this.errors.push(`Failed to update "${eventTitle}": ${error.message}`);
       return false;
     }
 
-    this.log(`Updated ${eventTitle}: ${timeSlot.time}`, 'info');
+    this.log(
+      `Updated "${eventTitle}": ${currentStartDateTime} → ${newStartDateTime}`,
+      'info'
+    );
     return true;
   }
 
