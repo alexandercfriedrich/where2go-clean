@@ -11,7 +11,7 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
-import { MiniEventCard } from '@/app/components/MiniEventCard';
+import { MiniEventCard } from '@/components/MiniEventCard';
 import Link from 'next/link';
 
 interface EventResult {
@@ -169,7 +169,7 @@ function SearchResultsContent() {
             Suchergebnisse
           </h1>
           <p className="text-lg text-gray-600 dark:text-gray-400">
-            Suche nach: <span className="font-semibold">"{query}"</span>
+            Suche nach: <span className="font-semibold">&ldquo;{query}&rdquo;</span>
           </p>
           
           {!loading && (
