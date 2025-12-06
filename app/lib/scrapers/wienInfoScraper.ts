@@ -458,7 +458,12 @@ export class WienInfoScraper {
 
     if (error) {
       // Check for unique constraint violation (Postgres error code 23505)
-      if (error.code === '23505') {
+      // Also check error message as fallback since Supabase may wrap the error
+      const isUniqueConstraintViolation = 
+        error.code === '23505' || 
+        (error.message && error.message.includes('duplicate key value violates unique constraint'));
+      
+      if (isUniqueConstraintViolation) {
         this.log(`Unique constraint violation for ${eventTitle}: ${error.message}. Skipping update.`, 'warn');
         this.errors.push(`Unique constraint violation for ${eventTitle}: ${error.message}`);
         return false;

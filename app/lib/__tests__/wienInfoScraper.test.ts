@@ -275,7 +275,7 @@ describe('WienInfoScraper', () => {
   describe('Unique Constraint Violation Handling', () => {
     // We'll need to test the actual Supabase update error handling
     // This requires mocking the Supabase client differently
-    it('should handle unique constraint violations gracefully', async () => {
+    it('should handle unique constraint violations gracefully with error code', async () => {
       // Mock Supabase client
       const mockSupabaseUpdate = vi.fn().mockResolvedValue({
         error: {
@@ -307,6 +307,49 @@ describe('WienInfoScraper', () => {
       
       const result = await scraper.updateEventWithScrapedData(
         'test-id-5',
+        'Test Event',
+        '2025-12-02T00:00:00+00:00',
+        scrapedData!
+      );
+      
+      // Should return false and log the constraint violation
+      expect(result).toBe(false);
+
+      // Restore original supabaseAdmin
+      (supabaseModule as any).supabaseAdmin = originalSupabase;
+    });
+
+    it('should handle unique constraint violations gracefully with error message', async () => {
+      // Mock Supabase client with error that only has message (no code)
+      const mockSupabaseUpdate = vi.fn().mockResolvedValue({
+        error: {
+          message: 'duplicate key value violates unique constraint "unique_event"'
+        }
+      });
+      
+      const mockSupabase = {
+        from: () => ({
+          update: () => ({
+            eq: mockSupabaseUpdate
+          })
+        })
+      };
+
+      // Store original supabaseAdmin and replace with mock
+      const supabaseModule = await import('@/lib/supabase/client');
+      const originalSupabase = supabaseModule.supabaseAdmin;
+      (supabaseModule as any).supabaseAdmin = mockSupabase;
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: async () => mockEventPageHtml,
+      });
+
+      const scraper = new WienInfoScraper({ dryRun: false, debug: false });
+      const scrapedData = await scraper.scrapeEventPage('https://www.wien.info/de/test-event');
+      
+      const result = await scraper.updateEventWithScrapedData(
+        'test-id-6',
         'Test Event',
         '2025-12-02T00:00:00+00:00',
         scrapedData!
