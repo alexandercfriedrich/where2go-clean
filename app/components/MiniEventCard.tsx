@@ -11,6 +11,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { normalizeCitySlug } from '@/lib/slugGenerator';
+import { getVenueFallbackImage } from '@/lib/venueFallbackImages';
 
 export interface MiniEventCardProps {
   event: {
@@ -35,9 +36,10 @@ export function MiniEventCard({ event, city = 'Wien' }: MiniEventCardProps) {
   const eventDetailUrl = databaseSlug ? `/events/${citySlug}/${databaseSlug}` : null;
   
   // Get first image from image_urls array or use imageUrl field
+  // If no event image, fall back to venue logo image
   const eventImage = event.image_urls && event.image_urls.length > 0
     ? event.image_urls[0]
-    : event.imageUrl;
+    : event.imageUrl || getVenueFallbackImage(venue);
 
   const cardContent = (
     <div className="mini-event-card group">
