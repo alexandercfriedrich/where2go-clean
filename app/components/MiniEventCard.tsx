@@ -12,6 +12,7 @@ import React from 'react';
 import Link from 'next/link';
 import { normalizeCitySlug } from '@/lib/slugGenerator';
 import { getVenueFallbackImage } from '@/lib/venueFallbackImages';
+import { getFallbackColor, hasValidImage } from '@/lib/eventImageFallback';
 
 export interface MiniEventCardProps {
   event: {
@@ -40,6 +41,10 @@ export function MiniEventCard({ event, city = 'Wien' }: MiniEventCardProps) {
   const eventImage = event.image_urls && event.image_urls.length > 0
     ? event.image_urls[0]
     : event.imageUrl || getVenueFallbackImage(venue);
+  
+  // Check if we have a valid image or need to show title fallback
+  const showTitleFallback = !hasValidImage(eventImage);
+  const fallbackColor = getFallbackColor(event.title);
 
   const cardContent = (
     <div className="mini-event-card group">
@@ -47,11 +52,22 @@ export function MiniEventCard({ event, city = 'Wien' }: MiniEventCardProps) {
       <div 
         className="mini-event-image"
         style={{
-          backgroundImage: eventImage 
+          backgroundImage: !showTitleFallback && eventImage 
             ? `url(${eventImage})` 
-            : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            : undefined,
+          backgroundColor: showTitleFallback ? fallbackColor : undefined,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: showTitleFallback ? '12px' : undefined,
         }}
-      />
+      >
+        {showTitleFallback && (
+          <h4 className="mini-event-fallback-title">
+            {event.title}
+          </h4>
+        )}
+      </div>
 
       {/* Event Content */}
       <div className="mini-event-content">
