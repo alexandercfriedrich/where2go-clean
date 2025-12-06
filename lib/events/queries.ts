@@ -302,9 +302,9 @@ export async function getWeekendNightlifeEvents(params: EventQueryParams = {}) {
   const getEventDate = (e: any) => e.start_date_time?.substring(0, 10) || '';
   
   const result = {
-    friday: sortByImageAndSource(events.filter((e: any) => getEventDate(e) === fridayStr)).slice(0, 20),
-    saturday: sortByImageAndSource(events.filter((e: any) => getEventDate(e) === saturdayStr)).slice(0, 20),
-    sunday: sortByImageAndSource(events.filter((e: any) => getEventDate(e) === sundayStr)).slice(0, 20),
+    friday: sortByImageAndSource(events.filter((e: any) => getEventDate(e) === fridayStr)),
+    saturday: sortByImageAndSource(events.filter((e: any) => getEventDate(e) === saturdayStr)),
+    sunday: sortByImageAndSource(events.filter((e: any) => getEventDate(e) === sundayStr)),
   };
   
   console.log('[getWeekendNightlifeEvents] Grouped results:', {

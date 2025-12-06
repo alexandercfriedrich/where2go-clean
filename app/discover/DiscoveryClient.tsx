@@ -132,6 +132,15 @@ export default function DiscoveryClient({
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          {/* Weekend Nightlife Section - Clubs & Nachtleben from Venue Scrapers */}
+          {/* Positioned right after search field as per requirements */}
+          {!selectedCategory && (
+            <WeekendNightlifeSection 
+              events={initialWeekendNightlifeEvents} 
+              city={city} 
+            />
+          )}
+
           {/* Date Filter Links */}
           <DateFilterLinks
             city={city}
@@ -176,14 +185,6 @@ export default function DiscoveryClient({
               </div>
             )}
           </section>
-
-          {/* Weekend Nightlife Section - Clubs & Nachtleben from Venue Scrapers */}
-          {!selectedCategory && (
-            <WeekendNightlifeSection 
-              events={initialWeekendNightlifeEvents} 
-              city={city} 
-            />
-          )}
 
           {/* For You Section - Show ALL events when category is selected */}
           {filteredEvents.personalized.length > 0 && (

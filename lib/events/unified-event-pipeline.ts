@@ -458,8 +458,8 @@ export async function processEvents(
       // Call the database function to link any events that might not have been linked
       // This is a safety net for edge cases
       // Note: Function signature changed - now uses sources array and similarity threshold
-      // Pass array with single source and 0.7 for similarity threshold
-      const linkResult = await EventRepository.linkEventsToVenues([source], 0.7, `${source} Pipeline`);
+      // Pass array with single source and 0.5 for similarity threshold
+      const linkResult = await EventRepository.linkEventsToVenues([source], 0.5, `${source} Pipeline`);
       
       if (linkResult && debug) {
         console.log(`[PIPELINE:STEP4] Post-processing linked ${linkResult.events_linked} additional events`);

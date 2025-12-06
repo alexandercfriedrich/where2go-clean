@@ -70,7 +70,7 @@ export default async function HomePage({ searchParams }: PageProps) {
     const [trendingEvents, weekendEvents, personalizedEvents, weekendNightlifeEvents, upcomingEvents] = await Promise.all([
       getTrendingEvents({ city, limit: 50 }),
       getWeekendEvents({ city, limit: 30 }),
-      getPersonalizedEvents({ city, limit: 100 }),
+      getPersonalizedEvents({ city, limit: 500 }), // Increased to ensure we get events for multiple days
       getWeekendNightlifeEvents({ city }),
       getUpcomingEvents(7, { city, limit: 100 }),
     ]);

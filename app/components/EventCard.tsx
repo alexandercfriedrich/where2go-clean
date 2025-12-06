@@ -11,6 +11,7 @@ import React from 'react';
 import Link from 'next/link';
 import { normalizeCitySlug } from '@/lib/slugGenerator';
 import { getVenueFallbackImage } from '@/lib/venueFallbackImages';
+import { getFallbackColor, hasValidImage } from '@/lib/eventImageFallback';
 import { AddToCalendar } from './discovery/AddToCalendar';
 import { ShareButtons } from './discovery/ShareButtons';
 import { FavoriteButton } from './discovery/FavoriteButton';
@@ -191,6 +192,10 @@ export function EventCard({
 
   // Generate a stable ID for action buttons
   const eventId = generateEventId(event);
+  
+  // Check if we have a valid image or need to show title fallback
+  const showTitleFallback = !hasValidImage(eventImage);
+  const fallbackColor = getFallbackColor(event.title);
 
   // Common card content - extracted to avoid duplication
   const cardContent = (
@@ -204,14 +209,25 @@ export function EventCard({
       <div 
         className="dark-event-card-image"
         style={{
-          backgroundImage: eventImage 
+          backgroundImage: !showTitleFallback && eventImage 
             ? `url(${eventImage})` 
-            : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            : undefined,
+          backgroundColor: showTitleFallback ? fallbackColor : undefined,
           minHeight: '240px',
           backgroundSize: 'cover',
-          backgroundPosition: 'center'
+          backgroundPosition: 'center',
+          display: showTitleFallback ? 'flex' : undefined,
+          alignItems: showTitleFallback ? 'center' : undefined,
+          justifyContent: showTitleFallback ? 'center' : undefined,
+          padding: showTitleFallback ? '24px' : undefined,
         }}
-      />
+      >
+        {showTitleFallback && (
+          <h3 className="event-fallback-title">
+            {event.title}
+          </h3>
+        )}
+      </div>
 
       {/* Event Content */}
       <div className="dark-event-content">
