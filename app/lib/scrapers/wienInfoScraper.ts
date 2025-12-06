@@ -496,6 +496,13 @@ export class WienInfoScraper {
     if (scrapedData.venueAddress) {
       updateData.custom_venue_address = scrapedData.venueAddress;
     }
+    if (scrapedData.venuePhone) {
+      updateData.custom_venue_phone = scrapedData.venuePhone;
+    }
+
+    if (scrapedData.category) {
+      updateData.category = scrapedData.category;
+    }
 
     if (this.options.dryRun) {
       this.log(
