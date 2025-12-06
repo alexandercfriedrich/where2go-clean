@@ -188,6 +188,137 @@ describe('WienInfoScraper', () => {
       expect(scraper).toBeDefined();
     });
   });
+
+  describe('Date Parsing in updateEventWithScrapedData', () => {
+    it('should parse T-delimited timestamps correctly', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: async () => mockEventPageHtml,
+      });
+
+      const scraper = new WienInfoScraper({ dryRun: true, debug: false });
+      const scrapedData = await scraper.scrapeEventPage('https://www.wien.info/de/test-event');
+      
+      // Test T-delimited timestamp
+      const result = await scraper.updateEventWithScrapedData(
+        'test-id-1',
+        'Test Event',
+        '2025-12-02T00:00:00+00:00',
+        scrapedData!
+      );
+      
+      expect(result).toBe(true);
+    });
+
+    it('should parse space-delimited timestamps correctly', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: async () => mockEventPageHtml,
+      });
+
+      const scraper = new WienInfoScraper({ dryRun: true, debug: false });
+      const scrapedData = await scraper.scrapeEventPage('https://www.wien.info/de/test-event');
+      
+      // Test space-delimited timestamp (as returned by Supabase)
+      const result = await scraper.updateEventWithScrapedData(
+        'test-id-2',
+        'Test Event',
+        '2025-12-02 00:00:00+00',
+        scrapedData!
+      );
+      
+      expect(result).toBe(true);
+    });
+
+    it('should skip update when no matching time slot is found', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: async () => mockEventPageHtml,
+      });
+
+      const scraper = new WienInfoScraper({ dryRun: true, debug: false });
+      const scrapedData = await scraper.scrapeEventPage('https://www.wien.info/de/test-event');
+      
+      // Test with a date that doesn't match any scraped time slot
+      const result = await scraper.updateEventWithScrapedData(
+        'test-id-3',
+        'Test Event',
+        '2025-12-15T00:00:00+00:00', // Date not in scraped data
+        scrapedData!
+      );
+      
+      // Should return false and skip update instead of using first slot
+      expect(result).toBe(false);
+    });
+
+    it('should handle invalid date formats gracefully', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: async () => mockEventPageHtml,
+      });
+
+      const scraper = new WienInfoScraper({ dryRun: true, debug: false });
+      const scrapedData = await scraper.scrapeEventPage('https://www.wien.info/de/test-event');
+      
+      // Test with completely invalid date
+      const result = await scraper.updateEventWithScrapedData(
+        'test-id-4',
+        'Test Event',
+        'invalid-date-format',
+        scrapedData!
+      );
+      
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('Unique Constraint Violation Handling', () => {
+    // We'll need to test the actual Supabase update error handling
+    // This requires mocking the Supabase client differently
+    it('should handle unique constraint violations gracefully', async () => {
+      // Mock Supabase client
+      const mockSupabaseUpdate = vi.fn().mockResolvedValue({
+        error: {
+          code: '23505',
+          message: 'duplicate key value violates unique constraint "events_title_start_date_time_city_key"'
+        }
+      });
+      
+      const mockSupabase = {
+        from: () => ({
+          update: () => ({
+            eq: mockSupabaseUpdate
+          })
+        })
+      };
+
+      // Store original supabaseAdmin and replace with mock
+      const supabaseModule = await import('@/lib/supabase/client');
+      const originalSupabase = supabaseModule.supabaseAdmin;
+      (supabaseModule as any).supabaseAdmin = mockSupabase;
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        text: async () => mockEventPageHtml,
+      });
+
+      const scraper = new WienInfoScraper({ dryRun: false, debug: false });
+      const scrapedData = await scraper.scrapeEventPage('https://www.wien.info/de/test-event');
+      
+      const result = await scraper.updateEventWithScrapedData(
+        'test-id-5',
+        'Test Event',
+        '2025-12-02T00:00:00+00:00',
+        scrapedData!
+      );
+      
+      // Should return false and log the constraint violation
+      expect(result).toBe(false);
+
+      // Restore original supabaseAdmin
+      (supabaseModule as any).supabaseAdmin = originalSupabase;
+    });
+  });
 });
 
 describe('scrapeWienInfoEvents function', () => {

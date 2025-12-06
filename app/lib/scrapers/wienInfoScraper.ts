@@ -386,25 +386,37 @@ export class WienInfoScraper {
     currentStartDateTime: string,
     scrapedData: ScrapedEventData
   ): Promise<boolean> {
-    // Find the matching time slot for this event's date
-    const currentDate = currentStartDateTime.split('T')[0]; // YYYY-MM-DD
+    // Robust date extraction: handle both "2025-12-06T00:00:00+00:00" and "2025-12-06 00:00:00+00"
+    let currentDate: string;
+    try {
+      // Try to parse as Date first, which handles most formats
+      const parsedDate = new Date(currentStartDateTime);
+      if (!isNaN(parsedDate.getTime())) {
+        currentDate = parsedDate.toISOString().slice(0, 10);
+      } else {
+        throw new Error('Invalid date');
+      }
+    } catch {
+      // Fallback: split on either 'T' or space
+      const match = currentStartDateTime.match(/^(\d{4}-\d{2}-\d{2})[T ]/);
+      if (match) {
+        currentDate = match[1];
+      } else {
+        this.log(`Could not parse date from: ${currentStartDateTime}`, 'error');
+        return false;
+      }
+    }
     
     const matchingSlot = scrapedData.timeSlots.find(
       slot => slot.dateISO === currentDate
     );
 
     if (!matchingSlot) {
-      this.log(`No matching time slot found for ${eventTitle} on ${currentDate}`, 'debug');
-      // If no exact match, use the first time slot if available
-      if (scrapedData.timeSlots.length > 0) {
-        const firstSlot = scrapedData.timeSlots[0];
-        this.log(`Using first available time slot: ${firstSlot.dateISO} ${firstSlot.time}`, 'debug');
-      } else {
-        return false;
-      }
+      this.log(`No matching time slot found for ${eventTitle} on ${currentDate}. Skipping update to avoid constraint violations.`, 'warn');
+      return false;
     }
 
-    const timeSlot = matchingSlot || scrapedData.timeSlots[0];
+    const timeSlot = matchingSlot;
     if (!timeSlot) {
       return false;
     }
@@ -445,6 +457,14 @@ export class WienInfoScraper {
       .eq('id', eventId);
 
     if (error) {
+      // Check for unique constraint violation (Postgres error code 23505)
+      if (error.code === '23505') {
+        this.log(`Unique constraint violation for ${eventTitle}: ${error.message}. Skipping update.`, 'warn');
+        this.errors.push(`Unique constraint violation for ${eventTitle}: ${error.message}`);
+        return false;
+      }
+      
+      // Generic error handling for other error codes
       this.log(`Error updating event ${eventTitle}: ${error.message}`, 'error');
       this.errors.push(`Failed to update ${eventTitle}: ${error.message}`);
       return false;
