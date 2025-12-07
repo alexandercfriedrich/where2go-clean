@@ -23,7 +23,6 @@ interface EventResult {
   slug: string;
   city: string;
   image_urls: string[];
-  time?: string;
 }
 
 interface VenueResult {
@@ -60,7 +59,7 @@ function SearchResultsContent() {
         // Search events
         const eventQuery = supabase
           .from('events')
-          .select('id, title, category, custom_venue_name, start_date_time, slug, city, image_urls, time')
+          .select('id, title, category, custom_venue_name, start_date_time, slug, city, image_urls')
           .or(`title.ilike.%${query}%,custom_venue_name.ilike.%${query}%,category.ilike.%${query}%`)
           .gte('start_date_time', new Date().toISOString())
           .eq('is_cancelled', false)
@@ -216,7 +215,6 @@ function SearchResultsContent() {
                         venue: event.custom_venue_name,
                         custom_venue_name: event.custom_venue_name,
                         start_date_time: event.start_date_time,
-                        time: event.time,
                         imageUrl: event.image_urls?.[0],
                         image_urls: event.image_urls,
                         slug: event.slug
