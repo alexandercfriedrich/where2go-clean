@@ -31,21 +31,22 @@ export function CategoryBrowser({
               onClick={() => onCategoryClick?.(category.id)}
               className={`relative p-6 rounded-2xl transition-all duration-200 hover:scale-105 ${
                 isSelected 
-                  ? 'ring-2 ring-offset-2 ring-gray-800 dark:ring-gray-400 shadow-lg' 
+                  ? 'ring-2 ring-offset-2 ring-white dark:ring-gray-800 shadow-lg' 
                   : 'shadow-md hover:shadow-xl'
               }`}
               style={{
-                backgroundColor: isSelected ? '#d1d5db' : '#f3f4f6', // Light gray background (B&W)
-                border: '1px solid #9ca3af', // Gray border
+                // Inverted: Dark background with light text by default
+                backgroundColor: isSelected ? '#1a1a1a' : '#2a2a2a',
+                border: '1px solid white',
               }}
             >
-              {/* Icon - grayscale filter */}
-              <div className="text-4xl mb-3 text-center grayscale">
+              {/* Icon - inverted (light) */}
+              <div className="text-4xl mb-3 text-center invert dark:invert-0 dark:grayscale">
                 {category.icon}
               </div>
 
-              {/* Name */}
-              <div className="text-sm font-semibold text-center text-gray-900">
+              {/* Name - light text */}
+              <div className="text-sm font-semibold text-center text-white dark:text-gray-900">
                 {category.name}
               </div>
             </button>

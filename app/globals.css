@@ -535,7 +535,7 @@ body {
 }
 
 .dark-event-content {
-  padding: 24px;
+  padding: 16px; /* Reduced from 24px */
 }
 
 .dark-event-category {
@@ -543,7 +543,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 1px;
   color: #4A90E2;
-  margin-bottom: 12px;
+  margin-bottom: 8px; /* Reduced from 12px */
   font-weight: 600;
   display: inline-block;
 }
@@ -562,15 +562,15 @@ body {
   font-size: 18px;
   font-weight: 700;
   color: #FFFFFF;
-  margin-bottom: 16px;
+  margin-bottom: 12px; /* Reduced from 16px */
   line-height: 1.4;
 }
 
 .dark-event-details {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 8px; /* Reduced from 12px */
+  margin-bottom: 12px; /* Reduced from 16px */
 }
 
 .dark-event-detail {
@@ -606,7 +606,7 @@ body {
   font-size: 14px;
   color: #AAAAAA;
   line-height: 1.6;
-  margin-top: 12px;
+  margin-top: 8px; /* Reduced from 12px */
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -621,7 +621,7 @@ body {
   border-radius: 6px;
   font-size: 13px;
   font-weight: 600;
-  margin-top: 12px;
+  margin-top: 8px; /* Reduced from 12px */
 }
 
 .dark-event-link {
@@ -632,7 +632,7 @@ body {
   text-decoration: none;
   font-size: 14px;
   font-weight: 600;
-  margin-top: 16px;
+  margin-top: 12px; /* Reduced from 16px */
   transition: color 0.2s ease;
 }
 
