@@ -18,7 +18,7 @@
         }
 
         body {
-            background: linear-gradient(135deg, #0066FF 0%, #004BAA 50%, #1e3a8a 100%);
+            background: linear-gradient(180deg, #0a1551 0%, #1a2a5e 100%);
             min-height: 100vh;
             padding: 24px;
             color: #ffffff;
@@ -62,7 +62,7 @@
             border: 1px solid rgba(255, 255, 255, 0.2);
             color: #ffffff;
             padding: 10px 20px;
-            border-radius: 8px;
+            border-radius: 0px;
             font-size: 14px;
             font-weight: 500;
             cursor: pointer;
@@ -78,10 +78,21 @@
 
         .filter-btn.active {
             background: #ffffff;
-            color: #0066FF;
+            color: #0a1551;
             font-weight: 600;
         }
 
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-top: 48px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* ===== REGULAR EVENT CARDS ===== */
         .events-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -93,21 +104,21 @@
             background: rgba(255, 255, 255, 0.08);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 16px;
+            border-radius: 0px;
             padding: 20px;
             transition: all 0.3s ease;
             cursor: pointer;
             display: flex;
             flex-direction: column;
             height: 100%;
-            box-shadow: 0 8px 32px rgba(0, 102, 255, 0.15);
+            box-shadow: 0 8px 32px rgba(10, 21, 81, 0.3);
         }
 
         .event-card:hover {
             background: rgba(255, 255, 255, 0.12);
             border-color: rgba(255, 255, 255, 0.25);
             transform: translateY(-4px);
-            box-shadow: 0 12px 48px rgba(0, 102, 255, 0.25);
+            box-shadow: 0 12px 48px rgba(10, 21, 81, 0.4);
         }
 
         .event-header {
@@ -149,7 +160,7 @@
             color: #60a5fa;
             background: rgba(96, 165, 250, 0.15);
             padding: 4px 8px;
-            border-radius: 4px;
+            border-radius: 0px;
             margin-top: 8px;
         }
 
@@ -164,9 +175,9 @@
         .btn-ticket {
             flex: 1;
             background: #ffffff;
-            color: #0066FF;
+            color: #0a1551;
             border: none;
-            border-radius: 8px;
+            border-radius: 0px;
             padding: 10px 16px;
             font-weight: 600;
             font-size: 12px;
@@ -189,7 +200,7 @@
             color: #ffffff;
             width: 40px;
             height: 40px;
-            border-radius: 8px;
+            border-radius: 0px;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -201,6 +212,84 @@
         .btn-save:hover {
             background: rgba(255, 255, 255, 0.1);
             border-color: rgba(255, 255, 255, 0.5);
+        }
+
+        .event-price {
+            font-size: 14px;
+            font-weight: 600;
+            color: #60a5fa;
+            margin-top: 8px;
+        }
+
+        /* ===== MINI EVENT CARDS ===== */
+        .mini-events-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 48px;
+        }
+
+        .mini-event-card {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 0px;
+            padding: 16px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 8px 32px rgba(10, 21, 81, 0.3);
+        }
+
+        .mini-event-card:hover {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.25);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 48px rgba(10, 21, 81, 0.4);
+        }
+
+        .mini-event-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 8px;
+            line-height: 1.3;
+        }
+
+        .mini-event-date {
+            display: block;
+            font-size: 12px;
+            font-weight: 500;
+            color: #a5b4fc;
+            margin-bottom: 4px;
+        }
+
+        .mini-event-location {
+            display: block;
+            font-size: 11px;
+            color: #cbd5e1;
+            margin-bottom: 10px;
+        }
+
+        .btn-mini-ticket {
+            background: #ffffff;
+            color: #0a1551;
+            border: none;
+            border-radius: 0px;
+            padding: 6px 12px;
+            font-weight: 600;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Inter', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+        }
+
+        .btn-mini-ticket:hover {
+            background: #e5e7eb;
+            transform: translateY(-1px);
         }
 
         .empty-state {
@@ -215,13 +304,6 @@
             color: #ffffff;
         }
 
-        .event-price {
-            font-size: 14px;
-            font-weight: 600;
-            color: #60a5fa;
-            margin-top: 8px;
-        }
-
         @media (max-width: 768px) {
             h1 {
                 font-size: 32px;
@@ -229,6 +311,10 @@
 
             .events-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .mini-events-grid {
+                grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
             }
 
             .filters {
@@ -256,6 +342,8 @@
             <button class="filter-btn">Sport</button>
         </div>
 
+        <!-- REGULAR EVENT CARDS -->
+        <h2 class="section-title">Große Events</h2>
         <div class="events-grid">
             <!-- Event Card 1 -->
             <div class="event-card">
@@ -357,6 +445,74 @@
                     <button class="btn-ticket">Ticket</button>
                     <button class="btn-save">♡</button>
                 </div>
+            </div>
+        </div>
+
+        <!-- MINI EVENT CARDS -->
+        <h2 class="section-title">Kleine Events / Schnelles Browsing</h2>
+        <div class="mini-events-grid">
+            <!-- Mini Event 1 -->
+            <div class="mini-event-card">
+                <h3 class="mini-event-title">Jazz Night Club</h3>
+                <span class="mini-event-date">Fr., 22. Nov</span>
+                <span class="mini-event-location">Jazz Club Wien</span>
+                <button class="btn-mini-ticket">Ticket</button>
+            </div>
+
+            <!-- Mini Event 2 -->
+            <div class="mini-event-card">
+                <h3 class="mini-event-title">Adventmarkt</h3>
+                <span class="mini-event-date">Sa., 23. Nov</span>
+                <span class="mini-event-location">Stephansplatz</span>
+                <button class="btn-mini-ticket">Ticket</button>
+            </div>
+
+            <!-- Mini Event 3 -->
+            <div class="mini-event-card">
+                <h3 class="mini-event-title">Kunstausstellung</h3>
+                <span class="mini-event-date">Mo., 25. Nov</span>
+                <span class="mini-event-location">Galerie Wien</span>
+                <button class="btn-mini-ticket">Ticket</button>
+            </div>
+
+            <!-- Mini Event 4 -->
+            <div class="mini-event-card">
+                <h3 class="mini-event-title">Comedy Show</h3>
+                <span class="mini-event-date">Mi., 27. Nov</span>
+                <span class="mini-event-location">Theater Gumpendorfer</span>
+                <button class="btn-mini-ticket">Ticket</button>
+            </div>
+
+            <!-- Mini Event 5 -->
+            <div class="mini-event-card">
+                <h3 class="mini-event-title">Fußballspiel</h3>
+                <span class="mini-event-date">Do., 28. Nov</span>
+                <span class="mini-event-location">Allianz Stadion</span>
+                <button class="btn-mini-ticket">Ticket</button>
+            </div>
+
+            <!-- Mini Event 6 -->
+            <div class="mini-event-card">
+                <h3 class="mini-event-title">Tanzworkshop</h3>
+                <span class="mini-event-date">So., 1. Dez</span>
+                <span class="mini-event-location">Studio Wien</span>
+                <button class="btn-mini-ticket">Ticket</button>
+            </div>
+
+            <!-- Mini Event 7 -->
+            <div class="mini-event-card">
+                <h3 class="mini-event-title">Filmabend</h3>
+                <span class="mini-event-date">Di., 3. Dez</span>
+                <span class="mini-event-location">Kino am Rahlplatz</span>
+                <button class="btn-mini-ticket">Ticket</button>
+            </div>
+
+            <!-- Mini Event 8 -->
+            <div class="mini-event-card">
+                <h3 class="mini-event-title">Yoga Session</h3>
+                <span class="mini-event-date">Fr., 6. Dez</span>
+                <span class="mini-event-location">Yoga Studio Wien</span>
+                <button class="btn-mini-ticket">Ticket</button>
             </div>
         </div>
     </div>
