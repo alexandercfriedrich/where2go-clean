@@ -12,7 +12,6 @@ import Link from 'next/link';
 import { normalizeCitySlug } from '@/lib/slugGenerator';
 import { getVenueFallbackImage } from '@/lib/venueFallbackImages';
 import { getFallbackColor, hasValidImage } from '@/lib/eventImageFallback';
-import { formatGermanDate, parseDateBadge } from '@/lib/dateUtils';
 import { AddToCalendar } from './discovery/AddToCalendar';
 import { ShareButtons } from './discovery/ShareButtons';
 import { FavoriteButton } from './discovery/FavoriteButton';
@@ -50,6 +49,22 @@ export interface UnifiedEventCardProps {
   showActions?: boolean;
   /** Optional: Show/hide info/ticket buttons */
   showButtons?: boolean;
+}
+
+// Helper function to format date in German format
+function formatGermanDate(dateStr: string): string {
+  try {
+    const date = new Date(dateStr);
+    const options: Intl.DateTimeFormatOptions = { 
+      weekday: 'short', 
+      day: '2-digit', 
+      month: '2-digit', 
+      year: 'numeric' 
+    };
+    return date.toLocaleDateString('de-DE', options);
+  } catch {
+    return dateStr;
+  }
 }
 
 // Helper to parse time from ISO datetime or separate time field
@@ -115,7 +130,6 @@ export function EventCard({
   const eventDate = getEventDate(event);
   const eventTime = getEventTime(event);
   const displayDate = eventDate ? formatGermanDate(eventDate) : '';
-  const dateBadge = displayDate ? parseDateBadge(displayDate) : { month: '', day: '' };
   
   // IMPORTANT: Only use slug from database to prevent URL mismatch
   // Database slugs include a UUID suffix (e.g., "event-title-2025-12-03-abc12345")
@@ -183,160 +197,151 @@ export function EventCard({
   const showTitleFallback = !hasValidImage(eventImage);
   const fallbackColor = getFallbackColor(event.title);
 
-  // Common card content - maja-event.com inspired design
+  // Common card content - extracted to avoid duplication
   const cardContent = (
-    <div className="maja-event-card">
-      {/* Top Section: Image with overlaid info */}
+    <div className="dark-event-card">
+      {/* Source Badge - Always Visible */}
+      <div className="dark-event-source-badge">
+        {sourceDisplay}
+      </div>
+
+      {/* Event Image */}
       <div 
-        className="maja-event-image-section"
+        className="dark-event-card-image"
         style={{
           backgroundImage: !showTitleFallback && eventImage 
             ? `url(${eventImage})` 
             : undefined,
           backgroundColor: showTitleFallback ? fallbackColor : undefined,
+          minHeight: '240px',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          display: showTitleFallback ? 'flex' : undefined,
+          alignItems: showTitleFallback ? 'center' : undefined,
+          justifyContent: showTitleFallback ? 'center' : undefined,
+          padding: showTitleFallback ? '24px' : undefined,
         }}
       >
         {showTitleFallback && (
-          <div className="maja-event-fallback-title">
+          <h3 className="event-fallback-title">
             {event.title}
-          </div>
-        )}
-        
-        {/* Event info overlay on image */}
-        {!showTitleFallback && (
-          <div className="maja-event-image-overlay">
-            {/* Event category or type at top */}
-            {event.category && (
-              <div className="maja-event-image-category">
-                {event.category}
-              </div>
-            )}
-            
-            {/* Date badge */}
-            {displayDate && dateBadge.month && dateBadge.day && (
-              <div className="maja-event-image-date-badge">
-                {dateBadge.month} {dateBadge.day}
-              </div>
-            )}
-            
-            {/* Event title on image */}
-            <h3 className="maja-event-image-title">
-              {event.title}
-            </h3>
-            
-            {/* Venue on image */}
-            {venue && (
-              <div className="maja-event-image-venue">
-                {venue}
-              </div>
-            )}
-          </div>
+          </h3>
         )}
       </div>
 
-      {/* Bottom Section: Content with gray/blue background */}
-      <div className="maja-event-content-section">
+      {/* Event Content */}
+      <div className="dark-event-content">
+        {/* Category Badge */}
+        {event.category && (
+          <span className="dark-event-category">
+            {event.category}
+          </span>
+        )}
+
         {/* Title */}
-        <h3 className="maja-event-content-title">
+        <h3 className={`dark-event-title transition-colors ${eventDetailUrl ? 'hover:text-indigo-400 cursor-pointer' : ''}`}>
           {event.title}
         </h3>
 
-        {/* Date, Time and Location in one line */}
-        <div className="maja-event-content-meta">
-          <span className="maja-event-meta-item">
-            {displayDate}
-          </span>
-          {eventTime && (
-            <>
-              <span className="maja-event-meta-separator">|</span>
-              <span className="maja-event-meta-item">
-                {eventTime} Uhr
-              </span>
-            </>
+        {/* Event Details with Icons */}
+        <div className="dark-event-details">
+          {/* Date */}
+          {displayDate && (
+            <div className="dark-event-detail">
+              <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span>{displayDate}</span>
+            </div>
+          )}
+
+          {/* Time */}
+          <div className="dark-event-detail">
+            <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span {...(!eventTime && { 'aria-label': 'Ganztägige Veranstaltung' })}>
+              {eventTime ? `${eventTime} Uhr` : 'ganztags'}
+            </span>
+          </div>
+
+          {/* Venue (clickable to Google Maps) */}
+          {venue && (
+            <div className="dark-event-detail">
+              <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue + (event.address ? ', ' + event.address : ''))}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="dark-event-venue-link"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {venue}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginLeft: '4px', opacity: 0.6, display: 'inline' }}>
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                  <polyline points="15 3 21 3 21 9"></polyline>
+                  <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
+              </a>
+            </div>
           )}
         </div>
 
-        {/* Description with icon */}
+        {/* Description */}
         {event.description && (
-          <div className="maja-event-description">
-            <svg className="maja-event-info-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <circle cx="12" cy="12" r="10" strokeWidth="2"/>
-              <path d="M12 16v-4M12 8h.01" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-            <span>{event.description}</span>
-          </div>
+          <p className="dark-event-description">
+            {event.description}
+          </p>
         )}
 
-        {/* Venue location with icon (clickable) */}
-        {venue && (
-          <a
-            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue + (event.address ? ', ' + event.address : ''))}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="maja-event-venue-link"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <svg className="maja-event-info-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <span>{venue}</span>
-          </a>
-        )}
-
-        {/* Price with icon */}
-        <div className="maja-event-price">
-          <svg className="maja-event-info-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span>{priceDisplay}</span>
+        {/* Price */}
+        <div className="dark-event-price">
+          {priceDisplay}
         </div>
 
-        {/* Ticket link with icon (if available) */}
-        {event.bookingLink && showButtons && (
-          <a
-            href={event.bookingLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="maja-event-ticket-link"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <svg className="maja-event-info-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-            </svg>
-            <span>Tickets kaufen</span>
-          </a>
-        )}
-
-        {/* Action Button - Prominent CTA */}
+        {/* Info and Ticket Links */}
         {showButtons && (
-          <div className="maja-event-cta-container">
-            {event.bookingLink ? (
+          <div className="mt-4 flex items-center gap-2 flex-wrap">
+            {/* Mehr Info button - subtle, less dominant styling */}
+            <a
+              href={event.website || `/event/${eventId}`}
+              {...(event.website && { target: "_blank", rel: "noopener noreferrer" })}
+              className="inline-flex items-center gap-1 px-3 py-1.5 bg-transparent border border-gray-400 dark:border-gray-500 text-gray-600 dark:text-gray-300 text-xs font-normal rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Mehr Info
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                <polyline points="15 3 21 3 21 9"></polyline>
+                <line x1="10" y1="14" x2="21" y2="3"></line>
+              </svg>
+            </a>
+            {/* Ticket button - only when bookingLink is available */}
+            {event.bookingLink && (
               <a
                 href={event.bookingLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="maja-event-cta-button"
+                className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md transition-colors"
                 onClick={(e) => e.stopPropagation()}
               >
-                TICKET
-              </a>
-            ) : (
-              <a
-                href={event.website || eventDetailUrl || '#'}
-                {...(event.website && { target: "_blank", rel: "noopener noreferrer" })}
-                className="maja-event-cta-button maja-event-cta-button-secondary"
-                onClick={(e) => e.stopPropagation()}
-              >
-                DETAILS
+                Tickets
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                  <polyline points="15 3 21 3 21 9"></polyline>
+                  <line x1="10" y1="14" x2="21" y2="3"></line>
+                </svg>
               </a>
             )}
           </div>
         )}
 
-        {/* Additional action buttons (optional, hidden by default for maja design) */}
+        {/* Action Buttons */}
         {showActions && (
-          <div className="mt-2 flex items-center gap-2 flex-wrap opacity-60 hover:opacity-100 transition-opacity" onClick={(e) => e.preventDefault()}>
+          <div className="mt-2 flex items-center gap-2 flex-wrap" onClick={(e) => e.preventDefault()}>
             <FavoriteButton eventId={eventId} size="sm" />
             <AddToCalendar event={event} size="sm" />
             <ShareButtons 
@@ -346,11 +351,6 @@ export function EventCard({
             />
           </div>
         )}
-      </div>
-
-      {/* Source Badge - Minimal, top-right corner */}
-      <div className="maja-event-source-badge">
-        {sourceDisplay}
       </div>
     </div>
   );
