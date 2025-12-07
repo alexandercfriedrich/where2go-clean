@@ -35,17 +35,17 @@ export function CategoryBrowser({
                   : 'shadow-md hover:shadow-xl'
               }`}
               style={{
-                // Inverted: Dark background with light text by default
-                backgroundColor: isSelected ? '#1a1a1a' : '#2a2a2a',
+                // Black/white design with white font
+                backgroundColor: isSelected ? '#000000' : '#2a2a2a',
                 border: '1px solid white',
               }}
             >
-              {/* Icon - inverted (light) */}
-              <div className="text-4xl mb-3 text-center invert dark:invert-0 dark:grayscale">
+              {/* Icon - white color (no invert filter) */}
+              <div className="text-4xl mb-3 text-center text-white dark:text-gray-900">
                 {category.icon}
               </div>
 
-              {/* Name - light text */}
+              {/* Name - white text */}
               <div className="text-sm font-semibold text-center text-white dark:text-gray-900">
                 {category.name}
               </div>

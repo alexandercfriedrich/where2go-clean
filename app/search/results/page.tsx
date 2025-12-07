@@ -12,6 +12,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 import { MiniEventCard } from '@/components/MiniEventCard';
+import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
 import Link from 'next/link';
 
 interface EventResult {
@@ -91,6 +92,36 @@ function SearchResultsContent() {
         const eventData = eventResponse.data as EventResult[];
         const venueData = venueResponse.data as VenueResult[];
 
+        // Convert EventResult to EventData format for sorting
+        const eventDataForSorting = eventData.map(e => ({
+          id: e.id,
+          title: e.title,
+          category: e.category,
+          venue: e.custom_venue_name,
+          custom_venue_name: e.custom_venue_name,
+          start_date_time: e.start_date_time,
+          imageUrl: e.image_urls?.[0],
+          image_urls: e.image_urls,
+          slug: e.slug,
+          city: e.city,
+          date: e.start_date_time,
+        }));
+
+        // Sort events to prioritize those with images
+        const sortedEvents = sortEventsWithImagesFirstThenByDate(eventDataForSorting);
+        
+        // Convert back to EventResult format
+        const sortedEventResults = sortedEvents.map(e => ({
+          id: e.id!,
+          title: e.title,
+          category: e.category || '',
+          custom_venue_name: e.custom_venue_name || e.venue || '',
+          start_date_time: e.start_date_time || e.date || '',
+          slug: e.slug!,
+          city: e.city || city,
+          image_urls: e.image_urls || (e.imageUrl ? [e.imageUrl] : []),
+        }));
+
         // Get event counts for venues
         if (venueData.length > 0) {
           const venueNames = venueData.map(v => v.name);
@@ -113,7 +144,7 @@ function SearchResultsContent() {
           });
         }
 
-        setEvents(eventData);
+        setEvents(sortedEventResults);
         setVenues(venueData);
       } catch (err) {
         console.error('Search error:', err);

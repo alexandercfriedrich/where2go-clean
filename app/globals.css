@@ -494,7 +494,7 @@ body {
 /* Dark Theme Event Cards - City Pages */
 .dark-event-card {
   background: #2A2A2A;
-  border-radius: 0; /* Square corners */
+  border-radius: 0 12px 0 0; /* Rounded top-right corner only */
   padding: 0;
   margin-bottom: 20px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1), 
