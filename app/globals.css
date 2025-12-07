@@ -1224,11 +1224,12 @@ body {
 /* =====================================================
    MINI EVENT CARD STYLES
    Compact cards for grid layouts with white outline
+   Dark background like main event cards
    ===================================================== */
 
 .mini-event-card {
-  background: white;
-  border-radius: 0; /* Square corners */
+  background: #2A2A2A; /* Same dark background as main event cards */
+  border-radius: 0 12px 0 0; /* Rounded top-right corner only, matching main cards */
   overflow: hidden;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
@@ -1292,7 +1293,7 @@ body {
 .mini-event-title {
   font-size: 14px;
   font-weight: 600;
-  color: #111;
+  color: #FFFFFF; /* White text to match dark background */
   margin: 0 0 6px 0;
   line-height: 1.3;
   display: -webkit-box;
@@ -1303,7 +1304,7 @@ body {
 
 .mini-event-venue {
   font-size: 12px;
-  color: #666;
+  color: #CCCCCC; /* Light gray text to match main event cards */
   margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 1;

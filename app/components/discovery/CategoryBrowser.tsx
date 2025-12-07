@@ -33,19 +33,21 @@ export function CategoryBrowser({
                 isSelected 
                   ? 'ring-2 ring-offset-2 ring-white dark:ring-gray-800 shadow-lg' 
                   : 'shadow-md hover:shadow-xl'
+              } ${
+                // Dark mode: dark background, white text/icons
+                // Light mode: light background, dark text/icons
+                'bg-[#2a2a2a] dark:bg-gray-100 border border-white dark:border-gray-300'
               }`}
-              style={{
-                // Black/white design with white font
-                backgroundColor: isSelected ? '#000000' : '#2a2a2a',
-                border: '1px solid white',
-              }}
+              style={isSelected ? {
+                backgroundColor: isSelected ? '#000000' : undefined,
+              } : undefined}
             >
-              {/* Icon - white color (no invert filter) */}
+              {/* Icon - white in dark mode, dark in light mode */}
               <div className="text-4xl mb-3 text-center text-white dark:text-gray-900">
                 {category.icon}
               </div>
 
-              {/* Name - white text */}
+              {/* Name - white text in dark mode, dark in light mode */}
               <div className="text-sm font-semibold text-center text-white dark:text-gray-900">
                 {category.name}
               </div>
