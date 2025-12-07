@@ -48,7 +48,7 @@ export function MiniEventCard({ event, city = 'Wien' }: MiniEventCardProps) {
 
   const cardContent = (
     <div className="mini-event-card group">
-      {/* Event Image with overlay and venue */}
+      {/* Event Image with overlay */}
       <div 
         className="mini-event-image"
         style={{
@@ -68,13 +68,6 @@ export function MiniEventCard({ event, city = 'Wien' }: MiniEventCardProps) {
             {event.title}
           </h4>
         )}
-        
-        {/* Venue overlay at bottom of image */}
-        {venue && !showTitleFallback && (
-          <div className="mini-event-venue-overlay">
-            {venue}
-          </div>
-        )}
       </div>
 
       {/* Event Content */}
@@ -82,6 +75,11 @@ export function MiniEventCard({ event, city = 'Wien' }: MiniEventCardProps) {
         <h4 className="mini-event-title">
           {event.title}
         </h4>
+        {venue && (
+          <p className="mini-event-venue">
+            {venue}
+          </p>
+        )}
       </div>
     </div>
   );
