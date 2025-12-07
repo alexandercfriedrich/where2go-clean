@@ -28,8 +28,23 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   line-height: 1.6;
   color: #333;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  /* Maja-event.com inspired gradient background */
+  background: linear-gradient(135deg, #2c3e50 0%, #34495e 25%, #2c3e50 50%, #1a252f 75%, #2c3e50 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 15s ease infinite;
   min-height: 100vh;
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 /* Container */
@@ -479,7 +494,7 @@ body {
 /* Dark Theme Event Cards - City Pages */
 .dark-event-card {
   background: #2A2A2A;
-  border-radius: 12px;
+  border-radius: 0 12px 0 0; /* Rounded top-right corner only */
   padding: 0;
   margin-bottom: 20px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1), 
@@ -488,6 +503,7 @@ body {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  border: 1px solid white; /* White 1pt border */
 }
 
 .dark-event-card:hover {
@@ -519,7 +535,7 @@ body {
 }
 
 .dark-event-content {
-  padding: 24px;
+  padding: 16px; /* Reduced from 24px */
 }
 
 .dark-event-category {
@@ -527,7 +543,7 @@ body {
   text-transform: uppercase;
   letter-spacing: 1px;
   color: #4A90E2;
-  margin-bottom: 12px;
+  margin-bottom: 8px; /* Reduced from 12px */
   font-weight: 600;
   display: inline-block;
 }
@@ -546,15 +562,15 @@ body {
   font-size: 18px;
   font-weight: 700;
   color: #FFFFFF;
-  margin-bottom: 16px;
+  margin-bottom: 12px; /* Reduced from 16px */
   line-height: 1.4;
 }
 
 .dark-event-details {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 8px; /* Reduced from 12px */
+  margin-bottom: 12px; /* Reduced from 16px */
 }
 
 .dark-event-detail {
@@ -590,7 +606,7 @@ body {
   font-size: 14px;
   color: #AAAAAA;
   line-height: 1.6;
-  margin-top: 12px;
+  margin-top: 8px; /* Reduced from 12px */
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -605,7 +621,7 @@ body {
   border-radius: 6px;
   font-size: 13px;
   font-weight: 600;
-  margin-top: 12px;
+  margin-top: 8px; /* Reduced from 12px */
 }
 
 .dark-event-link {
@@ -616,7 +632,7 @@ body {
   text-decoration: none;
   font-size: 14px;
   font-weight: 600;
-  margin-top: 16px;
+  margin-top: 12px; /* Reduced from 16px */
   transition: color 0.2s ease;
 }
 
@@ -1204,3 +1220,109 @@ body {
   background: rgba(255, 255, 255, 0.02);
 }
 
+
+/* =====================================================
+   MINI EVENT CARD STYLES
+   Compact cards for grid layouts with white outline
+   Dark background like main event cards
+   ===================================================== */
+
+.mini-event-card {
+  background: #2A2A2A; /* Same dark background as main event cards */
+  border-radius: 0 12px 0 0; /* Rounded top-right corner only, matching main cards */
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: 1px solid white; /* White outline */
+}
+
+.mini-event-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.mini-event-image {
+  width: 100%;
+  padding-top: 70%; /* Reduced by 30% from 100% (was square, now shorter) */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: #f3f4f6;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 20% black overlay for mini event card images */
+.mini-event-image-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.2); /* 20% black overlay */
+  z-index: 1;
+}
+
+.mini-event-fallback-title {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: white;
+  padding: 12px;
+  width: 100%;
+  text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  z-index: 2;
+}
+
+.mini-event-content {
+  padding: 12px;
+}
+
+.mini-event-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #FFFFFF; /* White text to match dark background */
+  margin: 0 0 6px 0;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.mini-event-venue {
+  font-size: 12px;
+  color: #CCCCCC; /* Light gray text to match main event cards */
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Responsive adjustments for mini cards */
+@media (max-width: 640px) {
+  .mini-event-title {
+    font-size: 13px;
+  }
+  
+  .mini-event-venue {
+    font-size: 11px;
+  }
+  
+  .mini-event-content {
+    padding: 10px;
+  }
+}

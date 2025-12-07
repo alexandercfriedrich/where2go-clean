@@ -48,7 +48,7 @@ export function MiniEventCard({ event, city = 'Wien' }: MiniEventCardProps) {
 
   const cardContent = (
     <div className="mini-event-card group">
-      {/* Event Image - no time overlay per design requirements */}
+      {/* Event Image with overlay */}
       <div 
         className="mini-event-image"
         style={{
@@ -56,12 +56,13 @@ export function MiniEventCard({ event, city = 'Wien' }: MiniEventCardProps) {
             ? `url(${eventImage})` 
             : undefined,
           backgroundColor: showTitleFallback ? fallbackColor : undefined,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: showTitleFallback ? '12px' : undefined,
         }}
       >
+        {/* Dark overlay for better text readability */}
+        {!showTitleFallback && (
+          <div className="mini-event-image-overlay" />
+        )}
+        
         {showTitleFallback && (
           <h4 className="mini-event-fallback-title">
             {event.title}

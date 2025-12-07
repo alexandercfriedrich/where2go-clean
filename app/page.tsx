@@ -9,6 +9,7 @@ import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getUpcoming
 import { discoverPageMetadata } from './lib/content/discoverPageContent';
 import SchemaOrg from './components/SchemaOrg';
 import { generateEventListSchema, generateBreadcrumbSchema } from './lib/schemaOrg';
+import { sortEventsWithImagesFirstThenByDate } from './lib/eventSortUtils';
 import type { EventData } from './lib/types';
 
 // Force dynamic rendering to always fetch fresh event data
@@ -89,6 +90,11 @@ export default async function HomePage({ searchParams }: PageProps) {
       .map(convertToEventData)
       .filter((event): event is EventData => event !== null);
     
+    // Sort all events to prioritize those with images
+    const sortedTrendingEvents = sortEventsWithImagesFirstThenByDate(trendingEvents);
+    const sortedWeekendEvents = sortEventsWithImagesFirstThenByDate(weekendEvents);
+    const sortedPersonalizedEvents = sortEventsWithImagesFirstThenByDate(personalizedEvents);
+    
     // Generate schemas
     const today = new Date().toISOString().split('T')[0];
     const eventListSchema = generateEventListSchema(upcomingEventsData, city, today);
@@ -101,9 +107,9 @@ export default async function HomePage({ searchParams }: PageProps) {
         <SchemaOrg schema={eventListSchema} />
         <SchemaOrg schema={breadcrumbSchema} />
         <DiscoveryClient
-          initialTrendingEvents={trendingEvents}
-          initialWeekendEvents={weekendEvents}
-          initialPersonalizedEvents={personalizedEvents}
+          initialTrendingEvents={sortedTrendingEvents}
+          initialWeekendEvents={sortedWeekendEvents}
+          initialPersonalizedEvents={sortedPersonalizedEvents}
           initialWeekendNightlifeEvents={weekendNightlifeEvents}
           city={city}
           initialDateFilter={initialDateFilter}
