@@ -28,8 +28,23 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
   line-height: 1.6;
   color: #333;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  /* Maja-event.com inspired gradient background */
+  background: linear-gradient(135deg, #2c3e50 0%, #34495e 25%, #2c3e50 50%, #1a252f 75%, #2c3e50 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 15s ease infinite;
   min-height: 100vh;
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 /* Container */
@@ -1220,6 +1235,7 @@ body {
   display: flex;
   flex-direction: column;
   height: 100%;
+  border: 1px solid white; /* White 1pt outline */
 }
 
 .maja-event-card:hover {
@@ -1276,18 +1292,21 @@ body {
   color: white;
 }
 
-/* Category badge on image */
+/* Category badge on image - resized to match source badge */
 .maja-event-image-category {
-  align-self: flex-start;
-  font-size: 11px;
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  font-size: 9px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 1px;
-  color: white;
-  padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.9);
+  padding: 4px 10px;
+  background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(10px);
+  border-radius: 6px;
+  z-index: 10;
 }
 
 /* Date badge on image */
@@ -1306,38 +1325,14 @@ body {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
-/* Event title on image */
+/* Event title on image - HIDDEN per user request */
 .maja-event-image-title {
-  font-size: 24px;
-  font-weight: 700;
-  line-height: 1.3;
-  margin: 0;
-  text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  display: none;
 }
 
-/* Venue on image */
+/* Venue on image - HIDDEN per user request */
 .maja-event-image-venue {
-  font-size: 14px;
-  font-weight: 500;
-  margin-top: 8px;
-  opacity: 0.95;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.maja-event-image-venue::before {
-  content: '';
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z'/%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M15 11a3 3 0 11-6 0 3 3 0 016 0z'/%3E%3C/svg%3E");
-  background-size: contain;
-  background-repeat: no-repeat;
+  display: none;
 }
 
 /* Bottom Section: Content with gray/blue background */
@@ -1426,6 +1421,77 @@ body {
   color: white;
 }
 
+/* Description with icon */
+.maja-event-description {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: #555;
+  line-height: 1.5;
+  margin-top: 8px;
+}
+
+.maja-event-description span {
+  flex: 1;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Venue link with icon */
+.maja-event-venue-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #4A90E2;
+  text-decoration: none;
+  margin-top: 8px;
+  transition: color 0.2s;
+}
+
+.maja-event-venue-link:hover {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+/* Price with icon */
+.maja-event-price {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111;
+  margin-top: 8px;
+}
+
+/* Ticket link with icon */
+.maja-event-ticket-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: #dc2626;
+  text-decoration: none;
+  margin-top: 8px;
+  font-weight: 600;
+  transition: color 0.2s;
+}
+
+.maja-event-ticket-link:hover {
+  color: #991b1b;
+  text-decoration: underline;
+}
+
+/* Icon styling for all info elements */
+.maja-event-info-icon {
+  flex-shrink: 0;
+  color: currentColor;
+}
+
 /* Source badge - minimal, top-right */
 .maja-event-source-badge {
   position: absolute;
@@ -1486,7 +1552,7 @@ body {
 
 /* =====================================================
    MINI EVENT CARD STYLES
-   Compact cards for grid layouts
+   Compact cards for grid layouts with white outline
    ===================================================== */
 
 .mini-event-card {
@@ -1496,6 +1562,7 @@ body {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
   cursor: pointer;
+  border: 1px solid white; /* White outline */
 }
 
 .mini-event-card:hover {

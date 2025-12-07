@@ -236,7 +236,7 @@ export function EventCard({
 
       {/* Bottom Section: Content with gray/blue background */}
       <div className="maja-event-content-section">
-        {/* Title (repeated for accessibility) */}
+        {/* Title */}
         <h3 className="maja-event-content-title">
           {event.title}
         </h3>
@@ -254,15 +254,59 @@ export function EventCard({
               </span>
             </>
           )}
-          {venue && (
-            <>
-              <span className="maja-event-meta-separator">|</span>
-              <span className="maja-event-meta-item">
-                {venue}
-              </span>
-            </>
-          )}
         </div>
+
+        {/* Description with icon */}
+        {event.description && (
+          <div className="maja-event-description">
+            <svg className="maja-event-info-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <circle cx="12" cy="12" r="10" strokeWidth="2"/>
+              <path d="M12 16v-4M12 8h.01" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+            <span>{event.description}</span>
+          </div>
+        )}
+
+        {/* Venue location with icon (clickable) */}
+        {venue && (
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(venue + (event.address ? ', ' + event.address : ''))}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="maja-event-venue-link"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <svg className="maja-event-info-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span>{venue}</span>
+          </a>
+        )}
+
+        {/* Price with icon */}
+        <div className="maja-event-price">
+          <svg className="maja-event-info-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>{priceDisplay}</span>
+        </div>
+
+        {/* Ticket link with icon (if available) */}
+        {event.bookingLink && showButtons && (
+          <a
+            href={event.bookingLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="maja-event-ticket-link"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <svg className="maja-event-info-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+            </svg>
+            <span>Tickets kaufen</span>
+          </a>
+        )}
 
         {/* Action Button - Prominent CTA */}
         {showButtons && (
