@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { slugify } from '@/lib/utils/slugify';
 
 interface City {
   name: string;
@@ -17,7 +18,7 @@ export default function MainFooter() {
       try {
         const baseUrl = typeof window !== 'undefined' 
           ? window.location.origin 
-          : 'http://localhost:3000';
+          : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
         
         const citiesResponse = await fetch(`${baseUrl}/api/hot-cities`);
         if (citiesResponse.ok) {
@@ -37,15 +38,6 @@ export default function MainFooter() {
 
     loadCities();
   }, []);
-  
-  const slugify = (text: string): string => {
-    return text
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, '')
-      .replace(/[\s_-]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-  };
   
   return (
     <footer className="main-footer">

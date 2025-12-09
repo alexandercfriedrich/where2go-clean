@@ -3,6 +3,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { Redis } from '@upstash/redis';
 import { HotCity, HotCityWebsite } from './types';
+import { slugify } from './utils/slugify';
 
 // Blacklisted URLs that should never appear in Hot Cities (Wien.gv.at VADB/Events sources)
 const BLACKLISTED_URLS = [
@@ -28,15 +29,8 @@ function isUrlBlacklisted(url: string): boolean {
   );
 }
 
-// Helper function to create URL-friendly slugs
-export function slugify(text: string): string {
-  return text
-    .toLowerCase()
-    .trim()
-    .replace(/[^\w\s-]/g, '') // Remove special chars
-    .replace(/[\s_-]+/g, '-') // Replace spaces and underscores with hyphens
-    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
-}
+// Export slugify from shared utility for backward compatibility
+export { slugify };
 
 // Helper function to create empty city
 export function createEmptyCity(): Omit<HotCity, 'id' | 'createdAt' | 'updatedAt'> {

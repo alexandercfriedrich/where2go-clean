@@ -3,7 +3,6 @@
  * This page should look exactly like the homepage but for the specific city
  */
 
-import { Metadata } from 'next';
 import DiscoveryClient from '@/discover/DiscoveryClient';
 import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getUpcomingEvents, getWeekendNightlifeEvents, convertToEventData } from '../../lib/events/queries';
 import SchemaOrg from '@/components/SchemaOrg';

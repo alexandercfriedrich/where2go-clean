@@ -7,6 +7,7 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { slugify } from '@/lib/utils/slugify';
 
 interface LocationBarProps {
   initialCity?: string;
@@ -30,7 +31,7 @@ export function LocationBar({
       try {
         const baseUrl = typeof window !== 'undefined' 
           ? window.location.origin 
-          : 'http://localhost:3000';
+          : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
         
         const citiesResponse = await fetch(`${baseUrl}/api/hot-cities`);
         if (citiesResponse.ok) {
@@ -67,15 +68,6 @@ export function LocationBar({
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen]);
-  
-  const slugify = (text: string): string => {
-    return text
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, '')
-      .replace(/[\s_-]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-  };
   
   const handleCityChange = (citySlug: string) => {
     setIsOpen(false);
