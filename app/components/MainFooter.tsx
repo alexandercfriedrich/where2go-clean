@@ -58,13 +58,13 @@ export default function MainFooter() {
               {cities.map((city) => (
                 <div key={city.slug} className="city-group">
                   <span className="city-name">{city.name}</span>
-                  <Link href={`/${city.slug}/heute`} className="city-link">
+                  <Link href={`/${city.slug}?date=today`} className="city-link">
                     Events heute in {city.name}
                   </Link>
-                  <Link href={`/${city.slug}/morgen`} className="city-link">
+                  <Link href={`/${city.slug}?date=tomorrow`} className="city-link">
                     Events morgen in {city.name}
                   </Link>
-                  <Link href={`/${city.slug}/wochenende`} className="city-link">
+                  <Link href={`/${city.slug}?date=weekend`} className="city-link">
                     Events am Wochenende in {city.name}
                   </Link>
                 </div>
