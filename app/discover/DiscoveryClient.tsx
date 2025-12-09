@@ -58,6 +58,11 @@ export default function DiscoveryClient({
     setMounted(true);
   }, []);
 
+  // Sync selectedDateFilter with initialDateFilter prop changes
+  useEffect(() => {
+    setSelectedDateFilter(initialDateFilter);
+  }, [initialDateFilter]);
+
   // Filter events by category and date using the shared utility
   useEffect(() => {
     const { matchesCategory } = require('../../lib/events/category-utils');
