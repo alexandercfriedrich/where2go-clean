@@ -37,7 +37,7 @@ export function LocationBar({
         if (citiesResponse.ok) {
           const citiesData = await citiesResponse.json();
           if (citiesData.cities && Array.isArray(citiesData.cities)) {
-            const cityList = citiesData.cities.map((city: any) => ({
+            const cityList = citiesData.cities.map((city: { name: string }) => ({
               name: city.name,
               slug: slugify(city.name)
             }));
