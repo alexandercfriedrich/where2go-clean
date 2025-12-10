@@ -152,6 +152,17 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Missing page ID' }, { status: 400 });
     }
 
+    // Check if page exists before deletion
+    const { data: existingPage } = await supabaseAdmin
+      .from('static_pages')
+      .select('id')
+      .eq('id', pageId)
+      .single();
+
+    if (!existingPage) {
+      return NextResponse.json({ error: 'Page not found' }, { status: 404 });
+    }
+
     await deleteStaticPage(pageId);
     console.log(`Deleted static page: ${pageId}`);
     return NextResponse.json({ success: true });
