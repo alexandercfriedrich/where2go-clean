@@ -15,7 +15,7 @@ async function loadStaticPages(): Promise<StaticPage[]> {
     const { data, error } = await supabaseAdmin
       .from('static_pages')
       .select('*')
-      .order('updated_at', { ascending: false });
+      .order('updated_at', { ascending: false }) as any;
 
     if (error) {
       console.error('Error loading static pages from Supabase:', error);
@@ -23,7 +23,7 @@ async function loadStaticPages(): Promise<StaticPage[]> {
     }
 
     // Map database columns to interface
-    const pages: StaticPage[] = (data || []).map(row => ({
+    const pages: StaticPage[] = (data || []).map((row: any) => ({
       id: row.id,
       title: row.title,
       content: row.content,

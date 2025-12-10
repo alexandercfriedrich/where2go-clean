@@ -18,7 +18,7 @@ export async function GET(
       .from('static_pages')
       .select('*')
       .eq('id', params.id)
-      .single();
+      .single() as any;
 
     if (error || !data) {
       console.error('Error loading static page from Supabase:', error);
