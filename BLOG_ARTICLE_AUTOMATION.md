@@ -370,6 +370,8 @@ if (hasNewEvents) {
 
 ## Related Documentation
 
+- [Quick Reference Card](./docs/QUICK_REFERENCE.md) - ⚡ Fast setup guide and cheat sheet
+- [Make.com Scenario Example](./docs/make-com-scenario-example.md) - 📖 Detailed step-by-step Make.com setup
 - [Blog Articles Implementation](./BLOG_ARTICLES_IMPLEMENTATION.md) - Full API documentation
 - [Blog Articles Quickstart](./BLOG_ARTICLES_QUICKSTART.md) - Quick setup guide
 - [Security Summary](./SECURITY_SUMMARY_BLOG_ARTICLES.md) - Security details
@@ -377,8 +379,10 @@ if (hasNewEvents) {
 ## Support
 
 For issues or questions:
-1. Check Vercel logs for cron execution errors
-2. Check Make.com logs for webhook processing
-3. Test API endpoints manually with curl
-4. Review this documentation
-5. Check environment variables are set correctly
+1. Check [Quick Reference Card](./docs/QUICK_REFERENCE.md) for common solutions
+2. Review [Make.com Scenario Example](./docs/make-com-scenario-example.md) for detailed setup
+3. Check Vercel logs for cron execution errors
+4. Check Make.com logs for webhook processing
+5. Test API endpoints manually with curl
+6. Review troubleshooting section in this documentation
+7. Check environment variables are set correctly
