@@ -79,6 +79,19 @@ function getEventTime(event: any): string | null {
   }
   if (event.start_date_time) {
     try {
+      // Extract time directly from ISO timestamp using regex (same as EventRepository)
+      // This avoids timezone conversion issues
+      const timeMatch = event.start_date_time.match(/T(\d{2}:\d{2})/);
+      if (timeMatch) {
+        const time = timeMatch[1];
+        // Only treat 00:00:01 as all-day (the Supabase marker)
+        if (time === '00:00' && event.start_date_time.includes(':01')) {
+          return null; // Will display as "ganztags"
+        }
+        return time;
+      }
+      
+      // Fallback to Date parsing with explicit UTC timezone
       const date = new Date(event.start_date_time);
       const hours = date.getUTCHours();
       const minutes = date.getUTCMinutes();
@@ -87,7 +100,12 @@ function getEventTime(event: any): string | null {
       if (hours === 0 && minutes === 0 && seconds === 1) {
         return null; // Will display as "ganztags"
       }
-      const timeStr = date.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      // Format with explicit UTC timezone to avoid local timezone conversion
+      const timeStr = date.toLocaleTimeString('de-DE', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        timeZone: 'UTC'
+      });
       return timeStr;
     } catch {
       return null;

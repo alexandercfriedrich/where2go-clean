@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { slugify } from '@/lib/utils/slugify';
 
 interface City {
   name: string;
@@ -17,13 +18,13 @@ export default function MainFooter() {
       try {
         const baseUrl = typeof window !== 'undefined' 
           ? window.location.origin 
-          : 'http://localhost:3000';
+          : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
         
         const citiesResponse = await fetch(`${baseUrl}/api/hot-cities`);
         if (citiesResponse.ok) {
           const citiesData = await citiesResponse.json();
           if (citiesData.cities && Array.isArray(citiesData.cities)) {
-            const cityList = citiesData.cities.map((city: any) => ({
+            const cityList = citiesData.cities.map((city: { name: string }) => ({
               name: city.name,
               slug: slugify(city.name)
             }));
@@ -38,15 +39,6 @@ export default function MainFooter() {
     loadCities();
   }, []);
   
-  const slugify = (text: string): string => {
-    return text
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, '')
-      .replace(/[\s_-]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-  };
-  
   return (
     <footer className="main-footer">
       <div className="container">
@@ -58,13 +50,13 @@ export default function MainFooter() {
               {cities.map((city) => (
                 <div key={city.slug} className="city-group">
                   <span className="city-name">{city.name}</span>
-                  <Link href={`/${city.slug}/heute`} className="city-link">
+                  <Link href={`/${city.slug}?date=today`} className="city-link">
                     Events heute in {city.name}
                   </Link>
-                  <Link href={`/${city.slug}/morgen`} className="city-link">
+                  <Link href={`/${city.slug}?date=tomorrow`} className="city-link">
                     Events morgen in {city.name}
                   </Link>
-                  <Link href={`/${city.slug}/wochenende`} className="city-link">
+                  <Link href={`/${city.slug}?date=weekend`} className="city-link">
                     Events am Wochenende in {city.name}
                   </Link>
                 </div>
