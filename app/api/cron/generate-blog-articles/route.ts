@@ -43,66 +43,72 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const city = 'wien';
+    // Get cities to process from environment or default to Wien
+    const citiesToProcess = process.env.BLOG_GENERATION_CITIES 
+      ? process.env.BLOG_GENERATION_CITIES.split(',').map(c => c.trim().toLowerCase())
+      : ['wien'];
+    
     const results: TriggerResult[] = [];
     let successCount = 0;
     let failureCount = 0;
 
-    // Trigger webhook for each category
-    for (const category of EVENT_CATEGORIES) {
-      try {
-        console.log(`[CRON:BLOG-ARTICLES] Triggering Make.com for: ${city} - ${category}`);
-        
-        const response = await fetch(webhookUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            city,
-            category,
-            timestamp: new Date().toISOString(),
-            source: 'vercel-cron',
-          }),
-        });
-
-        if (response.ok) {
-          successCount++;
-          results.push({
-            category,
-            success: true,
-            webhookUrl: webhookUrl.substring(0, 30) + '...' // Log partial URL for security
+    // Trigger webhook for each city and category combination
+    for (const city of citiesToProcess) {
+      for (const category of EVENT_CATEGORIES) {
+        try {
+          console.log(`[CRON:BLOG-ARTICLES] Triggering Make.com for: ${city} - ${category}`);
+          
+          const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              city,
+              category,
+              timestamp: new Date().toISOString(),
+              source: 'vercel-cron',
+            }),
           });
-          console.log(`[CRON:BLOG-ARTICLES] ✓ Successfully triggered: ${category}`);
-        } else {
-          const errorText = await response.text();
+
+          if (response.ok) {
+            successCount++;
+            results.push({
+              category: `${city}:${category}`,
+              success: true
+            });
+            console.log(`[CRON:BLOG-ARTICLES] ✓ Successfully triggered: ${city} - ${category}`);
+          } else {
+            const errorText = await response.text();
+            failureCount++;
+            results.push({
+              category: `${city}:${category}`,
+              success: false,
+              error: `HTTP ${response.status}: ${errorText.substring(0, 100)}`
+            });
+            console.error(`[CRON:BLOG-ARTICLES] ✗ Failed to trigger ${city} - ${category}:`, errorText);
+          }
+
+          // Small delay between requests to avoid overwhelming the webhook
+          await new Promise(resolve => setTimeout(resolve, 100));
+
+        } catch (error: any) {
           failureCount++;
           results.push({
-            category,
+            category: `${city}:${category}`,
             success: false,
-            error: `HTTP ${response.status}: ${errorText.substring(0, 100)}`
+            error: error.message
           });
-          console.error(`[CRON:BLOG-ARTICLES] ✗ Failed to trigger ${category}:`, errorText);
+          console.error(`[CRON:BLOG-ARTICLES] ✗ Error triggering ${city} - ${category}:`, error.message);
         }
-
-        // Small delay between requests to avoid overwhelming the webhook
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-      } catch (error: any) {
-        failureCount++;
-        results.push({
-          category,
-          success: false,
-          error: error.message
-        });
-        console.error(`[CRON:BLOG-ARTICLES] ✗ Error triggering ${category}:`, error.message);
       }
     }
 
     const summary = {
       success: failureCount === 0,
-      city,
+      cities: citiesToProcess,
       totalCategories: EVENT_CATEGORIES.length,
+      totalTriggers: citiesToProcess.length * EVENT_CATEGORIES.length,
       successCount,
       failureCount,
       timestamp: new Date().toISOString(),

@@ -14,7 +14,7 @@
     },
     {
       "path": "/api/cron/generate-blog-articles",
-      "schedule": "0 6 * * *"
+      "schedule": "15 6 * * *"
     }
   ],
   "headers": [

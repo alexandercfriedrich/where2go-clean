@@ -27,11 +27,12 @@ This system automatically triggers blog article generation for all Vienna event 
 ```json
 {
   "path": "/api/cron/generate-blog-articles",
-  "schedule": "0 6 * * *"
+  "schedule": "15 6 * * *"
 }
 ```
 
-**Schedule**: Daily at 6:00 AM UTC (7:00 AM CET / 8:00 AM CEST)
+**Schedule**: Daily at 6:15 AM UTC (7:15 AM CET / 8:15 AM CEST)
+**Note**: Runs 15 minutes after cache-warmup to avoid resource conflicts and ensure cache is populated
 
 ## Environment Variables
 
@@ -46,6 +47,9 @@ CRON_SECRET=your_cron_secret_here
 
 # Blog Articles API Authentication (for Make.com to post back)
 INTERNAL_API_SECRET=your_internal_api_secret
+
+# Optional: Cities to generate articles for (comma-separated, defaults to "wien")
+BLOG_GENERATION_CITIES=wien,berlin,linz
 ```
 
 ### Optional
