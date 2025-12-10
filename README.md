@@ -456,6 +456,18 @@ Vienna events are sourced exclusively through the **Wien.info JSON API**, which 
 
 The Wien.info integration automatically maps event categories to appropriate F1 filter IDs for targeted searches, ensuring relevant results for different event types.
 
+### Documentation
+
+**Blog Articles & Content Management:**
+- [Blog Articles Implementation](./BLOG_ARTICLES_IMPLEMENTATION.md) - Complete API documentation for blog article management
+- [Blog Articles Quickstart](./BLOG_ARTICLES_QUICKSTART.md) - Quick setup guide for blog articles
+- [Blog Article Automation](./BLOG_ARTICLE_AUTOMATION.md) - Daily automated blog article generation with Make.com integration
+- [Security Summary](./SECURITY_SUMMARY_BLOG_ARTICLES.md) - Security details for blog article system
+
+**Other Documentation:**
+- [Optimized Search](./OPTIMIZED_SEARCH.md) - Detailed documentation on the optimized event search system
+- [Bot Protection Implementation](./BOT_PROTECTION_IMPLEMENTATION.md) - Bot and spam protection documentation
+
 ### Changelog
 
 #### Removed Features
