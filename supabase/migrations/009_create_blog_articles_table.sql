@@ -68,7 +68,7 @@ CREATE TRIGGER trigger_update_blog_articles_updated_at
 CREATE OR REPLACE FUNCTION set_blog_articles_published_at()
 RETURNS TRIGGER AS $$
 BEGIN
-  IF NEW.status = 'published' AND OLD.status != 'published' AND NEW.published_at IS NULL THEN
+  IF NEW.status = 'published' AND (OLD IS NULL OR OLD.status != 'published') AND NEW.published_at IS NULL THEN
     NEW.published_at = NOW();
   END IF;
   RETURN NEW;

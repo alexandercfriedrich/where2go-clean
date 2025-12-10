@@ -238,22 +238,55 @@ export interface VenueDetail {
 }
 
 // Blog Article Types
+/**
+ * Represents a blog article about events in a specific city and category.
+ * Articles can be AI-generated or manually created and support SEO optimization.
+ */
 export interface BlogArticle {
+  /** Unique identifier (UUID) */
   id: string;
+  
+  /** City slug - must be one of: wien, berlin, linz, ibiza */
   city: string;
+  
+  /** Event category - must match one of the 12 EVENT_CATEGORIES */
   category: string;
+  
+  /** URL-safe slug in format: {city}-{category}-{normalized-title} */
   slug: string;
+  
+  /** Article title */
   title: string;
-  content: string; // HTML from React-Quill
+  
+  /** Article content as HTML from React-Quill editor */
+  content: string;
+  
+  /** Comma-separated SEO keywords for search optimization */
   seo_keywords?: string;
+  
+  /** Meta description for search engines (recommended: 160 chars, max: 500) */
   meta_description?: string;
+  
+  /** URL to featured image */
   featured_image?: string;
+  
+  /** Publication status - only 'draft' or 'published' allowed */
   status: 'draft' | 'published';
-  generated_by: string; // e.g., 'claude-3-5-sonnet'
-  generated_at: string; // ISO timestamp
-  published_at?: string; // ISO timestamp
-  updated_at: string; // ISO timestamp
-  event_ids?: string[]; // Reference to events mentioned in article
+  
+  /** AI model or system that generated the article (e.g., 'claude-3-5-sonnet', 'manual') */
+  generated_by: string;
+  
+  /** ISO 8601 timestamp when article was first created - never updated after creation */
+  generated_at: string;
+  
+  /** ISO 8601 timestamp when article was published - set automatically when status changes to 'published' */
+  published_at?: string;
+  
+  /** ISO 8601 timestamp of last update - managed automatically by database trigger */
+  updated_at: string;
+  
+  /** Array of event UUIDs referenced in the article content */
+  event_ids?: string[];
 }
 
 export interface BlogArticleCreatePayload {

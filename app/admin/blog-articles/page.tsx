@@ -11,8 +11,13 @@ const ReactQuill = dynamic(() => import('react-quill-new'), {
   loading: () => <div className="form-textarea" style={{ minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #ddd' }}>Editor wird geladen...</div>
 });
 
-// Valid cities
-const VALID_CITIES = ['Wien', 'Berlin', 'Linz', 'Ibiza'];
+// Valid cities - lowercase to match API/database expectations
+const VALID_CITIES = [
+  { value: 'wien', label: 'Wien' },
+  { value: 'berlin', label: 'Berlin' },
+  { value: 'linz', label: 'Linz' },
+  { value: 'ibiza', label: 'Ibiza' },
+];
 
 export default function BlogArticlesAdmin() {
   const [articles, setArticles] = useState<BlogArticle[]>([]);
@@ -60,8 +65,11 @@ export default function BlogArticlesAdmin() {
 
   useEffect(() => {
     setIsClient(true);
-    loadArticles();
   }, []);
+
+  useEffect(() => {
+    loadArticles();
+  }, [filterCity, filterCategory, filterStatus]);
 
   async function loadArticles() {
     try {
@@ -70,7 +78,7 @@ export default function BlogArticlesAdmin() {
       
       // Build query params
       const params = new URLSearchParams();
-      if (filterCity) params.append('city', filterCity.toLowerCase());
+      if (filterCity) params.append('city', filterCity);
       if (filterCategory) params.append('category', filterCategory);
       if (filterStatus) params.append('status', filterStatus);
       params.append('limit', '100');
@@ -508,11 +516,11 @@ export default function BlogArticlesAdmin() {
           <select 
             className="filter-select" 
             value={filterCity} 
-            onChange={(e) => { setFilterCity(e.target.value); loadArticles(); }}
+            onChange={(e) => setFilterCity(e.target.value)}
           >
             <option value="">All Cities</option>
             {VALID_CITIES.map(city => (
-              <option key={city} value={city.toLowerCase()}>{city}</option>
+              <option key={city.value} value={city.value}>{city.label}</option>
             ))}
           </select>
         </div>
@@ -522,7 +530,7 @@ export default function BlogArticlesAdmin() {
           <select 
             className="filter-select" 
             value={filterCategory} 
-            onChange={(e) => { setFilterCategory(e.target.value); loadArticles(); }}
+            onChange={(e) => setFilterCategory(e.target.value)}
           >
             <option value="">All Categories</option>
             {EVENT_CATEGORIES.map(cat => (
@@ -536,7 +544,7 @@ export default function BlogArticlesAdmin() {
           <select 
             className="filter-select" 
             value={filterStatus} 
-            onChange={(e) => { setFilterStatus(e.target.value); loadArticles(); }}
+            onChange={(e) => setFilterStatus(e.target.value)}
           >
             <option value="">All Status</option>
             <option value="draft">Draft</option>
@@ -643,9 +651,24 @@ export default function BlogArticlesAdmin() {
       )}
 
       {editingArticle && (
-        <div className="modal-overlay" onClick={() => setEditingArticle(null)}>
+        <div 
+          className="modal-overlay" 
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setEditingArticle(null);
+            }
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              setEditingArticle(null);
+            }
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
+        >
           <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <h2>{editingArticle.id ? 'Edit Article' : 'Create New Article'}</h2>
+            <h2 id="modal-title">{editingArticle.id ? 'Edit Article' : 'Create New Article'}</h2>
 
             <div className="form-group">
               <label>Title *</label>
@@ -668,7 +691,7 @@ export default function BlogArticlesAdmin() {
                   disabled={!!editingArticle.id}
                 >
                   {VALID_CITIES.map(city => (
-                    <option key={city} value={city.toLowerCase()}>{city}</option>
+                    <option key={city.value} value={city.value}>{city.label}</option>
                   ))}
                 </select>
               </div>
@@ -721,7 +744,7 @@ export default function BlogArticlesAdmin() {
             </div>
 
             <div className="form-group">
-              <label>Meta Description (max 160 chars)</label>
+              <label>Meta Description</label>
               <textarea
                 className="form-input"
                 value={editingArticle.meta_description || ''}
@@ -731,7 +754,12 @@ export default function BlogArticlesAdmin() {
                 rows={3}
               />
               <div className={`char-counter ${(editingArticle.meta_description?.length || 0) > 160 ? 'warning' : ''}`}>
-                {editingArticle.meta_description?.length || 0} / 160 characters
+                {editingArticle.meta_description?.length || 0} / 500 characters
+                {(editingArticle.meta_description?.length || 0) > 160 && (
+                  <span style={{ marginLeft: '10px', color: '#ffc107' }}>
+                    (SEO recommendation: 160 chars)
+                  </span>
+                )}
               </div>
             </div>
 

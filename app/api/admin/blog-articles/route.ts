@@ -130,13 +130,13 @@ export async function GET(request: NextRequest) {
     if (error) {
       console.error('Error fetching blog articles:', error);
       return NextResponse.json(
-        { error: 'Failed to fetch blog articles', details: error.message },
+        { error: 'Failed to fetch blog articles' },
         { status: 500 }
       );
     }
 
     const response: BlogArticleListResponse = {
-      articles: (data || []) as any as BlogArticle[],
+      articles: (data || []) as BlogArticle[],
       total: count || 0,
       hasMore: (count || 0) > offset + limit,
     };
@@ -194,8 +194,17 @@ export async function POST(request: NextRequest) {
     // Generate slug
     const slug = generateBlogSlug(payload.city, payload.category, payload.title);
 
-    // Prepare article data
-    const articleData = {
+    // Check if article exists
+    const { data: existingArticle } = await supabaseAdmin
+      .from('blog_articles')
+      .select('id, generated_at')
+      .eq('city', payload.city.toLowerCase())
+      .eq('category', payload.category)
+      .eq('slug', slug)
+      .single();
+
+    // Prepare article data for insert/update
+    const articleData: any = {
       city: payload.city.toLowerCase(),
       category: payload.category,
       slug,
@@ -206,9 +215,12 @@ export async function POST(request: NextRequest) {
       featured_image: payload.featured_image || null,
       status: 'draft' as const,
       generated_by: 'manual', // Default for manual creation, can be overridden
-      generated_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
     };
+
+    // Only set generated_at for new articles
+    if (!existingArticle) {
+      articleData.generated_at = new Date().toISOString();
+    }
 
     // Upsert article (insert or update if exists)
     const { data, error } = await supabaseAdmin
@@ -223,12 +235,12 @@ export async function POST(request: NextRequest) {
     if (error) {
       console.error('Error creating/updating blog article:', error);
       return NextResponse.json(
-        { error: 'Failed to create/update blog article', details: error.message },
+        { error: 'Failed to create/update blog article' },
         { status: 500 }
       );
     }
 
-    const article = data as any as BlogArticle;
+    const article = data as BlogArticle;
     console.log('Successfully created/updated blog article:', article.id);
     return NextResponse.json({ success: true, article });
   } catch (error: any) {
@@ -306,7 +318,7 @@ export async function PUT(request: NextRequest) {
     if (error) {
       console.error('Error updating blog article:', error);
       return NextResponse.json(
-        { error: 'Failed to update blog article', details: error.message },
+        { error: 'Failed to update blog article' },
         { status: 500 }
       );
     }
@@ -318,7 +330,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const article = data as any as BlogArticle;
+    const article = data as BlogArticle;
     console.log('Successfully updated blog article:', article.id);
     return NextResponse.json({ success: true, article });
   } catch (error: any) {
@@ -366,7 +378,7 @@ export async function DELETE(request: NextRequest) {
     if (error) {
       console.error('Error deleting blog article:', error);
       return NextResponse.json(
-        { error: 'Failed to delete blog article', details: error.message },
+        { error: 'Failed to delete blog article' },
         { status: 500 }
       );
     }

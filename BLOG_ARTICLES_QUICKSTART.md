@@ -67,7 +67,9 @@ Login with your `ADMIN_USER` and `ADMIN_PASS` credentials.
 
 ```bash
 # Create article with admin credentials
-curl -u admin:password -X POST http://localhost:3000/api/admin/blog-articles \
+# Replace 'your_admin_username' and 'your_secure_password' with the values 
+# from ADMIN_USER and ADMIN_PASS in your .env.local file
+curl -u your_admin_username:your_secure_password -X POST http://localhost:3000/api/admin/blog-articles \
   -H "Content-Type: application/json" \
   -d '{
     "city": "wien",
@@ -98,39 +100,41 @@ curl -X POST http://localhost:3000/api/admin/blog-articles \
 
 ## 🎯 Common Tasks
 
+**Note**: Replace `your_admin_username:your_secure_password` in the examples below with your actual ADMIN_USER and ADMIN_PASS values from .env.local
+
 ### List All Articles
 
 ```bash
-curl -u admin:password http://localhost:3000/api/admin/blog-articles
+curl -u your_admin_username:your_secure_password http://localhost:3000/api/admin/blog-articles
 ```
 
 ### Filter by City
 
 ```bash
-curl -u admin:password "http://localhost:3000/api/admin/blog-articles?city=wien"
+curl -u your_admin_username:your_secure_password "http://localhost:3000/api/admin/blog-articles?city=wien"
 ```
 
 ### Filter by Category
 
 ```bash
-curl -u admin:password "http://localhost:3000/api/admin/blog-articles?category=Live-Konzerte"
+curl -u your_admin_username:your_secure_password "http://localhost:3000/api/admin/blog-articles?category=Live-Konzerte"
 ```
 
 ### Filter by Status
 
 ```bash
 # Get all published articles
-curl -u admin:password "http://localhost:3000/api/admin/blog-articles?status=published"
+curl -u your_admin_username:your_secure_password "http://localhost:3000/api/admin/blog-articles?status=published"
 
 # Get all drafts
-curl -u admin:password "http://localhost:3000/api/admin/blog-articles?status=draft"
+curl -u your_admin_username:your_secure_password "http://localhost:3000/api/admin/blog-articles?status=draft"
 ```
 
 ### Update Article Status
 
 ```bash
 # Publish a draft
-curl -u admin:password -X PUT "http://localhost:3000/api/admin/blog-articles?id={article-id}" \
+curl -u your_admin_username:your_secure_password -X PUT "http://localhost:3000/api/admin/blog-articles?id={article-id}" \
   -H "Content-Type: application/json" \
   -d '{"status": "published"}'
 ```
@@ -138,7 +142,7 @@ curl -u admin:password -X PUT "http://localhost:3000/api/admin/blog-articles?id=
 ### Delete Article
 
 ```bash
-curl -u admin:password -X DELETE "http://localhost:3000/api/admin/blog-articles?id={article-id}"
+curl -u your_admin_username:your_secure_password -X DELETE "http://localhost:3000/api/admin/blog-articles?id={article-id}"
 ```
 
 ## 🏗️ Valid Values Reference
