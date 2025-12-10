@@ -107,7 +107,7 @@ export async function GET(request: NextRequest) {
     let query = supabaseAdmin
       .from('blog_articles')
       .select('*', { count: 'exact' })
-      .order('updated_at', { ascending: false });
+      .order('updated_at', { ascending: false }) as any;
 
     // Apply filters
     if (filters.city) {
@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
     }
 
     const response: BlogArticleListResponse = {
-      articles: (data || []) as BlogArticle[],
+      articles: (data || []) as any as BlogArticle[],
       total: count || 0,
       hasMore: (count || 0) > offset + limit,
     };
@@ -213,7 +213,7 @@ export async function POST(request: NextRequest) {
     // Upsert article (insert or update if exists)
     const { data, error } = await supabaseAdmin
       .from('blog_articles')
-      .upsert(articleData, {
+      .upsert(articleData as any, {
         onConflict: 'city,category,slug',
         ignoreDuplicates: false,
       })
@@ -228,8 +228,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('Successfully created/updated blog article:', data.id);
-    return NextResponse.json({ success: true, article: data as BlogArticle });
+    const article = data as any as BlogArticle;
+    console.log('Successfully created/updated blog article:', article.id);
+    return NextResponse.json({ success: true, article });
   } catch (error: any) {
     console.error('Error in POST /api/admin/blog-articles:', error);
     return NextResponse.json(
@@ -294,8 +295,9 @@ export async function PUT(request: NextRequest) {
     if (payload.status !== undefined) updateData.status = payload.status;
 
     // Update article
-    const { data, error } = await supabaseAdmin
-      .from('blog_articles')
+    const query = supabaseAdmin
+      .from('blog_articles') as any;
+    const { data, error } = await query
       .update(updateData)
       .eq('id', articleId)
       .select()
@@ -316,8 +318,9 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    console.log('Successfully updated blog article:', data.id);
-    return NextResponse.json({ success: true, article: data as BlogArticle });
+    const article = data as any as BlogArticle;
+    console.log('Successfully updated blog article:', article.id);
+    return NextResponse.json({ success: true, article });
   } catch (error: any) {
     console.error('Error in PUT /api/admin/blog-articles:', error);
     return NextResponse.json(

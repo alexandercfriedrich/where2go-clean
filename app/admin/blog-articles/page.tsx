@@ -575,7 +575,7 @@ export default function BlogArticlesAdmin() {
       {filteredArticles.length === 0 ? (
         <div className="empty-state">
           <h3>No articles found</h3>
-          <p>Create your first blog article using the "+ New Article" button above.</p>
+          <p>Create your first blog article using the &quot;+ New Article&quot; button above.</p>
         </div>
       ) : (
         <table className="articles-table">
