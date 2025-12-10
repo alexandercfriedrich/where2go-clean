@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getRedisClient } from '@/lib/cache';
-
-const REDIS_KEY = 'where2go:static-pages:v1';
+import { supabaseAdmin } from '@/lib/supabase/client';
 
 interface StaticPage {
   id: string;
@@ -11,34 +9,79 @@ interface StaticPage {
   updatedAt: string;
 }
 
-// Load static pages from Redis
+// Load static pages from Supabase
 async function loadStaticPages(): Promise<StaticPage[]> {
   try {
-    const redis = getRedisClient();
-    const data = await redis.get(REDIS_KEY);
-    if (!data) {
-      console.log('No static pages found in Redis, returning empty array');
+    const { data, error } = await supabaseAdmin
+      .from('static_pages')
+      .select('*')
+      .order('updated_at', { ascending: false });
+
+    if (error) {
+      console.error('Error loading static pages from Supabase:', error);
       return [];
     }
-    // Handle Redis returning string or object
-    const pages = typeof data === 'string' ? JSON.parse(data) : data;
-    console.log(`Loaded ${pages.length} static pages from Redis`);
+
+    // Map database columns to interface
+    const pages: StaticPage[] = (data || []).map(row => ({
+      id: row.id,
+      title: row.title,
+      content: row.content,
+      path: row.path,
+      updatedAt: row.updated_at,
+    }));
+
+    console.log(`Loaded ${pages.length} static pages from Supabase`);
     return pages;
   } catch (error) {
-    console.error('Error loading static pages from Redis:', error);
+    console.error('Error loading static pages from Supabase:', error);
     return [];
   }
 }
 
-// Save static pages to Redis
-async function saveStaticPages(pages: StaticPage[]): Promise<void> {
+// Save static page to Supabase
+async function saveStaticPage(page: StaticPage): Promise<void> {
   try {
-    const redis = getRedisClient();
-    const json = JSON.stringify(pages, null, 2);
-    await redis.set(REDIS_KEY, json);
-    console.log(`Saved ${pages.length} static pages to Redis`);
+    const { error } = await supabaseAdmin
+      .from('static_pages')
+      .upsert({
+        id: page.id,
+        title: page.title,
+        content: page.content,
+        path: page.path,
+        updated_at: new Date().toISOString(),
+      }, {
+        onConflict: 'id'
+      });
+
+    if (error) {
+      console.error('Error saving static page to Supabase:', error);
+      throw error;
+    }
+
+    console.log(`Saved static page to Supabase: ${page.id}`);
   } catch (error) {
-    console.error('Error saving static pages to Redis:', error);
+    console.error('Error saving static page to Supabase:', error);
+    throw error;
+  }
+}
+
+// Delete static page from Supabase
+async function deleteStaticPage(pageId: string): Promise<void> {
+  try {
+    const { error } = await supabaseAdmin
+      .from('static_pages')
+      .delete()
+      .eq('id', pageId);
+
+    if (error) {
+      console.error('Error deleting static page from Supabase:', error);
+      throw error;
+    }
+
+    console.log(`Deleted static page from Supabase: ${pageId}`);
+  } catch (error) {
+    console.error('Error deleting static page from Supabase:', error);
     throw error;
   }
 }
@@ -76,9 +119,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing or invalid field: path (must start with /)' }, { status: 400 });
     }
 
-    const pages = await loadStaticPages();
-    const idx = pages.findIndex(p => p.id === pageData.id);
-
     const normalized: StaticPage = {
       id: pageData.id,
       title: pageData.title,
@@ -87,17 +127,9 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date().toISOString(),
     };
 
-    if (idx >= 0) {
-      pages[idx] = normalized;
-      console.log(`Updated existing page: ${pageData.id}`);
-    } else {
-      pages.push(normalized);
-      console.log(`Created new page: ${pageData.id}`);
-    }
-
-    await saveStaticPages(pages);
+    await saveStaticPage(normalized);
     
-    console.log('Successfully saved page to Redis:', {
+    console.log('Successfully saved page to Supabase:', {
       id: normalized.id,
       title: normalized.title,
       contentLength: normalized.content.length,
@@ -120,14 +152,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Missing page ID' }, { status: 400 });
     }
 
-    const pages = await loadStaticPages();
-    const filtered = pages.filter(p => p.id !== pageId);
-
-    if (pages.length === filtered.length) {
-      return NextResponse.json({ error: 'Page not found' }, { status: 404 });
-    }
-
-    await saveStaticPages(filtered);
+    await deleteStaticPage(pageId);
     console.log(`Deleted static page: ${pageId}`);
     return NextResponse.json({ success: true });
   } catch (error) {
