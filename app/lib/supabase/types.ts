@@ -1,6 +1,59 @@
 export type Database = {
   public: {
     Tables: {
+      blog_articles: {
+        Row: {
+          id: string
+          city: string
+          category: string
+          slug: string
+          title: string
+          content: string
+          seo_keywords: string | null
+          meta_description: string | null
+          featured_image: string | null
+          status: string
+          generated_by: string
+          generated_at: string
+          published_at: string | null
+          updated_at: string
+          event_ids: string[] | null
+        }
+        Insert: {
+          id?: string
+          city: string
+          category: string
+          slug: string
+          title: string
+          content: string
+          seo_keywords?: string | null
+          meta_description?: string | null
+          featured_image?: string | null
+          status?: string
+          generated_by: string
+          generated_at?: string
+          published_at?: string | null
+          updated_at?: string
+          event_ids?: string[] | null
+        }
+        Update: {
+          id?: string
+          city?: string
+          category?: string
+          slug?: string
+          title?: string
+          content?: string
+          seo_keywords?: string | null
+          meta_description?: string | null
+          featured_image?: string | null
+          status?: string
+          generated_by?: string
+          generated_at?: string
+          published_at?: string | null
+          updated_at?: string
+          event_ids?: string[] | null
+        }
+      }
       venues: {
         Row: {
           id: string
