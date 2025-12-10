@@ -236,3 +236,50 @@ export interface VenueDetail {
   };
   upcoming_events: EventData[];
 }
+
+// Blog Article Types
+export interface BlogArticle {
+  id: string;
+  city: string;
+  category: string;
+  slug: string;
+  title: string;
+  content: string; // HTML from React-Quill
+  seo_keywords?: string;
+  meta_description?: string;
+  featured_image?: string;
+  status: 'draft' | 'published';
+  generated_by: string; // e.g., 'claude-3-5-sonnet'
+  generated_at: string; // ISO timestamp
+  published_at?: string; // ISO timestamp
+  updated_at: string; // ISO timestamp
+  event_ids?: string[]; // Reference to events mentioned in article
+}
+
+export interface BlogArticleCreatePayload {
+  city: string;
+  category: string;
+  title: string;
+  content: string;
+  seo_keywords?: string;
+  meta_description?: string;
+  featured_image?: string;
+}
+
+export interface BlogArticleUpdatePayload extends Partial<BlogArticleCreatePayload> {
+  status?: 'draft' | 'published';
+}
+
+export interface BlogArticleListRequest {
+  city?: string;
+  category?: string;
+  status?: 'draft' | 'published';
+  limit?: number;
+  offset?: number;
+}
+
+export interface BlogArticleListResponse {
+  articles: BlogArticle[];
+  total: number;
+  hasMore: boolean;
+}
