@@ -17,7 +17,7 @@ import { FAQSection } from '@/components/FAQSection';
 import { HowToSection } from '@/components/HowToSection';
 import { DateFilterLinks } from '@/components/discovery/DateFilterLinks';
 import { WeekendNightlifeSection } from '@/components/discovery/WeekendNightlifeSection';
-import { discoverPageFAQs, discoverPageHowTo } from '@/lib/content/discoverPageContent';
+import { discoverPageFAQs, discoverPageHowTo, getDiscoverPageFAQs, getDiscoverPageHowTo } from '@/lib/content/discoverPageContent';
 import { VenueStats } from '@/components/VenueStats';
 import { filterEventsByDateRange } from '../../lib/utils/eventDateFilter';
 
@@ -266,17 +266,17 @@ export default function DiscoveryClient({
           {/* HowTo Section */}
           <div className="max-w-4xl mx-auto">
             <HowToSection
-              title={discoverPageHowTo.title}
-              description={discoverPageHowTo.description}
-              steps={discoverPageHowTo.steps}
+              title={getDiscoverPageHowTo(city).title}
+              description={getDiscoverPageHowTo(city).description}
+              steps={getDiscoverPageHowTo(city).steps}
             />
           </div>
 
           {/* FAQ Section */}
           <div className="max-w-4xl mx-auto">
             <FAQSection
-              faqs={discoverPageFAQs}
-              title="Häufig gestellte Fragen zu Events in Wien"
+              faqs={getDiscoverPageFAQs(city)}
+              title={`Häufig gestellte Fragen zu Events in ${city}`}
             />
           </div>
         </div>
