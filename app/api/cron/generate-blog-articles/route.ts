@@ -19,12 +19,17 @@ interface TriggerResult {
   webhookUrl?: string;
 }
 
+// Constants
+const ERROR_TEXT_MAX_LENGTH = 100; // Maximum length for error messages in logs
+const WEBHOOK_DELAY_MS = 100; // Delay between webhook requests to avoid rate limiting
+
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
     // Verify this is a Vercel Cron request
     const authResult = validateCronAuth(request, '[CRON:BLOG-ARTICLES]');
     if (!authResult.authorized) {
-      return authResult.errorResponse!;
+      // errorResponse is guaranteed to be non-null when authorized is false
+      return authResult.errorResponse as NextResponse;
     }
 
     console.log('[CRON:BLOG-ARTICLES] Starting daily blog article generation job at', new Date().toISOString());
@@ -84,13 +89,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             results.push({
               category: `${city}:${category}`,
               success: false,
-              error: `HTTP ${response.status}: ${errorText.substring(0, 100)}`
+              error: `HTTP ${response.status}: ${errorText.substring(0, ERROR_TEXT_MAX_LENGTH)}`
             });
             console.error(`[CRON:BLOG-ARTICLES] ✗ Failed to trigger ${city} - ${category}:`, errorText);
           }
 
           // Small delay between requests to avoid overwhelming the webhook
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise(resolve => setTimeout(resolve, WEBHOOK_DELAY_MS));
 
         } catch (error: any) {
           failureCount++;
