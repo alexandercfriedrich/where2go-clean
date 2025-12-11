@@ -24,8 +24,10 @@ if [ ! -f .env.local ]; then
   exit 1
 fi
 
-# Load environment variables
-export $(cat .env.local | grep -v '^#' | xargs)
+# Load environment variables safely
+set -a
+source .env.local
+set +a
 
 # Check required variables
 if [ -z "$CRON_SECRET" ]; then

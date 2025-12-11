@@ -2,14 +2,14 @@
 
 ## Overview
 
-This system automatically triggers blog article generation for all Vienna event categories daily at 6 AM UTC via Make.com integration.
+This system automatically triggers blog article generation for all Vienna event categories daily at 6:15 AM UTC via Make.com integration.
 
 ## Architecture
 
 ### Components
 
 1. **Vercel Cron Job** (`/api/cron/generate-blog-articles`)
-   - Runs daily at 6 AM UTC
+   - Runs daily at 6:15 AM UTC
    - Iterates through all 12 event categories
    - Triggers Make.com webhook for each category
 
@@ -175,7 +175,7 @@ curl -X GET http://localhost:3000/api/cron/generate-blog-articles \
 - [ ] Verify cron job is listed in Vercel Dashboard > Cron Jobs
 - [ ] Set up Make.com scenario
 - [ ] Test Make.com webhook manually
-- [ ] Wait for next 6 AM UTC run or trigger manually via Vercel dashboard
+- [ ] Wait for next 6:15 AM UTC run or trigger manually via Vercel dashboard
 
 ## Monitoring & Logs
 

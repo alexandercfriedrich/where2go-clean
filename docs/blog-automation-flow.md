@@ -8,7 +8,7 @@ This document provides visual diagrams of the blog article automation system.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                         Daily at 6:00 AM UTC                        │
+│                         Daily at 6:15 AM UTC                        │
 └───────────────────────────────┬─────────────────────────────────────┘
                                 │
                                 ▼

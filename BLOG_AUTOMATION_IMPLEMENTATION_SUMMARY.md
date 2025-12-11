@@ -9,7 +9,7 @@
 
 ### Solution Delivered
 
-✅ **Vercel Cron Job** that runs daily at 6:00 AM UTC
+✅ **Vercel Cron Job** that runs daily at 6:15 AM UTC
 ✅ **Webhook Integration** with Make.com for AI-powered article generation
 ✅ **All 12 Event Categories** processed for Vienna (Wien)
 ✅ **Complete Documentation** with setup guides and examples
@@ -19,7 +19,7 @@
 ## Architecture Overview
 
 ```
-Daily at 6 AM UTC → Vercel Cron → 12 Webhooks → Make.com → AI Generation → API → Database
+Daily at 6:15 AM UTC → Vercel Cron → 12 Webhooks → Make.com → AI Generation → API → Database
 ```
 
 ### Components
@@ -106,7 +106,7 @@ INTERNAL_API_SECRET=your_secret_min_32_chars
 - [ ] Add `MAKE_COM_WEBHOOK_URL` to Vercel environment variables
 - [ ] Deploy to production
 - [ ] Verify cron job appears in Vercel Dashboard → Cron Jobs
-- [ ] Wait for first 6 AM UTC execution (or trigger manually)
+- [ ] Wait for first 6:15 AM UTC execution (or trigger manually)
 - [ ] Check Make.com execution history
 - [ ] Review draft articles in `/admin/blog-articles`
 - [ ] Publish first batch after review
@@ -169,7 +169,7 @@ git push
 ### Where to Check
 
 1. **Vercel Dashboard** → Cron Jobs
-   - ✅ Cron executes daily at 6 AM UTC
+   - ✅ Cron executes daily at 6:15 AM UTC
    - ✅ No errors in logs
 
 2. **Make.com Dashboard** → Execution History
@@ -188,7 +188,7 @@ git push
 
 | Metric | Expected Value |
 |--------|----------------|
-| Cron executions | 1× at 6 AM UTC |
+| Cron executions | 1× at 6:15 AM UTC |
 | Webhooks sent | 12× (one per category) |
 | Make.com operations | 48× (4 per article) |
 | Articles created | 12× (as drafts) |

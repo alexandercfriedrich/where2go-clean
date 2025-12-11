@@ -97,14 +97,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           // Small delay between requests to avoid overwhelming the webhook
           await new Promise(resolve => setTimeout(resolve, WEBHOOK_DELAY_MS));
 
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
           failureCount++;
           results.push({
             category: `${city}:${category}`,
             success: false,
-            error: error.message
+            error: errorMessage
           });
-          console.error(`[CRON:BLOG-ARTICLES] ✗ Error triggering ${city} - ${category}:`, error.message);
+          console.error(`[CRON:BLOG-ARTICLES] ✗ Error triggering ${city} - ${category}:`, errorMessage);
         }
       }
     }
@@ -130,12 +131,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       status: failureCount === 0 ? 200 : 207 // 207 Multi-Status if partial success
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
     console.error('[CRON:BLOG-ARTICLES] Unexpected error:', error);
     return NextResponse.json(
       { 
         success: false, 
-        error: error.message,
+        error: errorMessage,
         timestamp: new Date().toISOString()
       },
       { status: 500 }

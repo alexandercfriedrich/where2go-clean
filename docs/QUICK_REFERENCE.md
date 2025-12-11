@@ -37,7 +37,7 @@ INTERNAL_API_SECRET=your_secret_min_32_chars
 ## 📋 Daily Execution Flow
 
 ```
-6:00 AM UTC
+6:15 AM UTC
     ↓
 Vercel Cron
     ↓
@@ -168,7 +168,7 @@ curl -X POST https://your-domain.com/api/admin/blog-articles \
 
 ## 🎯 Success Criteria
 
-✓ Cron job runs daily at 6 AM UTC
+✓ Cron job runs daily at 6:15 AM UTC
 ✓ 12 webhooks triggered to Make.com
 ✓ 12 draft articles created in admin panel
 ✓ No errors in Vercel logs
