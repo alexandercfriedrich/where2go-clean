@@ -42,8 +42,8 @@ async function loadStaticPages(): Promise<StaticPage[]> {
 // Save static page to Supabase
 async function saveStaticPage(page: StaticPage): Promise<void> {
   try {
-    const { error } = await supabaseAdmin
-      .from('static_pages')
+    const { error } = await (supabaseAdmin
+      .from('static_pages') as any)
       .upsert({
         id: page.id,
         title: page.title,
@@ -51,7 +51,7 @@ async function saveStaticPage(page: StaticPage): Promise<void> {
         path: page.path,
       }, {
         onConflict: 'id'
-      }) as any;
+      });
 
     if (error) {
       console.error('Error saving static page to Supabase:', error);
@@ -68,11 +68,11 @@ async function saveStaticPage(page: StaticPage): Promise<void> {
 // Delete static page from Supabase
 async function deleteStaticPage(pageId: string): Promise<boolean> {
   try {
-    const { data, error } = await supabaseAdmin
-      .from('static_pages')
+    const { data, error } = await (supabaseAdmin
+      .from('static_pages') as any)
       .delete()
       .eq('id', pageId)
-      .select() as any;
+      .select();
 
     if (error) {
       console.error('Error deleting static page from Supabase:', error);

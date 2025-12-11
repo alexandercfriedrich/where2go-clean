@@ -14,11 +14,11 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { data, error } = await supabase
-      .from('static_pages')
+    const { data, error } = await (supabase
+      .from('static_pages') as any)
       .select('*')
       .eq('id', params.id)
-      .single() as any;
+      .single();
 
     if (error) {
       console.error('Database error loading static page from Supabase:', error);
