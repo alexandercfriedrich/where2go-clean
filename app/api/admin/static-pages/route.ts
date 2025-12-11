@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabaseAdmin } from '@/lib/supabase/client';
+import { supabaseAdmin, validateSupabaseConfig } from '@/lib/supabase/client';
 
 interface StaticPage {
   id: string;
@@ -49,10 +49,9 @@ async function saveStaticPage(page: StaticPage): Promise<void> {
         title: page.title,
         content: page.content,
         path: page.path,
-        updated_at: new Date().toISOString(),
       }, {
         onConflict: 'id'
-      });
+      }) as any;
 
     if (error) {
       console.error('Error saving static page to Supabase:', error);
@@ -67,19 +66,24 @@ async function saveStaticPage(page: StaticPage): Promise<void> {
 }
 
 // Delete static page from Supabase
-async function deleteStaticPage(pageId: string): Promise<void> {
+async function deleteStaticPage(pageId: string): Promise<boolean> {
   try {
-    const { error } = await supabaseAdmin
+    const { data, error } = await supabaseAdmin
       .from('static_pages')
       .delete()
-      .eq('id', pageId);
+      .eq('id', pageId)
+      .select() as any;
 
     if (error) {
       console.error('Error deleting static page from Supabase:', error);
       throw error;
     }
 
-    console.log(`Deleted static page from Supabase: ${pageId}`);
+    const deleted = data && data.length > 0;
+    if (deleted) {
+      console.log(`Deleted static page from Supabase: ${pageId}`);
+    }
+    return deleted;
   } catch (error) {
     console.error('Error deleting static page from Supabase:', error);
     throw error;
@@ -88,6 +92,7 @@ async function deleteStaticPage(pageId: string): Promise<void> {
 
 export async function GET() {
   try {
+    validateSupabaseConfig();
     const pages = await loadStaticPages();
     return NextResponse.json({ pages });
   } catch (error) {
@@ -98,6 +103,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    validateSupabaseConfig();
     const pageData = (await request.json()) as Partial<StaticPage>;
 
     console.log('Received POST request with data:', {
@@ -145,6 +151,7 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    validateSupabaseConfig();
     const { searchParams } = new URL(request.url);
     const pageId = searchParams.get('id');
 
@@ -152,19 +159,12 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Missing page ID' }, { status: 400 });
     }
 
-    // Check if page exists before deletion
-    const { data: existingPage } = await supabaseAdmin
-      .from('static_pages')
-      .select('id')
-      .eq('id', pageId)
-      .single();
-
-    if (!existingPage) {
+    const deleted = await deleteStaticPage(pageId);
+    
+    if (!deleted) {
       return NextResponse.json({ error: 'Page not found' }, { status: 404 });
     }
-
-    await deleteStaticPage(pageId);
-    console.log(`Deleted static page: ${pageId}`);
+    
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error in DELETE /api/admin/static-pages:', error);

@@ -254,7 +254,6 @@ export type Database = {
           title?: string
           content?: string
           path?: string
-          created_at?: string
           updated_at?: string
         }
       }

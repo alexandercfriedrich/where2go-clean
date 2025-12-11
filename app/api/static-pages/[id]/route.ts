@@ -20,8 +20,12 @@ export async function GET(
       .eq('id', params.id)
       .single() as any;
 
-    if (error || !data) {
-      console.error('Error loading static page from Supabase:', error);
+    if (error) {
+      console.error('Database error loading static page from Supabase:', error);
+      return NextResponse.json({ error: 'Database error' }, { status: 500 });
+    }
+    
+    if (!data) {
       return NextResponse.json({ error: 'Page not found' }, { status: 404 });
     }
 
