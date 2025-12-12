@@ -309,8 +309,8 @@ response.headers.set('X-RateLimit-Remaining', '99');
 
 ### 4. CSRF (Cross-Site Request Forgery)
 **Risk**: Unauthorized actions via forged requests
-**Mitigation**: ✅ Basic Auth requires credentials on every request
-**Status**: Protected
+**Mitigation**: ⚠️ Basic Auth does **not** prevent CSRF. No CSRF tokens or Origin/Referer header checks are currently implemented. It is recommended to add CSRF protection (e.g., CSRF tokens or Origin/Referer validation) for all state-changing admin routes.
+**Status**: Not fully protected – CSRF defenses should be implemented.
 
 ### 5. Information Disclosure
 **Risk**: Leaking sensitive information via errors
