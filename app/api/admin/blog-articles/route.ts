@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, validateSupabaseConfig } from '@/lib/supabase/client';
+import { PostgrestError } from '@supabase/supabase-js';
 import { EVENT_CATEGORIES } from '@/lib/eventCategories';
 import { VALID_CITY_VALUES, isValidCity } from '@/lib/cities';
 import { slugify } from '@/lib/utils/slugify';
@@ -189,13 +190,13 @@ export async function POST(request: NextRequest) {
 
     // Check if article exists
     type ExistingArticle = { id: string; generated_at: string } | null;
-    const { data: existingArticle, error: queryError } = (await supabaseAdmin
+    const { data: existingArticle } = (await supabaseAdmin
       .from('blog_articles')
       .select('id, generated_at')
       .eq('city', payload.city.toLowerCase())
       .eq('category', payload.category)
       .eq('slug', slug)
-      .maybeSingle()) as { data: ExistingArticle; error: any };
+      .maybeSingle()) as { data: ExistingArticle; error: PostgrestError | null };
 
     // Prepare article data for insert/update
     const articleData: any = {
