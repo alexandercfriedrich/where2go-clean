@@ -218,8 +218,9 @@ export async function POST(request: NextRequest) {
     // Upsert article - use insert with onConflict if not exists, otherwise update
     if (existingArticle) {
       // Update existing article
-      const { data, error } = await supabaseAdmin
-        .from('blog_articles')
+      const updateQuery = supabaseAdmin
+        .from('blog_articles') as any;
+      const { data, error } = await updateQuery
         .update(articleData)
         .eq('id', existingArticle.id)
         .select()
@@ -238,8 +239,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, article });
     } else {
       // Create new article
-      const { data, error } = await supabaseAdmin
-        .from('blog_articles')
+      const insertQuery = supabaseAdmin
+        .from('blog_articles') as any;
+      const { data, error } = await insertQuery
         .insert([articleData])
         .select()
         .single();
