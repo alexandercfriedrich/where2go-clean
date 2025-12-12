@@ -188,13 +188,14 @@ export async function POST(request: NextRequest) {
     const slug = generateBlogSlug(payload.city, payload.category, payload.title);
 
     // Check if article exists
-    const { data: existingArticle } = await supabaseAdmin
+    type ExistingArticle = { id: string; generated_at: string } | null;
+    const { data: existingArticle, error: queryError } = (await supabaseAdmin
       .from('blog_articles')
       .select('id, generated_at')
       .eq('city', payload.city.toLowerCase())
       .eq('category', payload.category)
       .eq('slug', slug)
-      .single();
+      .maybeSingle()) as { data: ExistingArticle; error: any };
 
     // Prepare article data for insert/update
     const articleData: any = {
