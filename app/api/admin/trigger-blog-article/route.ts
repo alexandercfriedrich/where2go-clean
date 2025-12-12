@@ -7,9 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { EVENT_CATEGORIES } from '@/lib/eventCategories';
-
-// Valid cities for the platform
-const VALID_CITIES = ['wien', 'berlin', 'linz', 'ibiza'];
+import { VALID_CITY_VALUES, isValidCity } from '@/lib/cities';
 
 export async function POST(request: NextRequest) {
   try {
@@ -25,9 +23,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate city
-    if (!VALID_CITIES.includes(city.toLowerCase())) {
+    if (!isValidCity(city)) {
       return NextResponse.json(
-        { error: `Invalid city. Must be one of: ${VALID_CITIES.join(', ')}` },
+        { error: `Invalid city. Must be one of: ${VALID_CITY_VALUES.join(', ')}` },
         { status: 400 }
       );
     }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin, validateSupabaseConfig } from '@/lib/supabase/client';
 import { EVENT_CATEGORIES } from '@/lib/eventCategories';
+import { VALID_CITY_VALUES, isValidCity } from '@/lib/cities';
 import { slugify } from '@/lib/utils/slugify';
 import type { 
   BlogArticle, 
@@ -9,9 +10,6 @@ import type {
   BlogArticleListRequest,
   BlogArticleListResponse 
 } from '@/lib/types';
-
-// Valid cities for the platform
-const VALID_CITIES = ['wien', 'berlin', 'linz', 'ibiza'];
 
 /**
  * Generate slug for blog article
@@ -25,12 +23,7 @@ function generateBlogSlug(city: string, category: string, title: string): string
   return `${citySlug}-${categorySlug}-${titleSlug}`;
 }
 
-/**
- * Validate city parameter
- */
-function isValidCity(city: string): boolean {
-  return VALID_CITIES.includes(city.toLowerCase());
-}
+
 
 /**
  * Validate category parameter
@@ -84,7 +77,7 @@ export async function GET(request: NextRequest) {
     // Validate filters
     if (filters.city && !isValidCity(filters.city)) {
       return NextResponse.json(
-        { error: `Invalid city. Must be one of: ${VALID_CITIES.join(', ')}` },
+        { error: `Invalid city. Must be one of: ${VALID_CITY_VALUES.join(', ')}` },
         { status: 400 }
       );
     }
@@ -178,7 +171,7 @@ export async function POST(request: NextRequest) {
     // Validate city
     if (!isValidCity(payload.city)) {
       return NextResponse.json(
-        { error: `Invalid city. Must be one of: ${VALID_CITIES.join(', ')}` },
+        { error: `Invalid city. Must be one of: ${VALID_CITY_VALUES.join(', ')}` },
         { status: 400 }
       );
     }

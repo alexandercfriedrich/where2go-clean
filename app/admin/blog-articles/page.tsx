@@ -3,6 +3,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { EVENT_CATEGORIES } from '@/lib/eventCategories';
+import { VALID_CITIES } from '@/lib/cities';
 import type { BlogArticle, BlogArticleUpdatePayload } from '@/lib/types';
 
 // Dynamic import for React-Quill to avoid SSR issues
@@ -10,14 +11,6 @@ const ReactQuill = dynamic(() => import('react-quill-new'), {
   ssr: false,
   loading: () => <div className="form-textarea" style={{ minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #ddd' }}>Editor wird geladen...</div>
 });
-
-// Valid cities - lowercase to match API/database expectations
-const VALID_CITIES = [
-  { value: 'wien', label: 'Wien' },
-  { value: 'berlin', label: 'Berlin' },
-  { value: 'linz', label: 'Linz' },
-  { value: 'ibiza', label: 'Ibiza' },
-];
 
 export default function BlogArticlesAdmin() {
   const [articles, setArticles] = useState<BlogArticle[]>([]);
