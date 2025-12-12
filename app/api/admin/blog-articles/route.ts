@@ -215,27 +215,47 @@ export async function POST(request: NextRequest) {
       articleData.generated_at = new Date().toISOString();
     }
 
-    // Upsert article (insert or update if exists)
-    const { data, error } = await supabaseAdmin
-      .from('blog_articles')
-      .upsert(articleData as any, {
-        onConflict: 'city,category,slug',
-        ignoreDuplicates: false,
-      })
-      .select()
-      .single();
+    // Upsert article - use insert with onConflict if not exists, otherwise update
+    if (existingArticle) {
+      // Update existing article
+      const { data, error } = await supabaseAdmin
+        .from('blog_articles')
+        .update(articleData)
+        .eq('id', existingArticle.id)
+        .select()
+        .single();
 
-    if (error) {
-      console.error('Error creating/updating blog article:', error);
-      return NextResponse.json(
-        { error: 'Failed to create/update blog article' },
-        { status: 500 }
-      );
+      if (error) {
+        console.error('Error updating blog article:', error);
+        return NextResponse.json(
+          { error: 'Failed to update blog article' },
+          { status: 500 }
+        );
+      }
+
+      const article = data as BlogArticle;
+      console.log('Successfully updated blog article:', article.id);
+      return NextResponse.json({ success: true, article });
+    } else {
+      // Create new article
+      const { data, error } = await supabaseAdmin
+        .from('blog_articles')
+        .insert([articleData])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating blog article:', error);
+        return NextResponse.json(
+          { error: 'Failed to create blog article' },
+          { status: 500 }
+        );
+      }
+
+      const article = data as BlogArticle;
+      console.log('Successfully created blog article:', article.id);
+      return NextResponse.json({ success: true, article });
     }
-
-    const article = data as BlogArticle;
-    console.log('Successfully created/updated blog article:', article.id);
-    return NextResponse.json({ success: true, article });
   } catch (error: any) {
     console.error('Error in POST /api/admin/blog-articles:', error);
     return NextResponse.json(
