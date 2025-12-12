@@ -37,6 +37,12 @@ export function DiscoveryNav() {
             >
               Discover
             </Link>
+            <Link
+              href="/blog"
+              className="text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors"
+            >
+              Blog
+            </Link>
           </div>
 
           {/* Right Side Actions */}
