@@ -50,6 +50,7 @@ export default function AdminLayout({
           <h1 className="admin-title">Where2Go Admin</h1>
           <a href="/admin" className="nav-link">Dashboard</a>
           <a href="/admin/hot-cities" className="nav-link">Hot Cities</a>
+          <a href="/admin/blog-articles" className="nav-link">Blog Articles</a>
         </nav>
       </div>
       

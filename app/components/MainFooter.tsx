@@ -67,6 +67,7 @@ export default function MainFooter() {
         
         <div className="footer-content">
           <div className="footer-links">
+            <a href="/blog" className="footer-link">Blog</a>
             <a href="/impressum" className="footer-link">Impressum</a>
             <a href="/agb" className="footer-link">AGB</a>
             <a href="/kontakt" className="footer-link">Kontakt</a>
