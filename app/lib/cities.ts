@@ -27,5 +27,6 @@ export const VALID_CITIES: CityOption[] = [
  * Check if a city value is valid
  */
 export function isValidCity(city: string): boolean {
-  return VALID_CITY_VALUES.includes(city.toLowerCase() as any);
+  const lowerCity = city.toLowerCase();
+  return VALID_CITY_VALUES.includes(lowerCity as typeof VALID_CITY_VALUES[number]);
 }

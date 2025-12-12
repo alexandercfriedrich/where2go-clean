@@ -578,8 +578,9 @@ export default function BlogArticlesAdmin() {
           
           <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
             <div className="filter-group" style={{ flex: '1', minWidth: '200px' }}>
-              <label>City *</label>
+              <label htmlFor="make-city-select">City *</label>
               <select 
+                id="make-city-select"
                 className="filter-select" 
                 value={makeCity} 
                 onChange={(e) => setMakeCity(e.target.value)}
@@ -592,8 +593,9 @@ export default function BlogArticlesAdmin() {
             </div>
             
             <div className="filter-group" style={{ flex: '1', minWidth: '200px' }}>
-              <label>Category *</label>
+              <label htmlFor="make-category-select">Category *</label>
               <select 
+                id="make-category-select"
                 className="filter-select" 
                 value={makeCategory} 
                 onChange={(e) => setMakeCategory(e.target.value)}

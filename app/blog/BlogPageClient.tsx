@@ -2,14 +2,50 @@
 
 import Link from 'next/link';
 import type { BlogArticle } from '@/lib/types';
+import { sanitizeImageUrl } from '@/lib/utils/sanitize';
 
 interface BlogPageClientProps {
   articles: BlogArticle[];
 }
 
 export default function BlogPageClient({ articles }: BlogPageClientProps) {
+  // Limit to 100 items for Schema.org as per guidelines
+  const schemaArticles = articles.slice(0, 100);
+  
   return (
     <div className="blog-page">
+      {/* Schema.org JSON-LD structured data for blog listing */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'ItemList',
+            name: 'Where2Go Blog Articles',
+            description: 'Entdecke die besten Events und Insider-Tipps für Wien, Berlin, Linz und Ibiza',
+            url: 'https://www.where2go.at/blog',
+            numberOfItems: schemaArticles.length,
+            itemListElement: schemaArticles.map((article, index) => ({
+              '@type': 'ListItem',
+              position: index + 1,
+              item: {
+                '@type': 'BlogPosting',
+                '@id': `https://www.where2go.at/blog/${article.slug}`,
+                url: `https://www.where2go.at/blog/${article.slug}`,
+                headline: article.title,
+                description: article.meta_description || article.title,
+                datePublished: article.published_at || article.generated_at,
+                author: {
+                  '@type': 'Organization',
+                  name: 'Where2Go'
+                },
+                image: article.featured_image || 'https://www.where2go.at/og-image.png'
+              }
+            }))
+          })
+        }}
+      />
+      
       <div className="container">
         <header className="blog-header">
           <h1>Where2Go Blog</h1>
@@ -22,17 +58,20 @@ export default function BlogPageClient({ articles }: BlogPageClientProps) {
           </div>
         ) : (
           <div className="articles-grid">
-            {articles.map((article) => (
-              <Link 
-                key={article.id} 
-                href={`/blog/${article.slug}`}
-                className="article-card"
-              >
-                {article.featured_image && (
-                  <div className="article-image">
-                    <img src={article.featured_image} alt={article.title} />
-                  </div>
-                )}
+            {articles.map((article) => {
+              const safeImageUrl = article.featured_image ? sanitizeImageUrl(article.featured_image) : '';
+              
+              return (
+                <Link 
+                  key={article.id} 
+                  href={`/blog/${article.slug}`}
+                  className="article-card"
+                >
+                  {safeImageUrl && (
+                    <div className="article-image">
+                      <img src={safeImageUrl} alt={article.title} />
+                    </div>
+                  )}
                 <div className="article-content">
                   <div className="article-meta">
                     <span className="article-city">{article.city}</span>
@@ -50,8 +89,9 @@ export default function BlogPageClient({ articles }: BlogPageClientProps) {
                     })}
                   </div>
                 </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>

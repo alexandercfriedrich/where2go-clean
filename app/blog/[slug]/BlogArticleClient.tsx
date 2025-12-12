@@ -2,15 +2,57 @@
 
 import Link from 'next/link';
 import type { BlogArticle } from '@/lib/types';
+import { sanitizeHtml, sanitizeImageUrl } from '@/lib/utils/sanitize';
 
 interface BlogArticleClientProps {
   article: BlogArticle;
 }
 
 export default function BlogArticleClient({ article }: BlogArticleClientProps) {
+  // Sanitize content for defense-in-depth XSS protection
+  const sanitizedContent = sanitizeHtml(article.content);
+  
+  // Validate featured image URL
+  const safeImageUrl = article.featured_image ? sanitizeImageUrl(article.featured_image) : '';
+  
   return (
     <div className="article-page">
       <article className="article-container">
+        {/* Schema.org JSON-LD structured data */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              '@context': 'https://schema.org',
+              '@type': 'BlogPosting',
+              headline: article.title,
+              datePublished: article.published_at || article.generated_at,
+              dateModified: article.updated_at,
+              author: {
+                '@type': 'Organization',
+                name: 'Where2Go',
+                url: 'https://www.where2go.at'
+              },
+              publisher: {
+                '@type': 'Organization',
+                name: 'Where2Go',
+                logo: {
+                  '@type': 'ImageObject',
+                  url: 'https://www.where2go.at/logo.png'
+                }
+              },
+              image: safeImageUrl || 'https://www.where2go.at/og-image.png',
+              description: article.meta_description || article.title,
+              keywords: article.seo_keywords || '',
+              articleBody: article.content.replace(/<[^>]*>/g, '').substring(0, 500),
+              mainEntityOfPage: {
+                '@type': 'WebPage',
+                '@id': `https://www.where2go.at/blog/${article.slug}`
+              }
+            })
+          }}
+        />
+        
         <header className="article-header">
           <div className="article-meta">
             <span className="article-city">{article.city}</span>
@@ -27,16 +69,16 @@ export default function BlogArticleClient({ article }: BlogArticleClientProps) {
             })}
           </div>
 
-          {article.featured_image && (
+          {safeImageUrl && (
             <div className="article-featured-image">
-              <img src={article.featured_image} alt={article.title} />
+              <img src={safeImageUrl} alt={article.title} />
             </div>
           )}
         </header>
 
         <div 
           className="article-body"
-          dangerouslySetInnerHTML={{ __html: article.content }}
+          dangerouslySetInnerHTML={{ __html: sanitizedContent }}
         />
 
         <footer className="article-footer">
