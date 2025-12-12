@@ -32,6 +32,13 @@ export default function BlogArticlesAdmin() {
   const [filterCategory, setFilterCategory] = useState<string>('');
   const [filterStatus, setFilterStatus] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  
+  // Make.com trigger state
+  const [showMakeTrigger, setShowMakeTrigger] = useState(false);
+  const [makeCity, setMakeCity] = useState<string>('wien');
+  const [makeCategory, setMakeCategory] = useState<string>(EVENT_CATEGORIES[0]);
+  const [makeTriggerLoading, setMakeTriggerLoading] = useState(false);
+  const [makeTriggerMessage, setMakeTriggerMessage] = useState<string | null>(null);
 
   // React-Quill Configuration
   const quillModules = useMemo(() => ({
@@ -227,6 +234,40 @@ export default function BlogArticlesAdmin() {
   function handleCancel() {
     setEditingArticle(null);
     setError(null);
+  }
+
+  async function handleTriggerMake() {
+    try {
+      setMakeTriggerLoading(true);
+      setMakeTriggerMessage(null);
+      setError(null);
+
+      // Call the Make.com webhook endpoint
+      const response = await fetch('/api/admin/trigger-blog-article', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          city: makeCity,
+          category: makeCategory,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to trigger Make.com');
+      }
+
+      setMakeTriggerMessage(`✅ Successfully triggered Make.com for ${makeCity} - ${makeCategory}`);
+      setShowMakeTrigger(false);
+      
+      // Reload articles after a short delay to show newly created article
+      setTimeout(() => loadArticles(), 2000);
+    } catch (e: any) {
+      setMakeTriggerMessage(`❌ Error: ${e.message || 'Unknown error'}`);
+    } finally {
+      setMakeTriggerLoading(false);
+    }
   }
 
   function handleContentChange(value: string) {
@@ -499,6 +540,13 @@ export default function BlogArticlesAdmin() {
       <div className="admin-header">
         <h1 className="admin-title">Blog Articles Management</h1>
         <div>
+          <button 
+            className="btn btn-primary" 
+            onClick={() => setShowMakeTrigger(!showMakeTrigger)}
+            style={{ marginRight: '10px' }}
+          >
+            🚀 Artikel via Make erstellen
+          </button>
           <button className="btn btn-success" onClick={handleCreateNew}>
             + New Article
           </button>
@@ -507,6 +555,82 @@ export default function BlogArticlesAdmin() {
           </a>
         </div>
       </div>
+
+      {makeTriggerMessage && (
+        <div style={{
+          padding: '15px',
+          marginBottom: '20px',
+          borderRadius: '5px',
+          backgroundColor: makeTriggerMessage.startsWith('✅') ? '#d4edda' : '#f8d7da',
+          color: makeTriggerMessage.startsWith('✅') ? '#155724' : '#721c24',
+          border: makeTriggerMessage.startsWith('✅') ? '1px solid #c3e6cb' : '1px solid #f5c6cb',
+          fontSize: '14px'
+        }}>
+          {makeTriggerMessage}
+        </div>
+      )}
+
+      {showMakeTrigger && (
+        <div style={{
+          background: '#f8f9fa',
+          padding: '20px',
+          borderRadius: '8px',
+          marginBottom: '20px',
+          border: '1px solid #dee2e6'
+        }}>
+          <h3 style={{ margin: '0 0 15px 0', fontSize: '1.2rem' }}>Trigger Make.com Blog Article Generation</h3>
+          <p style={{ margin: '0 0 15px 0', color: '#666', fontSize: '14px' }}>
+            Select a city and category to automatically generate a blog article using Make.com automation.
+          </p>
+          
+          <div style={{ display: 'flex', gap: '15px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+            <div className="filter-group" style={{ flex: '1', minWidth: '200px' }}>
+              <label>City *</label>
+              <select 
+                className="filter-select" 
+                value={makeCity} 
+                onChange={(e) => setMakeCity(e.target.value)}
+                disabled={makeTriggerLoading}
+              >
+                {VALID_CITIES.map(city => (
+                  <option key={city.value} value={city.value}>{city.label}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="filter-group" style={{ flex: '1', minWidth: '200px' }}>
+              <label>Category *</label>
+              <select 
+                className="filter-select" 
+                value={makeCategory} 
+                onChange={(e) => setMakeCategory(e.target.value)}
+                disabled={makeTriggerLoading}
+              >
+                {EVENT_CATEGORIES.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button 
+                className="btn btn-primary" 
+                onClick={handleTriggerMake}
+                disabled={makeTriggerLoading}
+              >
+                {makeTriggerLoading ? '⏳ Triggering...' : '🚀 Trigger Generation'}
+              </button>
+              <button 
+                className="btn btn-secondary" 
+                onClick={() => setShowMakeTrigger(false)}
+                disabled={makeTriggerLoading}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {error && <div className="error">{error}</div>}
 

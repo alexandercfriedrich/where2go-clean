@@ -26,13 +26,38 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       ? `https://${process.env.VERCEL_URL}`
       : `http://localhost:${process.env.PORT || 3000}`;
 
+    // Use Basic Auth credentials for admin endpoint
+    const adminUser = process.env.ADMIN_USER;
+    const adminPass = process.env.ADMIN_PASS;
+
+    if (!adminUser || !adminPass) {
+      console.error('[cron-warmup] ADMIN_USER or ADMIN_PASS not configured');
+      return NextResponse.json(
+        { success: false, error: 'Admin credentials not configured' },
+        { status: 500 }
+      );
+    }
+
+    const credentials = Buffer.from(`${adminUser}:${adminPass}`).toString('base64');
+
     const response = await fetch(`${baseUrl}/api/admin/cache-warmup`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.ADMIN_API_KEY}`,
+        'Authorization': `Basic ${credentials}`,
         'Content-Type': 'application/json'
       }
     });
+
+    // Check if response is JSON before parsing
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      const text = await response.text();
+      console.error('[cron-warmup] Received non-JSON response:', text.substring(0, 500));
+      return NextResponse.json(
+        { success: false, error: 'Received non-JSON response from cache-warmup endpoint' },
+        { status: 500 }
+      );
+    }
 
     const data = await response.json();
 
