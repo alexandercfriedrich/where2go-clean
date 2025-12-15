@@ -1,5 +1,6 @@
 /**
  * Tests for HTML sanitization utilities
+ * Using isomorphic-dompurify which works in both Node.js (tests) and browser environments
  */
 
 import { describe, it, expect } from 'vitest';
