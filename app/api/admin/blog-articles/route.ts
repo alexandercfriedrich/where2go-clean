@@ -3,7 +3,7 @@ import { supabaseAdmin, validateSupabaseConfig } from '@/lib/supabase/client';
 import { PostgrestError } from '@supabase/supabase-js';
 import { EVENT_CATEGORIES } from '@/lib/eventCategories';
 import { VALID_CITY_VALUES, isValidCity } from '@/lib/cities';
-import { slugify } from '@/lib/utils/slugify';
+import { generateBlogSlug } from '@/lib/utils/blogSlugGenerator';
 import type { 
   BlogArticle, 
   BlogArticleCreatePayload, 
@@ -11,18 +11,6 @@ import type {
   BlogArticleListRequest,
   BlogArticleListResponse 
 } from '@/lib/types';
-
-/**
- * Generate slug for blog article
- * Format: {city}-{category}-{normalized-title}
- */
-function generateBlogSlug(city: string, category: string, title: string): string {
-  const citySlug = slugify(city);
-  const categorySlug = slugify(category);
-  const titleSlug = slugify(title).substring(0, 100); // Limit title length
-  
-  return `${citySlug}-${categorySlug}-${titleSlug}`;
-}
 
 
 
