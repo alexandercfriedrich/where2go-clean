@@ -8,8 +8,10 @@
 DO $$ 
 BEGIN
   IF EXISTS (
-    SELECT 1 FROM pg_constraint 
-    WHERE conname = 'blog_articles_city_category_key'
+    SELECT 1 FROM pg_constraint c
+    JOIN pg_class t ON c.conrelid = t.oid
+    WHERE c.conname = 'blog_articles_city_category_key'
+      AND t.relname = 'blog_articles'
   ) THEN
     ALTER TABLE blog_articles DROP CONSTRAINT blog_articles_city_category_key;
     RAISE NOTICE 'Dropped incorrect constraint: blog_articles_city_category_key';
@@ -23,8 +25,10 @@ END $$;
 DO $$
 BEGIN
   IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint 
-    WHERE conname = 'unique_city_category_slug'
+    SELECT 1 FROM pg_constraint c
+    JOIN pg_class t ON c.conrelid = t.oid
+    WHERE c.conname = 'unique_city_category_slug'
+      AND t.relname = 'blog_articles'
   ) THEN
     ALTER TABLE blog_articles ADD CONSTRAINT unique_city_category_slug UNIQUE (city, category, slug);
     RAISE NOTICE 'Added correct constraint: unique_city_category_slug';

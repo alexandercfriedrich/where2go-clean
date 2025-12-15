@@ -7,6 +7,12 @@
 import { slugify } from './slugify';
 
 /**
+ * Maximum length for the title portion of the slug
+ * This prevents excessively long URLs while maintaining SEO value
+ */
+const TITLE_SLUG_MAX_LENGTH = 100;
+
+/**
  * Generate slug for blog article
  * @param city - City name (e.g., 'wien', 'berlin')
  * @param category - Event category (e.g., 'Clubs & Nachtleben')
@@ -20,7 +26,7 @@ import { slugify } from './slugify';
 export function generateBlogSlug(city: string, category: string, title: string): string {
   const citySlug = slugify(city);
   const categorySlug = slugify(category);
-  const titleSlug = slugify(title).substring(0, 100); // Limit title length
+  const titleSlug = slugify(title).substring(0, TITLE_SLUG_MAX_LENGTH);
   
   return `${citySlug}-${categorySlug}-${titleSlug}`;
 }
