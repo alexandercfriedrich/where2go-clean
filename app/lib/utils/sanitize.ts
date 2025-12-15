@@ -1,9 +1,10 @@
 /**
- * HTML Sanitization utility using DOMPurify
+ * HTML Sanitization utility using isomorphic-dompurify
  * Defense-in-depth measure for sanitizing user-generated HTML content
+ * Uses isomorphic-dompurify for both server-side and client-side rendering compatibility
  */
 
-import DOMPurify from 'dompurify';
+import * as DOMPurify from 'isomorphic-dompurify';
 
 /**
  * Sanitizes HTML content to prevent XSS attacks
