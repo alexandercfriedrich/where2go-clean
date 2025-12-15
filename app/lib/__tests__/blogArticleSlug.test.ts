@@ -4,21 +4,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { slugify } from '../utils/slugify';
-
-/**
- * Generate slug for blog article
- * Format: {city}-{category}-{normalized-title}
- * 
- * This is the logic from app/api/admin/blog-articles/route.ts
- */
-function generateBlogSlug(city: string, category: string, title: string): string {
-  const citySlug = slugify(city);
-  const categorySlug = slugify(category);
-  const titleSlug = slugify(title).substring(0, 100); // Limit title length
-  
-  return `${citySlug}-${categorySlug}-${titleSlug}`;
-}
+import { generateBlogSlug } from '../utils/blogSlugGenerator';
 
 describe('Blog Article Slug Generation', () => {
   describe('generateBlogSlug', () => {
