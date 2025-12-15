@@ -8,6 +8,15 @@ import { generateBlogSlug } from '../utils/blogSlugGenerator';
 
 describe('Blog Article Slug Generation', () => {
   describe('generateBlogSlug', () => {
+    it('should validate required parameters', () => {
+      expect(() => generateBlogSlug('', 'Live-Konzerte', 'Test')).toThrow('City parameter is required');
+      expect(() => generateBlogSlug('   ', 'Live-Konzerte', 'Test')).toThrow('City parameter is required');
+      expect(() => generateBlogSlug('wien', '', 'Test')).toThrow('Category parameter is required');
+      expect(() => generateBlogSlug('wien', '   ', 'Test')).toThrow('Category parameter is required');
+      expect(() => generateBlogSlug('wien', 'Live-Konzerte', '')).toThrow('Title parameter is required');
+      expect(() => generateBlogSlug('wien', 'Live-Konzerte', '   ')).toThrow('Title parameter is required');
+    });
+
     it('should generate unique slugs for different titles in same city-category', () => {
       const city = 'wien';
       const category = 'Clubs & Nachtleben';
