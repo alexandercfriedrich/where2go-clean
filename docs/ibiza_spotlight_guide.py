@@ -117,7 +117,7 @@ def filter_by_price_range(events, min_price, max_price):
             price = float(e['price_from'].replace('€', '').replace(',', '.'))
             if min_price <= price <= max_price:
                 filtered.append(e)
-        except:
+        except (ValueError, TypeError, AttributeError, KeyError):
             pass
     return filtered
 
