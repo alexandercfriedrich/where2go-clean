@@ -65,11 +65,13 @@ class IbizaSpotlightScraper(BaseVenueScraper):
         events = []
         
         # Find event cards on the page
-        # Adjust selectors based on actual HTML structure
+        # Note: These selectors are generic patterns. The actual website structure
+        # may differ and should be verified before production use. Update selectors
+        # based on the actual HTML structure of ibiza-spotlight.de
         event_cards = soup.select('.event-card, .party-card, article.event, .event-item')
         
         if not event_cards:
-            # Try alternative selectors
+            # Try alternative selectors if primary selectors don't match
             event_cards = soup.select('[class*="event"], [class*="party"]')
             self.log(f"Using alternative selectors, found {len(event_cards)} potential elements", "debug")
         
