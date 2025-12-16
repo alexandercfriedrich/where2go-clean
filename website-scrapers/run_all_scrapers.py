@@ -42,6 +42,7 @@ def import_scraper(venue_key):
         'vieipee': ('vieipee', 'VieipeeScraper'),
         'babenberger-passage': ('babenberger-passage', 'BabenbergerPassageScraper'),
         'patroc-wien-gay': ('patroc-wien', 'PatrocWienGayScraper'),
+        'ibiza-spotlight': ('ibiza-spotlight', 'IbizaSpotlightScraper'),
     }
     
     if venue_key in scraper_map:
