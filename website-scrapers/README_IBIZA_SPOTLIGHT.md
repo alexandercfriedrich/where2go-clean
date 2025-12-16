@@ -9,17 +9,33 @@ This scraper extends `BaseVenueScraper` and integrates with the Unified Pipeline
 ## Features
 
 - ✅ Extends `BaseVenueScraper` for consistent behavior
+- ✅ **Dynamic URL generation** with current date + 6 days range
 - ✅ Scrapes party/club events from Ibiza Spotlight calendar
+- ✅ **Visits event detail pages** for comprehensive data extraction
 - ✅ Extracts event details (title, date, time, venue, DJs, prices)
+- ✅ Parses event structure from `li.partyCal-day` elements
+- ✅ Extracts multiple venue rooms per event
+- ✅ Collects complete DJ/artist lineups
 - ✅ Respectful rate limiting (2-second delays between requests)
 - ✅ Unified Pipeline API integration for event storage
 - ✅ Comprehensive error handling and logging
 - ✅ Supports dry-run mode for testing
 
+## How It Works
+
+The scraper:
+1. **Generates a dynamic URL** with the current date and end date (today + 6 days) in format: `/night/events/{YYYY}/{MM}?daterange={DD/MM/YYYY}-{DD/MM/YYYY}`
+2. Fetches the events calendar page for the 7-day window
+3. Parses event cards from `li.partyCal-day` elements (excluding empty days)
+4. Extracts basic information from each event card
+5. **Visits each event's detail page** to enrich the data with additional information
+6. Returns comprehensive event data ready for database storage
+
 ## Limitations
 
-- The Ibiza Spotlight calendar page displays up to 7 days of events at a time, limiting scraper extraction to 7-day windows per request
+- The Ibiza Spotlight calendar API supports a maximum of 7 days per request
 - Events are focused on Ibiza, Spain nightlife
+- Some events may not have detail pages (promoter pages are used instead)
 - Availability depends on website structure (may require updates if site changes)
 
 ## Usage
@@ -84,10 +100,33 @@ class IbizaSpotlightScraper(BaseVenueScraper):
     CITY = "Ibiza"
     COUNTRY = "Spain"
     BASE_URL = "https://www.ibiza-spotlight.de"
-    EVENTS_URL = "https://www.ibiza-spotlight.de/night/events"
+    # Note: EVENTS_URL is dynamically generated in _generate_events_url()
     CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Electronic"
 ```
+
+### Dynamic URL Generation
+
+The scraper uses `_generate_events_url()` to create URLs with the current date range:
+
+```python
+def _generate_events_url(self) -> str:
+    """Generate dynamic events URL with current date range (today + 6 days)"""
+    today = datetime.now()
+    end_date = today + timedelta(days=6)
+    
+    start_str = today.strftime('%d/%m/%Y')
+    end_str = end_date.strftime('%d/%m/%Y')
+    year = today.strftime('%Y')
+    month = today.strftime('%m')
+    
+    daterange = f'{start_str}-{end_str}'
+    url = f'{self.BASE_URL}/night/events/{year}/{month}?daterange={daterange}'
+    
+    return url
+```
+
+Example URL: `https://www.ibiza-spotlight.de/night/events/2025/12?daterange=16/12/2025-22/12/2025`
 
 ### Registry Configuration
 
@@ -98,12 +137,39 @@ Ibiza Spotlight is also registered in `website-scrapers/venue_configs.py` as an 
     'venue_name': 'Ibiza Spotlight',
     'type': 'aggregator',  # Aggregates events from multiple venues
     'aggregates_multiple_venues': True,
+    'use_detail_pages': True,  # Visits detail pages for enrichment
     'has_dedicated_scraper': True,
     ...
 }
 ```
 
 This configuration allows `run_all_scrapers.py` to recognize and run the scraper
+
+### Event Structure
+
+The scraper parses events from the calendar's structure:
+
+```html
+<li class="partyCal-day" rel="">
+  <div class="card-ticket partyCal-ticket" data-eventid="423774">
+    <div class="ticket-header">
+      <div class="ticket-date">
+        <span>Sa.</span>
+        <span>20</span>
+        <span>Dez.</span>
+      </div>
+      <time>16:00</time>
+      <h3><a href="/night/promoters/...">Event Name</a></h3>
+      <div class="partyRoom">Venue Name</div>
+      <div class="partyDj"><a href="/dj/...">DJ Name</a></div>
+      <div class="spotlight-price">
+        <span class="currencyVal">15</span>
+        <span class="currencySymb">€</span>
+      </div>
+    </div>
+  </div>
+</li>
+```
 
 ## Output
 
@@ -153,21 +219,46 @@ The scraper runs automatically via GitHub Actions:
 
 ### No events found
 
+- **Most common**: No events scheduled in the current 7-day window (especially off-season)
 - Check if the website structure has changed
-- Verify the EVENTS_URL is correct
-- Enable debug mode to see detailed parsing logs
+- Verify the dynamic URL is being generated correctly (enable debug mode)
+- Check if the calendar is loading JavaScript content (may need Selenium)
+- Enable debug mode to see detailed parsing logs: `--debug`
+
+### Dynamic URL Issues
+
+- The URL format must be: `/night/events/{YYYY}/{MM}?daterange={DD/MM/YYYY}-{DD/MM/YYYY}`
+- Date format is crucial: DD/MM/YYYY (European format)
+- The daterange parameter is limited to 7 days maximum
+- If you see "Found 0 event days", the calendar might be empty or the URL format changed
 
 ### Request timeouts
 
-- Increase the delay between requests
+- Increase the delay between requests: `--delay 3.0`
 - Check network connectivity
 - Verify the website is accessible
+- Some detail pages may be slow to load
 
 ### Database errors
 
 - Verify Supabase credentials are set
 - Check UNIFIED_PIPELINE_URL is correct
 - Ensure database schema is up to date
+
+### Testing the scraper
+
+```bash
+# Test URL generation
+python3 -c "
+from datetime import datetime, timedelta
+today = datetime.now()
+end_date = today + timedelta(days=6)
+print(f'URL: https://www.ibiza-spotlight.de/night/events/{today:%Y/%m}?daterange={today:%d/%m/%Y}-{end_date:%d/%m/%Y}')
+"
+
+# Run in debug mode with dry-run
+python website-scrapers/ibiza-spotlight.py --dry-run --debug --delay 1.0
+```
 
 ## Development
 
