@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 
 interface Scraper {
@@ -22,6 +22,12 @@ interface ScraperStats {
   inactive: number;
 }
 
+interface StatusMessage {
+  text: string;
+  type: 'success' | 'error';
+  workflowUrl?: string;
+}
+
 export default function ScrapersAdminPage() {
   const [scrapers, setScrapers] = useState<Scraper[]>([]);
   const [stats, setStats] = useState<ScraperStats | null>(null);
@@ -29,7 +35,7 @@ export default function ScrapersAdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [selectedScrapers, setSelectedScrapers] = useState<Set<string>>(new Set());
   const [runningScrapers, setRunningScrapers] = useState<Set<string>>(new Set());
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<StatusMessage | null>(null);
   const [filterType, setFilterType] = useState<'all' | 'venue' | 'aggregator'>('all');
   const [filterCity, setFilterCity] = useState<string>('all');
 
@@ -72,13 +78,13 @@ export default function ScrapersAdminPage() {
   };
 
   const handleRunScraper = async (scraperKey: string) => {
-    if (!confirm(\`Run scraper for \${scraperKey}?\`)) return;
+    if (!confirm(`Run scraper for ${scraperKey}?`)) return;
 
     try {
       setRunningScrapers(new Set([...runningScrapers, scraperKey]));
-      setMessage(\`Starting \${scraperKey} scraper...\`);
+      setMessage({ text: `Starting ${scraperKey} scraper...`, type: 'success' });
 
-      const response = await fetch(\`/api/admin/venue-scrapers?venues=\${scraperKey}\`, {
+      const response = await fetch(`/api/admin/venue-scrapers?venues=${scraperKey}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -91,13 +97,13 @@ export default function ScrapersAdminPage() {
         throw new Error(data?.message || data?.error || 'Failed to run scraper');
       }
 
-      const workflowLink = data.workflowUrl 
-        ? \` <a href="\${data.workflowUrl}" target="_blank" style="text-decoration: underline; color: inherit;">View workflow →</a>\`
-        : '';
-      
-      setMessage(\`✅ \${scraperKey} scraper started successfully.\${workflowLink}\`);
+      setMessage({
+        text: `${scraperKey} scraper started successfully.`,
+        type: 'success',
+        workflowUrl: data.workflowUrl
+      });
     } catch (err: any) {
-      setMessage(\`❌ Error running \${scraperKey}: \${err.message}\`);
+      setMessage({ text: `Error running ${scraperKey}: ${err.message}`, type: 'error' });
     } finally {
       setRunningScrapers(prev => {
         const next = new Set(prev);
@@ -114,13 +120,13 @@ export default function ScrapersAdminPage() {
     }
 
     const scraperList = Array.from(selectedScrapers).join(', ');
-    if (!confirm(\`Run \${selectedScrapers.size} selected scraper(s)?\\n\\n\${scraperList}\`)) return;
+    if (!confirm(`Run ${selectedScrapers.size} selected scraper(s)?\n\n${scraperList}`)) return;
 
     try {
-      setMessage(\`Starting \${selectedScrapers.size} scraper(s)...\`);
+      setMessage({ text: `Starting ${selectedScrapers.size} scraper(s)...`, type: 'success' });
       const venuesParam = Array.from(selectedScrapers).join(',');
 
-      const response = await fetch(\`/api/admin/venue-scrapers?venues=\${venuesParam}\`, {
+      const response = await fetch(`/api/admin/venue-scrapers?venues=${venuesParam}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -133,14 +139,14 @@ export default function ScrapersAdminPage() {
         throw new Error(data?.message || data?.error || 'Failed to run scrapers');
       }
 
-      const workflowLink = data.workflowUrl 
-        ? \` <a href="\${data.workflowUrl}" target="_blank" style="text-decoration: underline; color: inherit;">View workflow →</a>\`
-        : '';
-      
-      setMessage(\`✅ \${selectedScrapers.size} scraper(s) started successfully.\${workflowLink}\`);
+      setMessage({
+        text: `${selectedScrapers.size} scraper(s) started successfully.`,
+        type: 'success',
+        workflowUrl: data.workflowUrl
+      });
       setSelectedScrapers(new Set());
     } catch (err: any) {
-      setMessage(\`❌ Error: \${err.message}\`);
+      setMessage({ text: `Error: ${err.message}`, type: 'error' });
     }
   };
 
@@ -148,7 +154,7 @@ export default function ScrapersAdminPage() {
     if (!confirm('Run ALL scrapers? This may take a while.')) return;
 
     try {
-      setMessage('Starting all scrapers...');
+      setMessage({ text: 'Starting all scrapers...', type: 'success' });
 
       const response = await fetch('/api/admin/venue-scrapers', {
         method: 'POST',
@@ -163,13 +169,13 @@ export default function ScrapersAdminPage() {
         throw new Error(data?.message || data?.error || 'Failed to run scrapers');
       }
 
-      const workflowLink = data.workflowUrl 
-        ? \` <a href="\${data.workflowUrl}" target="_blank" style="text-decoration: underline; color: inherit;">View workflow →</a>\`
-        : '';
-      
-      setMessage(\`✅ All scrapers started successfully.\${workflowLink}\`);
+      setMessage({
+        text: 'All scrapers started successfully.',
+        type: 'success',
+        workflowUrl: data.workflowUrl
+      });
     } catch (err: any) {
-      setMessage(\`❌ Error: \${err.message}\`);
+      setMessage({ text: `Error: ${err.message}`, type: 'error' });
     }
   };
 
@@ -181,7 +187,10 @@ export default function ScrapersAdminPage() {
     });
   };
 
-  const cities = Array.from(new Set(scrapers.map(s => s.city))).sort();
+  const cities = useMemo(
+    () => Array.from(new Set(scrapers.map(s => s.city))).sort(),
+    [scrapers]
+  );
   const filteredScrapers = getFilteredScrapers();
 
   if (loading) return <div className="admin-container"><p>Loading...</p></div>;
@@ -382,10 +391,23 @@ export default function ScrapersAdminPage() {
       )}
 
       {message && (
-        <div 
-          className={\`message \${message.startsWith('✅') ? 'message-success' : 'message-error'}\`}
-          dangerouslySetInnerHTML={{ __html: message }}
-        />
+        <div className={`message ${message.type === 'success' ? 'message-success' : 'message-error'}`}>
+          {message.type === 'success' ? '✅ ' : '❌ '}
+          {message.text}
+          {message.workflowUrl && (
+            <>
+              {' '}
+              <a 
+                href={message.workflowUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{ textDecoration: 'underline', color: 'inherit' }}
+              >
+                View workflow →
+              </a>
+            </>
+          )}
+        </div>
       )}
 
       <div className="controls">

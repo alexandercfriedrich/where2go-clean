@@ -36,7 +36,7 @@ class IbizaSpotlightScraper(BaseVenueScraper):
     EVENTS_URL = "https://www.ibiza-spotlight.de/night/events"
     CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Electronic"
-    VENUE_LOGO_URL = "https://www.ibiza-spotlight.de/images/logo.png"  # Fallback
+    VENUE_LOGO_URL = None  # No fallback logo available
     
     def __init__(self, delay: float = 2.0, **kwargs):
         """
@@ -71,8 +71,9 @@ class IbizaSpotlightScraper(BaseVenueScraper):
         event_cards = soup.select('.event-card, .party-card, article.event, .event-item')
         
         if not event_cards:
-            # Try alternative selectors if primary selectors don't match
-            event_cards = soup.select('[class*="event"], [class*="party"]')
+            # Try alternative selectors with more specific element types to avoid matching
+            # navigation items, headers, or other non-event content
+            event_cards = soup.select('article[class*="event"], article[class*="party"], div[class*="event"], div[class*="party"]')
             self.log(f"Using alternative selectors, found {len(event_cards)} potential elements", "debug")
         
         self.log(f"Found {len(event_cards)} potential event cards")
@@ -157,8 +158,12 @@ class IbizaSpotlightScraper(BaseVenueScraper):
             venue_elem = card.select_one('.venue, .location, [class*="venue"], [class*="location"]')
             if venue_elem:
                 venue_text = venue_elem.get_text(strip=True)
-                # Add venue to description or title
-                if venue_text and venue_text not in event_data.get('title', ''):
+                # Add venue to description, avoiding duplication
+                if (
+                    venue_text
+                    and venue_text not in event_data.get('title', '')
+                    and venue_text not in event_data.get('description', '')
+                ):
                     event_data['description'] = f"Venue: {venue_text}"
             
             # Extract DJs/Artists
@@ -189,6 +194,14 @@ class IbizaSpotlightScraper(BaseVenueScraper):
             
         except Exception as e:
             if self.debug:
+                # Provide context for debugging: show card HTML snippet
+                card_html = str(card)
+                snippet = card_html[:500] + ("..." if len(card_html) > 500 else "")
+                self.log(
+                    f"Error parsing event card: {e}\nCard HTML snippet: {snippet}",
+                    "error"
+                )
+            else:
                 self.log(f"Error parsing event card: {e}", "error")
             return None
     

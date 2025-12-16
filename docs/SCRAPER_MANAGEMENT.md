@@ -57,7 +57,7 @@ Multi-source event scrapers (e.g., Ibiza Spotlight)
 
 ### 📊 Scraper Registry
 
-Current scrapers in the system:
+Current scrapers in the system (22 total):
 
 | Scraper | Type | City | Status |
 |---------|------|------|--------|
@@ -67,7 +67,22 @@ Current scrapers in the system:
 | Pratersauna | Venue | Wien, Austria | ✅ Active |
 | Das Werk | Venue | Wien, Austria | ✅ Active |
 | U4 | Venue | Wien, Austria | ✅ Active |
-| ... | ... | ... | ... |
+| O - Der Klub | Venue | Wien, Austria | ✅ Active |
+| Volksgarten | Venue | Wien, Austria | ✅ Active |
+| Flucc & Fluc Wanne | Venue | Wien, Austria | ✅ Active |
+| Camera Club | Venue | Wien, Austria | ✅ Active |
+| Chelsea | Venue | Wien, Austria | ✅ Active |
+| Celeste | Venue | Wien, Austria | ✅ Active |
+| Donau | Venue | Wien, Austria | ✅ Active |
+| The Loft | Venue | Wien, Austria | ✅ Active |
+| Rhiz | Venue | Wien, Austria | ✅ Active |
+| Praterstrasse | Venue | Wien, Austria | ✅ Active |
+| Prater Dome | Venue | Wien, Austria | ✅ Active |
+| Sass Music Club | Venue | Wien, Austria | ✅ Active |
+| Ponyhof | Venue | Wien, Austria | ✅ Active |
+| VIEIPEE | Venue | Wien, Austria | ✅ Active |
+| Babenberger Passage | Venue | Wien, Austria | ✅ Active |
+| Patroc Wien Gay | Venue | Wien, Austria | ✅ Active |
 
 ## Usage
 
@@ -120,13 +135,15 @@ curl -H "Authorization: Basic <credentials>" \
       "isActive": true,
       "hasDedicatedScraper": true,
       "description": "Scrapes party events from Ibiza Spotlight calendar"
-    }
+    },
+    ...
   ],
   "stats": {
     "total": 22,
     "active": 22,
     "inactive": 0
-  }
+  },
+  "count": 22
 }
 ```
 

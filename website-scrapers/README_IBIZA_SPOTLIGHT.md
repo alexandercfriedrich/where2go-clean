@@ -16,7 +16,7 @@ The Ibiza Spotlight scraper extracts party and club events from [ibiza-spotlight
 
 ## Limitations
 
-- The Ibiza Spotlight calendar API may limit results to 7 days per request
+- The Ibiza Spotlight calendar page displays up to 7 days of events at a time, limiting scraper extraction to 7-day windows per request
 - Events are focused on Ibiza, Spain nightlife
 - Availability depends on website structure (may require updates if site changes)
 

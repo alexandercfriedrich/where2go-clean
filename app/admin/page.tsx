@@ -449,7 +449,8 @@ export default function AdminPage() {
             Manage Affiliates
           </a>
           <a href="/admin/scrapers" className="btn btn-secondary">
-            🔧 Manage Scrapers
+            <span aria-hidden="true" role="img" style={{ marginRight: '0.25em' }}>🔧</span>
+            Manage Scrapers
           </a>
           <button 
             className="btn btn-secondary" 
