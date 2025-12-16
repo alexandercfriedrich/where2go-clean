@@ -211,13 +211,13 @@ export async function POST(request: NextRequest) {
  * GET handler - endpoint info
  */
 export async function GET(request: NextRequest) {
-  // List available venues
+  // List available venues (keep in sync with venue_configs.py)
   const availableVenues = [
-    'grelle-forelle', 'flex', 'pratersauna', 'b72', 'das-werk', 'u4', 'volksgarten',
-    'babenberger-passage', 'cabaret-fledermaus', 'camera-club', 'celeste', 'chelsea',
-    'club-u', 'donau', 'flucc', 'o-der-klub', 'ponyhof', 'prater-dome',
-    'praterstrasse', 'sass-music-club', 'tanzcafe-jenseits', 'the-loft',
-    'vieipee', 'why-not', 'rhiz'
+    'babenberger-passage', 'camera-club', 'celeste', 'chelsea', 'das-werk',
+    'donau', 'flex', 'flucc', 'grelle-forelle', 'ibiza-spotlight',
+    'o-der-klub', 'patroc-wien-gay', 'ponyhof', 'prater-dome',
+    'pratersauna', 'praterstrasse', 'rhiz', 'sass-music-club',
+    'the-loft', 'u4', 'vieipee', 'volksgarten'
   ];
   
   return NextResponse.json({
