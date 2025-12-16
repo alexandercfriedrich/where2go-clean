@@ -448,6 +448,10 @@ export default function AdminPage() {
           <a href="/admin/affiliates" className="btn btn-secondary">
             Manage Affiliates
           </a>
+          <a href="/admin/scrapers" className="btn btn-secondary">
+            <span aria-hidden="true" role="img" style={{ marginRight: '0.25em' }}>🔧</span>
+            Manage Scrapers
+          </a>
           <button 
             className="btn btn-secondary" 
             onClick={handleCacheWarmup}
