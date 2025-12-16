@@ -198,7 +198,7 @@ export default function ScrapersAdminPage() {
 
   return (
     <div className="admin-container">
-      <style jsx>{\`
+      <style jsx>{`
         .admin-container {
           max-width: 1400px;
           margin: 0 auto;
@@ -360,7 +360,7 @@ export default function ScrapersAdminPage() {
           color: #721c24;
           border: 1px solid #f5c6cb;
         }
-      \`}</style>
+      `}</style>
 
       <div className="header">
         <h1 className="title">🔧 Scrapers Management</h1>
