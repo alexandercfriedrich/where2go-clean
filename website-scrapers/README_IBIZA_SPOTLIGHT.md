@@ -4,6 +4,8 @@
 
 The Ibiza Spotlight scraper extracts party and club events from [ibiza-spotlight.de](https://www.ibiza-spotlight.de), a comprehensive guide to nightlife and events in Ibiza, Spain.
 
+This scraper extends `BaseVenueScraper` and integrates with the Unified Pipeline API.
+
 ## Features
 
 - ✅ Extends `BaseVenueScraper` for consistent behavior
