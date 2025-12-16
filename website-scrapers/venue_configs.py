@@ -798,7 +798,7 @@ VENUE_CONFIGS = {
         'venue_name': 'Ibiza Spotlight',
         'venue_address': 'Ibiza, Spain',
         'base_url': 'https://www.ibiza-spotlight.de',
-        'events_url': 'https://www.ibiza-spotlight.de/night/events',
+        'events_url': 'https://www.ibiza-spotlight.de/night/events',  # Note: Dynamically constructed in scraper
         'category': 'Clubs & Nachtleben',
         'subcategory': 'Electronic',
         
@@ -824,7 +824,7 @@ VENUE_CONFIGS = {
             'price': '.price, [class*="price"]',
         },
         
-        'use_detail_pages': False,
+        'use_detail_pages': True,  # Scraper visits detail pages to enrich event data
         'has_dedicated_scraper': True,  # Uses ibiza-spotlight.py
     },
     
