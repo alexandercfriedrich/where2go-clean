@@ -92,6 +92,46 @@ describe('sanitizeHtml', () => {
     const result = sanitizeHtml(input);
     expect(result).toBe('Just plain text');
   });
+
+  // XSS event handler tests
+  it('should remove onclick event handlers', () => {
+    const input = '<div onclick="alert(1)">Click me</div>';
+    const result = sanitizeHtml(input);
+    expect(result).not.toContain('onclick');
+    expect(result).not.toContain('alert');
+    expect(result).toContain('Click me');
+  });
+
+  it('should remove onerror event handlers from images', () => {
+    const input = '<img src="x" onerror="alert(1)">';
+    const result = sanitizeHtml(input);
+    expect(result).not.toContain('onerror');
+    expect(result).not.toContain('alert');
+  });
+
+  it('should remove onload event handlers', () => {
+    const input = '<body onload="alert(1)">Content</body>';
+    const result = sanitizeHtml(input);
+    expect(result).not.toContain('onload');
+    expect(result).not.toContain('alert');
+  });
+
+  it('should remove onmouseover event handlers', () => {
+    const input = '<span onmouseover="alert(1)">Hover me</span>';
+    const result = sanitizeHtml(input);
+    expect(result).not.toContain('onmouseover');
+    expect(result).not.toContain('alert');
+    expect(result).toContain('Hover me');
+  });
+
+  it('should remove multiple event handlers from single element', () => {
+    const input = '<button onclick="alert(1)" onmouseover="alert(2)" onload="alert(3)">Click</button>';
+    const result = sanitizeHtml(input);
+    expect(result).not.toContain('onclick');
+    expect(result).not.toContain('onmouseover');
+    expect(result).not.toContain('onload');
+    expect(result).not.toContain('alert');
+  });
 });
 
 describe('sanitizeImageUrl', () => {
