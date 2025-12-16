@@ -73,6 +73,8 @@ curl -X POST "https://your-app.vercel.app/api/admin/venue-scrapers?venues=ibiza-
 
 ## Configuration
 
+### Scraper Configuration
+
 The scraper is configured in `website-scrapers/ibiza-spotlight.py`:
 
 ```python
@@ -86,6 +88,22 @@ class IbizaSpotlightScraper(BaseVenueScraper):
     CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Electronic"
 ```
+
+### Registry Configuration
+
+Ibiza Spotlight is also registered in `website-scrapers/venue_configs.py` as an **aggregator** (not a single venue):
+
+```python
+'ibiza-spotlight': {
+    'venue_name': 'Ibiza Spotlight',
+    'type': 'aggregator',  # Aggregates events from multiple venues
+    'aggregates_multiple_venues': True,
+    'has_dedicated_scraper': True,
+    ...
+}
+```
+
+This configuration allows `run_all_scrapers.py` to recognize and run the scraper
 
 ## Output
 
