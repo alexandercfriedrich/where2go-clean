@@ -495,7 +495,7 @@ export default function ScrapersAdminPage() {
                 </td>
                 <td>{scraper.city}, {scraper.country}</td>
                 <td>
-                  <span className={\`status-badge \${scraper.isActive ? 'status-active' : 'status-inactive'}\`}>
+                  <span className={`status-badge ${scraper.isActive ? 'status-active' : 'status-inactive'}`}>
                     {scraper.isActive ? 'Active' : 'Inactive'}
                   </span>
                 </td>
