@@ -57,6 +57,10 @@ class IbizaSpotlightScraper(BaseVenueScraper):
         The URL format is: /night/events/{year}/{month}?daterange={DD/MM/YYYY}-{DD/MM/YYYY}
         The date range is max 7 days (today through today + 6 days).
         
+        Note: The year/month in the URL path uses the start date's year/month.
+        The daterange parameter handles the actual date filtering, which may span
+        into the next month (e.g., Dec 28 - Jan 3). The API accepts such ranges.
+        
         Returns:
             Dynamically constructed events URL
         """
@@ -67,11 +71,12 @@ class IbizaSpotlightScraper(BaseVenueScraper):
         start_str = today.strftime('%d/%m/%Y')
         end_str = end_date.strftime('%d/%m/%Y')
         
-        # Get year and month for the URL path
+        # Get year and month for the URL path (uses start date)
         year = today.strftime('%Y')
         month = today.strftime('%m')
         
         # Build the dynamic URL
+        # Note: The year/month in path is organizational; daterange parameter does the filtering
         daterange = f'{start_str}-{end_str}'
         url = f'{self.BASE_URL}/night/events/{year}/{month}?daterange={daterange}'
         
@@ -155,12 +160,6 @@ class IbizaSpotlightScraper(BaseVenueScraper):
                 'price': None,
                 'artists': [],
             }
-            
-            # Extract event ID from data attribute
-            ticket_card = card.select_one('.card-ticket')
-            event_id = None
-            if ticket_card:
-                event_id = ticket_card.get('data-eventid')
             
             # Extract title from h3 > a (promoter/event name)
             title_link = card.select_one('h3.h3 a, h3 a')
