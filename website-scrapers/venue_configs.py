@@ -791,6 +791,43 @@ VENUE_CONFIGS = {
         'use_detail_pages': True,
     },
     
+    # ============================================================================
+    # AGGREGATOR: IBIZA SPOTLIGHT
+    # ============================================================================
+    'ibiza-spotlight': {
+        'venue_name': 'Ibiza Spotlight',
+        'venue_address': 'Ibiza, Spain',
+        'base_url': 'https://www.ibiza-spotlight.de',
+        'events_url': 'https://www.ibiza-spotlight.de/night/events',
+        'category': 'Clubs & Nachtleben',
+        'subcategory': 'Electronic',
+        
+        # This is an aggregator, not a single venue
+        'type': 'aggregator',
+        'aggregates_multiple_venues': True,
+        
+        # List selectors (generic patterns for ibiza-spotlight.de)
+        # Note: The dedicated scraper handles the actual parsing
+        'list_selectors': {
+            'event_container': '.event-card, .party-card, article.event, .event-item',
+            'title': 'h3, h2, .event-title, .party-title, .title',
+            'date': '.date, .event-date, time, [class*="date"]',
+            'time': '.time, .event-time, [class*="time"]',
+            'image': 'img[src]',
+            'link': 'a[href]',
+        },
+        
+        'detail_selectors': {
+            'description': '.description, .event-description',
+            'venue': '.venue, .location, [class*="venue"], [class*="location"]',
+            'artists': '.dj, .artist, [class*="dj"], [class*="artist"]',
+            'price': '.price, [class*="price"]',
+        },
+        
+        'use_detail_pages': False,
+        'has_dedicated_scraper': True,  # Uses ibiza-spotlight.py
+    },
+    
     # Template for adding new venues
     '_template': {
         'venue_name': 'Venue Name',
