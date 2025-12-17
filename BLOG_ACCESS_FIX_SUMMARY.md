@@ -24,16 +24,27 @@ from /var/task/node_modules/jsdom/lib/jsdom/browser/parser/html.js not supported
 
 ## Solution Implemented
 
-### Primary Change: Pin Dependency Version
+### Dual Protection Approach
+
+#### 1. Pin Dependency Version
 ```json
 "isomorphic-dompurify": "2.16.0"  // Previously: "^2.16.0"
 ```
 
-**Why version 2.16.0?**
-- Uses `jsdom@25.0.1` with `parse5@7.3.0`
+#### 2. Force parse5 Version via npm overrides
+```json
+"overrides": {
+  "parse5": "7.3.0"
+}
+```
+
+**Why this approach?**
+- Version pinning alone isn't sufficient - transitive dependencies could still pull in parse5@8.x
+- npm `overrides` forces ALL dependencies to use parse5@7.3.0
 - `parse5@7.x` provides **dual exports** (CommonJS + ESM)
 - Fully compatible with serverless environments
 - No functional differences for our use case
+- Works without needing a committed package-lock.json
 
 ## Files Modified
 
@@ -68,8 +79,10 @@ from /var/task/node_modules/jsdom/lib/jsdom/browser/parser/html.js not supported
 ```
 isomorphic-dompurify@2.16.0
 └── jsdom@25.0.1
-    └── parse5@7.3.0 (CommonJS + ESM dual exports)
+    └── parse5@7.3.0 overridden (forced by npm overrides)
 ```
+
+Note: The "overridden" tag confirms npm is enforcing our version constraint.
 
 ### ✅ Security
 - No security vulnerabilities introduced
