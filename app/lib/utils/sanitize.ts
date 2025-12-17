@@ -7,6 +7,7 @@
  * ESM/CommonJS compatibility issues in serverless environments (Vercel).
  * Versions 2.17+ depend on jsdom@27.x which uses parse5@8.x (ESM-only).
  * Version 2.16.0 uses jsdom@25.x with parse5@7.x (CommonJS + ESM dual exports).
+ * We also use npm overrides to force parse5@7.3.0 across ALL dependencies.
  */
 
 // Use default import - works at runtime despite TypeScript module resolution issues

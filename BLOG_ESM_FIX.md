@@ -27,17 +27,22 @@ The issue was caused by a dependency chain incompatibility in serverless environ
 
 ## Solution
 
-Pin `isomorphic-dompurify` to version **2.16.0** in `package.json`:
+Pin `isomorphic-dompurify` to version **2.16.0** and use npm `overrides` to force `parse5@7.3.0` in `package.json`:
 
 ```json
 {
   "dependencies": {
     "isomorphic-dompurify": "2.16.0"
+  },
+  "overrides": {
+    "parse5": "7.3.0"
   }
 }
 ```
 
-### Why Version 2.16.0?
+The `overrides` field ensures that ALL dependencies (including transitive ones) use the serverless-compatible version of parse5, preventing any package from pulling in parse5@8.x.
+
+### Why Version 2.16.0 + npm overrides?
 
 | Component | Version 2.16.0 | Version 2.17+ |
 |-----------|----------------|---------------|
@@ -53,12 +58,15 @@ Pin `isomorphic-dompurify` to version **2.16.0** in `package.json`:
 
 `parse5@8.x` removed CommonJS support, breaking backward compatibility.
 
+**Additional Protection**: We also use npm `overrides` to force `parse5@7.3.0` across ALL dependencies, preventing any transitive dependency from pulling in parse5@8.x.
+
 ## Files Changed
 
 ### 1. `package.json`
 - Changed from `"isomorphic-dompurify": "^2.16.0"` to `"isomorphic-dompurify": "2.16.0"`
 - Removed the caret (`^`) to prevent automatic updates to incompatible versions
-- Added a comment field documenting the version constraint
+- Added `overrides` field to force `parse5@7.3.0` across all dependencies
+- This prevents ANY transitive dependency from installing parse5@8.x
 
 ### 2. `app/lib/utils/sanitize.ts`
 - Added comprehensive documentation about the version constraint
