@@ -10,6 +10,7 @@ interface BlogArticleClientProps {
 
 export default function BlogArticleClient({ article }: BlogArticleClientProps) {
   // Sanitize content for defense-in-depth XSS protection
+  // Using isomorphic-dompurify which works in both SSR and client-side rendering
   const sanitizedContent = sanitizeHtml(article.content);
   
   // Validate featured image URL

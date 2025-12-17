@@ -1,12 +1,16 @@
 /**
- * HTML Sanitization utility using DOMPurify
+ * HTML Sanitization utility using isomorphic-dompurify
  * Defense-in-depth measure for sanitizing user-generated HTML content
+ * Uses isomorphic-dompurify for both server-side (SSR) and client-side rendering compatibility
  */
 
-import DOMPurify from 'dompurify';
+// Use default import - works at runtime despite TypeScript module resolution issues
+// @ts-ignore: isomorphic-dompurify uses export = pattern
+import DOMPurify from 'isomorphic-dompurify';
 
 /**
  * Sanitizes HTML content to prevent XSS attacks
+ * Works in both server-side rendering (SSR) and client-side contexts
  * @param dirty - Raw HTML string
  * @returns Sanitized HTML string safe for rendering
  */
