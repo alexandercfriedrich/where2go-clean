@@ -100,6 +100,10 @@ where2go-clean@0.1.0
 
 The version must remain at **2.16.0** until one of the following occurs:
 
+**Review Timeline**: This restriction should be reviewed quarterly (every 3 months) or when upgrading Next.js versions. Next scheduled review: **Q2 2025**.
+
+**Conditions for lifting this restriction:**
+
 1. **jsdom fixes the ESM issue** by using dynamic imports instead of `require()`
 2. **parse5 provides CommonJS exports again** in version 8.x+
 3. **isomorphic-dompurify switches to a different parser** (e.g., `linkedom`, `happy-dom`)
