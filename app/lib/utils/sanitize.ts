@@ -4,10 +4,9 @@
  * Uses isomorphic-dompurify for both server-side (SSR) and client-side rendering compatibility
  */
 
-// Use require for isomorphic-dompurify to work around TypeScript module resolution issues with export =
-import type { DOMPurify as DOMPurifyType } from 'dompurify';
-
-const DOMPurify = require('isomorphic-dompurify') as DOMPurifyType;
+// Use default import - works at runtime despite TypeScript module resolution issues
+// @ts-ignore: isomorphic-dompurify uses export = pattern
+import DOMPurify from 'isomorphic-dompurify';
 
 /**
  * Sanitizes HTML content to prevent XSS attacks
