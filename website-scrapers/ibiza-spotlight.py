@@ -241,12 +241,7 @@ class IbizaSpotlightScraper(BaseVenueScraper):
                 'venues': [],
             }
             
-            # 1. DATE FROM REL ATTRIBUTE (MOST RELIABLE)
-            rel_date = card.get('rel', '').strip()
-            if rel_date and len(rel_date) == 8 and rel_date.isdigit():
-                event_data['date'] = f"{rel_date[0:4]}-{rel_date[4:6]}-{rel_date[6:8]}"
-            
-            # 2. TITLE & DETAIL URL
+            # 1. TITLE & DETAIL URL (also extract date from data-eventdate)
             title_link = card.select_one('h3.h3 a, h3 a')
             if title_link:
                 event_data['title'] = title_link.get_text(strip=True)
@@ -254,6 +249,17 @@ class IbizaSpotlightScraper(BaseVenueScraper):
                 if href and not href.startswith('http'):
                     href = self.BASE_URL.rstrip('/') + ('/' if not href.startswith('/') else '') + href
                 event_data['detail_url'] = href
+                
+                # Extract date from data-eventdate attribute (format: YYYY-MM-DD)
+                event_date = title_link.get('data-eventdate', '').strip()
+                if event_date:
+                    event_data['date'] = event_date
+            
+            # 2. FALLBACK: DATE FROM REL ATTRIBUTE
+            if not event_data['date']:
+                rel_date = card.get('rel', '').strip()
+                if rel_date and len(rel_date) == 8 and rel_date.isdigit():
+                    event_data['date'] = f"{rel_date[0:4]}-{rel_date[4:6]}-{rel_date[6:8]}"
             
             # If no title link, try just h3
             if not event_data['title']:
@@ -289,8 +295,9 @@ class IbizaSpotlightScraper(BaseVenueScraper):
             
             # 5. ARTISTS (COLLECT ALL, DEDUPLICATE)
             artists = []
-            for dj in card.select('a.partyDj'):
-                dj_name = dj.get_text(strip=True)
+            # Try .partyDj a links first (most reliable)
+            for dj_link in card.select('.partyDj a'):
+                dj_name = dj_link.get_text(strip=True)
                 if dj_name and dj_name not in artists:
                     artists.append(dj_name)
             event_data['artists'] = artists
