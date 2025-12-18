@@ -33,6 +33,10 @@ sys.path.insert(0, os.path.dirname(__file__))
 from base_scraper import BaseVenueScraper
 
 
+# Data extraction constants
+MAX_DESCRIPTION_LENGTH = 500  # Maximum characters for event descriptions
+
+
 class IbizaSpotlightScraper(BaseVenueScraper):
     """Scraper for Ibiza Spotlight party calendar"""
     
@@ -45,9 +49,6 @@ class IbizaSpotlightScraper(BaseVenueScraper):
     CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Electronic"
     VENUE_LOGO_URL = None  # No fallback logo available
-    
-    # Data extraction constants
-    MAX_DESCRIPTION_LENGTH = 500  # Maximum characters for event descriptions
     
     def __init__(self, delay: float = 2.0, **kwargs):
         """
@@ -103,6 +104,18 @@ class IbizaSpotlightScraper(BaseVenueScraper):
             self.log(f"Window {window_num + 1}/4: {start_str} to {end_str}", "debug")
         
         return urls
+    
+    def _convert_yyyymmdd_to_iso(self, date_str: str) -> str:
+        """
+        Convert YYYYMMDD format to YYYY-MM-DD format.
+        
+        Args:
+            date_str: Date string in YYYYMMDD format (e.g., "20251220")
+            
+        Returns:
+            Date string in YYYY-MM-DD format (e.g., "2025-12-20")
+        """
+        return f"{date_str[0:4]}-{date_str[4:6]}-{date_str[6:8]}"
     
     def fetch_page_with_retry(self, url: str, retries: int = 3):
         """
@@ -194,7 +207,7 @@ class IbizaSpotlightScraper(BaseVenueScraper):
                     date_str = event_data.get('date', '?') or '?'
                     time_str = event_data.get('start_time', '') or ''
                     self.log(
-                        f"  {status} {event_data['title'][:40]:40} | "
+                        f"  {status} {event_data['title'][:40]} | "
                         f"{date_str:10} | "
                         f"{time_str:5}",
                         "success" if status == "✓" else "warning"
@@ -210,7 +223,7 @@ class IbizaSpotlightScraper(BaseVenueScraper):
         # Deduplicate events (same date + title)
         unique_events = {}
         for event in all_events:
-            key = f"{event.get('date', '')}_{event.get('title', '')}"
+            key = (event.get('date', ''), event.get('title', ''))
             if key not in unique_events:
                 unique_events[key] = event
         
@@ -261,16 +274,16 @@ class IbizaSpotlightScraper(BaseVenueScraper):
                 event_data['detail_url'] = href
                 
                 # 2. DATE - Primary: Extract from data-eventdate attribute (format: YYYY-MM-DD)
-                # This is the most reliable date source on Ibiza Spotlight
+                # This is the most reliable date source on Ibiza Spotlight; we validate the format defensively.
                 event_date = title_link.get('data-eventdate', '').strip()
                 if event_date:
-                    event_data['date'] = event_date
-            
-            # 3. DATE - Fallback: Extract from rel attribute if data-eventdate not available
-            if not event_data['date']:
-                rel_date = card.get('rel', '').strip()
-                if rel_date and len(rel_date) == 8 and rel_date.isdigit():
-                    event_data['date'] = f"{rel_date[0:4]}-{rel_date[4:6]}-{rel_date[6:8]}"
+                    try:
+                        # Ensure the date matches the expected YYYY-MM-DD format
+                        datetime.strptime(event_date, "%Y-%m-%d")
+                        event_data['date'] = event_date
+                    except ValueError:
+                        # Unexpected format – leave unset so fallback logic can attempt to parse
+                        pass
             
             # If no title link, try just h3
             if not event_data['title']:
@@ -278,8 +291,15 @@ class IbizaSpotlightScraper(BaseVenueScraper):
                 if title_elem:
                     event_data['title'] = title_elem.get_text(strip=True)
             
+            # Early return if no title found
             if not event_data['title']:
                 return None
+            
+            # 3. DATE - Fallback: Extract from rel attribute if data-eventdate not available
+            if not event_data['date']:
+                rel_date = card.get('rel', '').strip()
+                if rel_date and len(rel_date) == 8 and rel_date.isdigit():
+                    event_data['date'] = self._convert_yyyymmdd_to_iso(rel_date)
             
             # 3. TIME (START/END SEPARATED)
             time_elem = card.select_one('time')
@@ -395,7 +415,11 @@ class IbizaSpotlightScraper(BaseVenueScraper):
                     desc_text = elem.get_text(strip=True)
                     if desc_text and len(desc_text) > 30:
                         if not event_data.get('description') or len(desc_text) > len(event_data.get('description', '')):
-                            event_data['description'] = desc_text[:self.MAX_DESCRIPTION_LENGTH]
+                            if len(desc_text) > MAX_DESCRIPTION_LENGTH and MAX_DESCRIPTION_LENGTH > 3:
+                                truncated = desc_text[:MAX_DESCRIPTION_LENGTH - 3] + "..."
+                                event_data['description'] = truncated
+                            else:
+                                event_data['description'] = desc_text[:MAX_DESCRIPTION_LENGTH]
                             break
             
             # Extract better quality image
