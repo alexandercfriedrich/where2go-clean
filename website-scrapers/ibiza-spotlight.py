@@ -46,6 +46,9 @@ class IbizaSpotlightScraper(BaseVenueScraper):
     SUBCATEGORY = "Electronic"
     VENUE_LOGO_URL = None  # No fallback logo available
     
+    # Data extraction constants
+    MAX_DESCRIPTION_LENGTH = 500  # Maximum characters for event descriptions
+    
     def __init__(self, delay: float = 2.0, **kwargs):
         """
         Initialize scraper with respectful rate limiting.
@@ -101,7 +104,7 @@ class IbizaSpotlightScraper(BaseVenueScraper):
         
         return urls
     
-    def fetch_page_with_retry(self, url: str, retries: int = 3) -> Optional:
+    def fetch_page_with_retry(self, url: str, retries: int = 3):
         """
         Fetch page with retry logic and exponential backoff.
         
@@ -248,7 +251,7 @@ class IbizaSpotlightScraper(BaseVenueScraper):
                 'venues': [],
             }
             
-            # 1. TITLE & DETAIL URL (also extract date from data-eventdate)
+            # 1. TITLE & DETAIL URL
             title_link = card.select_one('h3.h3 a, h3 a')
             if title_link:
                 event_data['title'] = title_link.get_text(strip=True)
@@ -257,12 +260,13 @@ class IbizaSpotlightScraper(BaseVenueScraper):
                     href = self.BASE_URL.rstrip('/') + ('/' if not href.startswith('/') else '') + href
                 event_data['detail_url'] = href
                 
-                # Extract date from data-eventdate attribute (format: YYYY-MM-DD)
+                # 2. DATE - Primary: Extract from data-eventdate attribute (format: YYYY-MM-DD)
+                # This is the most reliable date source on Ibiza Spotlight
                 event_date = title_link.get('data-eventdate', '').strip()
                 if event_date:
                     event_data['date'] = event_date
             
-            # 2. FALLBACK: DATE FROM REL ATTRIBUTE
+            # 3. DATE - Fallback: Extract from rel attribute if data-eventdate not available
             if not event_data['date']:
                 rel_date = card.get('rel', '').strip()
                 if rel_date and len(rel_date) == 8 and rel_date.isdigit():
@@ -391,7 +395,7 @@ class IbizaSpotlightScraper(BaseVenueScraper):
                     desc_text = elem.get_text(strip=True)
                     if desc_text and len(desc_text) > 30:
                         if not event_data.get('description') or len(desc_text) > len(event_data.get('description', '')):
-                            event_data['description'] = desc_text[:500]
+                            event_data['description'] = desc_text[:self.MAX_DESCRIPTION_LENGTH]
                             break
             
             # Extract better quality image
