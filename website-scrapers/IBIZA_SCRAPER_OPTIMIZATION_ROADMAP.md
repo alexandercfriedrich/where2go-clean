@@ -60,7 +60,7 @@ def _generate_rolling_window_urls(self) -> List[str]:
     # Generate 4 consecutive 7-day windows
     for window_num in range(4):
         window_start = today + timedelta(days=window_num * 7)
-        window_end = window_start + timedelta(days=6)  # 7 days inclusive
+        window_end = window_start + timedelta(days=6)  # 6 days after start (7 days total)
         
         start_str = window_start.strftime('%d/%m/%Y')
         end_str = window_end.strftime('%d/%m/%Y')
@@ -84,19 +84,18 @@ def _generate_rolling_window_urls(self) -> List[str]:
 Add resilient HTTP fetching with exponential backoff:
 
 ```python
-def fetch_page_with_retry(self, url: str, retries: int = 3) -> Optional:
+def fetch_page_with_retry(self, url: str, retries: int = 3) -> Optional["BeautifulSoup"]:
     """
     Fetch page with retry logic and exponential backoff.
     
-    Retry strategy:
+    Retry strategy (for retries=3, i.e. 3 total attempts):
     - Attempt 1: immediate
     - Attempt 2: wait 1 second (2^0)
     - Attempt 3: wait 2 seconds (2^1)
-    - Attempt 4: wait 4 seconds (2^2)
     
     Args:
         url: URL to fetch
-        retries: Maximum number of attempts
+        retries: Maximum number of total attempts (including the first)
     
     Returns:
         BeautifulSoup object or None if all attempts fail
@@ -129,6 +128,10 @@ def fetch_page_with_retry(self, url: str, retries: int = 3) -> Optional:
 ### **PHASE 3: Enhanced Event Card Parsing**
 
 Improve data extraction with Ibiza-specific selectors:
+
+**Note:** The URL construction logic for handling relative URLs (lines 176, 223, 293, 328) is repeated multiple times. In a production implementation, this should be extracted into a helper method like `_make_absolute_url(url)` to improve maintainability and ensure consistent URL handling throughout the code.
+
+**Note:** The event_data dictionary initializes 'start_time' and 'end_time' fields separately (lines 154-155), which replaces the older single 'time' field approach. This change provides better granularity for event scheduling. If backward compatibility is needed, consider maintaining both representations.
 
 ```python
 def _parse_event_card(self, card) -> Optional[Dict]:
@@ -184,7 +187,7 @@ def _parse_event_card(self, card) -> Optional[Dict]:
         time_elem = card.select_one('time')
         if time_elem:
             time_text = time_elem.get_text(strip=True)
-            times = time_text.split('-')
+            times = time_text.split(' - ')
             if len(times) >= 2:
                 event_data['start_time'] = times[0].strip()
                 event_data['end_time'] = times[1].strip()
@@ -200,7 +203,7 @@ def _parse_event_card(self, card) -> Optional[Dict]:
         
         # 5. ARTISTS (COLLECT ALL, DEDUPLICATE)
         artists = []
-        for dj in card.select('a.partyDj'):
+        for dj in card.select('.partyDj a'):
             dj_name = dj.get_text(strip=True)
             if dj_name and dj_name not in artists:
                 artists.append(dj_name)
@@ -274,7 +277,7 @@ def _enrich_from_detail_page(self, event_data: Dict):
             if elem:
                 desc_text = elem.get_text(strip=True)
                 if desc_text and len(desc_text) > 30:
-                    if not event_data.get('description') or len(desc_text) > len(event_data.get('description', '')):
+                    if not event_data.get('description') or len(desc_text) > len(event_data.get('description') or ''):
                         event_data['description'] = desc_text[:500]
                         break
         
@@ -403,9 +406,16 @@ def scrape_events(self) -> List[Dict]:
             time.sleep(self.delay)
     
     # Deduplicate events (same date + title)
+    # Skip events that are missing required fields to avoid collapsing different
+    # malformed events into a single deduplication key.
     unique_events = {}
     for event in all_events:
-        key = f"{event.get('date', '')}_{event.get('title', '')}"
+        date = event.get('date')
+        title = event.get('title')
+        if not date or not title:
+            continue
+        
+        key = f"{date}_{title}"
         if key not in unique_events:
             unique_events[key] = event
     
