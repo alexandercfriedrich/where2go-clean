@@ -2,52 +2,8 @@
  * HTML Sanitization utility using isomorphic-dompurify
  * Defense-in-depth measure for sanitizing user-generated HTML content
  * Uses isomorphic-dompurify for both server-side (SSR) and client-side rendering compatibility
- * 
- * IMPORTANT: We pin isomorphic-dompurify to version 2.16.0 in package.json to avoid
- * ESM/CommonJS compatibility issues in serverless environments (Vercel).
- * Versions 2.17+ depend on jsdom@27.x which uses parse5@8.x (ESM-only).
- * Version 2.16.0 uses jsdom@25.x with parse5@7.x (CommonJS + ESM dual exports).
- * We also use npm overrides to force parse5@7.3.0 across ALL dependencies.
+ *
+ * Note: pinned to v2.16.0 due to serverless ESM/CommonJS compatibility (parse5 requirement)
  */
 
 // Use default import - works at runtime despite TypeScript module resolution issues
-// @ts-ignore: isomorphic-dompurify uses export = pattern
-import DOMPurify from 'isomorphic-dompurify';
-
-/**
- * Sanitizes HTML content to prevent XSS attacks
- * Works in both server-side rendering (SSR) and client-side contexts
- * @param dirty - Raw HTML string
- * @returns Sanitized HTML string safe for rendering
- */
-export function sanitizeHtml(dirty: string): string {
-  return DOMPurify.sanitize(dirty, {
-    // Allow common HTML tags for blog content
-    ALLOWED_TAGS: [
-      'p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-      'ul', 'ol', 'li', 'a', 'img', 'blockquote', 'code', 'pre',
-      'table', 'thead', 'tbody', 'tr', 'th', 'td', 'div', 'span'
-    ],
-    // Allow necessary attributes
-    ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'id', 'target', 'rel'],
-    // Allow only https: and http: protocols for links and images
-    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):)/i,
-  });
-}
-
-/**
- * Validates and sanitizes image URL to prevent XSS via malicious URLs
- * @param url - Image URL to validate
- * @returns Validated URL or empty string if invalid
- */
-export function sanitizeImageUrl(url: string): string {
-  if (!url) return '';
-  
-  // Check if URL starts with http:// or https://
-  if (url.startsWith('http://') || url.startsWith('https://')) {
-    return url;
-  }
-  
-  // Reject data:, javascript:, and other potentially malicious schemes
-  return '';
-}
