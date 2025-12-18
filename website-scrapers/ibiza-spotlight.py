@@ -4,9 +4,16 @@ Ibiza Spotlight Event Scraper
 Extracts upcoming events from https://www.ibiza-spotlight.de party calendar
 and saves them to the Supabase database.
 
-This scraper fetches events from Ibiza Spotlight's party calendar.
-The URL is dynamically constructed with a date range (today + 6 days).
+This scraper uses a rolling-window approach to fetch events from 4 consecutive
+7-day windows, providing comprehensive coverage of ~30 days of events.
 The scraper visits each event detail page to extract comprehensive information.
+
+Features:
+- Rolling window coverage: 4 x 7-day windows = ~30 days of events
+- Month boundary handling: Seamlessly handles Dec/Jan transitions
+- Retry logic: Exponential backoff for robust error recovery
+- Comprehensive data extraction: Dates, times, venues, artists, prices, descriptions
+- Deduplication: Ensures no duplicate events
 
 Usage:
     python website-scrapers/ibiza-spotlight.py [--dry-run] [--debug]
