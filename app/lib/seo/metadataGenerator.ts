@@ -3,7 +3,6 @@ import {
   CATEGORY_NAMES,
   DATE_LABELS,
   CITY_NAMES,
-  CITY_COORDS,
   isValidCategory as validateCategory,
   isValidDateFilter as validateDateFilter,
   getCategoryName as getCategoryDisplayName,
