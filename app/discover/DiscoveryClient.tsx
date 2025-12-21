@@ -69,8 +69,11 @@ export default function DiscoveryClient({
 
   // NEW: Sync selectedCategory with initialCategory prop changes
   useEffect(() => {
-    setSelectedCategory(initialCategory || null);
-  }, [initialCategory]);
+    const nextCategory = initialCategory || null;
+    if (nextCategory !== selectedCategory) {
+      setSelectedCategory(nextCategory);
+    }
+  }, [initialCategory, selectedCategory]);
 
   // Filter events by category and date using the shared utility
   useEffect(() => {
@@ -116,14 +119,28 @@ export default function DiscoveryClient({
     );
   }
 
-  // NEW: Dynamic H1 based on filters
+  // NEW: Dynamic H1 based on filters with proper German grammar
+  const getDateFilterLabelForTitle = (filter: string): string => {
+    const DATE_FILTER_TITLE_LABELS: Record<string, string> = {
+      heute: 'heute',
+      morgen: 'morgen',
+      wochenende: 'dieses Wochenende',
+    };
+
+    return DATE_FILTER_TITLE_LABELS[filter] ?? filter;
+  };
+
   const getPageTitle = (): string => {
+    const dateLabel = selectedDateFilter !== 'all'
+      ? getDateFilterLabelForTitle(selectedDateFilter)
+      : '';
+
     if (selectedCategory && selectedDateFilter !== 'all') {
-      return `${selectedCategory} Events in ${city} ${selectedDateFilter}`;
+      return `${selectedCategory} Events in ${city} ${dateLabel}`;
     } else if (selectedCategory) {
       return `${selectedCategory} Events in ${city}`;
     } else if (selectedDateFilter !== 'all') {
-      return `Events in ${city} ${selectedDateFilter}`;
+      return `Events in ${city} ${dateLabel}`;
     }
     return `Discover Events in ${city}`;
   };

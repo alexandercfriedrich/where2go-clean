@@ -30,7 +30,7 @@
     "react-quill-new": "^3.6.0"
   },
   "devDependencies": {
-    "@types/node": "^20",
+    "@types/node": "^20.19.27",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@vitest/ui": "^3.2.4",
