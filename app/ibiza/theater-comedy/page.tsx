@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import DiscoveryClient from '@/discover/DiscoveryClient';
-import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getWeekendNightlifeEvents } from '@/lib/events/queries';
+import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getWeekendNightlifeEvents } from '../../../lib/events/queries';
 import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
 import { generateCityMetadata } from '@/lib/seo/metadataGenerator';
 

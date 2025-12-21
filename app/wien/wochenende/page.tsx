@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import DiscoveryClient from '@/discover/DiscoveryClient';
-import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getUpcomingEvents, getWeekendNightlifeEvents } from '@/lib/events/queries';
+import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getUpcomingEvents, getWeekendNightlifeEvents } from '../../../lib/events/queries';
 import SchemaOrg from '@/components/SchemaOrg';
 import { generateEventListSchema } from '@/lib/schemaOrg';
 import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
@@ -29,7 +29,7 @@ export default async function WienWochenendePage() {
     };
 
     const schema = generateEventListSchema(
-      upcoming.map(e => ({ ...e, date: e.start_date_time?.split('T')[0] || '' })),
+      upcoming.map((e: any) => ({ ...e, date: e.start_date_time?.split('T')[0] || '' })),
       'Wien',
       new Date().toISOString().split('T')[0]
     );
