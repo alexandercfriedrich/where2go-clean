@@ -102,8 +102,8 @@ export function generateCityMetadata(params: MetadataParams): Metadata {
     title,
     description,
     keywords,
-    canonical,
     alternates: {
+      canonical,
       languages: {
         'de-AT': canonical,
       },

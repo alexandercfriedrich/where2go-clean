@@ -64,7 +64,7 @@ function generateDateRoutePage(city: string, date: string): string {
   
   return `import { Metadata } from 'next';
 import DiscoveryClient from '@/discover/DiscoveryClient';
-import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getUpcomingEvents, getWeekendNightlifeEvents } from '@/lib/events/queries';
+import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getUpcomingEvents, getWeekendNightlifeEvents } from '../../../lib/events/queries';
 import SchemaOrg from '@/components/SchemaOrg';
 import { generateEventListSchema } from '@/lib/schemaOrg';
 import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
@@ -93,7 +93,7 @@ export default async function ${capitalize(city)}${capitalize(date)}Page() {
     };
 
     const schema = generateEventListSchema(
-      upcoming.map(e => ({ ...e, date: e.start_date_time?.split('T')[0] || '' })),
+      upcoming.map((e: any) => ({ ...e, date: e.start_date_time?.split('T')[0] || '' })),
       '${cityUpper}',
       new Date().toISOString().split('T')[0]
     );
@@ -138,7 +138,7 @@ function generateCategoryRoutePage(city: string, category: string): string {
 
   return `import { Metadata } from 'next';
 import DiscoveryClient from '@/discover/DiscoveryClient';
-import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getWeekendNightlifeEvents } from '@/lib/events/queries';
+import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getWeekendNightlifeEvents } from '../../../lib/events/queries';
 import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
 import { generateCityMetadata } from '@/lib/seo/metadataGenerator';
 
@@ -202,7 +202,7 @@ function generateCategoryDateRoutePage(city: string, category: string, date: str
 
   return `import { Metadata } from 'next';
 import DiscoveryClient from '@/discover/DiscoveryClient';
-import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getWeekendNightlifeEvents } from '@/lib/events/queries';
+import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getWeekendNightlifeEvents } from '../../../../lib/events/queries';
 import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
 import { generateCityMetadata } from '@/lib/seo/metadataGenerator';
 
