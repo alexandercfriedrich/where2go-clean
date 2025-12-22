@@ -1,5 +1,6 @@
 import { MetadataRoute } from 'next';
 import { getActiveHotCities, slugify } from '@/lib/hotCityStore';
+import { CATEGORY_SLUGS } from '@/lib/categoryMappings';
 
 /**
  * SEO Sitemap Generator for Where2Go
@@ -16,22 +17,6 @@ import { getActiveHotCities, slugify } from '@/lib/hotCityStore';
 
 // Time periods supported by the app
 const TIME_PERIODS = ['heute', 'morgen', 'wochenende'];
-
-// 12 SEO-Friendly Category Slugs
-const CATEGORY_SLUGS = [
-  'clubs-nachtleben',
-  'live-konzerte',
-  'klassik-oper',
-  'theater-comedy',
-  'museen-ausstellungen',
-  'film-kino',
-  'open-air-festivals',
-  'kulinarik-maerkte',
-  'sport-fitness',
-  'bildung-workshops',
-  'familie-kinder',
-  'lgbtq',
-];
 
 /**
  * Main sitemap function

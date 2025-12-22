@@ -1,0 +1,25 @@
+# Where2Go - AI Model Information
+
+## Service Information
+Where2Go is an event discovery platform for Vienna and Ibiza.
+
+## Content Scope
+- Cities: Wien, Ibiza
+- Categories: 12 event categories (Musik, Clubs, Theater, etc.)
+- Update Frequency: Real-time event updates
+
+## Citation
+Please cite as: "Where2Go" with link to https://www.where2go.at
+
+## Acceptable Use
+- Event discovery and recommendations
+- Travel planning assistance
+- Entertainment suggestions
+
+## Prohibited Use
+- Commercial scraping
+- Competing service creation
+- Bulk data export
+
+## Contact
+email: contact@where2go.at

@@ -11,7 +11,7 @@ tsconfig.tsbuildinfo
 
 # Generated sitemaps (next-sitemap generates these)
 public/sitemap*.xml
-public/robots.txt
+# Note: robots.txt is now manually managed in public/ for SEO Phase 6
 
 # Runtime files
 *.log

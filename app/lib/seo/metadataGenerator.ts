@@ -1,4 +1,13 @@
 import { Metadata } from 'next';
+import {
+  CATEGORY_NAMES,
+  DATE_LABELS,
+  CITY_NAMES,
+  isValidCategory as validateCategory,
+  isValidDateFilter as validateDateFilter,
+  getCategoryName as getCategoryDisplayName,
+  getDateLabel as getDateDisplayLabel,
+} from '@/lib/categoryMappings';
 
 /**
  * SEO Metadata Generator for City Pages with Date & Category Filters
@@ -12,38 +21,6 @@ import { Metadata } from 'next';
  * - /ibiza/live-konzerte/morgen
  * etc.
  */
-
-// 12 Main Categories with SEO-friendly slugs
-const CATEGORY_NAMES: Record<string, string> = {
-  'clubs-nachtleben': 'Clubs & Nachtleben',
-  'live-konzerte': 'Live-Konzerte',
-  'klassik-oper': 'Klassik & Oper',
-  'theater-comedy': 'Theater & Comedy',
-  'museen-ausstellungen': 'Museen & Ausstellungen',
-  'film-kino': 'Film & Kino',
-  'open-air-festivals': 'Open Air & Festivals',
-  'kulinarik-maerkte': 'Kulinarik & Märkte',
-  'sport-fitness': 'Sport & Fitness',
-  'bildung-workshops': 'Bildung & Workshops',
-  'familie-kinder': 'Familie & Kinder',
-  'lgbtq': 'LGBTQ+',
-};
-
-const DATE_LABELS: Record<string, string> = {
-  'heute': 'heute',
-  'morgen': 'morgen',
-  'wochenende': 'dieses Wochenende',
-};
-
-const CITY_NAMES: Record<string, string> = {
-  'wien': 'Wien',
-  'ibiza': 'Ibiza',
-};
-
-const CITY_COORDS: Record<string, { lat: string; lon: string }> = {
-  'wien': { lat: '48.2082', lon: '16.3738' },
-  'ibiza': { lat: '38.9054', lon: '1.4603' },
-};
 
 export interface MetadataParams {
   city: string;
@@ -134,16 +111,24 @@ export function generateCityMetadata(params: MetadataParams): Metadata {
 
 /**
  * Build canonical URL for the route
+ * Uses SITE_URL environment variable with fallback to production URL
  */
 function buildCanonicalURL(city: string, date?: string, category?: string): string {
-  let url = `https://www.where2go.at/${city.toLowerCase()}`;
+  const baseUrl = (process.env.SITE_URL || 'https://www.where2go.at').replace(/\/$/, '');
+  
+  if (category && date) {
+    return `${baseUrl}/${city.toLowerCase()}/${category}/${date}`;
+  }
+  
   if (category) {
-    url += `/${category}`;
+    return `${baseUrl}/${city.toLowerCase()}/${category}`;
   }
+  
   if (date) {
-    url += `/${date}`;
+    return `${baseUrl}/${city.toLowerCase()}/${date}`;
   }
-  return url;
+  
+  return `${baseUrl}/${city.toLowerCase()}`;
 }
 
 /**
@@ -158,14 +143,14 @@ function capitalize(s: string): string {
  * Validate if category exists
  */
 export function isValidCategory(category: string): boolean {
-  return category in CATEGORY_NAMES;
+  return validateCategory(category);
 }
 
 /**
  * Validate if date filter is valid
  */
 export function isValidDateFilter(date: string): boolean {
-  return date in DATE_LABELS;
+  return validateDateFilter(date);
 }
 
 /**
@@ -186,12 +171,12 @@ export function getAllDateFilters(): string[] {
  * Get category display name
  */
 export function getCategoryName(slug: string): string {
-  return CATEGORY_NAMES[slug] || slug;
+  return getCategoryDisplayName(slug) || slug;
 }
 
 /**
  * Get date label
  */
 export function getDateLabel(slug: string): string {
-  return DATE_LABELS[slug] || slug;
+  return getDateDisplayLabel(slug) || slug;
 }
