@@ -43,7 +43,7 @@ export default async function WienBildungWorkshopsWochenendePage() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="Wien"
-          initialDateFilter="wochenende"
+          initialDateFilter="weekend"
           initialCategory="Bildung & Workshops"
         />
       </>
@@ -57,7 +57,7 @@ export default async function WienBildungWorkshopsWochenendePage() {
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="Wien"
-        initialDateFilter="wochenende"
+        initialDateFilter="weekend"
         initialCategory="Bildung & Workshops"
       />
     );

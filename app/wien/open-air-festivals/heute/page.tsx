@@ -43,7 +43,7 @@ export default async function WienOpenAirFestivalsHeutePage() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="Wien"
-          initialDateFilter="heute"
+          initialDateFilter="today"
           initialCategory="Open Air & Festivals"
         />
       </>
@@ -57,7 +57,7 @@ export default async function WienOpenAirFestivalsHeutePage() {
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="Wien"
-        initialDateFilter="heute"
+        initialDateFilter="today"
         initialCategory="Open Air & Festivals"
       />
     );

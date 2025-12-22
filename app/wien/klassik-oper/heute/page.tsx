@@ -43,7 +43,7 @@ export default async function WienKlassikOperHeutePage() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="Wien"
-          initialDateFilter="heute"
+          initialDateFilter="today"
           initialCategory="Klassik & Oper"
         />
       </>
@@ -57,7 +57,7 @@ export default async function WienKlassikOperHeutePage() {
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="Wien"
-        initialDateFilter="heute"
+        initialDateFilter="today"
         initialCategory="Klassik & Oper"
       />
     );

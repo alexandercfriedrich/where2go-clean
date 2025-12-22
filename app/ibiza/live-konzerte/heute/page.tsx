@@ -43,7 +43,7 @@ export default async function IbizaLiveKonzerteHeutePage() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="Ibiza"
-          initialDateFilter="heute"
+          initialDateFilter="today"
           initialCategory="Live-Konzerte"
         />
       </>
@@ -57,7 +57,7 @@ export default async function IbizaLiveKonzerteHeutePage() {
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="Ibiza"
-        initialDateFilter="heute"
+        initialDateFilter="today"
         initialCategory="Live-Konzerte"
       />
     );

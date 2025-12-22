@@ -43,7 +43,7 @@ export default async function WienClubsNachtlebenWochenendePage() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="Wien"
-          initialDateFilter="wochenende"
+          initialDateFilter="weekend"
           initialCategory="Clubs & Nachtleben"
         />
       </>
@@ -57,7 +57,7 @@ export default async function WienClubsNachtlebenWochenendePage() {
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="Wien"
-        initialDateFilter="wochenende"
+        initialDateFilter="weekend"
         initialCategory="Clubs & Nachtleben"
       />
     );

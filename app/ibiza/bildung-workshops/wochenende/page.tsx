@@ -43,7 +43,7 @@ export default async function IbizaBildungWorkshopsWochenendePage() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="Ibiza"
-          initialDateFilter="wochenende"
+          initialDateFilter="weekend"
           initialCategory="Bildung & Workshops"
         />
       </>
@@ -57,7 +57,7 @@ export default async function IbizaBildungWorkshopsWochenendePage() {
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="Ibiza"
-        initialDateFilter="wochenende"
+        initialDateFilter="weekend"
         initialCategory="Bildung & Workshops"
       />
     );

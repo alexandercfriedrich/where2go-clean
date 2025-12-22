@@ -43,7 +43,7 @@ export default async function IbizaFamilieKinderHeutePage() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="Ibiza"
-          initialDateFilter="heute"
+          initialDateFilter="today"
           initialCategory="Familie & Kinder"
         />
       </>
@@ -57,7 +57,7 @@ export default async function IbizaFamilieKinderHeutePage() {
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="Ibiza"
-        initialDateFilter="heute"
+        initialDateFilter="today"
         initialCategory="Familie & Kinder"
       />
     );

@@ -43,7 +43,7 @@ export default async function IbizaKlassikOperMorgenPage() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="Ibiza"
-          initialDateFilter="morgen"
+          initialDateFilter="tomorrow"
           initialCategory="Klassik & Oper"
         />
       </>
@@ -57,7 +57,7 @@ export default async function IbizaKlassikOperMorgenPage() {
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="Ibiza"
-        initialDateFilter="morgen"
+        initialDateFilter="tomorrow"
         initialCategory="Klassik & Oper"
       />
     );

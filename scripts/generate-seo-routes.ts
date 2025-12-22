@@ -57,12 +57,20 @@ const CITY_NAMES: Record<string, string> = {
 const DATES = ['heute', 'morgen', 'wochenende'];
 const CATEGORIES = CATEGORY_SLUGS;
 
+// Map German date slugs to English filter values expected by filterEventsByDateRange
+const DATE_SLUG_TO_FILTER: Record<string, string> = {
+  'heute': 'today',
+  'morgen': 'tomorrow',
+  'wochenende': 'weekend',
+};
+
 /**
  * Generate page template for /[city]/[date] route
  * Example: /wien/heute
  */
 function generateDateRoutePage(city: string, date: string): string {
   const cityUpper = CITY_NAMES[city];
+  const dateFilter = DATE_SLUG_TO_FILTER[date] || date;
   
   return `import { Metadata } from 'next';
 import DiscoveryClient from '@/discover/DiscoveryClient';
@@ -109,7 +117,7 @@ export default async function ${capitalize(city)}${capitalize(date)}Page() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="${cityUpper}"
-          initialDateFilter="${date}"
+          initialDateFilter="${dateFilter}"
         />
       </>
     );
@@ -122,7 +130,7 @@ export default async function ${capitalize(city)}${capitalize(date)}Page() {
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="${cityUpper}"
-        initialDateFilter="${date}"
+        initialDateFilter="${dateFilter}"
       />
     );
   }
@@ -213,6 +221,7 @@ export default async function ${capitalize(city)}${pascalCase(category)}Page() {
 function generateCategoryDateRoutePage(city: string, category: string, date: string): string {
   const cityUpper = CITY_NAMES[city];
   const categoryLabel = CATEGORY_NAMES[category];
+  const dateFilter = DATE_SLUG_TO_FILTER[date] || date;
 
   return `import { Metadata } from 'next';
 import DiscoveryClient from '@/discover/DiscoveryClient';
@@ -259,7 +268,7 @@ export default async function ${capitalize(city)}${pascalCase(category)}${capita
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="${cityUpper}"
-          initialDateFilter="${date}"
+          initialDateFilter="${dateFilter}"
           initialCategory="${categoryLabel}"
         />
       </>
@@ -273,7 +282,7 @@ export default async function ${capitalize(city)}${pascalCase(category)}${capita
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="${cityUpper}"
-        initialDateFilter="${date}"
+        initialDateFilter="${dateFilter}"
         initialCategory="${categoryLabel}"
       />
     );

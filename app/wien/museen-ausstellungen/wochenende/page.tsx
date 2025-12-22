@@ -43,7 +43,7 @@ export default async function WienMuseenAusstellungenWochenendePage() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="Wien"
-          initialDateFilter="wochenende"
+          initialDateFilter="weekend"
           initialCategory="Museen & Ausstellungen"
         />
       </>
@@ -57,7 +57,7 @@ export default async function WienMuseenAusstellungenWochenendePage() {
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="Wien"
-        initialDateFilter="wochenende"
+        initialDateFilter="weekend"
         initialCategory="Museen & Ausstellungen"
       />
     );
