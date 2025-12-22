@@ -17,7 +17,7 @@ import type { EventData } from '@/lib/types';
 export const dynamic = 'force-dynamic';
 
 interface PageProps {
-  params: { city: string };
+  params: Promise<{ city: string }>;
   searchParams: Promise<{ date?: string }>;
 }
 
@@ -26,8 +26,9 @@ interface PageProps {
  * Ensures each city has unique title, description, and keywords
  */
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { city } = await params;
   const strictMode = process.env.CITY_STRICT_MODE === 'true';
-  const resolved = await resolveCityFromParam(params.city, strictMode);
+  const resolved = await resolveCityFromParam(city, strictMode);
   
   if (!resolved) {
     return {
@@ -43,9 +44,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function CityPage({ params, searchParams }: PageProps) {
+  const { city } = await params;
   // Disable strict mode by default - allow any city name (filtered by middleware)
   const strictMode = process.env.CITY_STRICT_MODE === 'true';
-  const resolved = await resolveCityFromParam(params.city, strictMode);
+  const resolved = await resolveCityFromParam(city, strictMode);
   
   if (!resolved) {
     return <div style={{ padding: 24 }}>Unbekannte Stadt.</div>;
