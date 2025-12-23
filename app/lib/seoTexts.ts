@@ -580,7 +580,7 @@ Stöbern Sie durch alle Museen & Galerien-Events am Wochenende und lassen Sie si
 <p>Am Wochenende wird Wien zur Kino-Metropole! Die Kinos sind voll, die Blockbuster laufen, die Popcorn-Maschinen arbeiten auf Hochtouren. Das ist echte Kino-Kultur!</p>
 <h3>Wochenende: Film-Marathon!</h3>
 <p>Where2Go zeigt dir alle Wochenend-Filme, die besten Kinos und wie dein perfektes Film-Wochenende wird. Tickets sichern und Film-Genuss genießen! 🎬🍿</p>`
-  },,
+  },
   "open-air-festivals": {
     "heute": `<h2>Open-Air-Festivals heute in Wien – Musikfest & Outdoor-Events!</h2>
 <p>Wien hat großartige Open-Air-Festivals! Heute spielen Künstler und Bands unter freiem Himmel – von Musik über Theater bis zu Kunstinstallationen. Die Donauinsel, Parks und öffentliche Plätze sind voller Events. Where2Go zeigt dir, welche Open-Air-Festivals heute laufen und wie du hin kommst.</p>
