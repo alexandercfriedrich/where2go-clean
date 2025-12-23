@@ -5,6 +5,8 @@ import SchemaOrg from '@/components/SchemaOrg';
 import { generateEventListSchema } from '@/lib/schemaOrg';
 import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
 import { generateCityMetadata } from '@/lib/seo/metadataGenerator';
+import { SeoContent } from '@/components/SeoContent';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 export async function generateMetadata(): Promise<Metadata> {
   return generateCityMetadata({ city: 'wien', category: 'kulinarik-maerkte', date: 'wochenende' });
@@ -35,7 +37,8 @@ export default async function WienKulinarikMaerkteWochenendePage() {
     );
 
     return (
-      <>
+      <>        <Breadcrumbs items={[{ label: 'Wien', href: '/wien' }, { label: 'Kulinarik & Märkte', href: '/wien/kulinarik-maerkte' }, { label: 'Wochenende', href: '/wien/kulinarik-maerkte/wochenende' }]} />
+
         <SchemaOrg schema={schema} />
         <DiscoveryClient
           initialTrendingEvents={sorted.trending}
@@ -46,12 +49,16 @@ export default async function WienKulinarikMaerkteWochenendePage() {
           initialDateFilter="weekend"
           initialCategory="Kulinarik & Märkte"
         />
+      <SeoContent category="kulinarik-maerkte" date="wochenende" />
+
       </>
     );
   } catch (error) {
     console.error('Error in WienKulinarikMaerkteWochenendePage:', error);
     return (
-      <DiscoveryClient
+      <>
+        <Breadcrumbs items={[{ label: 'Wien', href: '/wien' }, { label: 'Kulinarik & Märkte', href: '/wien/kulinarik-maerkte' }, { label: 'Wochenende', href: '/wien/kulinarik-maerkte/wochenende' }]} />
+        <DiscoveryClient
         initialTrendingEvents={[]}
         initialWeekendEvents={[]}
         initialPersonalizedEvents={[]}
@@ -60,6 +67,8 @@ export default async function WienKulinarikMaerkteWochenendePage() {
         initialDateFilter="weekend"
         initialCategory="Kulinarik & Märkte"
       />
+        <SeoContent category="kulinarik-maerkte" date="wochenende" />
+      </>
     );
   }
 }

@@ -5,6 +5,8 @@ import SchemaOrg from '@/components/SchemaOrg';
 import { generateEventListSchema } from '@/lib/schemaOrg';
 import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
 import { generateCityMetadata } from '@/lib/seo/metadataGenerator';
+import { SeoContent } from '@/components/SeoContent';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 export async function generateMetadata(): Promise<Metadata> {
   return generateCityMetadata({ city: 'wien', category: 'bildung-workshops', date: 'heute' });
@@ -35,7 +37,8 @@ export default async function WienBildungWorkshopsHeutePage() {
     );
 
     return (
-      <>
+      <>        <Breadcrumbs items={[{ label: 'Wien', href: '/wien' }, { label: 'Bildung & Workshops', href: '/wien/bildung-workshops' }, { label: 'Heute', href: '/wien/bildung-workshops/heute' }]} />
+
         <SchemaOrg schema={schema} />
         <DiscoveryClient
           initialTrendingEvents={sorted.trending}
@@ -46,12 +49,16 @@ export default async function WienBildungWorkshopsHeutePage() {
           initialDateFilter="today"
           initialCategory="Bildung & Workshops"
         />
+      <SeoContent category="bildung-workshops" date="heute" />
+
       </>
     );
   } catch (error) {
     console.error('Error in WienBildungWorkshopsHeutePage:', error);
     return (
-      <DiscoveryClient
+      <>
+        <Breadcrumbs items={[{ label: 'Wien', href: '/wien' }, { label: 'Bildung & Workshops', href: '/wien/bildung-workshops' }, { label: 'Heute', href: '/wien/bildung-workshops/heute' }]} />
+        <DiscoveryClient
         initialTrendingEvents={[]}
         initialWeekendEvents={[]}
         initialPersonalizedEvents={[]}
@@ -60,6 +67,8 @@ export default async function WienBildungWorkshopsHeutePage() {
         initialDateFilter="today"
         initialCategory="Bildung & Workshops"
       />
+        <SeoContent category="bildung-workshops" date="heute" />
+      </>
     );
   }
 }

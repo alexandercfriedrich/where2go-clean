@@ -5,6 +5,8 @@ import SchemaOrg from '@/components/SchemaOrg';
 import { generateEventListSchema } from '@/lib/schemaOrg';
 import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
 import { generateCityMetadata } from '@/lib/seo/metadataGenerator';
+import { SeoContent } from '@/components/SeoContent';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 export async function generateMetadata(): Promise<Metadata> {
   return generateCityMetadata({ city: 'wien', category: 'film-kino', date: 'heute' });
@@ -35,7 +37,8 @@ export default async function WienFilmKinoHeutePage() {
     );
 
     return (
-      <>
+      <>        <Breadcrumbs items={[{ label: 'Wien', href: '/wien' }, { label: 'Film & Kino', href: '/wien/film-kino' }, { label: 'Heute', href: '/wien/film-kino/heute' }]} />
+
         <SchemaOrg schema={schema} />
         <DiscoveryClient
           initialTrendingEvents={sorted.trending}
@@ -46,12 +49,16 @@ export default async function WienFilmKinoHeutePage() {
           initialDateFilter="today"
           initialCategory="Film & Kino"
         />
+      <SeoContent category="film-kino" date="heute" />
+
       </>
     );
   } catch (error) {
     console.error('Error in WienFilmKinoHeutePage:', error);
     return (
-      <DiscoveryClient
+      <>
+        <Breadcrumbs items={[{ label: 'Wien', href: '/wien' }, { label: 'Film & Kino', href: '/wien/film-kino' }, { label: 'Heute', href: '/wien/film-kino/heute' }]} />
+        <DiscoveryClient
         initialTrendingEvents={[]}
         initialWeekendEvents={[]}
         initialPersonalizedEvents={[]}
@@ -60,6 +67,8 @@ export default async function WienFilmKinoHeutePage() {
         initialDateFilter="today"
         initialCategory="Film & Kino"
       />
+        <SeoContent category="film-kino" date="heute" />
+      </>
     );
   }
 }

@@ -5,6 +5,8 @@ import SchemaOrg from '@/components/SchemaOrg';
 import { generateEventListSchema } from '@/lib/schemaOrg';
 import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
 import { generateCityMetadata } from '@/lib/seo/metadataGenerator';
+import { SeoContent } from '@/components/SeoContent';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 export async function generateMetadata(): Promise<Metadata> {
   return generateCityMetadata({ city: 'wien', category: 'open-air-festivals', date: 'heute' });
@@ -35,7 +37,8 @@ export default async function WienOpenAirFestivalsHeutePage() {
     );
 
     return (
-      <>
+      <>        <Breadcrumbs items={[{ label: 'Wien', href: '/wien' }, { label: 'Open Air & Festivals', href: '/wien/open-air-festivals' }, { label: 'Heute', href: '/wien/open-air-festivals/heute' }]} />
+
         <SchemaOrg schema={schema} />
         <DiscoveryClient
           initialTrendingEvents={sorted.trending}
@@ -46,12 +49,16 @@ export default async function WienOpenAirFestivalsHeutePage() {
           initialDateFilter="today"
           initialCategory="Open Air & Festivals"
         />
+      <SeoContent category="open-air-festivals" date="heute" />
+
       </>
     );
   } catch (error) {
     console.error('Error in WienOpenAirFestivalsHeutePage:', error);
     return (
-      <DiscoveryClient
+      <>
+        <Breadcrumbs items={[{ label: 'Wien', href: '/wien' }, { label: 'Open Air & Festivals', href: '/wien/open-air-festivals' }, { label: 'Heute', href: '/wien/open-air-festivals/heute' }]} />
+        <DiscoveryClient
         initialTrendingEvents={[]}
         initialWeekendEvents={[]}
         initialPersonalizedEvents={[]}
@@ -60,6 +67,8 @@ export default async function WienOpenAirFestivalsHeutePage() {
         initialDateFilter="today"
         initialCategory="Open Air & Festivals"
       />
+        <SeoContent category="open-air-festivals" date="heute" />
+      </>
     );
   }
 }

@@ -5,6 +5,8 @@ import SchemaOrg from '@/components/SchemaOrg';
 import { generateEventListSchema } from '@/lib/schemaOrg';
 import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
 import { generateCityMetadata } from '@/lib/seo/metadataGenerator';
+import { SeoContent } from '@/components/SeoContent';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 export async function generateMetadata(): Promise<Metadata> {
   return generateCityMetadata({ city: 'wien', category: 'clubs-nachtleben', date: 'heute' });
@@ -35,7 +37,8 @@ export default async function WienClubsNachtlebenHeutePage() {
     );
 
     return (
-      <>
+      <>        <Breadcrumbs items={[{ label: 'Wien', href: '/wien' }, { label: 'Clubs & Nachtleben', href: '/wien/clubs-nachtleben' }, { label: 'Heute', href: '/wien/clubs-nachtleben/heute' }]} />
+
         <SchemaOrg schema={schema} />
         <DiscoveryClient
           initialTrendingEvents={sorted.trending}
@@ -46,20 +49,25 @@ export default async function WienClubsNachtlebenHeutePage() {
           initialDateFilter="today"
           initialCategory="Clubs & Nachtleben"
         />
+        <SeoContent category="clubs-nachtleben" date="heute" />
       </>
     );
   } catch (error) {
     console.error('Error in WienClubsNachtlebenHeutePage:', error);
     return (
-      <DiscoveryClient
-        initialTrendingEvents={[]}
-        initialWeekendEvents={[]}
-        initialPersonalizedEvents={[]}
-        initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
-        city="Wien"
-        initialDateFilter="today"
-        initialCategory="Clubs & Nachtleben"
-      />
+      <>
+        <Breadcrumbs items={[{ label: 'Wien', href: '/wien' }, { label: 'Clubs & Nachtleben', href: '/wien/clubs-nachtleben' }, { label: 'Heute', href: '/wien/clubs-nachtleben/heute' }]} />
+        <DiscoveryClient
+          initialTrendingEvents={[]}
+          initialWeekendEvents={[]}
+          initialPersonalizedEvents={[]}
+          initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
+          city="Wien"
+          initialDateFilter="today"
+          initialCategory="Clubs & Nachtleben"
+        />
+        <SeoContent category="clubs-nachtleben" date="heute" />
+      </>
     );
   }
 }

@@ -5,6 +5,8 @@ import SchemaOrg from '@/components/SchemaOrg';
 import { generateEventListSchema } from '@/lib/schemaOrg';
 import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
 import { generateCityMetadata } from '@/lib/seo/metadataGenerator';
+import { SeoContent } from '@/components/SeoContent';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 export async function generateMetadata(): Promise<Metadata> {
   return generateCityMetadata({ city: 'wien', category: 'live-konzerte', date: 'morgen' });
@@ -35,7 +37,8 @@ export default async function WienLiveKonzerteMorgenPage() {
     );
 
     return (
-      <>
+      <>        <Breadcrumbs items={[{ label: 'Wien', href: '/wien' }, { label: 'Live-Konzerte', href: '/wien/live-konzerte' }, { label: 'Morgen', href: '/wien/live-konzerte/morgen' }]} />
+
         <SchemaOrg schema={schema} />
         <DiscoveryClient
           initialTrendingEvents={sorted.trending}
@@ -46,12 +49,16 @@ export default async function WienLiveKonzerteMorgenPage() {
           initialDateFilter="tomorrow"
           initialCategory="Live-Konzerte"
         />
+      <SeoContent category="live-konzerte" date="morgen" />
+
       </>
     );
   } catch (error) {
     console.error('Error in WienLiveKonzerteMorgenPage:', error);
     return (
-      <DiscoveryClient
+      <>
+        <Breadcrumbs items={[{ label: 'Wien', href: '/wien' }, { label: 'Live-Konzerte', href: '/wien/live-konzerte' }, { label: 'Morgen', href: '/wien/live-konzerte/morgen' }]} />
+        <DiscoveryClient
         initialTrendingEvents={[]}
         initialWeekendEvents={[]}
         initialPersonalizedEvents={[]}
@@ -60,6 +67,8 @@ export default async function WienLiveKonzerteMorgenPage() {
         initialDateFilter="tomorrow"
         initialCategory="Live-Konzerte"
       />
+        <SeoContent category="live-konzerte" date="morgen" />
+      </>
     );
   }
 }
