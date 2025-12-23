@@ -6,6 +6,7 @@ import { generateEventListSchema } from '@/lib/schemaOrg';
 import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
 import { generateCityMetadata } from '@/lib/seo/metadataGenerator';
 import { SeoContent } from '@/components/SeoContent';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 export async function generateMetadata(): Promise<Metadata> {
   return generateCityMetadata({ city: 'wien', category: 'klassik-oper', date: 'wochenende' });
@@ -36,7 +37,8 @@ export default async function WienKlassikOperWochenendePage() {
     );
 
     return (
-      <>
+      <>        <Breadcrumbs items={[{ label: 'Wien', href: '/wien' }, { label: 'Klassik & Oper', href: '/wien/klassik-oper' }, { label: 'Wochenende', href: '/wien/klassik-oper/wochenende' }]} />
+
         <SchemaOrg schema={schema} />
         <DiscoveryClient
           initialTrendingEvents={sorted.trending}
@@ -55,6 +57,7 @@ export default async function WienKlassikOperWochenendePage() {
     console.error('Error in WienKlassikOperWochenendePage:', error);
     return (
       <>
+        <Breadcrumbs items={[{ label: 'Wien', href: '/wien' }, { label: 'Klassik & Oper', href: '/wien/klassik-oper' }, { label: 'Wochenende', href: '/wien/klassik-oper/wochenende' }]} />
         <DiscoveryClient
         initialTrendingEvents={[]}
         initialWeekendEvents={[]}

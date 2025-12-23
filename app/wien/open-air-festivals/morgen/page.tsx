@@ -6,6 +6,7 @@ import { generateEventListSchema } from '@/lib/schemaOrg';
 import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
 import { generateCityMetadata } from '@/lib/seo/metadataGenerator';
 import { SeoContent } from '@/components/SeoContent';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 export async function generateMetadata(): Promise<Metadata> {
   return generateCityMetadata({ city: 'wien', category: 'open-air-festivals', date: 'morgen' });
@@ -36,7 +37,8 @@ export default async function WienOpenAirFestivalsMorgenPage() {
     );
 
     return (
-      <>
+      <>        <Breadcrumbs items={[{ label: 'Wien', href: '/wien' }, { label: 'Open Air & Festivals', href: '/wien/open-air-festivals' }, { label: 'Morgen', href: '/wien/open-air-festivals/morgen' }]} />
+
         <SchemaOrg schema={schema} />
         <DiscoveryClient
           initialTrendingEvents={sorted.trending}
@@ -55,6 +57,7 @@ export default async function WienOpenAirFestivalsMorgenPage() {
     console.error('Error in WienOpenAirFestivalsMorgenPage:', error);
     return (
       <>
+        <Breadcrumbs items={[{ label: 'Wien', href: '/wien' }, { label: 'Open Air & Festivals', href: '/wien/open-air-festivals' }, { label: 'Morgen', href: '/wien/open-air-festivals/morgen' }]} />
         <DiscoveryClient
         initialTrendingEvents={[]}
         initialWeekendEvents={[]}

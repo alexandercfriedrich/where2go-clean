@@ -6,6 +6,7 @@ import { generateEventListSchema } from '@/lib/schemaOrg';
 import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
 import { generateCityMetadata } from '@/lib/seo/metadataGenerator';
 import { SeoContent } from '@/components/SeoContent';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 export async function generateMetadata(): Promise<Metadata> {
   return generateCityMetadata({ city: 'wien', category: 'museen-ausstellungen', date: 'wochenende' });
@@ -36,7 +37,8 @@ export default async function WienMuseenAusstellungenWochenendePage() {
     );
 
     return (
-      <>
+      <>        <Breadcrumbs items={[{ label: 'Wien', href: '/wien' }, { label: 'Museen & Ausstellungen', href: '/wien/museen-ausstellungen' }, { label: 'Wochenende', href: '/wien/museen-ausstellungen/wochenende' }]} />
+
         <SchemaOrg schema={schema} />
         <DiscoveryClient
           initialTrendingEvents={sorted.trending}
@@ -55,6 +57,7 @@ export default async function WienMuseenAusstellungenWochenendePage() {
     console.error('Error in WienMuseenAusstellungenWochenendePage:', error);
     return (
       <>
+        <Breadcrumbs items={[{ label: 'Wien', href: '/wien' }, { label: 'Museen & Ausstellungen', href: '/wien/museen-ausstellungen' }, { label: 'Wochenende', href: '/wien/museen-ausstellungen/wochenende' }]} />
         <DiscoveryClient
         initialTrendingEvents={[]}
         initialWeekendEvents={[]}

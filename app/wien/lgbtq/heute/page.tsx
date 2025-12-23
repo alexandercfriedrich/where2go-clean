@@ -6,6 +6,7 @@ import { generateEventListSchema } from '@/lib/schemaOrg';
 import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
 import { generateCityMetadata } from '@/lib/seo/metadataGenerator';
 import { SeoContent } from '@/components/SeoContent';
+import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 export async function generateMetadata(): Promise<Metadata> {
   return generateCityMetadata({ city: 'wien', category: 'lgbtq', date: 'heute' });
@@ -36,7 +37,8 @@ export default async function WienLgbtqHeutePage() {
     );
 
     return (
-      <>
+      <>        <Breadcrumbs items={[{ label: 'Wien', href: '/wien' }, { label: 'LGBTQ+', href: '/wien/lgbtq' }, { label: 'Heute', href: '/wien/lgbtq/heute' }]} />
+
         <SchemaOrg schema={schema} />
         <DiscoveryClient
           initialTrendingEvents={sorted.trending}
@@ -55,6 +57,7 @@ export default async function WienLgbtqHeutePage() {
     console.error('Error in WienLgbtqHeutePage:', error);
     return (
       <>
+        <Breadcrumbs items={[{ label: 'Wien', href: '/wien' }, { label: 'LGBTQ+', href: '/wien/lgbtq' }, { label: 'Heute', href: '/wien/lgbtq/heute' }]} />
         <DiscoveryClient
         initialTrendingEvents={[]}
         initialWeekendEvents={[]}
