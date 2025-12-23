@@ -1,6 +1,6 @@
 # 📋 WHERE2GO SEO ROUTES - IMPLEMENTATION PLAN
 
-**PR:** #311  
+**PR:** #313  
 **Ziel:** 104 SEO-optimierte Routes mit Hybrid-Approach (12 Kategorien)  
 **Gesamtdauer:** ~14-19 Stunden  
 **Status:** Ready to Start ✅
@@ -86,7 +86,7 @@ const CATEGORIES = [
 ### Success Criteria:
 - ✅ Route lädt ohne Fehler
 - ✅ Metadata korrekt
-- ✅ H1 Text = "Events in Wien heute"
+- ✅ H1 Text = \"Events in Wien heute\"
 
 ---
 
@@ -102,7 +102,7 @@ const CATEGORIES = [
 
 ### Success Criteria:
 - ✅ Route lädt ohne Fehler
-- ✅ H1 Text = "Live-Konzerte in Wien"
+- ✅ H1 Text = \"Live-Konzerte in Wien\"
 
 ---
 
@@ -119,7 +119,7 @@ const CATEGORIES = [
 
 ### Success Criteria:
 - ✅ Route lädt ohne Fehler
-- ✅ H1 Text = "Live-Konzerte in Wien heute"
+- ✅ H1 Text = \"Live-Konzerte in Wien heute\"
 
 ---
 
@@ -476,4 +476,4 @@ TOTAL: ~18 Arbeitsstunden (etwas optimistisch kalkuliert)
 
 **Dokumentation:** `SEVEN_PHASES_DETAILED_IMPLEMENTATION.md` für Code-Details  
 **Status:** ✅ Ready to Start  
-**Ziel:** PR #311 fertigstellen
+**Ziel:** PR #313 fertigstellen
