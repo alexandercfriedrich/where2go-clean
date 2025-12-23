@@ -522,54 +522,125 @@ Stöbern Sie durch alle Museen & Galerien-Events am Wochenende und lassen Sie si
 
   },
   "film-kino": {
-    "heute": `**Film & Kino heute in Wien erleben**
-
-Wien ist eine Stadt der Filmkunst und heute besonders cineastisch. Entdecken Sie die besten **Film & Kino-Events in Wien heute** auf Where2Go – Ihrer Plattform für unvergessliche Erlebnisse in der österreichischen Hauptstadt.
-
-**Die Top-Locations für Film & Kino heute:**
-
-Gartenbaukino, Metro Kinokulturhaus, Filmcasino, Stadtkino im Künstlerhaus – diese und viele weitere Venues erwarten Sie mit einem vielfältigen Programm. Wien bietet heute eine einzigartige Mischung aus Blockbustern, Arthousekino, Filmfestivals, die sich in jedem Event widerspiegelt.
-
-**Jetzt entdecken:**
-
-Stöbern Sie durch alle Film & Kino-Events heute und lassen Sie sich inspirieren. Where2Go zeigt Ihnen nicht nur Was und Wann, sondern auch Wer, Wo und Wie viel – damit Ihr heute Abend in Wien unvergesslich wird.
-
-**Where2Go – Alle Events. Wien. Eine Plattform.**`,
-    "morgen": `**Film & Kino morgen in Wien erleben**
-
-Wien ist eine Stadt der Filmkunst und morgen voller Möglichkeiten. Entdecken Sie die besten **Film & Kino-Events in Wien morgen** auf Where2Go – Ihrer Plattform für unvergessliche Erlebnisse in der österreichischen Hauptstadt.
-
-**Where2Go – Alle Events. Wien. Eine Plattform.**`,
-    "wochenende": `**Film & Kino am Wochenende in Wien erleben**
-
-Wien ist eine Stadt der Filmkunst und am Wochenende besonders vielfältig. Entdecken Sie die besten **Film & Kino-Events in Wien am Wochenende** auf Where2Go – Ihrer Plattform für unvergessliche Erlebnisse in der österreichischen Hauptstadt.
-
-**Where2Go – Alle Events. Wien. Eine Plattform.**`,
-  },
+    "heute": `<h2>Filme & Kino heute in Wien – Blockbuster & Indie!</h2>
+<p>Wien ist eine Film-Stadt! Heute spielen hunderts Filme in Kinos überall in der Stadt – von Hollywood-Blockbustern über europäische Arthouse bis zu Dokumentationen. Where2Go zeigt dir, welche Filme heute laufen, in welchen Kinos und wie du Tickets kriegst. Von großen Multiplex-Kinos bis zu kleinen Programmkinos – Wien hat alles!</p>
+<h3>Top-Kinos heute</h3>
+<p>Gartenbaukino im 7. Bezirk mit internationalem Programm und schöner Architektur. Urania Kino mit klassischen Filmen und Filmkunst. Votivkino im 9. Bezirk als legendäres Programm-Kino. UCI Mega mit allen Blockbustern und Premieren. Cine Nova mit unabhängigen Filmen und Nischen-Titeln. Alle haben heute volle Programme!</p>
+<h3>Heute"s Film-Vielfalt</h3>
+<p>Hollywood-Blockbuster in 4K und Dolby Cinema. Europäische Arthouse-Filme und Independents. Dokumentationen und Thriller. Animationsfilme für die ganze Familie. Klassiker in Retrospektiven. Spezial-Events wie Director"s Cuts und Premieren. Alles auf großen Leinwänden mit perfektem Sound!</p>
+<h3>Anfahrt zu Kinos</h3>
+<p>U3 Neubaugasse zum Gartenbaukino. U2 Schottenring zur Urania. U6 Thaliastraße zum Votivkino. U1/U4 Karlsplatz zu zentralen Kinos. Viele Kinos zu Fuß in der Innenstadt erreichbar!</p>
+<h3>Warum Where2Go Kino?</h3>
+<ul>
+<li>Alle Filme heute mit Showtimes</li>
+<li>Kino-Infos: Format, Sprache, Untertitel</li>
+<li>Tickets direkt online buchen</li>
+<li>User-Bewertungen & IMDb-Infos</li>
+</ul>
+<h3>Wiens Kino-Kultur</h3>
+<p>Wien hat eine lebendige Kino-Kultur! Von Multiplex bis Programmkino, vom Blockbuster bis zum Arthouse-Film. Die Stadt liebt Kino!</p>
+<h3>Heute: Popcorn & Film!</h3>
+<p>Where2Go zeigt dir alle Filme heute, welche Kinos spielen und wie du dein Kino-Erlebnis buchst. Tickets sichern und gute Unterhaltung! 🍿</p>`,
+    "morgen": `<h2>Filme & Kino morgen in Wien – Dein Kino-Abend</h2>
+<p>Morgen läuft gutes Kino in Wien! Dutzende von Kinos zeigen ihre besten Filme – Blockbuster, Indie, Klassiker, Dokumentation. Morgen ist perfekt für einen Kino-Abend mit großer Leinwand und perfektem Sound. Where2Go zeigt dir, welche Filme morgen spielen und in welchen Kinos.</p>
+<h3>Morgen"s Top-Kinos</h3>
+<p>Gartenbaukino mit hochwertigem Programm. Urania Kino mit Klassikern und Filmkunst. Votivkino als legendäres Programm-Haus. UCI Mega mit großem Blockbuster-Angebot. Cine Nova mit unabhängigen und internationalen Filmen. Alle sind morgen mit großartigen Programmen bestückt!</p>
+<h3>Morgen"s Film-Auswahl</h3>
+<p>Neue Blockbuster-Premieren. Europäische Autoren-Filme. Dokumentationen zu aktuellen Themen. Animationsfilme für Familien. Klassiker-Retrospektiven in restaurierten Versionen. Horror- und Thriller-Events. Alles auf großen Screens mit Dolby & 4K-Qualität!</p>
+<h3>Anfahrts-Tipps</h3>
+<p>U3 Neubaugasse zum Gartenbaukino. U2 Schottenring zur Urania. U6 Thaliastraße zum Votivkino. U-Bahn zu zentralen Kinos sehr schnell. Nach dem Film: Nachtbusse fahren bis 0:30 Uhr!</p>
+<h3>Warum Where2Go?</h3>
+<ul>
+<li>Alle morgen"s Filme mit Showtimes</li>
+<li>Format-Info: 3D, IMAX, Dolby, 4K</li>
+<li>Sprache & Untertitel transparent</li>
+<li>Tickets online buchbar</li>
+</ul>
+<h3>Wien"s Kino-Faszination</h3>
+<p>Wien ist Film-Stadt! Die Kinos sind schön, das Programm ist vielfältig, die Kultur ist lebendig. Jede Nacht spielen hunderts Filme!</p>
+<h3>Morgen: Kino-Erlebnis!</h3>
+<p>Where2Go zeigt dir alle Filme morgen, die besten Kinos und wie dein perfekter Film-Abend wird. Tickets buchen & Film genießen! 🎬</p>`,
+    "wochenende": `<h2>Filme & Kino am Wochenende in Wien – Film-Festival!</h2>
+<p>Das Wochenende ist Kino-Zeit in Wien! Freitag und Samstag spielen die besten Filme in hunderts Vorstellungen. Blockbuster-Premieren, Kunstfilm-Retros, Spezial-Events – das Kino-Angebot ist gigantisch. Where2Go zeigt dir alle Wochenend-Filme und die beste Kino-Erfahrung der Welt.</p>
+<h3>Wochenend-Kino-Top-Ziele</h3>
+<p>Gartenbaukino mit exquisitem Programm und schönem Ambiente. Urania Kino mit Klassikern und Filmkunst. Votivkino als legendäres Programmkino mit Flair. UCI Mega mit allen Premieren und großen Blockbustern. Cine Nova mit Unabhängigen und Internationals. Cinemaxx mit IMAX und Event-Filmen. Alle sind am Wochenende VOLL!</p>
+<h3>Wochenend-Film-Explosion</h3>
+<p>Große Blockbuster-Premieren Freitag & Samstag. Hollywood-Action und internationale Kino-Kunst. Dokumentationen zu relevanten Themen. Animationsfilme für Familie & Kinder. Klassiker-Retros in restaurierten Versionen. Horror-Marathons & Thriller-Events. Spezial-Screenings mit Directors & Schauspielern! Alles 2-3 Vorstellungen pro Kino!</p>
+<h3>Anfahrt zum Wochenend-Kino</h3>
+<p>U3 Neubaugasse zum Gartenbaukino (zentral). U2 Schottenring zur Urania. U6 Thaliastraße zum Votivkino. U1/U4 Karlsplatz zu Multiplex-Kinos. Alle Öffis laufen bis 0:30 Uhr – danach Nachtbusse oder Taxi!</p>
+<h3>Warum Where2Go Wochenend-Kino?</h3>
+<ul>
+<li>Alle Freitag & Samstag Filme & Showtimes</li>
+<li>Format-Qualität: 3D, IMAX, 4K, Dolby</li>
+<li>Sprache & Untertitel für alle Filme</li>
+<li>Live-Ticketverfügbarkeit & Online-Booking</li>
+<li>User-Bewertungen & Film-Kritiken</li>
+</ul>
+<h3>Wiens Wochenend-Kino-Szene</h3>
+<p>Am Wochenende wird Wien zur Kino-Metropole! Die Kinos sind voll, die Blockbuster laufen, die Popcorn-Maschinen arbeiten auf Hochtouren. Das ist echte Kino-Kultur!</p>
+<h3>Wochenende: Film-Marathon!</h3>
+<p>Where2Go zeigt dir alle Wochenend-Filme, die besten Kinos und wie dein perfektes Film-Wochenende wird. Tickets sichern und Film-Genuss genießen! 🎬🍿</p>`
+  },,
   "open-air-festivals": {
-    "heute": `**Open Air & Festivals heute in Wien erleben**
-
-Wien ist eine Stadt des Feierns und heute besonders festlich. Entdecken Sie die besten **Open Air & Festivals-Events in Wien heute** auf Where2Go – Ihrer Plattform für unvergessliche Erlebnisse in der österreichischen Hauptstadt.
-
-**Die Top-Locations für Open Air & Festivals heute:**
-
-Donauinsel, Rathausplatz, Karlsplatz, Augarten – diese und viele weitere Venues erwarten Sie mit einem vielfältigen Programm. Wien bietet heute eine einzigartige Mischung aus Musikfestivals, Kulturfestivals, Open-Air-Konzerte, die sich in jedem Event widerspiegelt.
-
-**Jetzt entdecken:**
-
-Stöbern Sie durch alle Open Air & Festivals-Events heute und lassen Sie sich inspirieren. Where2Go zeigt Ihnen nicht nur Was und Wann, sondern auch Wer, Wo und Wie viel – damit Ihr heute in Wien unvergesslich wird.
-
-**Where2Go – Alle Events. Wien. Eine Plattform.**`,
-    "morgen": `**Open Air & Festivals morgen in Wien erleben**
-
-Wien ist eine Stadt des Feierns und morgen voller Möglichkeiten. Entdecken Sie die besten **Open Air & Festivals-Events in Wien morgen** auf Where2Go – Ihrer Plattform für unvergessliche Erlebnisse in der österreichischen Hauptstadt.
-
-**Where2Go – Alle Events. Wien. Eine Plattform.**`,
-    "wochenende": `**Open Air & Festivals am Wochenende in Wien erleben**
-
-Wien ist eine Stadt des Feierns und am Wochenende besonders vielfältig. Entdecken Sie die besten **Open Air & Festivals-Events in Wien am Wochenende** auf Where2Go – Ihrer Plattform für unvergessliche Erlebnisse in der österreichischen Hauptstadt.
-
-**Where2Go – Alle Events. Wien. Eine Plattform.**`,
+    "heute": `<h2>Open-Air-Festivals heute in Wien – Musikfest & Outdoor-Events!</h2>
+<p>Wien hat großartige Open-Air-Festivals! Heute spielen Künstler und Bands unter freiem Himmel – von Musik über Theater bis zu Kunstinstallationen. Die Donauinsel, Parks und öffentliche Plätze sind voller Events. Where2Go zeigt dir, welche Open-Air-Festivals heute laufen und wie du hin kommst.</p>
+<h3>Top-Open-Air-Orte heute</h3>
+<p>Donauinsel Fest mit Hunderts von Künstlern auf mehreren Bühnen. Musikfestival am Karlsplatz mit internationalem Programm. Open-Air-Kino im Park mit Filmen unter Sternen. Spittelau Open-Air mit elektronischer Musik. Kunstinstallationen & Performances überall. Alle sind heute lebendig & voller Musik!</p>
+<h3>Heute"s Festival-Vielfalt</h3>
+<p>Live-Musik: Rock, Pop, Electronic, Jazz, World. Theater & Performance unter freiem Himmel. DJ-Sets auf mehreren Stages. Kunstinstallationen & Visual-Art. Food-Trucks & Street-Food überall. Getränke-Stationen & Picknick-Zones. Workshops & Mitmach-Aktionen. Alles kostenlos oder mit kleinem Eintritt!</p>
+<h3>Anfahrt zu Festivals</h3>
+<p>U1 Donauinsel zum größten Festival. U3/U2 Karlsplatz zu zentralen Open-Airs. Tram zu diversen Park-Locations. Zu Fuß erreichbar in der Stadt!</p>
+<h3>Warum Where2Go Festivals?</h3>
+<ul>
+<li>Alle Open-Airs heute mit Stage-Zeiten</li>
+<li>Artist-Lineups & Programm aktuell</li>
+<li>Eintritts-Infos & Parkplätze</li>
+<li>User-Bewertungen & Atmosphäre-Tipps</li>
+</ul>
+<h3>Wiens Festival-Kultur</h3>
+<p>Wien liebt Open-Air! Die ganze Stadt wird zur Festival-Bühne – Parks, Plätze, die Donauinsel. Im Sommer überall Musik & Kunst!</p>
+<h3>Heute: Festival-Feeling!</h3>
+<p>Where2Go zeigt dir alle Open-Airs heute, welche Künstler spielen und wie dein Festival-Erlebnis wird. Komm vorbei & geniese die Musik! 🎵</p>`,
+    "morgen": `<h2>Open-Air-Festivals morgen in Wien – Musik unter Sternen</h2>
+<p>Morgen gibt es wieder großartige Open-Air-Festivals in Wien! Musik, Theater, Kunstinstallationen – alles unter freiem Himmel. Morgen ist perfekt für ein Festival-Abenteuer mit Freunden unter den Sternen. Where2Go zeigt dir, welche Open-Airs morgen stattfinden und welche Künstler spielen.</p>
+<h3>Morgen"s Top-Festival-Spots</h3>
+<p>Donauinsel Fest mit großem Line-Up & mehreren Bühnen. Karlsplatz Open-Air mit internationalen Acts. Open-Air-Kino in Parks mit Filmklassikern. Spittelau mit elektronischer Musik & Tanz. Kunstfestival mit Installationen & Performances. Alle sind morgen aktiv & voller Energie!</p>
+<h3>Morgen"s Festival-Programm</h3>
+<p>Live-Musik auf mehreren Stages. DJs & Electronic bis Mitternacht. Theater & Street-Performance. Kunstinstallationen & Light-Shows. Food & Getränke-Angebote überall. Workshops & Mitmach-Events. Atmosphäre voller Spaß & Kreativität!</p>
+<h3>Anfahrts-Tipps</h3>
+<p>U1 Donauinsel zum Mega-Festival. U3 Stephansplatz zu zentralen Open-Airs. Tram zu Park-Locations. Nach Festival: Nachtbusse oder Taxi heimwärts!</p>
+<h3>Warum Where2Go?</h3>
+<ul>
+<li>Alle morgen"s Open-Air-Festivals</li>
+<li>Artist-Lineups & Stage-Zeiten</li>
+<li>Anfahrts-Infos & Parkmöglichkeiten</li>
+<li>Bewertungen & Atmosphäre-Beschreibungen</li>
+</ul>
+<h3>Wien"s Open-Air-Tradition</h3>
+<p>Wien ist Festival-Stadt! Überall spielen Bands, überall gibt es Musik. Im Sommer wird die ganze Stadt zur Bühne!</p>
+<h3>Morgen: Festival-Abenteuer!</h3>
+<p>Where2Go zeigt dir alle Open-Airs morgen, die besten Künstler und wie dein Festival-Tag wird. Komm feiern! 🎉</p>`,
+    "wochenende": `<h2>Open-Air-Festivals am Wochenende in Wien – Festival-Mega-Fest!</h2>
+<p>Das Wochenende ist Festival-Zeit in Wien! Freitag und Samstag spielen die besten Künstler auf Hunderts von Outdoor-Stages. Musik, Tanz, Kunst, Food – die ganze Stadt ist ein großes Festival. Where2Go zeigt dir alle Wochenend-Open-Air-Events und das beste Festival-Erlebnis der Saison.</p>
+<h3>Wochenend-Festival-Top-Ziele</h3>
+<p>Donauinsel Fest mit riesigem Programm & tausenden Besuchern. Karlsplatz Open-Air mit Top-Acts & Premieren. Open-Air-Kino mit Blockbustern unter Sternen. Spittelau Festival mit Electronic & House-Musik. Kunstfestivals mit Installationen & Performance-Art. Tanz-Festivals mit Live-Bands. Alle sind am Wochenende MASSIVE!</p>
+<h3>Wochenend-Festival-Explosion</h3>
+<p>Freitag & Samstag: Mega-Lineups mit internationalen Stars. Live-Musik: Rock, Pop, Elektronik, Jazz, World, Rap. DJ-Sets auf mehreren Stages bis 3 Uhr morgens. Theater & Performance-Art. Kunstinstallationen mit Light-Shows. Food-Courts mit Hunderts von Ständen. Getränke-Zelte & Chill-Out-Areas. Tausende Menschen, pure Festival-Energie!</p>
+<h3>Anfahrt zum Wochenend-Festival</h3>
+<p>U1 Donauinsel zum großen Festival (voller Menschen am Wochenende). U3 Karlsplatz zu Musik-Events. Tram zu Park-Festivals. Zu Fuß erreichbar! Nach dem Festival: Nachtbusse fahren bis 4 Uhr oder Nachttaxi!</p>
+<h3>Warum Where2Go Wochenend-Festivals?</h3>
+<ul>
+<li>Alle Freitag & Samstag Open-Air-Festivals</li>
+<li>Komplette Artist-Lineups & Stage-Zeiten</li>
+<li>Eintritts-Infos & Vorverkaufs-Rabatte</li>
+<li>Parkmöglichkeiten & Anfahrts-Infos</li>
+<li>User-Bewertungen & Festival-Tipps</li>
+<li>Food & Getränk-Infos vor Ort</li>
+</ul>
+<h3>Wiens Wochenend-Festival-Szene</h3>
+<p>Am Wochenende wird Wien zum Festival-Paradies! Die Donauinsel ist voller Tänzer, überall spielen Bands, tausende Menschen feiern. Das ist echte Festival-Kultur mit Weltklasse-Energie!</p>
+<h3>Wochenende: Festival-Marathon!</h3>
+<p>Where2Go zeigt dir alle Wochenend-Open-Air-Festivals, die besten Artists und wie dein perfektes Festival-Wochenende wird. Tickets buchen & Festival-Spaß genießen! 🎵🎪</p>`
   },
   "kulinarik-maerkte": {
 
