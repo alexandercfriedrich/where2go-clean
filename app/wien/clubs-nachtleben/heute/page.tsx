@@ -5,6 +5,7 @@ import SchemaOrg from '@/components/SchemaOrg';
 import { generateEventListSchema } from '@/lib/schemaOrg';
 import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
 import { generateCityMetadata } from '@/lib/seo/metadataGenerator';
+import { SeoContent } from '@/components/SeoContent';
 
 export async function generateMetadata(): Promise<Metadata> {
   return generateCityMetadata({ city: 'wien', category: 'clubs-nachtleben', date: 'heute' });
@@ -46,20 +47,24 @@ export default async function WienClubsNachtlebenHeutePage() {
           initialDateFilter="today"
           initialCategory="Clubs & Nachtleben"
         />
+        <SeoContent category="clubs-nachtleben" date="heute" />
       </>
     );
   } catch (error) {
     console.error('Error in WienClubsNachtlebenHeutePage:', error);
     return (
-      <DiscoveryClient
-        initialTrendingEvents={[]}
-        initialWeekendEvents={[]}
-        initialPersonalizedEvents={[]}
-        initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
-        city="Wien"
-        initialDateFilter="today"
-        initialCategory="Clubs & Nachtleben"
-      />
+      <>
+        <DiscoveryClient
+          initialTrendingEvents={[]}
+          initialWeekendEvents={[]}
+          initialPersonalizedEvents={[]}
+          initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
+          city="Wien"
+          initialDateFilter="today"
+          initialCategory="Clubs & Nachtleben"
+        />
+        <SeoContent category="clubs-nachtleben" date="heute" />
+      </>
     );
   }
 }

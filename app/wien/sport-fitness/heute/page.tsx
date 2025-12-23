@@ -5,6 +5,7 @@ import SchemaOrg from '@/components/SchemaOrg';
 import { generateEventListSchema } from '@/lib/schemaOrg';
 import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
 import { generateCityMetadata } from '@/lib/seo/metadataGenerator';
+import { SeoContent } from '@/components/SeoContent';
 
 export async function generateMetadata(): Promise<Metadata> {
   return generateCityMetadata({ city: 'wien', category: 'sport-fitness', date: 'heute' });
@@ -46,12 +47,15 @@ export default async function WienSportFitnessHeutePage() {
           initialDateFilter="today"
           initialCategory="Sport & Fitness"
         />
+      <SeoContent category="sport-fitness" date="heute" />
+
       </>
     );
   } catch (error) {
     console.error('Error in WienSportFitnessHeutePage:', error);
     return (
-      <DiscoveryClient
+      <>
+        <DiscoveryClient
         initialTrendingEvents={[]}
         initialWeekendEvents={[]}
         initialPersonalizedEvents={[]}
@@ -60,6 +64,8 @@ export default async function WienSportFitnessHeutePage() {
         initialDateFilter="today"
         initialCategory="Sport & Fitness"
       />
+        <SeoContent category="sport-fitness" date="heute" />
+      </>
     );
   }
 }
