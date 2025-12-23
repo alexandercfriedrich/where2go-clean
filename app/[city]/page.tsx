@@ -3,26 +3,51 @@
  * This page should look exactly like the homepage but for the specific city
  */
 
+import { Metadata } from 'next';
 import DiscoveryClient from '@/discover/DiscoveryClient';
 import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getUpcomingEvents, getWeekendNightlifeEvents, convertToEventData } from '../../lib/events/queries';
 import SchemaOrg from '@/components/SchemaOrg';
 import { generateEventListSchema, generateBreadcrumbSchema } from '@/lib/schemaOrg';
 import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
 import { resolveCityFromParam } from '@/lib/city';
+import { generateCityMetadata } from '@/lib/seo/metadataGenerator';
 import type { EventData } from '@/lib/types';
 
 // Mark as dynamic for fresh data on each request
 export const dynamic = 'force-dynamic';
 
 interface PageProps {
-  params: { city: string };
+  params: Promise<{ city: string }>;
   searchParams: Promise<{ date?: string }>;
 }
 
+/**
+ * Generate SEO metadata for dynamic city pages
+ * Ensures each city has unique title, description, and keywords
+ */
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { city } = await params;
+  const strictMode = process.env.CITY_STRICT_MODE === 'true';
+  const resolved = await resolveCityFromParam(city, strictMode);
+  
+  if (!resolved) {
+    return {
+      title: 'Stadt nicht gefunden | Where2Go',
+      description: 'Die angeforderte Stadt wurde nicht gefunden.',
+    };
+  }
+
+  // Generate city-specific metadata
+  return generateCityMetadata({ 
+    city: resolved.slug,
+  });
+}
+
 export default async function CityPage({ params, searchParams }: PageProps) {
+  const { city } = await params;
   // Disable strict mode by default - allow any city name (filtered by middleware)
   const strictMode = process.env.CITY_STRICT_MODE === 'true';
-  const resolved = await resolveCityFromParam(params.city, strictMode);
+  const resolved = await resolveCityFromParam(city, strictMode);
   
   if (!resolved) {
     return <div style={{ padding: 24 }}>Unbekannte Stadt.</div>;

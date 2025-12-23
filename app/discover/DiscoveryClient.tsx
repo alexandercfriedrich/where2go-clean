@@ -32,6 +32,7 @@ interface DiscoveryClientProps {
   };
   city: string;
   initialDateFilter?: string;
+  initialCategory?: string; // NEW: Support for pre-selected category
 }
 
 export default function DiscoveryClient({
@@ -41,9 +42,12 @@ export default function DiscoveryClient({
   initialWeekendNightlifeEvents = { friday: [], saturday: [], sunday: [] },
   city,
   initialDateFilter = 'all',
+  initialCategory, // NEW: Add to destructuring
 }: DiscoveryClientProps) {
   const [mounted, setMounted] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(
+    initialCategory || null // NEW: Initialize with initialCategory if provided
+  );
   const [selectedDateFilter, setSelectedDateFilter] = useState<string>(initialDateFilter);
   const [filteredEvents, setFilteredEvents] = useState({
     personalized: initialPersonalizedEvents,
@@ -62,6 +66,14 @@ export default function DiscoveryClient({
   useEffect(() => {
     setSelectedDateFilter(initialDateFilter);
   }, [initialDateFilter]);
+
+  // NEW: Sync selectedCategory with initialCategory prop changes
+  useEffect(() => {
+    const nextCategory = initialCategory || null;
+    if (nextCategory !== selectedCategory) {
+      setSelectedCategory(nextCategory);
+    }
+  }, [initialCategory, selectedCategory]);
 
   // Filter events by category and date using the shared utility
   useEffect(() => {
@@ -107,6 +119,32 @@ export default function DiscoveryClient({
     );
   }
 
+  // NEW: Dynamic H1 based on filters with proper German grammar
+  const getDateFilterLabelForTitle = (filter: string): string => {
+    const DATE_FILTER_TITLE_LABELS: Record<string, string> = {
+      heute: 'heute',
+      morgen: 'morgen',
+      wochenende: 'dieses Wochenende',
+    };
+
+    return DATE_FILTER_TITLE_LABELS[filter] ?? filter;
+  };
+
+  const getPageTitle = (): string => {
+    const dateLabel = selectedDateFilter !== 'all'
+      ? getDateFilterLabelForTitle(selectedDateFilter)
+      : '';
+
+    if (selectedCategory && selectedDateFilter !== 'all') {
+      return `${selectedCategory} Events in ${city} ${dateLabel}`;
+    } else if (selectedCategory) {
+      return `${selectedCategory} Events in ${city}`;
+    } else if (selectedDateFilter !== 'all') {
+      return `Events in ${city} ${dateLabel}`;
+    }
+    return `Discover Events in ${city}`;
+  };
+
   return (
     <ThemeProvider>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
@@ -122,10 +160,12 @@ export default function DiscoveryClient({
         <div className="bg-[#1a2332] text-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
             <h1 className="text-3xl md:text-5xl font-bold mb-4">
-              Discover Events in {city}
+              {getPageTitle()}
             </h1>
             <p className="text-lg md:text-xl text-gray-300 mb-8">
-              Your personalized guide to the best events happening now
+              {selectedCategory 
+                ? `Alle ${selectedCategory.toLowerCase()} Veranstaltungen in ${city}`
+                : `Your personalized guide to the best events happening now`}
             </p>
             
             {/* Enhanced Search Bar */}
