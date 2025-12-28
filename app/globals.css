@@ -1320,3 +1320,199 @@ body {
     padding: 10px;
   }
 }
+
+/* =====================================================
+   APPLE TV LIQUID GLASS EFFECT
+   Applied ONLY to event cards on discovery page
+   No font changes - only visual glass effects
+   ===================================================== */
+
+/* Container with Liquid Glass effect - Portrait format 2:3 */
+.event-poster-liquid-glass {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2/3; /* Portrait format like Apple TV */
+  border-radius: 12px;
+  overflow: hidden;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  will-change: transform, box-shadow;
+  
+  /* Multi-Layer Schatten für Tiefe */
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.08),
+    0 4px 8px rgba(0, 0, 0, 0.12),
+    0 8px 16px rgba(0, 0, 0, 0.16),
+    0 16px 32px rgba(0, 0, 0, 0.20);
+  
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hover state with enhanced elevation */
+.event-poster-liquid-glass:hover {
+  transform: translateY(-6px) scale(1.01);
+  box-shadow: 
+    0 4px 8px rgba(0, 0, 0, 0.10),
+    0 8px 16px rgba(0, 0, 0, 0.14),
+    0 16px 32px rgba(0, 0, 0, 0.18),
+    0 28px 56px rgba(0, 0, 0, 0.26);
+}
+
+/* Image with cinematographic filters */
+.event-poster-liquid-glass .dark-event-card-image {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding-top: 0;
+  
+  /* Cinematische Farbbearbeitung */
+  filter: 
+    saturate(1.35) 
+    contrast(1.18) 
+    brightness(1.06);
+  -webkit-filter: 
+    saturate(1.35) 
+    contrast(1.18) 
+    brightness(1.06);
+  
+  transition: filter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Enhanced filters on hover */
+.event-poster-liquid-glass:hover .dark-event-card-image {
+  filter: 
+    saturate(1.45) 
+    contrast(1.22) 
+    brightness(1.10);
+  -webkit-filter: 
+    saturate(1.45) 
+    contrast(1.22) 
+    brightness(1.10);
+}
+
+/* Glassmorphismus-Overlay */
+.event-glass-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.04) 50%,
+    rgba(255, 255, 255, 0.08) 100%
+  );
+  backdrop-filter: blur(6px) saturate(160%);
+  -webkit-backdrop-filter: blur(6px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  pointer-events: none;
+  z-index: 2;
+  transition: backdrop-filter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Enhanced glass effect on hover */
+.event-poster-liquid-glass:hover .event-glass-overlay {
+  backdrop-filter: blur(8px) saturate(180%);
+  -webkit-backdrop-filter: blur(8px) saturate(180%);
+}
+
+/* Gradient Overlay für Textlesbarkeit + Drama */
+.event-gradient-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 65%;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.85) 0%,
+    rgba(0, 0, 0, 0.50) 35%,
+    rgba(0, 0, 0, 0.15) 60%,
+    transparent 100%
+  );
+  border-radius: 0 0 12px 12px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Event info positioned over gradient */
+.event-poster-liquid-glass .dark-event-content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  padding: 16px;
+}
+
+/* Source badge positioning */
+.event-poster-liquid-glass .dark-event-source-badge {
+  z-index: 10;
+}
+
+/* GPU acceleration for all children */
+.event-poster-liquid-glass,
+.event-poster-liquid-glass * {
+  -webkit-transform: translateZ(0);
+  -moz-transform: translateZ(0);
+  -ms-transform: translateZ(0);
+  -o-transform: translateZ(0);
+  transform: translateZ(0);
+}
+
+/* Tablet und kleiner */
+@media (max-width: 768px) {
+  .event-poster-liquid-glass {
+    border-radius: 10px;
+    box-shadow: 
+      0 1px 3px rgba(0, 0, 0, 0.08),
+      0 3px 6px rgba(0, 0, 0, 0.12),
+      0 6px 12px rgba(0, 0, 0, 0.16);
+  }
+  
+  .event-glass-overlay {
+    backdrop-filter: blur(4px) saturate(140%);
+    -webkit-backdrop-filter: blur(4px) saturate(140%);
+  }
+}
+
+/* Mobile */
+@media (max-width: 480px) {
+  .event-poster-liquid-glass .dark-event-card-image {
+    filter: saturate(1.25) contrast(1.12) brightness(1.04);
+    -webkit-filter: saturate(1.25) contrast(1.12) brightness(1.04);
+  }
+}
+
+/* Safari-Unterstützung */
+@supports (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px)) {
+  .event-glass-overlay {
+    backdrop-filter: blur(8px) saturate(180%);
+    -webkit-backdrop-filter: blur(8px) saturate(180%);
+  }
+}
+
+/* Fallback für ältere Browser */
+@supports not (backdrop-filter: blur(1px)) {
+  .event-glass-overlay {
+    background: rgba(255, 255, 255, 0.25);
+    /* Kein Blur, aber optisch ähnlich durch höhere Opazität */
+  }
+}
+
+/* Accessibility: Respect reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  .event-poster-liquid-glass {
+    transition: none;
+  }
+  
+  .event-poster-liquid-glass:hover {
+    transform: none;
+  }
+  
+  .event-poster-liquid-glass .dark-event-card-image {
+    transition: none;
+  }
+}

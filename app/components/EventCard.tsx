@@ -217,13 +217,13 @@ export function EventCard({
 
   // Common card content - extracted to avoid duplication
   const cardContent = (
-    <div className="dark-event-card">
+    <div className="event-poster-liquid-glass">
       {/* Source Badge - Always Visible */}
       <div className="dark-event-source-badge">
         {sourceDisplay}
       </div>
 
-      {/* Event Image */}
+      {/* Event Image with Liquid Glass Effect */}
       <div 
         className="dark-event-card-image"
         style={{
@@ -231,7 +231,6 @@ export function EventCard({
             ? `url(${eventImage})` 
             : undefined,
           backgroundColor: showTitleFallback ? fallbackColor : undefined,
-          minHeight: '240px',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           display: showTitleFallback ? 'flex' : undefined,
@@ -246,6 +245,12 @@ export function EventCard({
           </h3>
         )}
       </div>
+
+      {/* Glassmorphismus-Overlay */}
+      <div className="event-glass-overlay"></div>
+
+      {/* Gradient Overlay für Textlesbarkeit */}
+      <div className="event-gradient-overlay"></div>
 
       {/* Event Content */}
       <div className="dark-event-content">
