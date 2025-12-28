@@ -15,10 +15,8 @@ export default function NotFound() {
         <div className="flex gap-4 justify-center">
           <Link
             href="/"
-            className="text-white font-semibold py-3 px-6 rounded-lg transition-colors"
+            className="text-white font-semibold py-3 px-6 rounded-lg transition-all hover:opacity-90"
             style={{ backgroundColor: '#20B8CD' }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#218090'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#20B8CD'}
           >
             Zur Startseite
           </Link>

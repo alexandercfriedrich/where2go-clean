@@ -36,10 +36,8 @@ export function SectionHeader({
       {action && (
         <Link
           href={action.href}
-          className="text-sm font-medium transition-colors"
+          className="text-sm font-medium transition-colors hover:opacity-80"
           style={{ color: '#20B8CD' }}
-          onMouseEnter={(e) => e.currentTarget.style.color = '#218090'}
-          onMouseLeave={(e) => e.currentTarget.style.color = '#20B8CD'}
         >
           {action.label} →
         </Link>
