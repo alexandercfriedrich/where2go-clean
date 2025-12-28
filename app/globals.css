@@ -1215,49 +1215,133 @@ body {
 
 
 /* =====================================================
-   MINI EVENT CARD STYLES
-   Compact cards for grid layouts with white outline
-   Dark background like main event cards
+   MINI EVENT CARD STYLES WITH LIQUID GLASS EFFECT
+   Compact cards for grid layouts with Apple TV liquid glass
+   Applied to Weekend Nightlife section on discovery page
    ===================================================== */
 
 .mini-event-card {
-  background: #13343B; /* Teal Dark - matching dark theme */
-  border-radius: 0 12px 0 0; /* Rounded top-right corner only, matching main cards */
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2/3; /* Portrait format like Apple TV */
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s ease;
-  cursor: pointer;
-  border: 1px solid #2E565D; /* Teal Medium border */
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  will-change: transform, box-shadow;
+  
+  /* Multi-Layer Schatten für Tiefe */
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.08),
+    0 4px 8px rgba(0, 0, 0, 0.12),
+    0 8px 16px rgba(0, 0, 0, 0.16),
+    0 16px 32px rgba(0, 0, 0, 0.20);
+  
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .mini-event-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 4px 16px rgba(32, 184, 205, 0.12);
-  border-color: #20B8CD; /* True Turquoise on hover */
+  transform: translateY(-6px) scale(1.01);
+  box-shadow: 
+    0 4px 8px rgba(0, 0, 0, 0.10),
+    0 8px 16px rgba(0, 0, 0, 0.14),
+    0 16px 32px rgba(0, 0, 0, 0.18),
+    0 28px 56px rgba(0, 0, 0, 0.26);
 }
 
 .mini-event-image {
   width: 100%;
-  padding-top: 70%; /* Reduced by 30% from 100% (was square, now shorter) */
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-color: #f3f4f6;
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* 20% black overlay for mini event card images */
-.mini-event-image-overlay {
+  height: 100%;
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  
+  /* Cinematische Farbbearbeitung */
+  filter: 
+    saturate(1.35) 
+    contrast(1.18) 
+    brightness(1.06);
+  -webkit-filter: 
+    saturate(1.35) 
+    contrast(1.18) 
+    brightness(1.06);
+  
+  transition: filter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mini-event-card:hover .mini-event-image {
+  filter: 
+    saturate(1.45) 
+    contrast(1.22) 
+    brightness(1.10);
+  -webkit-filter: 
+    saturate(1.45) 
+    contrast(1.22) 
+    brightness(1.10);
+}
+
+/* Glassmorphismus-Overlay for mini cards */
+.mini-event-glass-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.04) 50%,
+    rgba(255, 255, 255, 0.08) 100%
+  );
+  backdrop-filter: blur(6px) saturate(160%);
+  -webkit-backdrop-filter: blur(6px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  pointer-events: none;
+  z-index: 2;
+  transition: backdrop-filter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mini-event-card:hover .mini-event-glass-overlay {
+  backdrop-filter: blur(8px) saturate(180%);
+  -webkit-backdrop-filter: blur(8px) saturate(180%);
+}
+
+/* Gradient Overlay für Textlesbarkeit */
+.mini-event-gradient-overlay {
+  position: absolute;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.2); /* 20% black overlay */
+  left: 0;
+  right: 0;
+  height: 65%;
+  background: linear-gradient(
+    to top,
+    rgba(0, 0, 0, 0.85) 0%,
+    rgba(0, 0, 0, 0.50) 35%,
+    rgba(0, 0, 0, 0.15) 60%,
+    transparent 100%
+  );
+  border-radius: 0 0 12px 12px;
   z-index: 1;
+  pointer-events: none;
+}
+
+/* Legacy overlay - kept for backward compatibility but now hidden */
+.mini-event-image-overlay {
+  display: none;
+}
+
+/* GPU acceleration for mini cards */
+.mini-event-card,
+.mini-event-card .mini-event-image,
+.mini-event-card .mini-event-glass-overlay,
+.mini-event-card .mini-event-gradient-overlay {
+  -webkit-transform: translateZ(0);
+  -moz-transform: translateZ(0);
+  -ms-transform: translateZ(0);
+  -o-transform: translateZ(0);
+  transform: translateZ(0);
 }
 
 .mini-event-fallback-title {
@@ -1277,10 +1361,15 @@ body {
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  z-index: 2;
+  z-index: 10;
 }
 
 .mini-event-content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
   padding: 12px;
 }
 
@@ -1307,7 +1396,20 @@ body {
 }
 
 /* Responsive adjustments for mini cards */
-@media (max-width: 640px) {
+@media (max-width: 768px) {
+  .mini-event-card {
+    border-radius: 10px;
+    box-shadow: 
+      0 1px 3px rgba(0, 0, 0, 0.08),
+      0 3px 6px rgba(0, 0, 0, 0.12),
+      0 6px 12px rgba(0, 0, 0, 0.16);
+  }
+  
+  .mini-event-glass-overlay {
+    backdrop-filter: blur(4px) saturate(140%);
+    -webkit-backdrop-filter: blur(4px) saturate(140%);
+  }
+  
   .mini-event-title {
     font-size: 13px;
   }
@@ -1318,6 +1420,13 @@ body {
   
   .mini-event-content {
     padding: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .mini-event-image {
+    filter: saturate(1.25) contrast(1.12) brightness(1.04);
+    -webkit-filter: saturate(1.25) contrast(1.12) brightness(1.04);
   }
 }
 
