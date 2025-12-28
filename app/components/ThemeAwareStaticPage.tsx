@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTheme } from 'next-themes';
+import { useTheme } from './ui/ThemeProvider';
 import Link from 'next/link';
 import PageSearch from './PageSearch';
 import DOMPurify from 'isomorphic-dompurify';

@@ -14,7 +14,7 @@ import { supabase } from '@/lib/supabase/client';
 import { EventCard } from '@/components/EventCard';
 import PageSearch from '@/components/PageSearch';
 import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
-import { useTheme } from 'next-themes';
+import { useTheme } from '@/components/ui/ThemeProvider';
 
 interface EventResult {
   id: string;
