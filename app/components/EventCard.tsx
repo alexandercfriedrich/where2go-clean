@@ -231,6 +231,7 @@ export function EventCard({
             ? `url(${eventImage})` 
             : undefined,
           backgroundColor: showTitleFallback ? fallbackColor : undefined,
+          minHeight: showTitleFallback ? '240px' : undefined,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           display: showTitleFallback ? 'flex' : undefined,
