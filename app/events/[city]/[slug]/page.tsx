@@ -287,7 +287,7 @@ export default async function EventPage({ params }: EventPageProps) {
           <Link 
             href="/" 
             style={{ 
-              color: '#FF6B35', 
+              color: '#20B8CD', 
               fontWeight: 700, 
               fontSize: '20px',
               textDecoration: 'none',
@@ -359,7 +359,7 @@ export default async function EventPage({ params }: EventPageProps) {
                   display: 'inline-block',
                   padding: '8px 16px',
                   background: 'rgba(255, 107, 53, 0.2)',
-                  color: '#FF6B35',
+                  color: '#20B8CD',
                   borderRadius: '8px',
                   fontSize: '14px',
                   fontWeight: 600,
@@ -399,7 +399,7 @@ export default async function EventPage({ params }: EventPageProps) {
                   background: 'rgba(255, 255, 255, 0.05)',
                   borderRadius: '8px'
                 }}>
-                  <svg width="24" height="24" fill="none" stroke="#FF6B35" viewBox="0 0 24 24" strokeWidth="2">
+                  <svg width="24" height="24" fill="none" stroke="#20B8CD" viewBox="0 0 24 24" strokeWidth="2">
                     <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
                     <line x1="16" y1="2" x2="16" y2="6"/>
                     <line x1="8" y1="2" x2="8" y2="6"/>
@@ -441,7 +441,7 @@ export default async function EventPage({ params }: EventPageProps) {
                     borderRadius: '8px'
                   }}
                 >
-                  <svg width="24" height="24" fill="none" stroke="#FF6B35" viewBox="0 0 24 24" strokeWidth="2">
+                  <svg width="24" height="24" fill="none" stroke="#20B8CD" viewBox="0 0 24 24" strokeWidth="2">
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
                     <circle cx="12" cy="10" r="3"/>
                   </svg>
@@ -464,7 +464,7 @@ export default async function EventPage({ params }: EventPageProps) {
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{ 
-                          color: '#4A90E2', 
+                          color: '#20B8CD', 
                           fontSize: '14px',
                           textDecoration: 'none',
                           marginTop: '4px',
@@ -494,7 +494,7 @@ export default async function EventPage({ params }: EventPageProps) {
                     background: 'rgba(255, 255, 255, 0.05)',
                     borderRadius: '8px'
                   }}>
-                    <svg width="24" height="24" fill="none" stroke="#FF6B35" viewBox="0 0 24 24" strokeWidth="2">
+                    <svg width="24" height="24" fill="none" stroke="#20B8CD" viewBox="0 0 24 24" strokeWidth="2">
                       <line x1="12" y1="1" x2="12" y2="23"></line>
                       <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                     </svg>
@@ -539,7 +539,7 @@ export default async function EventPage({ params }: EventPageProps) {
                       alignItems: 'center',
                       gap: '8px',
                       padding: '14px 28px',
-                      background: '#FF6B35',
+                      background: '#20B8CD',
                       color: '#FFFFFF',
                       borderRadius: '8px',
                       textDecoration: 'none',
@@ -609,7 +609,7 @@ export default async function EventPage({ params }: EventPageProps) {
                   alignItems: 'center',
                   gap: '8px'
                 }}>
-                  <svg width="20" height="20" fill="none" stroke="#FF6B35" viewBox="0 0 24 24" strokeWidth="2">
+                  <svg width="20" height="20" fill="none" stroke="#20B8CD" viewBox="0 0 24 24" strokeWidth="2">
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
                     <circle cx="12" cy="10" r="3"/>
                   </svg>

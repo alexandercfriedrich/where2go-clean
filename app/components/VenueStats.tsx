@@ -114,8 +114,8 @@ function VenueCard({ venue, rank }: { venue: VenueStatsType; rank: number }) {
               width: '32px',
               height: '32px',
               borderRadius: '50%',
-              background: 'rgba(255, 107, 53, 0.2)',
-              color: '#FF6B35',
+              background: 'rgba(32, 184, 205, 0.2)',
+              color: '#20B8CD',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -168,7 +168,7 @@ function VenueCard({ venue, rank }: { venue: VenueStatsType; rank: number }) {
             style={{
               fontSize: '48px',
               fontWeight: 700,
-              color: '#FF6B35',
+              color: '#20B8CD',
               lineHeight: 1,
             }}
           >
