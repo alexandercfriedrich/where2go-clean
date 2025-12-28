@@ -1452,9 +1452,11 @@ body {
   z-index: 10;
 }
 
-/* GPU acceleration for all children */
+/* GPU acceleration for performance-critical elements */
 .event-poster-liquid-glass,
-.event-poster-liquid-glass * {
+.event-poster-liquid-glass .dark-event-card-image,
+.event-poster-liquid-glass .event-glass-overlay,
+.event-poster-liquid-glass .event-gradient-overlay {
   -webkit-transform: translateZ(0);
   -moz-transform: translateZ(0);
   -ms-transform: translateZ(0);
@@ -1486,18 +1488,11 @@ body {
   }
 }
 
-/* Safari-Unterstützung */
-@supports (-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px)) {
-  .event-glass-overlay {
-    backdrop-filter: blur(6px) saturate(160%);
-    -webkit-backdrop-filter: blur(6px) saturate(160%);
-  }
-}
-
-/* Fallback für ältere Browser */
+/* Fallback für ältere Browser ohne backdrop-filter support */
 @supports not (backdrop-filter: blur(1px)) {
   .event-glass-overlay {
     background: rgba(255, 255, 255, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.18);
     /* Kein Blur, aber optisch ähnlich durch höhere Opazität */
   }
 }
