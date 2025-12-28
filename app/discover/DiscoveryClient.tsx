@@ -150,7 +150,7 @@ export default function DiscoveryClient({
 
   return (
     <ThemeProvider>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+      <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
         {/* Navigation */}
         <DiscoveryNav />
         
@@ -160,7 +160,7 @@ export default function DiscoveryClient({
         />
 
         {/* Hero Section */}
-        <div className="bg-[#1a2332] text-white">
+        <div style={{ backgroundColor: '#13343B' }} className="text-white">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
             <h1 className="text-3xl md:text-5xl font-bold mb-4">
               {getPageTitle()}

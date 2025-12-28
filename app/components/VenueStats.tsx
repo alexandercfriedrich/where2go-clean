@@ -149,13 +149,15 @@ function VenueCard({ venue, rank }: { venue: VenueStatsType; rank: number }) {
 
         {/* Venue name */}
         <h3
-          className="venue-name text-white group-hover:text-orange-400"
+          className="venue-name text-white"
           style={{
             fontSize: '18px',
             fontWeight: 600,
             marginBottom: '12px',
             transition: 'color 0.3s ease',
           }}
+          onMouseEnter={(e) => e.currentTarget.style.color = '#20B8CD'}
+          onMouseLeave={(e) => e.currentTarget.style.color = 'white'}
         >
           {venue.name}
         </h3>
@@ -262,7 +264,7 @@ function VenueListItem({ venue, rank }: { venue: VenueStatsType; rank: number })
         {/* Content */}
         <div className="flex-grow">
           <h3
-            className="venue-name text-white group-hover:text-orange-400"
+            className="venue-name text-white"
             style={{
               fontSize: '16px',
               fontWeight: 600,

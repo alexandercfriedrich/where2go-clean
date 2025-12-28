@@ -257,7 +257,7 @@ export function EventCard({
         )}
 
         {/* Title */}
-        <h3 className={`dark-event-title transition-colors ${eventDetailUrl ? 'hover:text-indigo-400 cursor-pointer' : ''}`}>
+        <h3 className={`dark-event-title transition-colors ${eventDetailUrl ? 'hover:text-brand-turquoise cursor-pointer' : ''}`} style={eventDetailUrl ? { '--hover-color': '#20B8CD' } as React.CSSProperties : undefined}>
           {event.title}
         </h3>
 
@@ -343,7 +343,10 @@ export function EventCard({
                 href={event.bookingLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-md transition-colors"
+                className="inline-flex items-center gap-1 px-3 py-1.5 text-white text-sm font-medium rounded-md transition-colors"
+                style={{ backgroundColor: '#20B8CD' }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#218090'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#20B8CD'}
                 onClick={(e) => e.stopPropagation()}
               >
                 Tickets

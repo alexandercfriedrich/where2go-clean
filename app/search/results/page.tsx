@@ -285,7 +285,7 @@ function SearchResultsContent() {
                           </p>
                         </div>
                         {venue.event_count !== undefined && venue.event_count > 0 && (
-                          <span className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300">
+                          <span className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: 'rgba(32, 184, 205, 0.1)', color: '#20B8CD' }}>
                             {venue.event_count} Events
                           </span>
                         )}

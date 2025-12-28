@@ -41,10 +41,11 @@ export function DateFilterLinks({ city, selectedFilter, onFilterChange }: DateFi
               className={`
                 px-4 py-2 rounded-lg text-sm font-medium transition-all
                 ${isActive
-                  ? 'bg-indigo-600 text-white shadow-md'
+                  ? 'text-white shadow-md'
                   : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
                 }
               `}
+              style={isActive ? { backgroundColor: '#20B8CD' } : undefined}
               aria-current={isActive ? 'page' : undefined}
               aria-label={`Zeige Events für ${filter.label}`}
             >

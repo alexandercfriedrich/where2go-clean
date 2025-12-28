@@ -103,7 +103,7 @@ function EventCountdown({ startDateTime }: { startDateTime: string }) {
   }
 
   return (
-    <span className="inline-flex items-center gap-1 text-xs font-light text-orange-500 animate-pulse tracking-wide">
+    <span className="inline-flex items-center gap-1 text-xs font-light animate-pulse tracking-wide" style={{ color: '#20B8CD' }}>
       ⏱️ startet in {countdown.timeUntil}
     </span>
   );
@@ -298,16 +298,22 @@ export function SearchBar({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
-          onFocus={() => query.length >= 2 && setIsOpen(true)}
+          onFocus={(e) => {
+            if (query.length >= 2) setIsOpen(true);
+            e.currentTarget.style.setProperty('--tw-ring-color', '#20B8CD');
+          }}
           placeholder={placeholder}
-          className="w-full pl-11 pr-4 py-3 md:py-4 rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 transition-colors"
+          className="w-full pl-11 pr-4 py-3 md:py-4 rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 transition-colors"
+          style={{
+            '--tw-ring-color': '#20B8CD',
+          } as React.CSSProperties}
           aria-label="Search events and venues"
           aria-autocomplete="list"
           aria-controls="search-results"
         />
         {isLoading && (
           <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
-            <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#20B8CD', borderTopColor: 'transparent' }} />
           </div>
         )}
       </div>
@@ -337,8 +343,8 @@ export function SearchBar({
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                      <div className="flex-shrink-0 w-10 h-10 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center">
-                        <svg className="w-5 h-5 text-orange-600 dark:text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                      <div className="flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'rgba(32, 184, 205, 0.1)' }}>
+                        <svg className="w-5 h-5" style={{ color: '#20B8CD' }} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
                           <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
                           <circle cx="12" cy="10" r="3"/>
                         </svg>
@@ -353,7 +359,7 @@ export function SearchBar({
                       </div>
                     </div>
                     <div className="flex-shrink-0 text-right">
-                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300">
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium" style={{ backgroundColor: 'rgba(32, 184, 205, 0.1)', color: '#20B8CD' }}>
                         <span className="font-bold">{venue.event_count}</span>
                         <span>Events</span>
                       </span>
@@ -382,7 +388,8 @@ export function SearchBar({
                     onClick={() => navigateToResult(event)}
                     className={`w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0 ${
                       selectedIndex === resultIndex ? 'bg-gray-100 dark:bg-gray-700' : ''
-                    } ${countdownInfo.isToday ? 'bg-orange-50/50 dark:bg-orange-900/10' : ''}`}
+                    } ${countdownInfo.isToday ? 'bg-opacity-50' : ''}`}
+                    style={countdownInfo.isToday ? { backgroundColor: 'rgba(32, 184, 205, 0.05)' } : undefined}
                   >
                     <div className="flex items-center gap-3">
                       {/* Event Image */}
@@ -412,7 +419,7 @@ export function SearchBar({
                             {event.title}
                           </p>
                           {countdownInfo.isToday && (
-                            <span className="flex-shrink-0 text-xs px-1.5 py-0.5 rounded bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 font-medium">
+                            <span className="flex-shrink-0 text-xs px-1.5 py-0.5 rounded font-medium" style={{ backgroundColor: 'rgba(32, 184, 205, 0.1)', color: '#20B8CD' }}>
                               HEUTE
                             </span>
                           )}
@@ -430,7 +437,7 @@ export function SearchBar({
                       
                       {/* Category & Date */}
                       <div className="flex-shrink-0 text-right">
-                        <span className="text-xs px-2 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300">
+                        <span className="text-xs px-2 py-1 rounded-full" style={{ backgroundColor: 'rgba(32, 184, 205, 0.1)', color: '#20B8CD' }}>
                           {event.category}
                         </span>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">

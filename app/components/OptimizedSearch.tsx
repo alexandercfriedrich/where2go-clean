@@ -385,18 +385,19 @@ export default function OptimizedSearch({
           padding: 0.75rem 1.5rem;
           font-size: 1rem;
           font-weight: 600;
-          color: white;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: #FCFAF6;
+          background: #20B8CD; /* True Turquoise */
           border: none;
           border-radius: 8px;
           cursor: pointer;
-          transition: transform 0.2s, box-shadow 0.2s;
-          box-shadow: 0 4px 6px rgba(102, 126, 234, 0.3);
+          transition: all 0.2s ease;
+          box-shadow: 0 4px 6px rgba(32, 184, 205, 0.3);
         }
 
         .btn-search:hover {
+          background: #218090; /* Peacock */
           transform: translateY(-2px);
-          box-shadow: 0 6px 12px rgba(102, 126, 234, 0.4);
+          box-shadow: 0 6px 12px rgba(32, 184, 205, 0.4);
         }
 
         .search-progress {
@@ -423,9 +424,9 @@ export default function OptimizedSearch({
 
         .progress-bar-fill {
           height: 100%;
-          background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+          background: #20B8CD; /* True Turquoise */
           transition: width 0.5s ease;
-          box-shadow: 0 0 10px rgba(102, 126, 234, 0.5);
+          box-shadow: 0 0 10px rgba(32, 184, 205, 0.5);
         }
 
         .progress-info {
