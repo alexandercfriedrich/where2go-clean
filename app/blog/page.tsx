@@ -4,7 +4,7 @@
  */
 
 import { Metadata } from 'next';
-import BlogPageClient from './BlogPageClient';
+import BlogPageVenueStyle from './BlogPageVenueStyle';
 import { supabaseAdmin } from '@/lib/supabase/client';
 import type { BlogArticle } from '@/lib/types';
 
@@ -41,5 +41,5 @@ async function getBlogArticles(): Promise<BlogArticle[]> {
 export default async function BlogPage() {
   const articles = await getBlogArticles();
 
-  return <BlogPageClient articles={articles} />;
+  return <BlogPageVenueStyle articles={articles} />;
 }

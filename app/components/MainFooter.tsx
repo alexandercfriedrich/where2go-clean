@@ -128,13 +128,13 @@ export default function MainFooter() {
         {/* Standard Footer Links */}
         <div className="footer-content">
           <div className="footer-links">
-            <a href="/blog" className="footer-link">Blog</a>
-            <a href="/impressum" className="footer-link">Impressum</a>
-            <a href="/agb" className="footer-link">AGB</a>
-            <a href="/kontakt" className="footer-link">Kontakt</a>
-            <a href="/ueber-uns" className="footer-link">Über uns</a>
-            <a href="/premium" className="footer-link">Premium</a>
-            <a href="/datenschutz" className="footer-link">Datenschutz</a>
+            <Link href="/blog" className="footer-link">Blog</Link>
+            <Link href="/impressum" className="footer-link">Impressum</Link>
+            <Link href="/agb" className="footer-link">AGB</Link>
+            <Link href="/kontakt" className="footer-link">Kontakt</Link>
+            <Link href="/ueber-uns" className="footer-link">Über uns</Link>
+            <Link href="/premium" className="footer-link">Premium</Link>
+            <Link href="/datenschutz" className="footer-link">Datenschutz</Link>
           </div>
           <div className="footer-copyright">
             <p>© {currentYear} Where2Go - Entdecke deine Stadt neu</p>

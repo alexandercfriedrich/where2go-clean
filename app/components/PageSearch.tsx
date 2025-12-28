@@ -18,6 +18,12 @@ export default function PageSearch({ className = '' }: PageSearchProps) {
     }
   };
 
+  const handleIconClick = () => {
+    if (query.trim().length >= 2) {
+      router.push(`/search/results?q=${encodeURIComponent(query.trim())}`);
+    }
+  };
+
   return (
     <form onSubmit={handleSubmit} className={`relative ${className}`}>
       <input
@@ -25,7 +31,7 @@ export default function PageSearch({ className = '' }: PageSearchProps) {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Events, Venues suchen..."
-        className="w-full px-4 py-2 pr-10 rounded-lg transition-colors"
+        className="w-full px-4 py-2 pr-10 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#20B8CD]"
         style={{
           backgroundColor: '#091717', // Offblack
           border: '1px solid #FCFAF6', // Paper White
@@ -33,8 +39,10 @@ export default function PageSearch({ className = '' }: PageSearchProps) {
         }}
       />
       <button
-        type="submit"
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+        type="button"
+        onClick={handleIconClick}
+        className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+        style={{ color: '#FCFAF6' }}
         aria-label="Suchen"
       >
         <svg
@@ -44,6 +52,7 @@ export default function PageSearch({ className = '' }: PageSearchProps) {
           fill="none"
           stroke="currentColor"
           strokeWidth="1.5"
+          className="hover:opacity-80"
         >
           <circle cx="11" cy="11" r="8" />
           <path d="m21 21-4.35-4.35" />
