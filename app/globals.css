@@ -1260,28 +1260,30 @@ body {
   background-position: center;
   background-repeat: no-repeat;
   
-  /* Cinematische Farbbearbeitung */
+  /* ✅ OPTIMIERT: Subtile Filter wie Apple TV */
   filter: 
-    saturate(1.35) 
-    contrast(1.18) 
-    brightness(1.06);
+    saturate(0.90)      /* -10% soft & elegant */
+    contrast(1.05)      /* +5% minimal */
+    brightness(0.97);   /* -3% cinematic dimming */
+  
   -webkit-filter: 
-    saturate(1.35) 
-    contrast(1.18) 
-    brightness(1.06);
+    saturate(0.90) 
+    contrast(1.05) 
+    brightness(0.97);
   
   transition: filter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .mini-event-card:hover .mini-event-image {
   filter: 
-    saturate(1.45) 
-    contrast(1.22) 
-    brightness(1.10);
+    saturate(0.98)      /* Kaum merklich +8% */
+    contrast(1.08)      /* Minimal +8% */
+    brightness(0.99);   /* Fast keine Änderung */
+  
   -webkit-filter: 
-    saturate(1.45) 
-    contrast(1.22) 
-    brightness(1.10);
+    saturate(0.98) 
+    contrast(1.08) 
+    brightness(0.99);
 }
 
 /* Glassmorphismus-Overlay for mini cards */
@@ -1294,8 +1296,9 @@ body {
     rgba(255, 255, 255, 0.04) 50%,
     rgba(255, 255, 255, 0.08) 100%
   );
-  backdrop-filter: blur(6px) saturate(160%);
-  -webkit-backdrop-filter: blur(6px) saturate(160%);
+  /* ✅ OPTIMIERT: Nur 110% statt 160%! */
+  backdrop-filter: blur(6px) saturate(110%);
+  -webkit-backdrop-filter: blur(6px) saturate(110%);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 12px;
   pointer-events: none;
@@ -1304,27 +1307,50 @@ body {
 }
 
 .mini-event-card:hover .mini-event-glass-overlay {
-  backdrop-filter: blur(8px) saturate(180%);
-  -webkit-backdrop-filter: blur(8px) saturate(180%);
+  /* ✅ OPTIMIERT: Nur 120% statt 180%! */
+  backdrop-filter: blur(8px) saturate(120%);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
 }
 
-/* Gradient Overlay für Textlesbarkeit */
+/* Gradient Overlay SUBTIL für Textlesbarkeit */
 .mini-event-gradient-overlay {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
   height: 65%;
+  /* ✅ OPTIMIERT: Weniger Dunkelheit = mehr Bild sichtbar */
   background: linear-gradient(
     to top,
-    rgba(0, 0, 0, 0.85) 0%,
-    rgba(0, 0, 0, 0.50) 35%,
-    rgba(0, 0, 0, 0.15) 60%,
+    rgba(0, 0, 0, 0.75) 0%,    /* Statt 0.85 */
+    rgba(0, 0, 0, 0.40) 35%,   /* Statt 0.50 */
+    rgba(0, 0, 0, 0.10) 60%,   /* Statt 0.15 */
     transparent 100%
   );
   border-radius: 0 0 12px 12px;
   z-index: 3;
   pointer-events: none;
+}
+
+/* ===== NEU: TOP FADE EFFECT (Apple TV Signature) für Mini Cards ===== */
+.mini-event-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  /* ✨ Subtiler Fade von dunkel zu transparent */
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.15) 0%,
+    rgba(0, 0, 0, 0.08) 25%,
+    rgba(0, 0, 0, 0.02) 50%,
+    transparent 100%
+  );
+  z-index: 2;
+  pointer-events: none;
+  border-radius: 12px 12px 0 0;
 }
 
 /* Legacy overlay - kept for backward compatibility but now hidden */
@@ -1407,9 +1433,23 @@ body {
       0 6px 12px rgba(0, 0, 0, 0.16);
   }
   
+  /* ✅ Noch subtiler auf Tablet */
   .mini-event-glass-overlay {
-    backdrop-filter: blur(4px) saturate(140%);
-    -webkit-backdrop-filter: blur(4px) saturate(140%);
+    backdrop-filter: blur(4px) saturate(100%);
+    -webkit-backdrop-filter: blur(4px) saturate(100%);
+  }
+  
+  .mini-event-image {
+    filter: saturate(0.92) contrast(1.03) brightness(0.98);
+    -webkit-filter: saturate(0.92) contrast(1.03) brightness(0.98);
+  }
+  
+  .mini-event-card::before {
+    background: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.12) 0%,
+      transparent 100%
+    );
   }
   
   .mini-event-title {
@@ -1426,9 +1466,29 @@ body {
 }
 
 @media (max-width: 480px) {
+  .mini-event-card {
+    border-radius: 8px;
+  }
+  
+  /* ✅ Minimal filters auf Mobile */
   .mini-event-image {
-    filter: saturate(1.25) contrast(1.12) brightness(1.04);
-    -webkit-filter: saturate(1.25) contrast(1.12) brightness(1.04);
+    filter: saturate(0.93) contrast(1.02) brightness(0.99);
+    -webkit-filter: saturate(0.93) contrast(1.02) brightness(0.99);
+  }
+  
+  .mini-event-glass-overlay {
+    backdrop-filter: blur(3px) saturate(100%);
+    -webkit-backdrop-filter: blur(3px) saturate(100%);
+  }
+  
+  .mini-event-gradient-overlay {
+    background: linear-gradient(
+      to top,
+      rgba(0, 0, 0, 0.70) 0%,
+      rgba(0, 0, 0, 0.35) 35%,
+      rgba(0, 0, 0, 0.08) 60%,
+      transparent 100%
+    );
   }
 }
 
@@ -1470,7 +1530,7 @@ body {
     0 28px 56px rgba(0, 0, 0, 0.26);
 }
 
-/* Image with cinematographic filters */
+/* Image with OPTIMIZED cinematographic filters */
 .event-poster-liquid-glass .dark-event-card-image {
   width: 100%;
   height: 100%;
@@ -1478,30 +1538,35 @@ body {
   top: 0;
   left: 0;
   padding-top: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   
-  /* Cinematische Farbbearbeitung */
+  /* ✅ OPTIMIERT: Subtile Filter wie Apple TV */
   filter: 
-    saturate(1.35) 
-    contrast(1.18) 
-    brightness(1.06);
+    saturate(0.90)      /* -10% soft & elegant */
+    contrast(1.05)      /* +5% minimal */
+    brightness(0.97);   /* -3% cinematic dimming */
+  
   -webkit-filter: 
-    saturate(1.35) 
-    contrast(1.18) 
-    brightness(1.06);
+    saturate(0.90) 
+    contrast(1.05) 
+    brightness(0.97);
   
   transition: filter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Enhanced filters on hover */
+/* Enhanced filters on hover - sehr subtil */
 .event-poster-liquid-glass:hover .dark-event-card-image {
   filter: 
-    saturate(1.45) 
-    contrast(1.22) 
-    brightness(1.10);
+    saturate(0.98)      /* Kaum merklich +8% */
+    contrast(1.08)      /* Minimal +8% */
+    brightness(0.99);   /* Fast keine Änderung */
+  
   -webkit-filter: 
-    saturate(1.45) 
-    contrast(1.22) 
-    brightness(1.10);
+    saturate(0.98) 
+    contrast(1.08) 
+    brightness(0.99);
 }
 
 /* Glassmorphismus-Overlay */
@@ -1514,8 +1579,9 @@ body {
     rgba(255, 255, 255, 0.04) 50%,
     rgba(255, 255, 255, 0.08) 100%
   );
-  backdrop-filter: blur(6px) saturate(160%);
-  -webkit-backdrop-filter: blur(6px) saturate(160%);
+  /* ✅ OPTIMIERT: Nur 110% statt 160%! */
+  backdrop-filter: blur(6px) saturate(110%);
+  -webkit-backdrop-filter: blur(6px) saturate(110%);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 12px;
   pointer-events: none;
@@ -1523,29 +1589,52 @@ body {
   transition: backdrop-filter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Enhanced glass effect on hover */
+/* Enhanced glass effect on hover - minimal */
 .event-poster-liquid-glass:hover .event-glass-overlay {
-  backdrop-filter: blur(8px) saturate(180%);
-  -webkit-backdrop-filter: blur(8px) saturate(180%);
+  /* ✅ OPTIMIERT: Nur 120% statt 180%! */
+  backdrop-filter: blur(8px) saturate(120%);
+  -webkit-backdrop-filter: blur(8px) saturate(120%);
 }
 
-/* Gradient Overlay für Textlesbarkeit + Drama */
+/* Gradient Overlay SUBTIL für Textlesbarkeit + Drama */
 .event-gradient-overlay {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
   height: 65%;
+  /* ✅ OPTIMIERT: Weniger Dunkelheit = mehr Bild sichtbar */
   background: linear-gradient(
     to top,
-    rgba(0, 0, 0, 0.85) 0%,
-    rgba(0, 0, 0, 0.50) 35%,
-    rgba(0, 0, 0, 0.15) 60%,
+    rgba(0, 0, 0, 0.75) 0%,    /* Statt 0.85 */
+    rgba(0, 0, 0, 0.40) 35%,   /* Statt 0.50 */
+    rgba(0, 0, 0, 0.10) 60%,   /* Statt 0.15 */
     transparent 100%
   );
   border-radius: 0 0 12px 12px;
   z-index: 3;
   pointer-events: none;
+}
+
+/* ===== NEU: TOP FADE EFFECT (Apple TV Signature) ===== */
+.event-poster-liquid-glass::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  /* ✨ Subtiler Fade von dunkel zu transparent */
+  background: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.15) 0%,
+    rgba(0, 0, 0, 0.08) 25%,
+    rgba(0, 0, 0, 0.02) 50%,
+    transparent 100%
+  );
+  z-index: 2;
+  pointer-events: none;
+  border-radius: 12px 12px 0 0;
 }
 
 /* Event info positioned over gradient */
@@ -1587,17 +1676,51 @@ body {
       0 6px 12px rgba(0, 0, 0, 0.16);
   }
   
+  /* ✅ Noch subtiler auf Tablet */
   .event-glass-overlay {
-    backdrop-filter: blur(4px) saturate(140%);
-    -webkit-backdrop-filter: blur(4px) saturate(140%);
+    backdrop-filter: blur(4px) saturate(100%);
+    -webkit-backdrop-filter: blur(4px) saturate(100%);
+  }
+  
+  .event-poster-liquid-glass .dark-event-card-image {
+    filter: saturate(0.92) contrast(1.03) brightness(0.98);
+    -webkit-filter: saturate(0.92) contrast(1.03) brightness(0.98);
+  }
+  
+  .event-poster-liquid-glass::before {
+    background: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.12) 0%,
+      transparent 100%
+    );
   }
 }
 
 /* Mobile */
 @media (max-width: 480px) {
+  .event-poster-liquid-glass {
+    border-radius: 8px;
+  }
+  
+  /* ✅ Minimal filters auf Mobile */
   .event-poster-liquid-glass .dark-event-card-image {
-    filter: saturate(1.25) contrast(1.12) brightness(1.04);
-    -webkit-filter: saturate(1.25) contrast(1.12) brightness(1.04);
+    filter: saturate(0.93) contrast(1.02) brightness(0.99);
+    -webkit-filter: saturate(0.93) contrast(1.02) brightness(0.99);
+  }
+  
+  .event-glass-overlay {
+    backdrop-filter: blur(3px) saturate(100%);
+    -webkit-backdrop-filter: blur(3px) saturate(100%);
+  }
+  
+  .event-gradient-overlay {
+    background: linear-gradient(
+      to top,
+      rgba(0, 0, 0, 0.70) 0%,
+      rgba(0, 0, 0, 0.35) 35%,
+      rgba(0, 0, 0, 0.08) 60%,
+      transparent 100%
+    );
   }
 }
 
