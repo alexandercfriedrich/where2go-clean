@@ -68,12 +68,15 @@ export default function DiscoveryClient({
   }, [initialDateFilter]);
 
   // NEW: Sync selectedCategory with initialCategory prop changes
+  // Only update if initialCategory is explicitly provided (not undefined)
   useEffect(() => {
-    const nextCategory = initialCategory || null;
-    if (nextCategory !== selectedCategory) {
-      setSelectedCategory(nextCategory);
+    if (initialCategory !== undefined) {
+      const nextCategory = initialCategory || null;
+      setSelectedCategory(prevCategory => 
+        prevCategory === nextCategory ? prevCategory : nextCategory
+      );
     }
-  }, [initialCategory, selectedCategory]);
+  }, [initialCategory]);
 
   // Filter events by category and date using the shared utility
   useEffect(() => {

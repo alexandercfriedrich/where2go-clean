@@ -1145,16 +1145,63 @@ Stöbern Sie durch alle LGBTQ+-Events am Wochenende und lassen Sie sich inspirie
 };
 
 /**
+ * Convert markdown-style formatting to proper HTML
+ * @param text Markdown-formatted text
+ * @returns HTML with proper semantic tags
+ */
+function convertMarkdownToHtml(text: string): string {
+  if (!text) return '';
+  
+  // Split by double newlines to get paragraphs
+  const blocks = text.split('\n\n');
+  
+  return blocks.map(block => {
+    const trimmed = block.trim();
+    if (!trimmed) return '';
+    
+    // Check if it's a heading (starts with **)
+    if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
+      const content = trimmed.slice(2, -2);
+      // Determine heading level based on content
+      if (content.includes('erleben') || content.includes('in Wien')) {
+        // Main title - H1
+        return `<h1>${content}</h1>`;
+      } else {
+        // Section headings - H2
+        return `<h2>${content}</h2>`;
+      }
+    }
+    
+    // Check if it's a list
+    if (trimmed.startsWith('•')) {
+      const items = trimmed.split('\n')
+        .filter(line => line.trim().startsWith('•'))
+        .map(line => {
+          const content = line.trim().substring(1).trim();
+          // Convert **text** to <strong>text</strong>
+          return `<li>${content.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')}</li>`;
+        });
+      return `<ul>${items.join('')}</ul>`;
+    }
+    
+    // Regular paragraph - convert **text** to <strong>text</strong>
+    const htmlContent = trimmed.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    return `<p>${htmlContent}</p>`;
+  }).filter(block => block).join('\n');
+}
+
+/**
  * Get SEO text for a specific category and date
  * @param category Category slug (e.g., 'clubs-nachtleben')
  * @param date Date filter ('heute', 'morgen', 'wochenende')
- * @returns SEO-optimized HTML content
+ * @returns SEO-optimized HTML content with proper semantic structure
  */
 export function getSeoText(
   category: string,
   date: 'heute' | 'morgen' | 'wochenende'
 ): string {
-  return seoTexts[category]?.[date] || '';
+  const markdownText = seoTexts[category]?.[date] || '';
+  return convertMarkdownToHtml(markdownText);
 }
 
 /**

@@ -28,11 +28,22 @@ export function SeoContent({ category, date }: SeoContentProps) {
       />
       
       <style jsx>{`
-        article :global(h2) {
-          font-size: 2rem;
+        article :global(h1) {
+          font-size: 2.5rem;
           font-weight: 700;
-          margin-bottom: 1.5rem;
+          margin-bottom: 2rem;
+          margin-top: 0;
           color: inherit;
+          line-height: 1.2;
+        }
+        
+        article :global(h2) {
+          font-size: 1.75rem;
+          font-weight: 700;
+          margin-top: 2.5rem;
+          margin-bottom: 1.25rem;
+          color: inherit;
+          line-height: 1.3;
         }
         
         article :global(p) {
@@ -58,6 +69,10 @@ export function SeoContent({ category, date }: SeoContentProps) {
         }
         
         @media (max-width: 768px) {
+          article :global(h1) {
+            font-size: 1.875rem;
+          }
+          
           article :global(h2) {
             font-size: 1.5rem;
           }
