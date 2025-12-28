@@ -17,7 +17,6 @@ interface AccordionState {
 export default function MainFooter() {
   const currentYear = new Date().getFullYear();
   const [cities, setCities] = useState<City[]>([]);
-  const [accordionState, setAccordionState] = useState<AccordionState>({});
   
   const categories = getAllCategories();
   const timeFilters = [
@@ -25,6 +24,15 @@ export default function MainFooter() {
     { label: 'morgen', slug: 'morgen' },
     { label: 'am Wochenende', slug: 'wochenende' }
   ];
+
+  // Initialize accordion state independently - Clubs & Nachtleben open by default
+  const [accordionState, setAccordionState] = useState<AccordionState>(() => {
+    const initialState: AccordionState = {};
+    categories.forEach((category) => {
+      initialState[category.id] = category.name === 'Clubs & Nachtleben';
+    });
+    return initialState;
+  });
 
   useEffect(() => {
     const loadCities = async () => {
@@ -42,13 +50,6 @@ export default function MainFooter() {
               slug: slugify(city.name)
             }));
             setCities(cityList);
-            
-            // Initialize accordion state - Clubs & Nachtleben open, others closed
-            const initialState: AccordionState = {};
-            categories.forEach((category) => {
-              initialState[category.id] = category.name === 'Clubs & Nachtleben';
-            });
-            setAccordionState(initialState);
           }
         }
       } catch (error) {
@@ -111,9 +112,8 @@ export default function MainFooter() {
                           key={filter.slug}
                           href={`/${primaryCity.slug}/${categorySlug}/${filter.slug}`}
                           className="category-link"
-                          style={{ animationDelay: `${idx * 50}ms` }}
+                          data-animation-delay={idx}
                         >
-                          <span className="sr-only">{category.name} Events </span>
                           {filter.label} in {primaryCity.name}
                         </Link>
                       ))}
@@ -255,12 +255,29 @@ export default function MainFooter() {
           padding: 8px 12px;
           border-radius: 6px;
           transition: all 0.2s ease;
-          opacity: 0;
-          transform: translateX(-10px);
+        }
+        
+        .category-card.open .category-link {
           animation: slideIn 0.3s ease forwards;
         }
         
+        .category-card.open .category-link[data-animation-delay="0"] {
+          animation-delay: 0ms;
+        }
+        
+        .category-card.open .category-link[data-animation-delay="1"] {
+          animation-delay: 50ms;
+        }
+        
+        .category-card.open .category-link[data-animation-delay="2"] {
+          animation-delay: 100ms;
+        }
+        
         @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateX(-10px);
+          }
           to {
             opacity: 1;
             transform: translateX(0);
@@ -268,25 +285,13 @@ export default function MainFooter() {
         }
         
         .category-card:not(.open) .category-link {
-          animation: none;
+          opacity: 0;
         }
         
         .category-link:hover {
           background: rgba(20, 184, 166, 0.1);
           color: #14b8a6;
           transform: translateX(4px);
-        }
-        
-        .sr-only {
-          position: absolute;
-          width: 1px;
-          height: 1px;
-          padding: 0;
-          margin: -1px;
-          overflow: hidden;
-          clip: rect(0, 0, 0, 0);
-          white-space: nowrap;
-          border-width: 0;
         }
 
         .footer-content {

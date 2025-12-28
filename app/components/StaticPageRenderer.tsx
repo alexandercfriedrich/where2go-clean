@@ -52,9 +52,9 @@ export default function StaticPageRenderer({
     async function loadContent() {
       try {
         setLoading(true);
-        const res = await fetch(`/api/static-pages/${pageId}`, { 
-          next: { revalidate: 3600 } 
-        });
+        // Note: Client-side fetch doesn't support Next.js revalidate option
+        // Caching is handled by the browser's HTTP cache
+        const res = await fetch(`/api/static-pages/${pageId}`);
         
         if (!res.ok) {
           // Page not found in database, use fallback
@@ -62,7 +62,9 @@ export default function StaticPageRenderer({
             setContent(null);
             setUseFallback(true);
           } else {
-            throw new Error('Failed to load page');
+            // Network or server error - use fallback but log the issue
+            console.error(`Failed to load page (${res.status}): ${res.statusText}`);
+            setUseFallback(true);
           }
         } else {
           const data = await res.json();
@@ -137,7 +139,7 @@ export default function StaticPageRenderer({
                   dangerouslySetInnerHTML={{ 
                     __html: DOMPurify.sanitize(content || '', {
                       ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'ul', 'ol', 'li', 'a', 'blockquote', 'code', 'pre', 'div', 'span'],
-                      ALLOWED_ATTR: ['href', 'target', 'rel', 'class', 'style']
+                      ALLOWED_ATTR: ['href', 'target', 'rel', 'class']
                     })
                   }} 
                 />
