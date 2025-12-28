@@ -1,23 +1,21 @@
-import StaticPageRenderer from '../components/StaticPageRenderer';
+import ThemeAwareStaticPage from '../components/ThemeAwareStaticPage';
 
 export default function AGB() {
   return (
-    <StaticPageRenderer
+    <ThemeAwareStaticPage
       pageId="agb"
       fallbackTitle="Allgemeine Geschäftsbedingungen"
       fallbackContent={
         <>
-          <h1 className="event-title" style={{ fontSize: '2rem', marginBottom: '2rem' }}>Allgemeine Geschäftsbedingungen</h1>
-          
           <div style={{ marginBottom: '2rem' }}>
-            <h3 style={{ marginBottom: '1rem', color: '#404040' }}>§ 1 Geltungsbereich</h3>
+            <h3 style={{ marginBottom: '1rem', fontSize: '1.5rem', fontWeight: '600' }}>§ 1 Geltungsbereich</h3>
             <p style={{ marginBottom: '1rem', lineHeight: '1.6' }}>
               Diese Allgemeinen Geschäftsbedingungen (nachfolgend &quot;AGB&quot;) gelten für alle Verträge zwischen Where2Go und den Nutzern der Website www.where2go.at.
             </p>
           </div>
 
           <div style={{ marginBottom: '2rem' }}>
-            <h3 style={{ marginBottom: '1rem', color: '#404040' }}>§ 2 Vertragspartner</h3>
+            <h3 style={{ marginBottom: '1rem', fontSize: '1.5rem', fontWeight: '600' }}>§ 2 Vertragspartner</h3>
             <p style={{ marginBottom: '1rem', lineHeight: '1.6' }}>
               Vertragspartner des Nutzers ist:
             </p>
@@ -28,7 +26,7 @@ export default function AGB() {
           </div>
 
           <div style={{ marginBottom: '2rem' }}>
-            <h3 style={{ marginBottom: '1rem', color: '#404040' }}>§ 3 Leistungen</h3>
+            <h3 style={{ marginBottom: '1rem', fontSize: '1.5rem', fontWeight: '600' }}>§ 3 Leistungen</h3>
             <p style={{ marginBottom: '1rem', lineHeight: '1.6' }}>
               Where2Go stellt eine Plattform zur Verfügung, über die Nutzer Informationen über Events und Veranstaltungen abrufen können. Die Nutzung der Basisfunktionen ist kostenlos.
             </p>
@@ -38,7 +36,7 @@ export default function AGB() {
           </div>
 
           <div style={{ marginBottom: '2rem' }}>
-            <h3 style={{ marginBottom: '1rem', color: '#404040' }}>§ 4 Nutzungsrechte und -pflichten</h3>
+            <h3 style={{ marginBottom: '1rem', fontSize: '1.5rem', fontWeight: '600' }}>§ 4 Nutzungsrechte und -pflichten</h3>
             <p style={{ marginBottom: '1rem', lineHeight: '1.6' }}>
               Der Nutzer ist berechtigt, die Plattform entsprechend ihrer Bestimmung zu nutzen. Eine missbräuchliche Nutzung ist untersagt.
             </p>
@@ -48,7 +46,7 @@ export default function AGB() {
           </div>
 
           <div style={{ marginBottom: '2rem' }}>
-            <h3 style={{ marginBottom: '1rem', color: '#404040' }}>§ 5 Haftung</h3>
+            <h3 style={{ marginBottom: '1rem', fontSize: '1.5rem', fontWeight: '600' }}>§ 5 Haftung</h3>
             <p style={{ marginBottom: '1rem', lineHeight: '1.6' }}>
               Where2Go haftet nur bei Vorsatz und grober Fahrlässigkeit. Die Haftung für mittelbare Schäden, entgangenen Gewinn und Folgeschäden ist ausgeschlossen.
             </p>
@@ -58,7 +56,7 @@ export default function AGB() {
           </div>
 
           <div style={{ marginBottom: '2rem' }}>
-            <h3 style={{ marginBottom: '1rem', color: '#404040' }}>§ 6 Schlussbestimmungen</h3>
+            <h3 style={{ marginBottom: '1rem', fontSize: '1.5rem', fontWeight: '600' }}>§ 6 Schlussbestimmungen</h3>
             <p style={{ marginBottom: '1rem', lineHeight: '1.6' }}>
               Es gilt deutsches Recht. Gerichtsstand ist Musterstadt.
             </p>
