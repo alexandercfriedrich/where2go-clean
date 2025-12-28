@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { slugify } from '@/lib/utils/slugify';
-import { getAllCategories } from '@/lib/events/category-utils';
+import { getAllCategories } from '../../lib/events/category-utils';
 
 interface City {
   name: string;
