@@ -128,13 +128,13 @@ export default function MainFooter() {
         {/* Standard Footer Links */}
         <div className="footer-content">
           <div className="footer-links">
-            <a href="/blog" className="footer-link">Blog</a>
-            <a href="/impressum" className="footer-link">Impressum</a>
-            <a href="/agb" className="footer-link">AGB</a>
-            <a href="/kontakt" className="footer-link">Kontakt</a>
-            <a href="/ueber-uns" className="footer-link">Über uns</a>
-            <a href="/premium" className="footer-link">Premium</a>
-            <a href="/datenschutz" className="footer-link">Datenschutz</a>
+            <Link href="/blog" className="footer-link">Blog</Link>
+            <Link href="/impressum" className="footer-link">Impressum</Link>
+            <Link href="/agb" className="footer-link">AGB</Link>
+            <Link href="/kontakt" className="footer-link">Kontakt</Link>
+            <Link href="/ueber-uns" className="footer-link">Über uns</Link>
+            <Link href="/premium" className="footer-link">Premium</Link>
+            <Link href="/datenschutz" className="footer-link">Datenschutz</Link>
           </div>
           <div className="footer-copyright">
             <p>© {currentYear} Where2Go - Entdecke deine Stadt neu</p>
@@ -144,8 +144,8 @@ export default function MainFooter() {
 
       <style jsx>{`
         .main-footer {
-          background: #1a2332;
-          color: #ffffff;
+          background: #091717; /* Offblack */
+          color: #FCFAF6; /* Paper White */
           padding: 48px 0 32px;
           margin-top: 80px;
         }
@@ -157,7 +157,7 @@ export default function MainFooter() {
         }
         
         .footer-category-accordion h3 {
-          color: #ffffff;
+          color: #FCFAF6; /* Paper White */
           font-size: 24px;
           font-weight: 600;
           margin-bottom: 32px;
@@ -173,14 +173,14 @@ export default function MainFooter() {
         .category-card {
           background: rgba(255, 255, 255, 0.03);
           border-radius: 12px;
-          border-left: 4px solid #14b8a6;
+          border-left: 4px solid #20B8CD;
           overflow: hidden;
           transition: all 0.3s ease;
         }
         
         .category-card:hover {
           background: rgba(255, 255, 255, 0.05);
-          border-left-color: #0d9488;
+          border-left-color: #218090;
         }
         
         .category-header {
@@ -192,7 +192,7 @@ export default function MainFooter() {
           background: transparent;
           border: none;
           cursor: pointer;
-          color: #ffffff;
+          color: #FCFAF6; /* Paper White */
           transition: all 0.2s ease;
         }
         
@@ -218,12 +218,12 @@ export default function MainFooter() {
         .category-name {
           font-size: 16px;
           font-weight: 600;
-          color: #ffffff;
+          color: #FCFAF6; /* Paper White */
         }
         
         .chevron {
           transition: transform 0.3s ease;
-          color: #14b8a6;
+          color: #20B8CD;
           flex-shrink: 0;
         }
         
@@ -289,8 +289,8 @@ export default function MainFooter() {
         }
         
         .category-link:hover {
-          background: rgba(20, 184, 166, 0.1);
-          color: #14b8a6;
+          background: rgba(32, 184, 205, 0.1);
+          color: #20B8CD;
           transform: translateX(4px);
         }
 
@@ -320,7 +320,7 @@ export default function MainFooter() {
         }
 
         .footer-link:hover {
-          color: #14b8a6;
+          color: #20B8CD;
         }
 
         .footer-copyright {

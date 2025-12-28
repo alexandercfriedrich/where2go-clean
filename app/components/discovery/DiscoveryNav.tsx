@@ -19,12 +19,12 @@ export function DiscoveryNav() {
   };
 
   return (
-    <nav className="sticky top-0 z-20 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800">
+    <nav className="sticky top-0 z-20 backdrop-blur-sm border-b border-gray-800" style={{ backgroundColor: 'rgba(9, 23, 23, 0.95)' }}> {/* Offblack with transparency */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 md:h-18">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
-            <span className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
+            <span className="text-2xl font-bold font-heading text-brand-turquoise" style={{ color: '#20B8CD' }}>
               Where2Go
             </span>
           </Link>
@@ -33,13 +33,15 @@ export function DiscoveryNav() {
           <div className="hidden md:flex items-center space-x-8">
             <Link
               href="/"
-              className="text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors"
+              className="hover:text-brand-turquoise font-medium transition-colors"
+              style={{ fontFamily: 'var(--font-body)', color: '#FCFAF6' }} /* Paper White */
             >
               Discover
             </Link>
             <Link
               href="/blog"
-              className="text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors"
+              className="hover:text-brand-turquoise font-medium transition-colors"
+              style={{ fontFamily: 'var(--font-body)', color: '#FCFAF6' }} /* Paper White */
             >
               Blog
             </Link>
@@ -50,7 +52,8 @@ export function DiscoveryNav() {
             {/* Theme Toggle */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="p-2 rounded-lg hover:bg-gray-800 transition-colors"
+              style={{ color: '#FCFAF6' }} /* Paper White */
               aria-label="Toggle theme"
             >
               {theme === 'dark' ? (
@@ -68,7 +71,12 @@ export function DiscoveryNav() {
             <div className="relative">
               <button 
                 onClick={handleSignInClick}
-                className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition-colors"
+                className="px-4 py-2 rounded-lg font-medium transition-all hover:opacity-90 font-heading"
+                style={{ 
+                  backgroundColor: '#20B8CD', 
+                  color: '#FCFAF6',
+                  fontFamily: 'var(--font-heading)'
+                }}
               >
                 Sign In
               </button>

@@ -94,17 +94,7 @@ function VenueCard({ venue, rank }: { venue: VenueStatsType; rank: number }) {
   return (
     <Link href={`/venues/${venue.venue_slug}`}>
       <div
-        className="venue-card group cursor-pointer"
-        style={{
-          background: 'rgba(255, 255, 255, 0.03)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          borderRadius: '12px',
-          padding: '20px',
-          transition: 'all 0.3s ease',
-          height: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-        }}
+        className="venue-card group cursor-pointer bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl p-5 transition-all hover:shadow-lg dark:hover:border-brand-turquoise/50"
       >
         {/* Header with rank and link icon */}
         <div className="flex items-start justify-between mb-4">
@@ -114,8 +104,8 @@ function VenueCard({ venue, rank }: { venue: VenueStatsType; rank: number }) {
               width: '32px',
               height: '32px',
               borderRadius: '50%',
-              background: 'rgba(255, 107, 53, 0.2)',
-              color: '#FF6B35',
+              background: 'rgba(32, 184, 205, 0.2)',
+              color: '#20B8CD',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -130,7 +120,7 @@ function VenueCard({ venue, rank }: { venue: VenueStatsType; rank: number }) {
               color: 'rgba(255, 255, 255, 0.5)',
               transition: 'color 0.3s ease',
             }}
-            className="group-hover:text-white"
+            className="group-hover:text-brand-turquoise dark:text-white/50"
           >
             <svg
               width="16"
@@ -149,12 +139,11 @@ function VenueCard({ venue, rank }: { venue: VenueStatsType; rank: number }) {
 
         {/* Venue name */}
         <h3
-          className="venue-name text-white group-hover:text-orange-400"
+          className="venue-name text-gray-900 dark:text-white hover:text-brand-turquoise transition-colors"
           style={{
             fontSize: '18px',
             fontWeight: 600,
             marginBottom: '12px',
-            transition: 'color 0.3s ease',
           }}
         >
           {venue.name}
@@ -166,7 +155,7 @@ function VenueCard({ venue, rank }: { venue: VenueStatsType; rank: number }) {
             style={{
               fontSize: '48px',
               fontWeight: 700,
-              color: '#FF6B35',
+              color: '#20B8CD',
               lineHeight: 1,
             }}
           >
@@ -175,9 +164,9 @@ function VenueCard({ venue, rank }: { venue: VenueStatsType; rank: number }) {
           <div
             style={{
               fontSize: '14px',
-              color: 'rgba(255, 255, 255, 0.7)',
               marginTop: '8px',
             }}
+            className="text-gray-600 dark:text-white/70"
           >
             kommende Events
           </div>
@@ -189,13 +178,7 @@ function VenueCard({ venue, rank }: { venue: VenueStatsType; rank: number }) {
             {venue.categories.slice(0, 3).map((cat, idx) => (
               <span
                 key={idx}
-                style={{
-                  padding: '4px 8px',
-                  background: 'rgba(255, 255, 255, 0.1)',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  color: 'rgba(255, 255, 255, 0.8)',
-                }}
+                className="px-2 py-1 bg-gray-100 dark:bg-white/10 rounded text-xs text-gray-700 dark:text-white/80"
               >
                 {cat}
               </span>
@@ -211,8 +194,8 @@ function VenueCard({ venue, rank }: { venue: VenueStatsType; rank: number }) {
               alignItems: 'center',
               gap: '6px',
               fontSize: '12px',
-              color: 'rgba(255, 255, 255, 0.6)',
             }}
+            className="text-gray-500 dark:text-white/60"
           >
             <span>⭐</span>
             <span>{venue.sources.length} Quellen</span>
@@ -227,106 +210,91 @@ function VenueListItem({ venue, rank }: { venue: VenueStatsType; rank: number })
   return (
     <Link href={`/venues/${venue.venue_slug}`}>
       <div
-        className="venue-list-item group cursor-pointer"
-        style={{
-          background: 'rgba(255, 255, 255, 0.03)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          borderRadius: '8px',
-          padding: '16px',
-          transition: 'all 0.3s ease',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '16px',
-        }}
+        className="venue-list-item group cursor-pointer bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg p-4 transition-all hover:shadow-lg dark:hover:border-brand-turquoise/50"
       >
-        {/* Rank */}
-        <div
-          className="rank-badge"
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '50%',
-            background: 'rgba(255, 107, 53, 0.2)',
-            color: '#FF6B35',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '14px',
-            fontWeight: 700,
-            flexShrink: 0,
-          }}
-        >
-          #{rank}
-        </div>
-
-        {/* Content */}
-        <div className="flex-grow">
-          <h3
-            className="venue-name text-white group-hover:text-orange-400"
-            style={{
-              fontSize: '16px',
-              fontWeight: 600,
-              marginBottom: '4px',
-              transition: 'color 0.3s ease',
-            }}
-          >
-            {venue.name}
-          </h3>
+        <div className="flex items-center gap-4">
+          {/* Rank */}
           <div
+            className="rank-badge"
             style={{
+              width: '32px',
+              height: '32px',
+              borderRadius: '50%',
+              background: 'rgba(32, 184, 205, 0.2)',
+              color: '#20B8CD',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
+              justifyContent: 'center',
               fontSize: '14px',
-              color: 'rgba(255, 255, 255, 0.6)',
-            }}
-          >
-            <span>📍</span>
-            <span>{venue.full_address}</span>
-          </div>
-          {venue.categories && venue.categories.length > 0 && (
-            <div className="flex flex-wrap gap-2 mt-2">
-              {venue.categories.slice(0, 3).map((cat, idx) => (
-                <span
-                  key={idx}
-                  style={{
-                    padding: '2px 8px',
-                    background: 'rgba(255, 255, 255, 0.1)',
-                    borderRadius: '4px',
-                    fontSize: '11px',
-                    color: 'rgba(255, 255, 255, 0.7)',
-                  }}
-                >
-                  {cat}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Event count */}
-        <div
-          style={{
-            textAlign: 'right',
-            flexShrink: 0,
-          }}
-        >
-          <div
-            style={{
-              fontSize: '24px',
               fontWeight: 700,
-              color: '#FF6B35',
+              flexShrink: 0,
             }}
           >
-            {venue.upcoming_events}
+            #{rank}
           </div>
+
+          {/* Content */}
+          <div className="flex-grow">
+            <h3
+              className="venue-name text-gray-900 dark:text-white hover:text-brand-turquoise transition-colors"
+              style={{
+                fontSize: '16px',
+                fontWeight: 600,
+                marginBottom: '4px',
+              }}
+            >
+              {venue.name}
+            </h3>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontSize: '14px',
+              }}
+              className="text-gray-600 dark:text-white/60"
+            >
+              <span>📍</span>
+              <span>{venue.full_address}</span>
+            </div>
+            {venue.categories && venue.categories.length > 0 && (
+              <div className="flex flex-wrap gap-2 mt-2">
+                {venue.categories.slice(0, 3).map((cat, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2 py-1 bg-gray-100 dark:bg-white/10 rounded text-xs text-gray-700 dark:text-white/70"
+                  >
+                    {cat}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Event count */}
           <div
             style={{
-              fontSize: '12px',
-              color: 'rgba(255, 255, 255, 0.6)',
+              textAlign: 'right',
+              flexShrink: 0,
             }}
           >
-            Events
+            <div
+              style={{
+                fontSize: '24px',
+                fontWeight: 700,
+                color: '#20B8CD',
+              }}
+            >
+              {venue.upcoming_events}
+            </div>
+            <div
+              style={{
+                fontSize: '12px',
+              }}
+              className="text-gray-600 dark:text-white/60"
+            >
+              Events
+            </div>
           </div>
         </div>
       </div>

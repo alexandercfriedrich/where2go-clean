@@ -7,7 +7,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { supabaseAdmin } from '@/lib/supabase/client';
 import type { BlogArticle } from '@/lib/types';
-import BlogArticleClient from './BlogArticleClient';
+import BlogArticleVenueStyle from './BlogArticleVenueStyle';
 
 interface BlogArticlePageProps {
   params: Promise<{ slug: string }>;
@@ -72,5 +72,5 @@ export default async function BlogArticlePage({ params }: BlogArticlePageProps) 
     notFound();
   }
 
-  return <BlogArticleClient article={article} />;
+  return <BlogArticleVenueStyle article={article} />;
 }

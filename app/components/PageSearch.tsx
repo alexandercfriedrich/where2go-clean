@@ -1,11 +1,11 @@
 /**
- * Enhanced Search Bar with Autocomplete
- * Searches events AND venues with live suggestions
+ * Enhanced PageSearch with Autocomplete
+ * Matches Discovery SearchBar functionality with dropdown, countdown, images
  */
 
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase/client';
 
@@ -33,8 +33,7 @@ interface VenueSearchResult {
 
 type SearchResult = EventSearchResult | VenueSearchResult;
 
-interface SearchBarProps {
-  placeholder?: string;
+interface PageSearchProps {
   className?: string;
 }
 
@@ -109,10 +108,7 @@ function EventCountdown({ startDateTime }: { startDateTime: string }) {
   );
 }
 
-export function SearchBar({ 
-  placeholder = "Search events, venues, or categories...",
-  className = ""
-}: SearchBarProps) {
+export default function PageSearch({ className = '' }: PageSearchProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [isOpen, setIsOpen] = useState(false);
@@ -132,7 +128,7 @@ export function SearchBar({
     const timer = setTimeout(async () => {
       setIsLoading(true);
       try {
-        // Search venues first (use venue_slug for navigation)
+        // Search venues first
         const venuePromise = supabase
           .from('venues')
           .select('id, name, venue_slug, city, address')
@@ -153,12 +149,12 @@ export function SearchBar({
 
         const combinedResults: SearchResult[] = [];
 
-        // Add venues with event counts (optimized: single query for all venue names)
+        // Add venues with event counts
         if (!venueResponse.error && venueResponse.data && venueResponse.data.length > 0) {
           const venues = venueResponse.data as any[];
           const venueNames = venues.map(v => v.name);
           
-          // Get event counts for all venues in a single aggregated query
+          // Get event counts for all venues
           const { data: eventCounts } = await supabase
             .from('events')
             .select('custom_venue_name')
@@ -179,7 +175,7 @@ export function SearchBar({
               type: 'venue',
               id: venue.id,
               name: venue.name,
-              slug: venue.venue_slug,  // Use venue_slug for navigation
+              slug: venue.venue_slug,
               city: venue.city,
               address: venue.address,
               event_count: countMap[venue.name] || 0
@@ -244,10 +240,8 @@ export function SearchBar({
       case 'Enter':
         e.preventDefault();
         if (isOpen && selectedIndex >= 0 && results.length > 0) {
-          // Navigate to selected result from dropdown
           navigateToResult(results[selectedIndex]);
         } else if (query.length >= 2) {
-          // Navigate to search results page when Enter is pressed
           setIsOpen(false);
           router.push(`/search/results?q=${encodeURIComponent(query)}`);
         }
@@ -258,6 +252,21 @@ export function SearchBar({
     }
   };
 
+  const handleSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    if (query.trim().length >= 2) {
+      setIsOpen(false);
+      router.push(`/search/results?q=${encodeURIComponent(query.trim())}`);
+    }
+  };
+
+  const handleIconClick = () => {
+    if (query.trim().length >= 2) {
+      setIsOpen(false);
+      router.push(`/search/results?q=${encodeURIComponent(query.trim())}`);
+    }
+  };
+
   const navigateToResult = (result: SearchResult) => {
     setIsOpen(false);
     setQuery('');
@@ -265,7 +274,6 @@ export function SearchBar({
     if (result.type === 'venue') {
       router.push(`/venues/${result.slug}`);
     } else {
-      // Navigate to event detail page
       if (result.slug && result.city) {
         const citySlug = result.city.toLowerCase().replace(/\s+/g, '-');
         router.push(`/events/${citySlug}/${result.slug}`);
@@ -286,49 +294,68 @@ export function SearchBar({
 
   return (
     <div ref={searchRef} className={`relative ${className}`}>
-      {/* Search Input */}
-      <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-          <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </div>
+      <form onSubmit={handleSubmit} className="relative">
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
-          onFocus={(e) => {
+          onFocus={() => {
             if (query.length >= 2) setIsOpen(true);
-            e.currentTarget.style.setProperty('--tw-ring-color', '#20B8CD');
           }}
-          placeholder={placeholder}
-          className="w-full pl-11 pr-4 py-3 md:py-4 rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 transition-colors"
+          placeholder="Events, Venues suchen..."
+          className="w-full px-4 py-2 pr-10 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-[#20B8CD]"
           style={{
-            '--tw-ring-color': '#20B8CD',
-          } as React.CSSProperties}
+            backgroundColor: '#091717', // Offblack
+            border: '1px solid #FCFAF6', // Paper White
+            color: '#FCFAF6', // Paper White
+          }}
           aria-label="Search events and venues"
           aria-autocomplete="list"
-          aria-controls="search-results"
+          aria-controls="page-search-results"
         />
         {isLoading && (
-          <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
-            <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#20B8CD', borderTopColor: 'transparent' }} />
+          <div className="absolute inset-y-0 right-10 pr-2 flex items-center">
+            <div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: '#20B8CD', borderTopColor: 'transparent' }} />
           </div>
         )}
-      </div>
+        <button
+          type="button"
+          onClick={handleIconClick}
+          className="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+          style={{ color: '#FCFAF6' }}
+          aria-label="Suchen"
+        >
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            className="hover:opacity-80"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
+        </button>
+      </form>
 
       {/* Search Results Dropdown */}
       {isOpen && results.length > 0 && (
         <div 
-          id="search-results"
+          id="page-search-results"
           role="listbox"
-          className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 max-h-[28rem] overflow-y-auto"
+          className="absolute z-50 w-full mt-2 rounded-lg shadow-xl border max-h-[28rem] overflow-y-auto"
+          style={{
+            backgroundColor: '#13343B', // Teal Dark
+            borderColor: '#2E565D', // Teal Medium
+          }}
         >
           {/* Venue Results Section */}
           {venueResults.length > 0 && (
             <div>
-              <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 uppercase tracking-wide border-b border-gray-200 dark:border-gray-700">
+              <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide border-b" style={{ color: '#BADFDE', backgroundColor: '#091717', borderColor: '#2E565D' }}>
                 📍 Venues
               </div>
               {venueResults.map((venue, index) => (
@@ -337,9 +364,14 @@ export function SearchBar({
                   role="option"
                   aria-selected={selectedIndex === index}
                   onClick={() => navigateToResult(venue)}
-                  className={`w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700 ${
-                    selectedIndex === index ? 'bg-gray-100 dark:bg-gray-700' : ''
+                  className={`w-full text-left px-4 py-3 transition-colors border-b ${
+                    selectedIndex === index ? 'bg-opacity-70' : ''
                   }`}
+                  style={{
+                    borderColor: '#2E565D',
+                    backgroundColor: selectedIndex === index ? '#2E565D' : 'transparent'
+                  }}
+                  onMouseEnter={() => setSelectedIndex(index)}
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -350,10 +382,10 @@ export function SearchBar({
                         </svg>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-gray-900 dark:text-gray-100 truncate">
+                        <p className="font-semibold truncate" style={{ color: '#FCFAF6' }}>
                           {venue.name}
                         </p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
+                        <p className="text-sm truncate" style={{ color: '#BADFDE' }}>
                           {venue.address || venue.city}
                         </p>
                       </div>
@@ -373,7 +405,7 @@ export function SearchBar({
           {/* Event Results Section */}
           {eventResults.length > 0 && (
             <div>
-              <div className="px-4 py-2 text-xs font-semibold text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 uppercase tracking-wide border-b border-gray-200 dark:border-gray-700">
+              <div className="px-4 py-2 text-xs font-semibold uppercase tracking-wide border-b" style={{ color: '#BADFDE', backgroundColor: '#091717', borderColor: '#2E565D' }}>
                 🎭 Events
               </div>
               {eventResults.map((event, index) => {
@@ -386,63 +418,53 @@ export function SearchBar({
                     role="option"
                     aria-selected={selectedIndex === resultIndex}
                     onClick={() => navigateToResult(event)}
-                    className={`w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors border-b border-gray-100 dark:border-gray-700 last:border-b-0 ${
-                      selectedIndex === resultIndex ? 'bg-gray-100 dark:bg-gray-700' : ''
-                    } ${countdownInfo.isToday ? 'bg-opacity-50' : ''}`}
-                    style={countdownInfo.isToday ? { backgroundColor: 'rgba(32, 184, 205, 0.05)' } : undefined}
+                    className={`w-full text-left px-4 py-3 transition-colors border-b last:border-b-0 ${
+                      selectedIndex === resultIndex ? 'bg-opacity-70' : ''
+                    }`}
+                    style={{
+                      borderColor: '#2E565D',
+                      backgroundColor: selectedIndex === resultIndex ? '#2E565D' : (countdownInfo.isToday ? 'rgba(32, 184, 205, 0.05)' : 'transparent')
+                    }}
+                    onMouseEnter={() => setSelectedIndex(resultIndex)}
                   >
                     <div className="flex items-center gap-3">
                       {/* Event Image */}
-                      <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-700">
+                      <div className="flex-shrink-0 w-12 h-12 rounded-lg overflow-hidden" style={{ backgroundColor: '#2E565D' }}>
                         {event.image_url ? (
                           <img 
                             src={event.image_url} 
                             alt=""
                             className="w-full h-full object-cover"
-                            loading="lazy"
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-gray-400 dark:text-gray-500">
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-                              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                              <circle cx="8.5" cy="8.5" r="1.5"/>
-                              <polyline points="21 15 16 10 5 21"/>
-                            </svg>
+                          <div className="w-full h-full flex items-center justify-center text-lg">
+                            🎭
                           </div>
                         )}
                       </div>
-                      
-                      {/* Event Info */}
+
+                      {/* Event Details */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium text-gray-900 dark:text-gray-100 truncate">
-                            {event.title}
-                          </p>
-                          {countdownInfo.isToday && (
-                            <span className="flex-shrink-0 text-xs px-1.5 py-0.5 rounded font-medium" style={{ backgroundColor: 'rgba(32, 184, 205, 0.1)', color: '#20B8CD' }}>
-                              HEUTE
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
-                          📍 {event.venue}
+                        <p className="font-semibold truncate" style={{ color: '#FCFAF6' }}>
+                          {event.title}
                         </p>
-                        {/* Countdown Timer for today's events */}
+                        <div className="flex items-center gap-2 text-sm" style={{ color: '#BADFDE' }}>
+                          <span className="truncate">{event.venue}</span>
+                          <span>•</span>
+                          <span className="flex-shrink-0">{formatDate(event.start_date_time)}</span>
+                        </div>
                         {countdownInfo.isToday && (
-                          <div className="mt-0.5">
+                          <div className="mt-1">
                             <EventCountdown startDateTime={event.start_date_time} />
                           </div>
                         )}
                       </div>
-                      
-                      {/* Category & Date */}
-                      <div className="flex-shrink-0 text-right">
-                        <span className="text-xs px-2 py-1 rounded-full" style={{ backgroundColor: 'rgba(32, 184, 205, 0.1)', color: '#20B8CD' }}>
+
+                      {/* Category Badge */}
+                      <div className="flex-shrink-0">
+                        <span className="inline-flex px-2 py-1 rounded text-xs font-medium" style={{ backgroundColor: 'rgba(32, 184, 205, 0.1)', color: '#20B8CD' }}>
                           {event.category}
                         </span>
-                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {formatDate(event.start_date_time)}
-                        </p>
                       </div>
                     </div>
                   </button>
@@ -450,15 +472,6 @@ export function SearchBar({
               })}
             </div>
           )}
-        </div>
-      )}
-
-      {/* No Results */}
-      {isOpen && results.length === 0 && !isLoading && query.length >= 2 && (
-        <div className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 p-4">
-          <p className="text-center text-gray-600 dark:text-gray-400">
-            Keine Ergebnisse für &quot;{query}&quot;
-          </p>
         </div>
       )}
     </div>

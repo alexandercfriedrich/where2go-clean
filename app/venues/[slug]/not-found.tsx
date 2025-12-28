@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 export default function VenueNotFound() {
   return (
-    <div className="min-h-screen bg-[#0a0f1a] text-white flex items-center justify-center px-4">
+    <div className="min-h-screen text-white flex items-center justify-center px-4" style={{ backgroundColor: '#091717' }}> {/* Offblack */}
       <div className="text-center max-w-lg">
         <div className="mb-8">
           <div

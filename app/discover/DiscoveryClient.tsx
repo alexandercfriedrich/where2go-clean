@@ -113,9 +113,9 @@ export default function DiscoveryClient({
 
   if (!mounted) {
     return (
-      <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--color-bg)' }}>
         <div className="text-center">
-          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-indigo-600 border-r-transparent"></div>
+          <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-r-transparent" style={{ borderColor: '#20B8CD', borderRightColor: 'transparent' }}></div>
           <p className="mt-2 text-gray-600 dark:text-gray-400">Loading Discovery...</p>
         </div>
       </div>
@@ -150,17 +150,19 @@ export default function DiscoveryClient({
 
   return (
     <ThemeProvider>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
-        {/* Navigation */}
-        <DiscoveryNav />
-        
-        {/* Location Bar (simplified - city display only) */}
-        <LocationBar 
-          initialCity={city}
-        />
+      <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
+        {/* Navigation with Offblack background */}
+        <div style={{ backgroundColor: '#091717' }}>
+          <DiscoveryNav />
+          
+          {/* Location Bar (simplified - city display only) */}
+          <LocationBar 
+            initialCity={city}
+          />
+        </div>
 
         {/* Hero Section */}
-        <div className="bg-[#1a2332] text-white">
+        <div style={{ backgroundColor: '#13343B' }} className="text-white"> {/* Teal Dark */}
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
             <h1 className="text-3xl md:text-5xl font-bold mb-4">
               {getPageTitle()}
@@ -305,15 +307,6 @@ export default function DiscoveryClient({
                 </p>
               </div>
             )}
-
-          {/* HowTo Section */}
-          <div className="max-w-4xl mx-auto">
-            <HowToSection
-              title={getDiscoverPageHowTo(city).title}
-              description={getDiscoverPageHowTo(city).description}
-              steps={getDiscoverPageHowTo(city).steps}
-            />
-          </div>
 
           {/* FAQ Section */}
           <div className="max-w-4xl mx-auto">

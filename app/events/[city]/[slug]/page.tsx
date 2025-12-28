@@ -13,7 +13,7 @@ import { generateEventSchema, generateBreadcrumbSchema } from '@/lib/schemaOrg';
 import { normalizeCitySlug } from '@/lib/slugGenerator';
 import { getVenueFallbackImage } from '@/lib/venueFallbackImages';
 import SchemaOrg from '@/components/SchemaOrg';
-import { SearchBar } from '@/components/discovery/SearchBar';
+import PageSearch from '@/components/PageSearch';
 import type { EventData } from '@/lib/types';
 import type { Database } from '@/lib/supabase/types';
 
@@ -270,69 +270,64 @@ export default async function EventPage({ params }: EventPageProps) {
       <SchemaOrg schema={eventSchema} />
       <SchemaOrg schema={breadcrumbSchema} />
       
-      {/* Sticky Header with Search */}
-      <header 
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 50,
-          background: 'linear-gradient(135deg, rgba(26, 26, 26, 0.98) 0%, rgba(42, 42, 42, 0.98) 100%)',
-          backdropFilter: 'blur(10px)',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-          padding: '12px 16px',
-        }}
-      >
-        <div style={{ maxWidth: '900px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '16px' }}>
-          {/* Logo / Home Link */}
-          <Link 
-            href="/" 
-            style={{ 
-              color: '#FF6B35', 
-              fontWeight: 700, 
-              fontSize: '20px',
-              textDecoration: 'none',
-              flexShrink: 0,
-            }}
-          >
-            W2G
-          </Link>
-          
-          {/* Search Bar */}
-          <div style={{ flex: 1, maxWidth: '500px' }}>
-            <SearchBar 
-              placeholder="Events & Venues suchen..." 
-              className="w-full"
-            />
+      <div className="min-h-screen text-white" style={{ backgroundColor: '#091717' }}> {/* Offblack background */}
+        {/* Navigation with Search */}
+        <div className="border-b" style={{ borderColor: '#2E565D' }}> {/* Teal Medium border */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex items-center justify-between gap-4">
+              <Link
+                href="/"
+                className="inline-flex items-center gap-2 transition-colors hover:opacity-80"
+                style={{ color: '#BADFDE' }} /* Sky color */
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+                <span style={{ color: '#FCFAF6' }}>Zurück zur Übersicht</span> {/* Paper White */}
+              </Link>
+              
+              {/* Search Bar */}
+              <div className="flex-1 max-w-md ml-auto">
+                <PageSearch />
+              </div>
+            </div>
           </div>
         </div>
-      </header>
-      
-      <div style={{ 
-        background: 'linear-gradient(135deg, #1A1A1A 0%, #2A2A2A 100%)', 
-        minHeight: '100vh', 
-        padding: '24px 16px' 
-      }}>
-        <div className="container" style={{ maxWidth: '900px', margin: '0 auto' }}>
-          {/* Breadcrumb Navigation */}
-          <div style={{ marginBottom: '24px' }}>
-            <nav style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: 'rgba(255, 255, 255, 0.6)' }}>
-              <Link href="/" style={{ color: 'rgba(255, 255, 255, 0.6)', textDecoration: 'none' }}>Home</Link>
+
+        {/* Hero Section with Gradient */}
+        <div style={{ background: 'linear-gradient(to bottom, #13343B, #091717)' }}> {/* Teal Dark to Offblack */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <h1 className="text-4xl md:text-5xl font-bold mb-4" style={{ color: '#FCFAF6' }}>{event.title}</h1>
+            
+            {/* Breadcrumb */}
+            <nav style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', color: '#BADFDE', marginBottom: '16px' }}> {/* Sky color */}
+              <Link href="/" style={{ color: '#BADFDE', textDecoration: 'none' }}>Home</Link>
               <span>/</span>
-              <Link href="/" style={{ color: 'rgba(255, 255, 255, 0.6)', textDecoration: 'none' }}>Events</Link>
+              <Link href="/discover" style={{ color: '#BADFDE', textDecoration: 'none' }}>Events</Link>
               <span>/</span>
-              <Link href={`/${citySlug}`} style={{ color: 'rgba(255, 255, 255, 0.6)', textDecoration: 'none' }}>{event.city}</Link>
+              <Link href={`/${citySlug}`} style={{ color: '#BADFDE', textDecoration: 'none' }}>{event.city}</Link>
               <span>/</span>
-              <span style={{ color: '#FFFFFF' }}>{event.title}</span>
+              <span style={{ color: '#FCFAF6' }}>{event.title}</span>
             </nav>
           </div>
+        </div>
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
 
           {/* Event Card */}
           <article 
             itemScope 
             itemType="https://schema.org/Event"
             style={{ 
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
+              background: '#13343B', /* Teal Dark for card */
+              border: '1px solid #2E565D', /* Teal Medium border */
               borderRadius: '16px',
               overflow: 'hidden'
             }}
@@ -358,9 +353,10 @@ export default async function EventPage({ params }: EventPageProps) {
                 <div style={{ 
                   display: 'inline-block',
                   padding: '8px 16px',
-                  background: 'rgba(255, 107, 53, 0.2)',
-                  color: '#FF6B35',
+                  background: '#091717', /* Offblack in dark mode */
+                  color: '#20B8CD',
                   borderRadius: '8px',
+                  border: '1px solid #2E565D',
                   fontSize: '14px',
                   fontWeight: 600,
                   marginBottom: '16px'
@@ -375,7 +371,7 @@ export default async function EventPage({ params }: EventPageProps) {
                 style={{ 
                   fontSize: '36px', 
                   fontWeight: 700, 
-                  color: '#FFFFFF', 
+                  color: '#FCFAF6', 
                   marginBottom: '24px',
                   lineHeight: 1.2
                 }}
@@ -396,30 +392,31 @@ export default async function EventPage({ params }: EventPageProps) {
                   alignItems: 'flex-start', 
                   gap: '12px',
                   padding: '16px',
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  borderRadius: '8px'
+                  background: '#091717',
+                  borderRadius: '8px',
+                  border: '1px solid #2E565D'
                 }}>
-                  <svg width="24" height="24" fill="none" stroke="#FF6B35" viewBox="0 0 24 24" strokeWidth="2">
+                  <svg width="24" height="24" fill="none" stroke="#20B8CD" viewBox="0 0 24 24" strokeWidth="2">
                     <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
                     <line x1="16" y1="2" x2="16" y2="6"/>
                     <line x1="8" y1="2" x2="8" y2="6"/>
                     <line x1="3" y1="10" x2="21" y2="10"/>
                   </svg>
                   <div>
-                    <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.6)', marginBottom: '4px' }}>Datum & Uhrzeit</div>
-                    <div style={{ color: '#FFFFFF', fontWeight: 600 }}>
+                    <div style={{ fontSize: '12px', color: '#BADFDE', marginBottom: '4px' }}>Datum & Uhrzeit</div>
+                    <div style={{ color: '#FCFAF6', fontWeight: 600 }}>
                       <span itemProp="startDate" content={`${event.date}T${event.time || '00:00'}:00`}>
                         {formatGermanDate(event.date)}
                       </span>
                     </div>
                     {event.time && event.time !== '00:00' && (
-                      <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '14px' }}>
+                      <div style={{ color: '#FCFAF6', fontSize: '14px' }}>
                         {event.time} Uhr
                         {event.endTime && ` - ${event.endTime} Uhr`}
                       </div>
                     )}
                     {(!event.time || event.time === '00:00') && (
-                      <div style={{ color: 'rgba(255, 255, 255, 0.8)', fontSize: '14px' }}>
+                      <div style={{ color: '#FCFAF6', fontSize: '14px' }}>
                         ganztags
                       </div>
                     )}
@@ -437,17 +434,18 @@ export default async function EventPage({ params }: EventPageProps) {
                     alignItems: 'flex-start', 
                     gap: '12px',
                     padding: '16px',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    borderRadius: '8px'
+                    background: '#091717',
+                    borderRadius: '8px',
+                  border: '1px solid #2E565D'
                   }}
                 >
-                  <svg width="24" height="24" fill="none" stroke="#FF6B35" viewBox="0 0 24 24" strokeWidth="2">
+                  <svg width="24" height="24" fill="none" stroke="#20B8CD" viewBox="0 0 24 24" strokeWidth="2">
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
                     <circle cx="12" cy="10" r="3"/>
                   </svg>
                   <div>
-                    <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.6)', marginBottom: '4px' }}>Location</div>
-                    <div style={{ color: '#FFFFFF', fontWeight: 600 }} itemProp="name">
+                    <div style={{ fontSize: '12px', color: '#BADFDE', marginBottom: '4px' }}>Location</div>
+                    <div style={{ color: '#FCFAF6', fontWeight: 600 }} itemProp="name">
                       {event.venue}
                     </div>
                     {event.address && (
@@ -464,7 +462,7 @@ export default async function EventPage({ params }: EventPageProps) {
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{ 
-                          color: '#4A90E2', 
+                          color: '#20B8CD', 
                           fontSize: '14px',
                           textDecoration: 'none',
                           marginTop: '4px',
@@ -491,16 +489,17 @@ export default async function EventPage({ params }: EventPageProps) {
                     alignItems: 'flex-start', 
                     gap: '12px',
                     padding: '16px',
-                    background: 'rgba(255, 255, 255, 0.05)',
-                    borderRadius: '8px'
+                    background: '#091717',
+                    borderRadius: '8px',
+                  border: '1px solid #2E565D'
                   }}>
-                    <svg width="24" height="24" fill="none" stroke="#FF6B35" viewBox="0 0 24 24" strokeWidth="2">
+                    <svg width="24" height="24" fill="none" stroke="#20B8CD" viewBox="0 0 24 24" strokeWidth="2">
                       <line x1="12" y1="1" x2="12" y2="23"></line>
                       <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                     </svg>
                     <div>
-                      <div style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.6)', marginBottom: '4px' }}>Preis</div>
-                      <div style={{ color: '#FFFFFF', fontWeight: 600 }}>
+                      <div style={{ fontSize: '12px', color: '#BADFDE', marginBottom: '4px' }}>Preis</div>
+                      <div style={{ color: '#FCFAF6', fontWeight: 600 }}>
                         {event.price}
                       </div>
                     </div>
@@ -511,13 +510,13 @@ export default async function EventPage({ params }: EventPageProps) {
               {/* Description */}
               {event.description && (
                 <div style={{ marginBottom: '32px' }}>
-                  <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#FFFFFF', marginBottom: '12px' }}>
+                  <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#FCFAF6', marginBottom: '12px' }}>
                     Über dieses Event
                   </h2>
                   <div 
                     itemProp="description"
                     style={{ 
-                      color: 'rgba(255, 255, 255, 0.8)', 
+                      color: '#FCFAF6', 
                       lineHeight: 1.6,
                       fontSize: '16px'
                     }}
@@ -539,9 +538,10 @@ export default async function EventPage({ params }: EventPageProps) {
                       alignItems: 'center',
                       gap: '8px',
                       padding: '14px 28px',
-                      background: '#FF6B35',
-                      color: '#FFFFFF',
+                      background: '#20B8CD',
+                      color: '#FCFAF6',
                       borderRadius: '8px',
+                  border: '1px solid #2E565D',
                       textDecoration: 'none',
                       fontSize: '16px',
                       fontWeight: 600,
@@ -567,13 +567,13 @@ export default async function EventPage({ params }: EventPageProps) {
                       alignItems: 'center',
                       gap: '8px',
                       padding: '14px 28px',
-                      background: 'rgba(255, 255, 255, 0.1)',
-                      color: '#FFFFFF',
+                      background: '#13343B',
+                      color: '#FCFAF6',
                       borderRadius: '8px',
+                      border: '1px solid #2E565D',
                       textDecoration: 'none',
                       fontSize: '16px',
                       fontWeight: 600,
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
                       transition: 'background 0.2s'
                     }}
                   >
@@ -594,8 +594,8 @@ export default async function EventPage({ params }: EventPageProps) {
             <section style={{ marginTop: '32px' }}>
               <div 
                 style={{ 
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  background: '#091717',
+                  border: '1px solid #2E565D',
                   borderRadius: '16px',
                   padding: '24px'
                 }}
@@ -603,13 +603,13 @@ export default async function EventPage({ params }: EventPageProps) {
                 <h2 style={{ 
                   fontSize: '20px', 
                   fontWeight: 700, 
-                  color: '#FFFFFF', 
+                  color: '#FCFAF6', 
                   marginBottom: '20px',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '8px'
                 }}>
-                  <svg width="20" height="20" fill="none" stroke="#FF6B35" viewBox="0 0 24 24" strokeWidth="2">
+                  <svg width="20" height="20" fill="none" stroke="#20B8CD" viewBox="0 0 24 24" strokeWidth="2">
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
                     <circle cx="12" cy="10" r="3"/>
                   </svg>
@@ -638,13 +638,13 @@ export default async function EventPage({ params }: EventPageProps) {
                 alignItems: 'center',
                 gap: '8px',
                 padding: '12px 24px',
-                background: 'rgba(255, 255, 255, 0.05)',
-                color: '#FFFFFF',
+                background: '#091717',
+                color: '#FCFAF6',
                 borderRadius: '8px',
+                border: '1px solid #2E565D',
                 textDecoration: 'none',
                 fontWeight: 600,
-                fontSize: '16px',
-                border: '1px solid rgba(255, 255, 255, 0.1)'
+                fontSize: '16px'
               }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -698,6 +698,7 @@ function RelatedEventRow({ event, citySlug }: { event: RelatedEvent; citySlug: s
         padding: '12px',
         background: 'rgba(255, 255, 255, 0.03)',
         borderRadius: '8px',
+                  border: '1px solid #2E565D',
         textDecoration: 'none',
         transition: 'background 0.2s ease',
       }}
@@ -709,9 +710,10 @@ function RelatedEventRow({ event, citySlug }: { event: RelatedEvent; citySlug: s
           width: '60px',
           height: '60px',
           borderRadius: '8px',
+                  border: '1px solid #2E565D',
           overflow: 'hidden',
           flexShrink: 0,
-          background: 'rgba(255, 255, 255, 0.1)',
+          background: '#13343B',
         }}
       >
         {imageUrl ? (
@@ -750,7 +752,7 @@ function RelatedEventRow({ event, citySlug }: { event: RelatedEvent; citySlug: s
         <h3 style={{
           fontSize: '15px',
           fontWeight: 600,
-          color: '#FFFFFF',
+          color: '#FCFAF6',
           marginBottom: '4px',
           overflow: 'hidden',
           textOverflow: 'ellipsis',
@@ -760,7 +762,7 @@ function RelatedEventRow({ event, citySlug }: { event: RelatedEvent; citySlug: s
         </h3>
         <div style={{
           fontSize: '13px',
-          color: 'rgba(255, 255, 255, 0.6)',
+          color: '#BADFDE',
           display: 'flex',
           alignItems: 'center',
           gap: '6px',

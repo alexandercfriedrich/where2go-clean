@@ -79,7 +79,7 @@ export default async function VenuePage({ params }: VenuePageProps) {
   const { venue, stats, upcoming_events } = venueData;
 
   return (
-    <div className="min-h-screen bg-[#0a0f1a] text-white">
+    <div className="min-h-screen text-white" style={{ backgroundColor: '#091717' }}> {/* Offblack */}
       {/* Navigation */}
       <div className="border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -103,7 +103,7 @@ export default async function VenuePage({ params }: VenuePageProps) {
       </div>
 
       {/* Hero Section */}
-      <div className="bg-gradient-to-b from-[#1a2332] to-[#0a0f1a]">
+      <div style={{ background: 'linear-gradient(to bottom, #13343B, #091717)' }}> {/* Teal Dark to Offblack */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">{venue.name}</h1>
 
@@ -189,8 +189,8 @@ export default async function VenuePage({ params }: VenuePageProps) {
                   key={source}
                   className="px-4 py-2 rounded-lg text-sm font-medium"
                   style={{
-                    background: 'rgba(255, 107, 53, 0.2)',
-                    color: '#FF6B35',
+                    background: 'rgba(32, 184, 205, 0.2)',
+                    color: '#20B8CD',
                   }}
                 >
                   {source}
@@ -263,7 +263,7 @@ export default async function VenuePage({ params }: VenuePageProps) {
           </h2>
 
           {upcoming_events && Array.isArray(upcoming_events) && upcoming_events.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {upcoming_events.map((event: any) => (
                 <EventCard
                   key={event.id}
@@ -300,7 +300,7 @@ function StatCard({ value, label }: { value: number; label: string }) {
     >
       <div
         className="text-3xl md:text-4xl font-bold mb-2"
-        style={{ color: '#FF6B35' }}
+        style={{ color: '#20B8CD' }}
       >
         {value}
       </div>
