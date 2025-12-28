@@ -160,7 +160,7 @@ export default function DiscoveryClient({
         />
 
         {/* Hero Section */}
-        <div style={{ backgroundColor: '#13343B' }} className="text-white">
+        <div style={{ backgroundColor: '#091717' }} className="text-white"> {/* Offblack */}
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
             <h1 className="text-3xl md:text-5xl font-bold mb-4">
               {getPageTitle()}
@@ -305,15 +305,6 @@ export default function DiscoveryClient({
                 </p>
               </div>
             )}
-
-          {/* HowTo Section */}
-          <div className="max-w-4xl mx-auto">
-            <HowToSection
-              title={getDiscoverPageHowTo(city).title}
-              description={getDiscoverPageHowTo(city).description}
-              steps={getDiscoverPageHowTo(city).steps}
-            />
-          </div>
 
           {/* FAQ Section */}
           <div className="max-w-4xl mx-auto">

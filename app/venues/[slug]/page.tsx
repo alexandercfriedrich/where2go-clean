@@ -300,7 +300,7 @@ function StatCard({ value, label }: { value: number; label: string }) {
     >
       <div
         className="text-3xl md:text-4xl font-bold mb-2"
-        style={{ color: '#FF6B35' }}
+        style={{ color: '#20B8CD' }}
       >
         {value}
       </div>
