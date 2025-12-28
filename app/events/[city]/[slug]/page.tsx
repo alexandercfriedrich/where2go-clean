@@ -358,7 +358,7 @@ export default async function EventPage({ params }: EventPageProps) {
                 <div style={{ 
                   display: 'inline-block',
                   padding: '8px 16px',
-                  background: 'rgba(255, 107, 53, 0.2)',
+                  background: '#091717', /* Offblack in dark mode */
                   color: '#20B8CD',
                   borderRadius: '8px',
                   fontSize: '14px',

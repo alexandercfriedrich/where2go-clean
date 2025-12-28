@@ -75,41 +75,46 @@ export function LocationBar({
   };
   
   return (
-    <div className="sticky top-16 md:top-18 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
+    <div className="sticky top-16 md:top-18 z-10 border-b shadow-sm" style={{ backgroundColor: '#091717', borderColor: '#2E565D' }}> {/* Offblack with Teal Medium border */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-center h-12">
           {/* City Dropdown */}
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="flex items-center space-x-2 px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              className="flex items-center space-x-2 px-4 py-2 hover:bg-gray-800 rounded-lg transition-colors"
               aria-label="Select city"
               aria-expanded={isOpen}
+              style={{ color: '#FCFAF6' }} /* Paper White */
             >
-              <svg className="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: '#BADFDE' }}> {/* Sky color for icon */}
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              <span className="text-sm font-medium">
                 {initialCity}
               </span>
-              <svg className="w-4 h-4 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ color: '#BADFDE' }}> {/* Sky color for icon */}
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
             </button>
             
             {/* Dropdown Menu */}
             {isOpen && cities.length > 0 && (
-              <div className="absolute top-full left-0 mt-1 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-20">
+              <div className="absolute top-full left-0 mt-1 w-48 rounded-lg shadow-lg border py-1 z-20" style={{ backgroundColor: '#13343B', borderColor: '#2E565D' }}> {/* Teal Dark */}
                 {cities.map((city) => (
                   <button
                     key={city.slug}
                     onClick={() => handleCityChange(city.slug)}
-                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-700 transition-colors ${
                       city.name === initialCity 
-                        ? 'bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 font-medium' 
-                        : 'text-gray-700 dark:text-gray-300'
+                        ? 'font-medium' 
+                        : ''
                     }`}
+                    style={{ 
+                      color: city.name === initialCity ? '#20B8CD' : '#FCFAF6',
+                      backgroundColor: city.name === initialCity ? 'rgba(32, 184, 205, 0.1)' : undefined
+                    }}
                   >
                     {city.name}
                   </button>

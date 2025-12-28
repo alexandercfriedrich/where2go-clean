@@ -31,26 +31,56 @@ export function CategoryBrowser({
               onClick={() => onCategoryClick?.(category.id)}
               className={`relative p-6 rounded-2xl transition-all duration-200 hover:scale-105 ${
                 isSelected 
-                  ? 'ring-2 ring-offset-2 ring-white dark:ring-gray-800 shadow-lg' 
+                  ? 'ring-2 ring-offset-2 ring-brand-turquoise shadow-lg' 
                   : 'shadow-md hover:shadow-xl'
-              } ${
-                // Dark mode: dark background, white text/icons
-                // Light mode: light background, dark text/icons
-                'bg-[#2a2a2a] dark:bg-gray-100 border border-white dark:border-gray-300'
               }`}
-              style={isSelected ? {
-                backgroundColor: isSelected ? '#000000' : undefined,
-              } : undefined}
+              style={{
+                backgroundColor: isSelected ? '#20B8CD' : undefined,
+              }}
+              // Dark mode: Teal Dark background, Paper White text
+              // Light mode: Paper White background, Offblack text
+              data-theme-bg={isSelected ? 'selected' : 'default'}
             >
-              {/* Icon - white in dark mode, dark in light mode */}
-              <div className="text-4xl mb-3 text-center text-white dark:text-gray-900">
+              {/* Icon */}
+              <div 
+                className="text-4xl mb-3 text-center"
+                style={{
+                  color: isSelected ? '#FCFAF6' : undefined,
+                }}
+              >
                 {category.icon}
               </div>
 
-              {/* Name - white text in dark mode, dark in light mode */}
-              <div className="text-sm font-semibold text-center text-white dark:text-gray-900">
+              {/* Name */}
+              <div 
+                className="text-sm font-semibold text-center"
+                style={{
+                  color: isSelected ? '#FCFAF6' : undefined,
+                }}
+              >
                 {category.name}
               </div>
+
+              {/* Inline styles for theme-aware backgrounds */}
+              <style jsx>{`
+                button[data-theme-bg="default"] {
+                  background-color: #FCFAF6; /* Paper White in light mode */
+                  color: #091717; /* Offblack text in light mode */
+                }
+                
+                :global(.dark) button[data-theme-bg="default"] {
+                  background-color: #13343B; /* Teal Dark in dark mode */
+                  color: #FCFAF6; /* Paper White text in dark mode */
+                }
+                
+                button[data-theme-bg="default"]:hover {
+                  background-color: #E5E3D4; /* Ecru on hover light mode */
+                }
+                
+                :global(.dark) button[data-theme-bg="default"]:hover {
+                  background-color: #2E565D; /* Teal Medium on hover dark mode */
+                }
+              `}</style>
             </button>
           );
         })}

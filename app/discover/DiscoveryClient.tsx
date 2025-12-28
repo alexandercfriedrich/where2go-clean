@@ -151,16 +151,18 @@ export default function DiscoveryClient({
   return (
     <ThemeProvider>
       <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
-        {/* Navigation */}
-        <DiscoveryNav />
-        
-        {/* Location Bar (simplified - city display only) */}
-        <LocationBar 
-          initialCity={city}
-        />
+        {/* Navigation with Offblack background */}
+        <div style={{ backgroundColor: '#091717' }}>
+          <DiscoveryNav />
+          
+          {/* Location Bar (simplified - city display only) */}
+          <LocationBar 
+            initialCity={city}
+          />
+        </div>
 
         {/* Hero Section */}
-        <div style={{ backgroundColor: '#091717' }} className="text-white"> {/* Offblack */}
+        <div style={{ backgroundColor: '#13343B' }} className="text-white"> {/* Teal Dark */}
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
             <h1 className="text-3xl md:text-5xl font-bold mb-4">
               {getPageTitle()}

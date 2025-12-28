@@ -144,8 +144,8 @@ export default function MainFooter() {
 
       <style jsx>{`
         .main-footer {
-          background: #13343B; /* Teal Dark */
-          color: #ffffff;
+          background: #091717; /* Offblack */
+          color: #FCFAF6; /* Paper White */
           padding: 48px 0 32px;
           margin-top: 80px;
         }
@@ -157,7 +157,7 @@ export default function MainFooter() {
         }
         
         .footer-category-accordion h3 {
-          color: #ffffff;
+          color: #FCFAF6; /* Paper White */
           font-size: 24px;
           font-weight: 600;
           margin-bottom: 32px;
@@ -192,7 +192,7 @@ export default function MainFooter() {
           background: transparent;
           border: none;
           cursor: pointer;
-          color: #ffffff;
+          color: #FCFAF6; /* Paper White */
           transition: all 0.2s ease;
         }
         
@@ -218,7 +218,7 @@ export default function MainFooter() {
         .category-name {
           font-size: 16px;
           font-weight: 600;
-          color: #ffffff;
+          color: #FCFAF6; /* Paper White */
         }
         
         .chevron {
