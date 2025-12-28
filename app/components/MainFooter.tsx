@@ -144,7 +144,7 @@ export default function MainFooter() {
 
       <style jsx>{`
         .main-footer {
-          background: #1a2332;
+          background: #13343B; /* Teal Dark */
           color: #ffffff;
           padding: 48px 0 32px;
           margin-top: 80px;
@@ -173,14 +173,14 @@ export default function MainFooter() {
         .category-card {
           background: rgba(255, 255, 255, 0.03);
           border-radius: 12px;
-          border-left: 4px solid #14b8a6;
+          border-left: 4px solid #20B8CD;
           overflow: hidden;
           transition: all 0.3s ease;
         }
         
         .category-card:hover {
           background: rgba(255, 255, 255, 0.05);
-          border-left-color: #0d9488;
+          border-left-color: #218090;
         }
         
         .category-header {
@@ -223,7 +223,7 @@ export default function MainFooter() {
         
         .chevron {
           transition: transform 0.3s ease;
-          color: #14b8a6;
+          color: #20B8CD;
           flex-shrink: 0;
         }
         
@@ -289,8 +289,8 @@ export default function MainFooter() {
         }
         
         .category-link:hover {
-          background: rgba(20, 184, 166, 0.1);
-          color: #14b8a6;
+          background: rgba(32, 184, 205, 0.1);
+          color: #20B8CD;
           transform: translateX(4px);
         }
 
@@ -320,7 +320,7 @@ export default function MainFooter() {
         }
 
         .footer-link:hover {
-          color: #14b8a6;
+          color: #20B8CD;
         }
 
         .footer-copyright {

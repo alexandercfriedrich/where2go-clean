@@ -24,7 +24,7 @@ export function DiscoveryNav() {
         <div className="flex items-center justify-between h-16 md:h-18">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
-            <span className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 dark:from-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">
+            <span className="text-2xl font-bold font-heading text-brand-turquoise" style={{ color: '#20B8CD' }}>
               Where2Go
             </span>
           </Link>
@@ -33,13 +33,15 @@ export function DiscoveryNav() {
           <div className="hidden md:flex items-center space-x-8">
             <Link
               href="/"
-              className="text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors"
+              className="text-gray-700 dark:text-gray-300 hover:text-brand-turquoise dark:hover:text-brand-turquoise font-medium transition-colors"
+              style={{ fontFamily: 'var(--font-body)' }}
             >
               Discover
             </Link>
             <Link
               href="/blog"
-              className="text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 font-medium transition-colors"
+              className="text-gray-700 dark:text-gray-300 hover:text-brand-turquoise dark:hover:text-brand-turquoise font-medium transition-colors"
+              style={{ fontFamily: 'var(--font-body)' }}
             >
               Blog
             </Link>
@@ -68,7 +70,14 @@ export function DiscoveryNav() {
             <div className="relative">
               <button 
                 onClick={handleSignInClick}
-                className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-medium transition-colors"
+                className="px-4 py-2 rounded-lg font-medium transition-colors font-heading"
+                style={{ 
+                  backgroundColor: '#20B8CD', 
+                  color: '#FCFAF6',
+                  fontFamily: 'var(--font-heading)'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#218090'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#20B8CD'}
               >
                 Sign In
               </button>
