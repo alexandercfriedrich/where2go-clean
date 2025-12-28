@@ -16,36 +16,51 @@ export default function StaticPageRenderer({
   const [content, setContent] = useState<string | null>(null);
   const [title, setTitle] = useState<string>(fallbackTitle);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [useFallback, setUseFallback] = useState(false);
 
   // Apply design1.css
   useEffect(() => {
     const id = 'w2g-design-css';
-    const existing = document.getElementById(id) as HTMLLinkElement | null;
     const href = `/designs/design1.css`;
-    
+    const existing = document.getElementById(id) as HTMLLinkElement | null;
+    let created = false;
+
     if (existing) {
-      if (existing.getAttribute('href') !== href) existing.setAttribute('href', href);
+      if (existing.getAttribute('href') !== href) {
+        existing.setAttribute('href', href);
+      }
     } else {
       const link = document.createElement('link');
       link.id = id;
       link.rel = 'stylesheet';
       link.href = href;
       document.head.appendChild(link);
+      created = true;
     }
+
+    return () => {
+      if (created) {
+        const link = document.getElementById(id);
+        if (link && link.parentNode) {
+          link.parentNode.removeChild(link);
+        }
+      }
+    };
   }, []);
 
   useEffect(() => {
     async function loadContent() {
       try {
         setLoading(true);
-        const res = await fetch(`/api/static-pages/${pageId}`, { cache: 'no-store' });
+        const res = await fetch(`/api/static-pages/${pageId}`, { 
+          next: { revalidate: 3600 } 
+        });
         
         if (!res.ok) {
           // Page not found in database, use fallback
           if (res.status === 404) {
             setContent(null);
-            setError('Page not found in database, using fallback content');
+            setUseFallback(true);
           } else {
             throw new Error('Failed to load page');
           }
@@ -54,11 +69,12 @@ export default function StaticPageRenderer({
           if (data.page) {
             setTitle(data.page.title);
             setContent(data.page.content);
+            setUseFallback(false);
           }
         }
       } catch (err) {
         console.error('Error loading static page:', err);
-        setError(err instanceof Error ? err.message : 'Unknown error');
+        setUseFallback(true);
       } finally {
         setLoading(false);
       }
@@ -83,13 +99,13 @@ export default function StaticPageRenderer({
   }
 
   // If no content from database and no fallback, show message
-  if (!content && !fallbackContent) {
+  if (useFallback && !fallbackContent) {
     return (
       <div className="container" style={{ minHeight: '100vh', padding: '2rem 0' }}>
         <div className="events-grid" style={{ maxWidth: '800px', margin: '0 auto' }}>
           <div className="event-card">
             <div className="event-content">
-              <h1 className="event-title" style={{ fontSize: '2rem', marginBottom: '2rem' }}>{title}</h1>
+              <h1 className="event-title" style={{ fontSize: '2rem', marginBottom: '2rem' }}>{fallbackTitle}</h1>
               <p>Content not available. Please contact the administrator.</p>
               <div className="event-actions" style={{ justifyContent: 'center', marginTop: '2rem' }}>
                 <a href="/" className="event-action-btn event-info-btn">
@@ -107,15 +123,12 @@ export default function StaticPageRenderer({
     );
   }
 
-  // Render database content if available, otherwise fallback
-  const shouldUseFallback = !content && fallbackContent;
-
   return (
     <div className="container" style={{ minHeight: '100vh', padding: '2rem 0' }}>
       <div className="events-grid" style={{ maxWidth: '800px', margin: '0 auto' }}>
         <div className="event-card">
           <div className="event-content">
-            {shouldUseFallback ? (
+            {useFallback ? (
               fallbackContent
             ) : (
               <>

@@ -72,11 +72,11 @@ export default function DiscoveryClient({
   useEffect(() => {
     if (initialCategory !== undefined) {
       const nextCategory = initialCategory || null;
-      if (nextCategory !== selectedCategory) {
-        setSelectedCategory(nextCategory);
-      }
+      setSelectedCategory(prevCategory => 
+        prevCategory === nextCategory ? prevCategory : nextCategory
+      );
     }
-  }, [initialCategory, selectedCategory]);
+  }, [initialCategory]);
 
   // Filter events by category and date using the shared utility
   useEffect(() => {

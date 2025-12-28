@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { slugify } from '@/lib/utils/slugify';
+import { getAllCategories } from '@/lib/events/category-utils';
 
 interface City {
   name: string;
@@ -18,6 +19,13 @@ export default function MainFooter() {
   const [cities, setCities] = useState<City[]>([]);
   const [accordionState, setAccordionState] = useState<AccordionState>({});
   
+  const categories = getAllCategories();
+  const timeFilters = [
+    { label: 'heute', slug: 'heute' },
+    { label: 'morgen', slug: 'morgen' },
+    { label: 'am Wochenende', slug: 'wochenende' }
+  ];
+
   useEffect(() => {
     const loadCities = async () => {
       try {
@@ -35,10 +43,10 @@ export default function MainFooter() {
             }));
             setCities(cityList);
             
-            // Initialize accordion state - all closed on mobile
+            // Initialize accordion state - Clubs & Nachtleben open, others closed
             const initialState: AccordionState = {};
-            cityList.forEach((city: City) => {
-              initialState[city.slug] = false;
+            categories.forEach((category) => {
+              initialState[category.id] = category.name === 'Clubs & Nachtleben';
             });
             setAccordionState(initialState);
           }
@@ -51,48 +59,73 @@ export default function MainFooter() {
     loadCities();
   }, []);
   
-  const toggleAccordion = (citySlug: string) => {
+  const toggleAccordion = (categoryId: string) => {
     setAccordionState(prev => ({
       ...prev,
-      [citySlug]: !prev[citySlug]
+      [categoryId]: !prev[categoryId]
     }));
   };
+
+  // Get the primary city (first city or Wien as default)
+  const primaryCity = cities.length > 0 ? cities[0] : { name: 'Wien', slug: 'wien' };
   
   return (
     <footer className="main-footer">
       <div className="container">
-        {/* City Links Section with Accordion on Mobile */}
-        {cities.length > 0 && (
-          <div className="footer-city-links">
-            <h3>Events in deiner Stadt</h3>
-            <div className="city-links-grid">
-              {cities.map((city) => (
-                <div key={city.slug} className="city-group">
+        {/* Category Accordion Section */}
+        <div className="footer-category-accordion">
+          <h3>Events nach Kategorie</h3>
+          <div className="category-grid">
+            {categories.map((category) => {
+              const isOpen = accordionState[category.id];
+              const categorySlug = slugify(category.name);
+              
+              return (
+                <div key={category.id} className={`category-card ${isOpen ? 'open' : ''}`}>
                   <button 
-                    className="city-accordion-header"
-                    onClick={() => toggleAccordion(city.slug)}
-                    aria-expanded={accordionState[city.slug]}
+                    className="category-header"
+                    onClick={() => toggleAccordion(category.id)}
+                    aria-expanded={isOpen}
+                    aria-label={`Toggle events for ${category.name}`}
                   >
-                    <span className="city-name">{city.name}</span>
-                    <span className="accordion-icon">{accordionState[city.slug] ? '−' : '+'}</span>
+                    <div className="category-info">
+                      <span className="category-icon">{category.icon}</span>
+                      <span className="category-name">{category.name}</span>
+                    </div>
+                    <svg 
+                      className="chevron"
+                      width="20" 
+                      height="20" 
+                      viewBox="0 0 24 24" 
+                      fill="none" 
+                      stroke="currentColor" 
+                      strokeWidth="2"
+                    >
+                      <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
                   </button>
-                  <div className={`city-links-content ${accordionState[city.slug] ? 'open' : ''}`}>
-                    <Link href={`/${city.slug}?date=today`} className="city-link">
-                      Events heute in {city.name}
-                    </Link>
-                    <Link href={`/${city.slug}?date=tomorrow`} className="city-link">
-                      Events morgen in {city.name}
-                    </Link>
-                    <Link href={`/${city.slug}?date=weekend`} className="city-link">
-                      Events am Wochenende in {city.name}
-                    </Link>
+                  <div className="category-content">
+                    <div className="category-links">
+                      {timeFilters.map((filter, idx) => (
+                        <Link
+                          key={filter.slug}
+                          href={`/${primaryCity.slug}/${categorySlug}/${filter.slug}`}
+                          className="category-link"
+                          style={{ animationDelay: `${idx * 50}ms` }}
+                        >
+                          <span className="sr-only">{category.name} Events </span>
+                          {filter.label} in {primaryCity.name}
+                        </Link>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
-        )}
+        </div>
         
+        {/* Standard Footer Links */}
         <div className="footer-content">
           <div className="footer-links">
             <a href="/blog" className="footer-link">Blog</a>
@@ -111,92 +144,157 @@ export default function MainFooter() {
 
       <style jsx>{`
         .main-footer {
-          background: #1a1a1a;
+          background: #1a2332;
           color: #ffffff;
-          padding: 32px 0;
+          padding: 48px 0 32px;
           margin-top: 80px;
-          border-top: 1px solid #333;
         }
         
-        .footer-city-links {
-          padding: 40px 0;
-          border-bottom: 1px solid #333;
+        .footer-category-accordion {
+          padding: 0 0 48px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
           margin-bottom: 32px;
         }
         
-        .footer-city-links h3 {
+        .footer-category-accordion h3 {
           color: #ffffff;
-          font-size: 20px;
+          font-size: 24px;
           font-weight: 600;
           margin-bottom: 32px;
           text-align: center;
         }
         
-        .city-links-grid {
+        .category-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-          gap: 32px 24px;
+          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+          gap: 16px;
         }
         
-        .city-group {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
+        .category-card {
+          background: rgba(255, 255, 255, 0.03);
+          border-radius: 12px;
+          border-left: 4px solid #14b8a6;
+          overflow: hidden;
+          transition: all 0.3s ease;
         }
         
-        .city-accordion-header {
+        .category-card:hover {
+          background: rgba(255, 255, 255, 0.05);
+          border-left-color: #0d9488;
+        }
+        
+        .category-header {
+          width: 100%;
           display: flex;
           justify-content: space-between;
           align-items: center;
+          padding: 16px 20px;
           background: transparent;
           border: none;
           cursor: pointer;
-          padding: 0;
-          margin-bottom: 4px;
-          transition: opacity 0.2s ease;
-        }
-        
-        .city-accordion-header:hover {
-          opacity: 0.8;
-        }
-        
-        .city-name {
           color: #ffffff;
+          transition: all 0.2s ease;
+        }
+        
+        .category-header:hover {
+          background: rgba(255, 255, 255, 0.03);
+        }
+        
+        .category-info {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        
+        .category-icon {
+          font-size: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 32px;
+          height: 32px;
+        }
+        
+        .category-name {
           font-size: 16px;
           font-weight: 600;
+          color: #ffffff;
         }
         
-        .accordion-icon {
-          color: #5b8cff;
-          font-size: 20px;
-          font-weight: 600;
-          display: none;
+        .chevron {
+          transition: transform 0.3s ease;
+          color: #14b8a6;
+          flex-shrink: 0;
         }
         
-        .city-links-content {
+        .category-card.open .chevron {
+          transform: rotate(180deg);
+        }
+        
+        .category-content {
+          max-height: 0;
+          overflow: hidden;
+          transition: max-height 0.3s ease;
+        }
+        
+        .category-card.open .category-content {
+          max-height: 500px;
+        }
+        
+        .category-links {
+          padding: 0 20px 16px;
           display: flex;
           flex-direction: column;
           gap: 8px;
         }
         
-        .city-link {
-          color: #5b8cff;
+        .category-link {
+          color: #94a3b8;
           text-decoration: none;
           font-size: 14px;
-          line-height: 1.6;
-          transition: color 0.2s ease;
+          padding: 8px 12px;
+          border-radius: 6px;
+          transition: all 0.2s ease;
+          opacity: 0;
+          transform: translateX(-10px);
+          animation: slideIn 0.3s ease forwards;
         }
         
-        .city-link:hover {
-          color: #4a7de8;
-          text-decoration: underline;
+        @keyframes slideIn {
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+        
+        .category-card:not(.open) .category-link {
+          animation: none;
+        }
+        
+        .category-link:hover {
+          background: rgba(20, 184, 166, 0.1);
+          color: #14b8a6;
+          transform: translateX(4px);
+        }
+        
+        .sr-only {
+          position: absolute;
+          width: 1px;
+          height: 1px;
+          padding: 0;
+          margin: -1px;
+          overflow: hidden;
+          clip: rect(0, 0, 0, 0);
+          white-space: nowrap;
+          border-width: 0;
         }
 
         .footer-content {
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 20px;
+          gap: 24px;
+          padding-top: 24px;
         }
 
         .footer-links {
@@ -208,7 +306,7 @@ export default function MainFooter() {
         }
 
         .footer-link {
-          color: #e0e0e0;
+          color: #94a3b8;
           text-decoration: none;
           font-size: 14px;
           font-weight: 400;
@@ -217,8 +315,7 @@ export default function MainFooter() {
         }
 
         .footer-link:hover {
-          color: #ffffff;
-          text-decoration: underline;
+          color: #14b8a6;
         }
 
         .footer-copyright {
@@ -226,55 +323,57 @@ export default function MainFooter() {
         }
 
         .footer-copyright p {
-          color: #9ca3af;
+          color: #64748b;
           font-size: 13px;
           margin: 0;
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 767px) {
           .main-footer {
-            padding: 24px 0;
+            padding: 32px 0 24px;
             margin-top: 60px;
           }
           
-          .footer-city-links {
-            padding: 32px 0;
+          .footer-category-accordion {
+            padding: 0 0 32px;
             margin-bottom: 24px;
           }
           
-          .footer-city-links h3 {
-            font-size: 18px;
+          .footer-category-accordion h3 {
+            font-size: 20px;
             margin-bottom: 24px;
           }
           
-          .city-links-grid {
+          .category-grid {
             grid-template-columns: 1fr;
-            gap: 16px;
+            gap: 12px;
           }
           
-          .accordion-icon {
-            display: block;
+          .category-card {
+            border-left-width: 3px;
           }
           
-          .city-links-content {
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height 0.3s ease, opacity 0.3s ease;
-            opacity: 0;
+          .category-header {
+            padding: 14px 16px;
           }
           
-          .city-links-content.open {
-            max-height: 200px;
-            opacity: 1;
-            margin-top: 8px;
+          .category-icon {
+            font-size: 20px;
+            width: 28px;
+            height: 28px;
           }
           
-          .city-name {
+          .category-name {
             font-size: 15px;
           }
           
-          .city-link {
+          .category-links {
+            padding: 0 16px 14px;
+          }
+          
+          .category-link {
             font-size: 13px;
+            padding: 6px 10px;
           }
 
           .footer-links {
@@ -287,9 +386,15 @@ export default function MainFooter() {
           }
         }
         
-        @media (min-width: 769px) {
-          .city-links-content {
-            display: flex !important;
+        @media (min-width: 768px) {
+          .category-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+        
+        @media (min-width: 1024px) {
+          .category-grid {
+            grid-template-columns: repeat(3, 1fr);
           }
         }
       `}</style>
