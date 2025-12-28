@@ -1,8 +1,10 @@
+import { ThemeProvider } from '@/components/ui/ThemeProvider';
 import ThemeAwareStaticPage from '../components/ThemeAwareStaticPage';
 
 export default function Impressum() {
   return (
-    <ThemeAwareStaticPage
+    <ThemeProvider>
+      <ThemeAwareStaticPage
       pageId="impressum"
       fallbackTitle="Impressum"
       fallbackContent={
@@ -42,6 +44,7 @@ export default function Impressum() {
           </div>
         </>
       }
-    />
+      />
+    </ThemeProvider>
   );
 }

@@ -1,8 +1,10 @@
+import { ThemeProvider } from '@/components/ui/ThemeProvider';
 import ThemeAwareStaticPage from '../components/ThemeAwareStaticPage';
 
 export default function Datenschutz() {
   return (
-    <ThemeAwareStaticPage
+    <ThemeProvider>
+      <ThemeAwareStaticPage
       pageId="datenschutz"
       fallbackTitle="Datenschutzerklärung"
       fallbackContent={
@@ -53,6 +55,7 @@ export default function Datenschutz() {
           </div>
         </>
       }
-    />
+      />
+    </ThemeProvider>
   );
 }

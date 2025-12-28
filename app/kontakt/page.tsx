@@ -1,8 +1,10 @@
+import { ThemeProvider } from '@/components/ui/ThemeProvider';
 import ThemeAwareStaticPage from '../components/ThemeAwareStaticPage';
 
 export default function Kontakt() {
   return (
-    <ThemeAwareStaticPage
+    <ThemeProvider>
+      <ThemeAwareStaticPage
       pageId="kontakt"
       fallbackTitle="Kontakt"
       fallbackContent={
@@ -55,6 +57,7 @@ export default function Kontakt() {
           </div>
         </>
       }
-    />
+      />
+    </ThemeProvider>
   );
 }

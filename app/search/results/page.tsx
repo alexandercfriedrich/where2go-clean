@@ -14,7 +14,7 @@ import { supabase } from '@/lib/supabase/client';
 import { EventCard } from '@/components/EventCard';
 import PageSearch from '@/components/PageSearch';
 import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
-import { useTheme } from '@/components/ui/ThemeProvider';
+import { ThemeProvider, useTheme } from '@/components/ui/ThemeProvider';
 
 interface EventResult {
   id: string;
@@ -335,15 +335,17 @@ function SearchResultsContent() {
 
 export default function SearchResultsPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#091717' }}>
-        <div className="w-12 h-12 border-4 rounded-full animate-spin" style={{
-          borderColor: 'rgba(32, 184, 205, 0.2)',
-          borderTopColor: '#20B8CD'
-        }} />
-      </div>
-    }>
-      <SearchResultsContent />
-    </Suspense>
+    <ThemeProvider>
+      <Suspense fallback={
+        <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: '#091717' }}>
+          <div className="w-12 h-12 border-4 rounded-full animate-spin" style={{
+            borderColor: 'rgba(32, 184, 205, 0.2)',
+            borderTopColor: '#20B8CD'
+          }} />
+        </div>
+      }>
+        <SearchResultsContent />
+      </Suspense>
+    </ThemeProvider>
   );
 }

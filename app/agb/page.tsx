@@ -1,8 +1,10 @@
+import { ThemeProvider } from '@/components/ui/ThemeProvider';
 import ThemeAwareStaticPage from '../components/ThemeAwareStaticPage';
 
 export default function AGB() {
   return (
-    <ThemeAwareStaticPage
+    <ThemeProvider>
+      <ThemeAwareStaticPage
       pageId="agb"
       fallbackTitle="Allgemeine Geschäftsbedingungen"
       fallbackContent={
@@ -66,6 +68,7 @@ export default function AGB() {
           </div>
         </>
       }
-    />
+      />
+    </ThemeProvider>
   );
 }
