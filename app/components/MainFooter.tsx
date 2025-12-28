@@ -9,9 +9,14 @@ interface City {
   slug: string;
 }
 
+interface AccordionState {
+  [key: string]: boolean;
+}
+
 export default function MainFooter() {
   const currentYear = new Date().getFullYear();
   const [cities, setCities] = useState<City[]>([]);
+  const [accordionState, setAccordionState] = useState<AccordionState>({});
   
   useEffect(() => {
     const loadCities = async () => {
@@ -29,6 +34,13 @@ export default function MainFooter() {
               slug: slugify(city.name)
             }));
             setCities(cityList);
+            
+            // Initialize accordion state - all closed on mobile
+            const initialState: AccordionState = {};
+            cityList.forEach((city: City) => {
+              initialState[city.slug] = false;
+            });
+            setAccordionState(initialState);
           }
         }
       } catch (error) {
@@ -39,26 +51,42 @@ export default function MainFooter() {
     loadCities();
   }, []);
   
+  const toggleAccordion = (citySlug: string) => {
+    setAccordionState(prev => ({
+      ...prev,
+      [citySlug]: !prev[citySlug]
+    }));
+  };
+  
   return (
     <footer className="main-footer">
       <div className="container">
-        {/* City Links Section */}
+        {/* City Links Section with Accordion on Mobile */}
         {cities.length > 0 && (
           <div className="footer-city-links">
             <h3>Events in deiner Stadt</h3>
             <div className="city-links-grid">
               {cities.map((city) => (
                 <div key={city.slug} className="city-group">
-                  <span className="city-name">{city.name}</span>
-                  <Link href={`/${city.slug}?date=today`} className="city-link">
-                    Events heute in {city.name}
-                  </Link>
-                  <Link href={`/${city.slug}?date=tomorrow`} className="city-link">
-                    Events morgen in {city.name}
-                  </Link>
-                  <Link href={`/${city.slug}?date=weekend`} className="city-link">
-                    Events am Wochenende in {city.name}
-                  </Link>
+                  <button 
+                    className="city-accordion-header"
+                    onClick={() => toggleAccordion(city.slug)}
+                    aria-expanded={accordionState[city.slug]}
+                  >
+                    <span className="city-name">{city.name}</span>
+                    <span className="accordion-icon">{accordionState[city.slug] ? '−' : '+'}</span>
+                  </button>
+                  <div className={`city-links-content ${accordionState[city.slug] ? 'open' : ''}`}>
+                    <Link href={`/${city.slug}?date=today`} className="city-link">
+                      Events heute in {city.name}
+                    </Link>
+                    <Link href={`/${city.slug}?date=tomorrow`} className="city-link">
+                      Events morgen in {city.name}
+                    </Link>
+                    <Link href={`/${city.slug}?date=weekend`} className="city-link">
+                      Events am Wochenende in {city.name}
+                    </Link>
+                  </div>
                 </div>
               ))}
             </div>
@@ -116,11 +144,39 @@ export default function MainFooter() {
           gap: 8px;
         }
         
+        .city-accordion-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          padding: 0;
+          margin-bottom: 4px;
+          transition: opacity 0.2s ease;
+        }
+        
+        .city-accordion-header:hover {
+          opacity: 0.8;
+        }
+        
         .city-name {
           color: #ffffff;
           font-size: 16px;
           font-weight: 600;
-          margin-bottom: 4px;
+        }
+        
+        .accordion-icon {
+          color: #5b8cff;
+          font-size: 20px;
+          font-weight: 600;
+          display: none;
+        }
+        
+        .city-links-content {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
         }
         
         .city-link {
@@ -193,7 +249,24 @@ export default function MainFooter() {
           
           .city-links-grid {
             grid-template-columns: 1fr;
-            gap: 24px;
+            gap: 16px;
+          }
+          
+          .accordion-icon {
+            display: block;
+          }
+          
+          .city-links-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease, opacity 0.3s ease;
+            opacity: 0;
+          }
+          
+          .city-links-content.open {
+            max-height: 200px;
+            opacity: 1;
+            margin-top: 8px;
           }
           
           .city-name {
@@ -211,6 +284,12 @@ export default function MainFooter() {
 
           .footer-link {
             font-size: 13px;
+          }
+        }
+        
+        @media (min-width: 769px) {
+          .city-links-content {
+            display: flex !important;
           }
         }
       `}</style>
