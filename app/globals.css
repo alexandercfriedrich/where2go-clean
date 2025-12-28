@@ -25,26 +25,17 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
   line-height: 1.6;
-  color: #333;
-  /* Maja-event.com inspired gradient background */
-  background: linear-gradient(135deg, #2c3e50 0%, #34495e 25%, #2c3e50 50%, #1a252f 75%, #2c3e50 100%);
-  background-size: 400% 400%;
-  animation: gradientShift 15s ease infinite;
+  color: #091717; /* Offblack for light mode */
+  background: #FCFAF6; /* Paper White */
   min-height: 100vh;
 }
 
-@keyframes gradientShift {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
+/* Dark mode body styling handled by design1.css variables */
+[data-theme="dark"] body {
+  background: #091717; /* Offblack */
+  color: #FCFAF6; /* Paper White */
 }
 
 /* Container */
@@ -315,7 +306,7 @@ body {
 }
 
 .event-date {
-  color: #667eea;
+  color: #20B8CD; /* True Turquoise */
   font-weight: 600;
   margin-bottom: 8px;
   display: inline-flex;
@@ -338,14 +329,14 @@ body {
 
 .event-link {
   display: inline-block;
-  color: #667eea;
+  color: #20B8CD; /* True Turquoise */
   text-decoration: none;
   font-weight: 600;
   transition: color 0.3s ease;
 }
 
 .event-link:hover {
-  color: #764ba2;
+  color: #218090; /* Peacock */
 }
 
 /* Loading State */
@@ -493,22 +484,21 @@ body {
 
 /* Dark Theme Event Cards - City Pages */
 .dark-event-card {
-  background: #2A2A2A;
+  background: #13343B; /* Teal Dark */
   border-radius: 0 12px 0 0; /* Rounded top-right corner only */
   padding: 0;
   margin-bottom: 20px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1), 
-              0 8px 16px rgba(0,0,0,0.2), 
-              0 16px 32px rgba(0,0,0,0.15);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.30); 
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
-  border: 1px solid white; /* White 1pt border */
+  border: 1px solid #2E565D; /* Teal Medium border */
 }
 
 .dark-event-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 16px rgba(32, 184, 205, 0.12);
+  border-color: #20B8CD; /* True Turquoise glow on hover */
 }
 
 .dark-event-card-image {
@@ -542,7 +532,7 @@ body {
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: #4A90E2;
+  color: #20B8CD; /* True Turquoise */
   margin-bottom: 8px; /* Reduced from 12px */
   font-weight: 600;
   display: inline-block;
@@ -554,7 +544,7 @@ body {
 }
 
 .dark-event-category-link:hover {
-  color: #5BA0F2;
+  color: #218090; /* Peacock */
   text-decoration: underline;
 }
 
@@ -578,11 +568,11 @@ body {
   align-items: center;
   gap: 10px;
   font-size: 14px;
-  color: #CCCCCC;
+  color: #BADFDE; /* Sky - secondary text in dark mode */
 }
 
 .dark-event-venue-link {
-  color: #CCCCCC;
+  color: #BADFDE; /* Sky */
   text-decoration: none;
   transition: color 0.2s ease;
   display: inline-flex;
@@ -591,7 +581,7 @@ body {
 }
 
 .dark-event-venue-link:hover {
-  color: #4A90E2;
+  color: #20B8CD; /* True Turquoise */
   text-decoration: underline;
 }
 
@@ -615,8 +605,8 @@ body {
 
 .dark-event-price {
   display: inline-block;
-  background: rgba(74, 144, 226, 0.1);
-  color: #4A90E2;
+  background: rgba(32, 184, 205, 0.1); /* True Turquoise with opacity */
+  color: #20B8CD; /* True Turquoise */
   padding: 6px 12px;
   border-radius: 6px;
   font-size: 13px;
@@ -628,7 +618,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #4A90E2;
+  color: #20B8CD; /* True Turquoise */
   text-decoration: none;
   font-size: 14px;
   font-weight: 600;
@@ -637,21 +627,23 @@ body {
 }
 
 .dark-event-link:hover {
-  color: #5BA0F2;
+  color: #218090; /* Peacock */
 }
 
 /* Mini Event Card Styles - Compact cards for 6-column grid */
 .mini-event-card {
-  background: #1E1E1E;
-  border-radius: 8px;
+  background: #13343B; /* Teal Dark - matching dark theme */
+  border-radius: 0 12px 0 0; /* Matching main cards */
   overflow: hidden;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   height: 100%;
+  border: 1px solid #2E565D; /* Teal Medium border */
 }
 
 .mini-event-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 16px rgba(32, 184, 205, 0.12);
+  border-color: #20B8CD; /* True Turquoise on hover */
 }
 
 .mini-event-image {
@@ -865,13 +857,13 @@ body {
 }
 
 .breadcrumb-item a {
-  color: #4A90E2;
+  color: #20B8CD; /* True Turquoise */
   text-decoration: none;
   transition: color 0.2s ease;
 }
 
 .breadcrumb-item a:hover {
-  color: #5BA0F2;
+  color: #218090; /* Peacock */
   text-decoration: underline;
 }
 
@@ -886,11 +878,12 @@ body {
 
 /* SEO Content Section */
 .seo-content-section {
-  background: #2A2A2A;
+  background: #13343B; /* Teal Dark */
   border-radius: 12px;
   padding: 40px;
   margin-top: 60px;
   margin-bottom: 40px;
+  border: 1px solid #2E565D; /* Teal Medium border */
 }
 
 .seo-content-section h2 {
@@ -931,7 +924,7 @@ body {
 
 .seo-content-section li::before {
   content: "•";
-  color: #4A90E2;
+  color: #20B8CD; /* True Turquoise */
   font-weight: bold;
   position: absolute;
   left: 0;
@@ -1228,18 +1221,19 @@ body {
    ===================================================== */
 
 .mini-event-card {
-  background: #2A2A2A; /* Same dark background as main event cards */
+  background: #13343B; /* Teal Dark - matching dark theme */
   border-radius: 0 12px 0 0; /* Rounded top-right corner only, matching main cards */
   overflow: hidden;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   transition: all 0.2s ease;
   cursor: pointer;
-  border: 1px solid white; /* White outline */
+  border: 1px solid #2E565D; /* Teal Medium border */
 }
 
 .mini-event-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 4px 16px rgba(32, 184, 205, 0.12);
+  border-color: #20B8CD; /* True Turquoise on hover */
 }
 
 .mini-event-image {
@@ -1304,7 +1298,7 @@ body {
 
 .mini-event-venue {
   font-size: 12px;
-  color: #CCCCCC; /* Light gray text to match main event cards */
+  color: #BADFDE; /* Sky - matching secondary text in dark mode */
   margin: 0;
   display: -webkit-box;
   -webkit-line-clamp: 1;

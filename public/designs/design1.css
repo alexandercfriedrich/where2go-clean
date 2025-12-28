@@ -1,59 +1,104 @@
 :root {
-  --color-bg: #f7f8fa;
-  --color-bg-alt: #ffffff;
-  --color-surface: #ffffff;
-  --color-surface-alt: #fafbfc;
-  --color-border: #e5e7eb;
+  /* Core Brand Colors - Light Mode */
+  --color-bg: #FCFAF6; /* Paper White - Main background */
+  --color-bg-alt: #FFFFFF; /* Pure White - Header/alternate backgrounds */
+  --color-surface: #FFFFFF; /* Pure White - Cards/elevated content */
+  --color-surface-alt: #E5E3D4; /* Ecru - Secondary surfaces */
+  --color-border: #E5E3D4; /* Ecru - Fine dividing lines */
   --color-border-strong: #cbd5e1;
-  --color-text: #1f2937;
-  --color-text-dim: #6b7280;
+  --color-text: #091717; /* Offblack - Primary text */
+  --color-text-dim: #2E565D; /* Teal Medium - Secondary text */
   --color-text-faint: #9ca3af;
-  --color-accent: #111827;
-  --color-accent-contrast: #ffffff;
-  --color-accent-alt: #5b8cff;
-  --color-accent-alt-hover: #769dff;
+  --color-accent: #20B8CD; /* True Turquoise - Primary accent */
+  --color-accent-contrast: #FCFAF6; /* Paper White for contrast */
+  --color-accent-alt: #20B8CD; /* True Turquoise - CTAs, links, icons */
+  --color-accent-alt-hover: #218090; /* Peacock - Hover states */
+  
+  /* Typography - Font Families */
+  --font-heading: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif;
+  
+  /* Semantic Colors */
+  --color-success: #218090; /* Peacock */
+  --color-warning: #FFD2A6; /* Apricot */
+  --color-error: #A94B30; /* Terra Cotta */
+  
+  /* Spacing & Layout */
   --radius: 10px;
-  --radius-lg: 14px;
-  --shadow-sm: 0 2px 12px rgba(0,0,0,0.06);
-  --shadow: 0 8px 25px rgba(0,0,0,0.12);
+  --radius-lg: 12px;
+  --shadow-sm: 0 2px 8px rgba(9, 23, 23, 0.08);
+  --shadow: 0 4px 16px rgba(32, 184, 205, 0.12);
   --transition: .2s ease;
   --chip-bg: #f3f4f6;
   --chip-hover: #e5e7eb;
-  --chip-border: #e5e7eb;
-  --chip-active-bg: #111827;
+  --chip-border: #E5E3D4;
+  --chip-active-bg: #20B8CD;
   --space-4: 8px;
   --space-6: 12px;
   --space-8: 16px;
   --space-12: 24px;
   --card-gap: 16px;
-  --layout-max-width: 1180px;
+  --layout-max-width: 1200px;
 }
 
 [data-theme="dark"] {
-  --color-bg: #0c0c0d;
-  --color-bg-alt: #121214;
-  --color-surface: #151517;
-  --color-surface-alt: #1b1c1f;
-  --color-border: #2a2c31;
+  /* Core Brand Colors - Dark Mode */
+  --color-bg: #091717; /* Offblack - Main background */
+  --color-bg-alt: #13343B; /* Teal Dark - Header/alternate backgrounds */
+  --color-surface: #13343B; /* Teal Dark - Cards/elevated content */
+  --color-surface-alt: #2E565D; /* Teal Medium - Secondary surfaces */
+  --color-border: #2E565D; /* Teal Medium - Subtle dividing lines */
   --color-border-strong: #3a3d43;
-  --color-text: #f5f6f7;
-  --color-text-dim: #b3b7be;
+  --color-text: #FCFAF6; /* Paper White - Primary text */
+  --color-text-dim: #BADFDE; /* Sky - Secondary text */
   --color-text-faint: #8a9098;
-  --color-accent: #f5f6f7;
-  --color-accent-contrast: #0c0c0d;
-  --color-accent-alt: #5b8cff;
-  --color-accent-alt-hover: #769dff;
+  --color-accent: #20B8CD; /* True Turquoise - Primary accent (same as light!) */
+  --color-accent-contrast: #091717; /* Offblack for contrast */
+  --color-accent-alt: #20B8CD; /* True Turquoise - CTAs, links, icons */
+  --color-accent-alt-hover: #218090; /* Peacock with glow */
+  
+  /* Semantic Colors - Dark Mode */
+  --color-success: #BADFDE; /* Sky */
+  --color-warning: #A94B30; /* Terra Cotta - better visibility */
+  --color-error: #954456; /* Boysenberry */
+  
+  /* Shadows - Enhanced for dark mode */
   --chip-bg: rgba(255,255,255,0.06);
   --chip-hover: rgba(255,255,255,0.10);
   --chip-border: rgba(255,255,255,0.12);
-  --shadow-sm: 0 2px 10px rgba(0,0,0,0.40);
-  --shadow: 0 12px 32px rgba(0,0,0,0.45);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.30);
+  --shadow: 0 4px 16px rgba(0,0,0,0.45);
 }
 
 html, body {
   background: var(--color-bg);
   color: var(--color-text);
+  font-family: var(--font-body);
 }
+
+/* Typography System */
+h1, h2, .header-logo-wrapper {
+  font-family: var(--font-heading);
+}
+
+h1 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+h2 {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+h3 {
+  font-family: var(--font-body);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
 .container {
   max-width: var(--layout-max-width);
   margin: 0 auto;
@@ -110,8 +155,8 @@ html, body {
 }
 .form-input:focus, .form-group select:focus, .form-group input:focus {
   outline: none;
-  border-color: #5b8cff;
-  box-shadow: 0 0 0 3px rgba(91, 140, 255, 0.1);
+  border-color: var(--color-accent-alt); /* True Turquoise */
+  box-shadow: 0 0 0 3px rgba(32, 184, 205, 0.1);
 }
 .form-input::placeholder {
   color: var(--color-text-faint);
@@ -162,18 +207,23 @@ html, body {
 
 .btn-search {
   border: none;
-  background: #404040;
-  color: #fff;
+  background: var(--color-accent-alt); /* True Turquoise */
+  color: var(--color-accent-contrast);
   font-size: 15px;
   padding: 14px 20px;
-  border-radius: 10px;
-  font-weight: 500;
+  border-radius: 8px;
+  font-weight: 600;
+  font-family: var(--font-heading);
   letter-spacing: .4px;
   cursor: pointer;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-  transition: background .2s, box-shadow .2s, transform .2s, color .2s;
+  box-shadow: var(--shadow-sm);
+  transition: all .2s ease;
 }
-.btn-search:hover { background: #222; }
+.btn-search:hover { 
+  background: var(--color-accent-alt-hover); /* Peacock */
+  transform: translateY(-1px);
+  box-shadow: var(--shadow);
+}
 
 .btn-secondary {
   background: transparent;
