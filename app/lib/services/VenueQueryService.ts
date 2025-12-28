@@ -106,6 +106,15 @@ SEARCH INSTRUCTIONS:
 - Look for last-minute announcements
 - Include both ticketed and free events
 
+⭐ MANDATORY IMAGE REQUIREMENT:
+- ONLY return events that have valid imageUrl (HTTP/HTTPS URL)
+- Images must be from official sources:
+  * ${venue.venueName} official website
+  * Official social media accounts
+  * Ticketing platforms
+- If event has no discoverable image, DO NOT include it
+- Quality over quantity
+
 REQUIRED FIELDS: title, category, date, time, venue, price, website, address, description, bookingLink
 
 RULES:
@@ -158,6 +167,15 @@ SEARCH INSTRUCTIONS:
 - Search for recurring events at these venues
 - Look for last-minute announcements
 - Include both ticketed and free events
+
+⭐ MANDATORY IMAGE REQUIREMENT:
+- ONLY return events that have valid imageUrl (HTTP/HTTPS URL)
+- Images must be from official sources:
+  * Venue official websites
+  * Official social media accounts
+  * Ticketing platforms
+- If event has no discoverable image, DO NOT include it
+- Quality over quantity
 
 REQUIRED FIELDS: title, category, date, time, venue, price, website, address, description, bookingLink
 

@@ -167,6 +167,17 @@ ${buildCategoryListForPrompt()}
 REQUIRED FIELDS for each event:
 title, category, date, time, venue, price, website, endTime, address, ticketPrice, eventType, description, bookingLink, ageRestrictions, imageUrl
 
+⭐ MANDATORY IMAGE REQUIREMENT:
+- EVERY event MUST have a valid imageUrl (HTTP/HTTPS URL)
+- If no image URL found for an event, DO NOT include that event
+- Only return events with image URLs from official sources:
+  * Official event websites (poster/banner images)
+  * Ticketing platforms (event images)
+  * Venue websites (event photos)
+  * Social media posts (event pictures from official accounts)
+- NEVER invent, fabricate, or use placeholder image URLs
+- If imageUrl is missing, empty, or invalid, EXCLUDE that event from results
+
 RULES:
 - "category" must be EXACTLY one of: ${allowedCategoriesForSchema()}
 - If information unknown, use empty string - never skip events for missing details
@@ -206,7 +217,13 @@ Focus areas:
 
 Return comprehensive JSON array covering ALL main categories.
 Include both well-known and hidden gem events.
-Include image URLs (imageUrl field) whenever available from event websites or social media.
+
+⭐ CRITICAL IMAGE REQUIREMENT:
+- Include ONLY events that have valid imageUrl
+- imageUrl must be an HTTP/HTTPS URL from legitimate event sources
+- If event has no image, DO NOT include it in results
+- Quality over quantity: fewer complete events are better than many incomplete ones
+
 NO explanatory text outside the JSON structure.`;
   }
 
@@ -247,9 +264,15 @@ DIVERSITY WITHIN CATEGORY:
 - Various time slots throughout the day
 - Both one-time and ongoing events
 
-OUTPUT: Return comprehensive JSON array of real ${mainCategory} events.
+OUTPUT: Return comprehensive JSON array of REAL ${mainCategory} events WITH IMAGES.
 Include booking/ticket links where available.
-Include event image URLs (imageUrl field) from venue websites, social media posts, or event platforms.
+
+⭐ MANDATORY: Every returned event MUST have:
+- Valid imageUrl (HTTP/HTTPS URL)
+- URL must be from official sources (venue sites, ticketing platforms, official social media)
+- If event has no image, DO NOT include it in this result
+- Prioritize events with images over quantity
+
 NO explanatory text outside the JSON structure.
 
 Example format:
@@ -266,7 +289,14 @@ ELECTRONIC MUSIC & NIGHTLIFE FOCUS:
 - Search for underground and warehouse parties
 - Check for techno/house/EDM/drum&bass events
 - Look for bar events, lounge events, and rooftop parties
-- Include after-hours events and rave announcements`,
+- Include after-hours events and rave announcements
+
+⭐ IMAGE REQUIREMENT FOR NIGHTLIFE EVENTS:
+- Club websites usually have event flyers/posters with images
+- Check for DJ event announcements with photos on official club social media
+- Look for parties on Instagram/Facebook with event images from organizers
+- Only include events with discoverable event images/posters
+- EXCLUDE events with no visual event materials found`,
 
       "Live-Konzerte": `
 LIVE MUSIC & CONCERT FOCUS:
@@ -275,7 +305,15 @@ LIVE MUSIC & CONCERT FOCUS:
 - Search for acoustic sessions in cafes/bars
 - Check local band social media for gig announcements
 - Look for singer-songwriter nights and open mic events
-- Include jam sessions and live band performances`,
+- Include jam sessions and live band performances
+
+⭐ IMAGE REQUIREMENT FOR LIVE MUSIC EVENTS:
+- Prioritize events that have event images/posters/photos on:
+  * Live music venue websites
+  * Social media posts by venue/organizer (official accounts only)
+  * Ticketing platforms (Eventbrite, Ticketmaster, etc.)
+- EXCLUDE any events without discoverable images
+- Check multiple sources for event visuals before excluding`,
 
       "Klassik & Oper": `
 CLASSICAL MUSIC & OPERA FOCUS:
@@ -284,7 +322,15 @@ CLASSICAL MUSIC & OPERA FOCUS:
 - Search for chamber music and string quartet events
 - Check for piano recitals and violin concerts
 - Look for opera performances and operette shows
-- Include baroque music events and contemporary classical`,
+- Include baroque music events and contemporary classical
+
+⭐ IMAGE REQUIREMENT FOR CLASSICAL EVENTS:
+- Prioritize events that have event images/posters/photos on:
+  * Classical venue websites
+  * Social media posts by venue/organizer (official accounts only)
+  * Ticketing platforms (Eventbrite, Ticketmaster, etc.)
+- EXCLUDE any events without discoverable images
+- Check multiple sources for event visuals before excluding`,
 
       "Theater & Comedy": `
 THEATER & COMEDY FOCUS:
@@ -293,7 +339,15 @@ THEATER & COMEDY FOCUS:
 - Search for comedy shows, stand-up, and cabaret (Kabarett)
 - Check for improv comedy and sketch comedy
 - Look for ballet and contemporary dance performances
-- Include experimental theater and physical theater`,
+- Include experimental theater and physical theater
+
+⭐ IMAGE REQUIREMENT FOR THEATER EVENTS:
+- Prioritize events that have event images/posters/photos on:
+  * Theater venue websites
+  * Social media posts by venue/organizer (official accounts only)
+  * Ticketing platforms (Eventbrite, Ticketmaster, etc.)
+- EXCLUDE any events without discoverable images
+- Check multiple sources for event visuals before excluding`,
 
       "Museen & Ausstellungen": `
 MUSEUM & EXHIBITION FOCUS:
@@ -302,7 +356,15 @@ MUSEUM & EXHIBITION FOCUS:
 - Search for museum night events and late openings
 - Check for guided tours and curator talks
 - Look for interactive and family-friendly museum events
-- Include private galleries, art spaces, and street art events`,
+- Include private galleries, art spaces, and street art events
+
+⭐ IMAGE REQUIREMENT FOR MUSEUM EVENTS:
+- Prioritize events that have event images/posters/photos on:
+  * Museum venue websites
+  * Social media posts by venue/organizer (official accounts only)
+  * Ticketing platforms (Eventbrite, Ticketmaster, etc.)
+- EXCLUDE any events without discoverable images
+- Check multiple sources for event visuals before excluding`,
 
       "Film & Kino": `
 FILM & CINEMA FOCUS:
@@ -311,7 +373,15 @@ FILM & CINEMA FOCUS:
 - Search for film festivals and documentary screenings
 - Check for open air cinema and outdoor screenings
 - Look for director Q&As and film discussions
-- Include classic film nights and cult classics screenings`,
+- Include classic film nights and cult classics screenings
+
+⭐ IMAGE REQUIREMENT FOR FILM EVENTS:
+- Prioritize events that have event images/posters/photos on:
+  * Cinema venue websites
+  * Social media posts by venue/organizer (official accounts only)
+  * Ticketing platforms (Eventbrite, Ticketmaster, etc.)
+- EXCLUDE any events without discoverable images
+- Check multiple sources for event visuals before excluding`,
 
       "Open Air & Festivals": `
 OUTDOOR EVENTS & FESTIVALS FOCUS:
@@ -320,7 +390,15 @@ OUTDOOR EVENTS & FESTIVALS FOCUS:
 - Search for music festivals and summer festivals
 - Check for beer garden events and garden parties
 - Look for nature activities and park events
-- Include sunset sessions and night market events`,
+- Include sunset sessions and night market events
+
+⭐ IMAGE REQUIREMENT FOR OUTDOOR EVENTS:
+- Prioritize events that have event images/posters/photos on:
+  * Festival venue websites
+  * Social media posts by venue/organizer (official accounts only)
+  * Ticketing platforms (Eventbrite, Ticketmaster, etc.)
+- EXCLUDE any events without discoverable images
+- Check multiple sources for event visuals before excluding`,
 
       "Kulinarik & Märkte": `
 FOOD & MARKET FOCUS:
@@ -329,7 +407,15 @@ FOOD & MARKET FOCUS:
 - Search for wine tastings, beer tastings, and cocktail events
 - Check for cooking classes and culinary workshops
 - Look for flea markets, vintage markets, and Christmas markets
-- Include farmers markets and artisan market events`,
+- Include farmers markets and artisan market events
+
+⭐ IMAGE REQUIREMENT FOR FOOD EVENTS:
+- Prioritize events that have event images/posters/photos on:
+  * Culinary venue websites
+  * Social media posts by venue/organizer (official accounts only)
+  * Ticketing platforms (Eventbrite, Ticketmaster, etc.)
+- EXCLUDE any events without discoverable images
+- Check multiple sources for event visuals before excluding`,
 
       "Sport & Fitness": `
 SPORT & FITNESS FOCUS:
@@ -338,7 +424,15 @@ SPORT & FITNESS FOCUS:
 - Search for yoga classes, fitness events, and wellness events
 - Check for team sports, water sports, and extreme sports
 - Look for e-sports tournaments and gaming events
-- Include outdoor yoga and meditation sessions`,
+- Include outdoor yoga and meditation sessions
+
+⭐ IMAGE REQUIREMENT FOR SPORTS EVENTS:
+- Prioritize events that have event images/posters/photos on:
+  * Sports venue websites
+  * Social media posts by venue/organizer (official accounts only)
+  * Ticketing platforms (Eventbrite, Ticketmaster, etc.)
+- EXCLUDE any events without discoverable images
+- Check multiple sources for event visuals before excluding`,
 
       "Bildung & Workshops": `
 EDUCATION & WORKSHOP FOCUS:
@@ -347,7 +441,15 @@ EDUCATION & WORKSHOP FOCUS:
 - Search for language classes and creative workshops
 - Check for university lectures and public talks
 - Look for cultural workshops and heritage tours
-- Include business events, conferences, and networking meetups`,
+- Include business events, conferences, and networking meetups
+
+⭐ IMAGE REQUIREMENT FOR EDUCATION EVENTS:
+- Prioritize events that have event images/posters/photos on:
+  * Educational venue websites
+  * Social media posts by venue/organizer (official accounts only)
+  * Ticketing platforms (Eventbrite, Ticketmaster, etc.)
+- EXCLUDE any events without discoverable images
+- Check multiple sources for event visuals before excluding`,
 
       "Familie & Kinder": `
 FAMILY & KIDS FOCUS:
@@ -356,7 +458,15 @@ FAMILY & KIDS FOCUS:
 - Search for educational activities and STEM events for kids
 - Check for family festivals and outdoor play events
 - Look for children's workshops and creative learning
-- Include parent-child activities and nature discovery events`,
+- Include parent-child activities and nature discovery events
+
+⭐ IMAGE REQUIREMENT FOR FAMILY EVENTS:
+- Prioritize events that have event images/posters/photos on:
+  * Family venue websites
+  * Social media posts by venue/organizer (official accounts only)
+  * Ticketing platforms (Eventbrite, Ticketmaster, etc.)
+- EXCLUDE any events without discoverable images
+- Check multiple sources for event visuals before excluding`,
 
       "LGBTQ+": `
 LGBTQ+ & PRIDE FOCUS:
@@ -365,7 +475,15 @@ LGBTQ+ & PRIDE FOCUS:
 - Search for drag shows, drag brunches, and drag performances
 - Check for queer theater and LGBTQ+ film screenings
 - Look for rainbow markets and pride celebrations
-- Include gay clubs, lesbian bars, and queer nightlife events`
+- Include gay clubs, lesbian bars, and queer nightlife events
+
+⭐ IMAGE REQUIREMENT FOR LGBTQ+ EVENTS:
+- Prioritize events that have event images/posters/photos on:
+  * LGBTQ+ venue websites
+  * Social media posts by venue/organizer (official accounts only)
+  * Ticketing platforms (Eventbrite, Ticketmaster, etc.)
+- EXCLUDE any events without discoverable images
+- Check multiple sources for event visuals before excluding`
     };
 
     return strategies[category] || `
@@ -649,6 +767,11 @@ Search Strategy:
 4. Search social media for ${categoriesStr.toLowerCase()} announcements
 5. Find popup and temporary ${categoriesStr.toLowerCase()} activities
 
+⭐ MANDATORY IMAGE REQUIREMENT:
+- ONLY return events that have valid imageUrl (HTTP/HTTPS)
+- Quality over quantity - exclude events without discoverable images
+- Images must be from legitimate sources (venue sites, official social media, ticketing platforms)
+
 Return comprehensive JSON array of events in ONLY these categories: ${categoriesStr}
 NO explanatory text outside the JSON structure.`;
 
@@ -685,9 +808,12 @@ Find additional details for this specific event:
 - Special features or highlights
 - Address and location details
 - Related events or series information
+⭐ - Event image URL (poster, flyer, official event photo)
 
 Return a single JSON object with enriched event data.
 Include only factual, verified information.
+⭐ IMPORTANT: Must include valid imageUrl from official sources.
+If no image found, return null for imageUrl (not an empty string).
 NO explanatory text outside the JSON structure.`;
 
     if (options.debug || process.env.LOG_PPLX_QUERIES === '1') {
