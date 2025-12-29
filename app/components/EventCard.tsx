@@ -7,13 +7,12 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import { normalizeCitySlug } from '@/lib/slugGenerator';
 import { getVenueFallbackImage } from '@/lib/venueFallbackImages';
 import { getFallbackColor, hasValidImage } from '@/lib/eventImageFallback';
 import { AddToCalendar } from './discovery/AddToCalendar';
-import { ShareButtons } from './discovery/ShareButtons';
 import { FavoriteButton } from './discovery/FavoriteButton';
 import type { EventData } from '@/lib/types';
 
@@ -144,9 +143,6 @@ export function EventCard({
   showActions = true,
   showButtons = true
 }: UnifiedEventCardProps) {
-  // State for expandable info section
-  const [isInfoExpanded, setIsInfoExpanded] = useState(false);
-  
   const venue = (event as any).custom_venue_name || event.venue || '';
   const eventDate = getEventDate(event);
   const eventTime = getEventTime(event);
@@ -316,7 +312,7 @@ export function EventCard({
             </div>
           )}
 
-          {/* Price Info beside Location on desktop / below on mobile - Feature 5 */}
+          {/* Price Info beside Location on desktop / below on mobile */}
           {priceDisplay && (
             <div className="dark-event-detail dark-event-price-info">
               <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -325,56 +321,7 @@ export function EventCard({
               <span className="dark-event-price-badge">{priceDisplay}</span>
             </div>
           )}
-
-          {/* Expandable Info Section - Feature 2 */}
-          {event.description && (
-            <button
-              className="dark-event-expand-trigger"
-              onClick={(e) => {
-                e.stopPropagation();
-                e.preventDefault();
-                setIsInfoExpanded(!isInfoExpanded);
-              }}
-              aria-expanded={isInfoExpanded}
-            >
-              <span>Weitere Details</span>
-              <svg 
-                className={`dark-event-expand-icon ${isInfoExpanded ? 'expanded' : ''}`}
-                width="16" 
-                height="16" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-          )}
         </div>
-
-        {/* Expandable Info Content - Feature 2 */}
-        {isInfoExpanded && event.description && (
-          <div className="dark-event-expanded-info">
-            <p className="dark-event-description-full">
-              {event.description}
-            </p>
-            {event.address && (
-              <div className="dark-event-expanded-address">
-                <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                </svg>
-                <span>{event.address}</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Description (hidden when expandable section is shown) */}
-        {!event.description && (
-          <p className="dark-event-description">
-            {event.description}
-          </p>
-        )}
 
         {/* Info and Ticket Links */}
         {showButtons && (
@@ -416,18 +363,7 @@ export function EventCard({
           </div>
         )}
 
-        {/* Action Buttons */}
-        {showActions && (
-          <div className="mt-2 flex items-center gap-2 flex-wrap" onClick={(e) => e.preventDefault()}>
-            <FavoriteButton eventId={eventId} size="sm" />
-            <AddToCalendar event={event} size="sm" />
-            <ShareButtons 
-              event={event} 
-              url={`https://www.where2go.at/event/${eventId}`}
-              size="sm"
-            />
-          </div>
-        )}
+
       </div>
     </div>
   );

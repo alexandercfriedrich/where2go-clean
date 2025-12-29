@@ -15,6 +15,9 @@ import { getVenueFallbackImage } from '@/lib/venueFallbackImages';
 import SchemaOrg from '@/components/SchemaOrg';
 import PageSearch from '@/components/PageSearch';
 import ClickableEventImage from '@/components/ClickableEventImage';
+import { ShareButtons } from '@/components/discovery/ShareButtons';
+import { AddToCalendar } from '@/components/discovery/AddToCalendar';
+import { FavoriteButton } from '@/components/discovery/FavoriteButton';
 import type { EventData } from '@/lib/types';
 import type { Database } from '@/lib/supabase/types';
 
@@ -472,7 +475,7 @@ export default async function EventPage({ params }: EventPageProps) {
                   </div>
                 </div>
                 
-                {/* Price - beside Location - Feature 5 */}
+                {/* Price - Feature 1: Added Price Info */}
                 {event.price && (
                   <div style={{ 
                     display: 'flex', 
@@ -481,11 +484,12 @@ export default async function EventPage({ params }: EventPageProps) {
                     padding: '16px',
                     background: '#091717',
                     borderRadius: '8px',
-                  border: '1px solid #2E565D'
+                    border: '1px solid #2E565D'
                   }}>
                     <svg width="24" height="24" fill="none" stroke="#20B8CD" viewBox="0 0 24 24" strokeWidth="2">
-                      <line x1="12" y1="1" x2="12" y2="23"></line>
-                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                      <circle cx="12" cy="12" r="10"/>
+                      <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/>
+                      <path d="M12 18V6"/>
                     </svg>
                     <div>
                       <div style={{ fontSize: '12px', color: '#BADFDE', marginBottom: '4px' }}>Preis</div>
@@ -517,7 +521,7 @@ export default async function EventPage({ params }: EventPageProps) {
               )}
               
               {/* Action Buttons */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '24px' }}>
                 {event.bookingLink && (
                   <a
                     href={event.bookingLink}
@@ -575,6 +579,17 @@ export default async function EventPage({ params }: EventPageProps) {
                     </svg>
                   </a>
                 )}
+              </div>
+
+              {/* Social Sharing & Actions */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+                <FavoriteButton eventId={event.title} size="md" />
+                <AddToCalendar event={event} size="md" />
+                <ShareButtons 
+                  event={event} 
+                  url={`${BASE_URL}/events/${citySlug}/${params.slug}`}
+                  size="md"
+                />
               </div>
             </div>
 
