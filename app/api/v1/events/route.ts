@@ -3,6 +3,7 @@ import { EventRepository } from '@/lib/repositories/EventRepository'
 import { eventsCache } from '@/lib/cache'
 import type { EventData } from '@/lib/types'
 
+export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 export async function GET(request: NextRequest) {

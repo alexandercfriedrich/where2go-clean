@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase/client';
 
+export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const revalidate = 3600; // Cache 1 hour
 

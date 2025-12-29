@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validateCronAuth } from '@/lib/cronAuth';
 import { EVENT_CATEGORIES } from '@/lib/eventCategories';
 
+export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
