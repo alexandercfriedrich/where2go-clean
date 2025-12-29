@@ -1286,7 +1286,9 @@ body {
     brightness(0.99);
 }
 
-/* Glassmorphismus-Overlay for mini cards */
+/* ===== BROWSER-SPEZIFISCHES GLASMORPHISMUS (Mini Cards) ===== */
+
+/* DEFAULT Glassmorphismus-Overlay for mini cards */
 .mini-event-glass-overlay {
   position: absolute;
   inset: 0;
@@ -1306,10 +1308,41 @@ body {
   transition: backdrop-filter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* FIREFOX SPEZIFISCH - Mini Cards */
+@supports (-moz-appearance: none) {
+  .mini-event-glass-overlay {
+    backdrop-filter: blur(6px) saturate(110%);
+  }
+}
+
+/* WEBKIT SPEZIFISCH - Mini Cards (Safari, Comet) */
+@supports (-webkit-backdrop-filter: blur(1px)) and (not (-moz-appearance: none)) {
+  .mini-event-glass-overlay {
+    -webkit-backdrop-filter: blur(6px) saturate(100%);
+    backdrop-filter: blur(6px) saturate(100%);
+  }
+}
+
+/* DEFAULT HOVER - Mini Cards */
 .mini-event-card:hover .mini-event-glass-overlay {
   /* ✅ OPTIMIERT: Nur 120% statt 180%! */
   backdrop-filter: blur(8px) saturate(120%);
   -webkit-backdrop-filter: blur(8px) saturate(120%);
+}
+
+/* FIREFOX HOVER - Mini Cards */
+@supports (-moz-appearance: none) {
+  .mini-event-card:hover .mini-event-glass-overlay {
+    backdrop-filter: blur(8px) saturate(120%);
+  }
+}
+
+/* WEBKIT HOVER - Mini Cards */
+@supports (-webkit-backdrop-filter: blur(1px)) and (not (-moz-appearance: none)) {
+  .mini-event-card:hover .mini-event-glass-overlay {
+    -webkit-backdrop-filter: blur(8px) saturate(105%);
+    backdrop-filter: blur(8px) saturate(105%);
+  }
 }
 
 /* Gradient Overlay SUBTIL für Textlesbarkeit */
@@ -1570,7 +1603,9 @@ body {
     brightness(0.99);
 }
 
-/* Glassmorphismus-Overlay */
+/* ===== BROWSER-SPEZIFISCHES GLASMORPHISMUS ===== */
+
+/* DEFAULT Glassmorphismus-Overlay (Chrome, Firefox) */
 .event-glass-overlay {
   position: absolute;
   inset: 0;
@@ -1590,11 +1625,44 @@ body {
   transition: backdrop-filter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Enhanced glass effect on hover - minimal */
+/* FIREFOX SPEZIFISCH - Behält volle Sättigung (sieht perfekt aus!) */
+@supports (-moz-appearance: none) {
+  .event-glass-overlay {
+    backdrop-filter: blur(6px) saturate(110%);
+    /* Firefox rendert das optimal - keine Änderungen nötig */
+  }
+}
+
+/* WEBKIT SPEZIFISCH (Safari, Comet Browser, alte Chrome) */
+/* WebKit rendert saturate() viel stärker, daher reduzieren */
+@supports (-webkit-backdrop-filter: blur(1px)) and (not (-moz-appearance: none)) {
+  .event-glass-overlay {
+    -webkit-backdrop-filter: blur(6px) saturate(100%);
+    backdrop-filter: blur(6px) saturate(100%);
+    /* 100% = keine zusätzliche Sättigung, nur Glaseffekt */
+  }
+}
+
+/* DEFAULT HOVER - Enhanced glass effect on hover */
 .event-poster-liquid-glass:hover .event-glass-overlay {
   /* ✅ OPTIMIERT: Nur 120% statt 180%! */
   backdrop-filter: blur(8px) saturate(120%);
   -webkit-backdrop-filter: blur(8px) saturate(120%);
+}
+
+/* FIREFOX HOVER */
+@supports (-moz-appearance: none) {
+  .event-poster-liquid-glass:hover .event-glass-overlay {
+    backdrop-filter: blur(8px) saturate(120%);
+  }
+}
+
+/* WEBKIT HOVER - Reduzierte Sättigung für Safari */
+@supports (-webkit-backdrop-filter: blur(1px)) and (not (-moz-appearance: none)) {
+  .event-poster-liquid-glass:hover .event-glass-overlay {
+    -webkit-backdrop-filter: blur(8px) saturate(105%);
+    backdrop-filter: blur(8px) saturate(105%);
+  }
 }
 
 /* Gradient Overlay SUBTIL für Textlesbarkeit + Drama */
@@ -1751,15 +1819,18 @@ body {
 
 /* Accessibility: Respect reduced motion preference */
 @media (prefers-reduced-motion: reduce) {
-  .event-poster-liquid-glass {
+  .event-poster-liquid-glass,
+  .mini-event-card {
     transition: none;
   }
   
-  .event-poster-liquid-glass:hover {
+  .event-poster-liquid-glass:hover,
+  .mini-event-card:hover {
     transform: none;
   }
   
-  .event-poster-liquid-glass .dark-event-card-image {
+  .event-poster-liquid-glass .dark-event-card-image,
+  .mini-event-image {
     transition: none;
   }
 }
