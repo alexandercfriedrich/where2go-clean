@@ -1453,61 +1453,33 @@ body {
 
 /* ===== BROWSER-SPEZIFISCHES GLASMORPHISMUS (Mini Cards) ===== */
 
-/* DEFAULT Glassmorphismus-Overlay for mini cards */
+/* DEFAULT Glassmorphismus-Overlay for mini cards - NO BLUR */
 .mini-event-glass-overlay {
   position: absolute;
   inset: 0;
+  /* ✅ Stärkere Weißwerte für besseren Glas-Look ohne blur() */
   background: linear-gradient(
     145deg,
-    rgba(255, 255, 255, 0.12) 0%,
-    rgba(255, 255, 255, 0.04) 50%,
-    rgba(255, 255, 255, 0.08) 100%
+    rgba(255, 255, 255, 0.18) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.12) 100%
   );
-  /* ✅ OPTIMIERT: Nur 110% statt 160%! */
-  backdrop-filter: blur(6px) saturate(110%);
-  -webkit-backdrop-filter: blur(6px) saturate(110%);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.20);
   border-radius: 12px;
   pointer-events: none;
   z-index: 2;
-  transition: backdrop-filter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* FIREFOX SPEZIFISCH - Mini Cards */
-@supports (-moz-appearance: none) {
-  .mini-event-glass-overlay {
-    backdrop-filter: blur(6px) saturate(110%);
-  }
-}
-
-/* WEBKIT SPEZIFISCH - Mini Cards (Safari, Comet) */
-@supports (-webkit-backdrop-filter: blur(1px)) and (not (-moz-appearance: none)) {
-  .mini-event-glass-overlay {
-    -webkit-backdrop-filter: blur(6px) saturate(100%);
-    backdrop-filter: blur(6px) saturate(100%);
-  }
-}
-
-/* DEFAULT HOVER - Mini Cards */
+/* HOVER - Mini Cards - Enhanced gradient on hover */
 .mini-event-card:hover .mini-event-glass-overlay {
-  /* ✅ OPTIMIERT: Nur 120% statt 180%! */
-  backdrop-filter: blur(8px) saturate(120%);
-  -webkit-backdrop-filter: blur(8px) saturate(120%);
-}
-
-/* FIREFOX HOVER - Mini Cards */
-@supports (-moz-appearance: none) {
-  .mini-event-card:hover .mini-event-glass-overlay {
-    backdrop-filter: blur(8px) saturate(120%);
-  }
-}
-
-/* WEBKIT HOVER - Mini Cards */
-@supports (-webkit-backdrop-filter: blur(1px)) and (not (-moz-appearance: none)) {
-  .mini-event-card:hover .mini-event-glass-overlay {
-    -webkit-backdrop-filter: blur(8px) saturate(105%);
-    backdrop-filter: blur(8px) saturate(105%);
-  }
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(255, 255, 255, 0.10) 50%,
+    rgba(255, 255, 255, 0.15) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
 /* Gradient Overlay SUBTIL für Textlesbarkeit */
@@ -1631,10 +1603,14 @@ body {
       0 6px 12px rgba(0, 0, 0, 0.16);
   }
   
-  /* ✅ Noch subtiler auf Tablet */
+  /* ✅ Tablet: Kein backdrop-filter */
   .mini-event-glass-overlay {
-    backdrop-filter: blur(4px) saturate(100%);
-    -webkit-backdrop-filter: blur(4px) saturate(100%);
+    background: linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.16) 0%,
+      rgba(255, 255, 255, 0.07) 50%,
+      rgba(255, 255, 255, 0.10) 100%
+    );
   }
   
   .mini-event-image {
@@ -1668,15 +1644,19 @@ body {
     border-radius: 8px;
   }
   
-  /* ✅ Minimal filters auf Mobile */
+  /* ✅ Mobile: Kein backdrop-filter */
   .mini-event-image {
     filter: saturate(0.93) contrast(1.02) brightness(0.99);
     -webkit-filter: saturate(0.93) contrast(1.02) brightness(0.99);
   }
   
   .mini-event-glass-overlay {
-    backdrop-filter: blur(3px) saturate(100%);
-    -webkit-backdrop-filter: blur(3px) saturate(100%);
+    background: linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.14) 0%,
+      rgba(255, 255, 255, 0.06) 50%,
+      rgba(255, 255, 255, 0.09) 100%
+    );
   }
   
   .mini-event-gradient-overlay {
@@ -1768,66 +1748,35 @@ body {
     brightness(0.99);
 }
 
-/* ===== BROWSER-SPEZIFISCHES GLASMORPHISMUS ===== */
+/* ===== GLASMORPHISMUS OHNE BACKDROP-FILTER ===== */
 
-/* DEFAULT Glassmorphismus-Overlay (Chrome, Firefox) */
+/* DEFAULT Glassmorphismus-Overlay - NO BLUR */
 .event-glass-overlay {
   position: absolute;
   inset: 0;
+  /* ✅ Stärkere Weißwerte für besseren Glas-Look ohne blur() */
   background: linear-gradient(
     145deg,
-    rgba(255, 255, 255, 0.12) 0%,
-    rgba(255, 255, 255, 0.04) 50%,
-    rgba(255, 255, 255, 0.08) 100%
+    rgba(255, 255, 255, 0.18) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.12) 100%
   );
-  /* ✅ OPTIMIERT: Nur 110% statt 160%! */
-  backdrop-filter: blur(6px) saturate(110%);
-  -webkit-backdrop-filter: blur(6px) saturate(110%);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.20);
   border-radius: 12px;
   pointer-events: none;
   z-index: 2;
-  transition: backdrop-filter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: background 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* FIREFOX SPEZIFISCH - Behält volle Sättigung (sieht perfekt aus!) */
-@supports (-moz-appearance: none) {
-  .event-glass-overlay {
-    backdrop-filter: blur(6px) saturate(110%);
-    /* Firefox rendert das optimal - keine Änderungen nötig */
-  }
-}
-
-/* WEBKIT SPEZIFISCH (Safari, Comet Browser, alte Chrome) */
-/* WebKit rendert saturate() viel stärker, daher reduzieren */
-@supports (-webkit-backdrop-filter: blur(1px)) and (not (-moz-appearance: none)) {
-  .event-glass-overlay {
-    -webkit-backdrop-filter: blur(6px) saturate(100%);
-    backdrop-filter: blur(6px) saturate(100%);
-    /* 100% = keine zusätzliche Sättigung, nur Glaseffekt */
-  }
-}
-
-/* DEFAULT HOVER - Enhanced glass effect on hover */
+/* HOVER - Enhanced glass effect on hover */
 .event-poster-liquid-glass:hover .event-glass-overlay {
-  /* ✅ OPTIMIERT: Nur 120% statt 180%! */
-  backdrop-filter: blur(8px) saturate(120%);
-  -webkit-backdrop-filter: blur(8px) saturate(120%);
-}
-
-/* FIREFOX HOVER */
-@supports (-moz-appearance: none) {
-  .event-poster-liquid-glass:hover .event-glass-overlay {
-    backdrop-filter: blur(8px) saturate(120%);
-  }
-}
-
-/* WEBKIT HOVER - Reduzierte Sättigung für Safari */
-@supports (-webkit-backdrop-filter: blur(1px)) and (not (-moz-appearance: none)) {
-  .event-poster-liquid-glass:hover .event-glass-overlay {
-    -webkit-backdrop-filter: blur(8px) saturate(105%);
-    backdrop-filter: blur(8px) saturate(105%);
-  }
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(255, 255, 255, 0.10) 50%,
+    rgba(255, 255, 255, 0.15) 100%
+  );
+  border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
 /* Gradient Overlay SUBTIL für Textlesbarkeit + Drama */
@@ -1911,10 +1860,14 @@ body {
       0 6px 12px rgba(0, 0, 0, 0.16);
   }
   
-  /* ✅ Noch subtiler auf Tablet */
+  /* ✅ Tablet: Kein backdrop-filter, stärkerer Gradient */
   .event-glass-overlay {
-    backdrop-filter: blur(4px) saturate(100%);
-    -webkit-backdrop-filter: blur(4px) saturate(100%);
+    background: linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.16) 0%,
+      rgba(255, 255, 255, 0.07) 50%,
+      rgba(255, 255, 255, 0.10) 100%
+    );
   }
   
   .event-poster-liquid-glass .dark-event-card-image {
@@ -1937,15 +1890,19 @@ body {
     border-radius: 8px;
   }
   
-  /* ✅ Minimal filters auf Mobile */
+  /* ✅ Mobile: Kein backdrop-filter, stärkerer Gradient */
   .event-poster-liquid-glass .dark-event-card-image {
     filter: saturate(0.93) contrast(1.02) brightness(0.99);
     -webkit-filter: saturate(0.93) contrast(1.02) brightness(0.99);
   }
   
   .event-glass-overlay {
-    backdrop-filter: blur(3px) saturate(100%);
-    -webkit-backdrop-filter: blur(3px) saturate(100%);
+    background: linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.14) 0%,
+      rgba(255, 255, 255, 0.06) 50%,
+      rgba(255, 255, 255, 0.09) 100%
+    );
   }
   
   .event-gradient-overlay {
@@ -1956,30 +1913,6 @@ body {
     rgba(0, 0, 0, 0.10) 75%,   /* Statt 0.15 */
     transparent 100%
     );
-  }
-}
-
-/* Fallback für ältere Browser ohne backdrop-filter support */
-@supports not (backdrop-filter: blur(1px)) {
-  .event-glass-overlay,
-  .mini-event-glass-overlay {
-    background: rgba(255, 255, 255, 0.25);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    /* Kein Blur, aber optisch ähnlich durch höhere Opazität */
-  }
-}
-
-/* Better iOS/Safari fallback */
-@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-  .event-glass-overlay,
-  .mini-event-glass-overlay {
-    background: linear-gradient(
-      145deg,
-      rgba(255, 255, 255, 0.25) 0%,
-      rgba(255, 255, 255, 0.15) 50%,
-      rgba(255, 255, 255, 0.20) 100%
-    );
-    border: 1px solid rgba(255, 255, 255, 0.20);
   }
 }
 
