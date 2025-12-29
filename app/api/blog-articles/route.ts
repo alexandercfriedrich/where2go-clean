@@ -9,6 +9,8 @@ import { isValidCity } from '@/lib/cities';
 import { EVENT_CATEGORIES } from '@/lib/eventCategories';
 import type { BlogArticle, BlogArticleListResponse } from '@/lib/types';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     validateSupabaseConfig();

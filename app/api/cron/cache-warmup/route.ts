@@ -10,6 +10,7 @@ import { validateCronAuth } from '@/lib/cronAuth';
 
 export const runtime = 'nodejs';
 export const maxDuration = 120;
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
