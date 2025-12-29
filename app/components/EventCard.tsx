@@ -7,7 +7,7 @@
 
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { normalizeCitySlug } from '@/lib/slugGenerator';
 import { getVenueFallbackImage } from '@/lib/venueFallbackImages';
@@ -144,6 +144,9 @@ export function EventCard({
   showActions = true,
   showButtons = true
 }: UnifiedEventCardProps) {
+  // State for expandable info section
+  const [isInfoExpanded, setIsInfoExpanded] = useState(false);
+  
   const venue = (event as any).custom_venue_name || event.venue || '';
   const eventDate = getEventDate(event);
   const eventTime = getEventTime(event);
@@ -269,25 +272,25 @@ export function EventCard({
 
         {/* Event Details with Icons */}
         <div className="dark-event-details">
-          {/* Date */}
+          {/* Date & Time on same line */}
           {displayDate && (
-            <div className="dark-event-detail">
-              <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span>{displayDate}</span>
+            <div className="dark-event-detail dark-event-datetime-row">
+              <div className="dark-event-date-section">
+                <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span>{displayDate}</span>
+              </div>
+              <div className="dark-event-time-section">
+                <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span {...(!eventTime && { 'aria-label': 'Ganztägige Veranstaltung' })}>
+                  {eventTime ? `${eventTime} Uhr` : 'ganztags'}
+                </span>
+              </div>
             </div>
           )}
-
-          {/* Time */}
-          <div className="dark-event-detail">
-            <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span {...(!eventTime && { 'aria-label': 'Ganztägige Veranstaltung' })}>
-              {eventTime ? `${eventTime} Uhr` : 'ganztags'}
-            </span>
-          </div>
 
           {/* Venue (clickable to Google Maps) */}
           {venue && (
@@ -312,19 +315,66 @@ export function EventCard({
               </a>
             </div>
           )}
+
+          {/* Price Info beside Location on desktop / below on mobile - Feature 5 */}
+          {priceDisplay && (
+            <div className="dark-event-detail dark-event-price-info">
+              <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="dark-event-price-badge">{priceDisplay}</span>
+            </div>
+          )}
+
+          {/* Expandable Info Section - Feature 2 */}
+          {event.description && (
+            <button
+              className="dark-event-expand-trigger"
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                setIsInfoExpanded(!isInfoExpanded);
+              }}
+              aria-expanded={isInfoExpanded}
+            >
+              <span>Weitere Details</span>
+              <svg 
+                className={`dark-event-expand-icon ${isInfoExpanded ? 'expanded' : ''}`}
+                width="16" 
+                height="16" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          )}
         </div>
 
-        {/* Description */}
-        {event.description && (
+        {/* Expandable Info Content - Feature 2 */}
+        {isInfoExpanded && event.description && (
+          <div className="dark-event-expanded-info">
+            <p className="dark-event-description-full">
+              {event.description}
+            </p>
+            {event.address && (
+              <div className="dark-event-expanded-address">
+                <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+                <span>{event.address}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Description (hidden when expandable section is shown) */}
+        {!event.description && (
           <p className="dark-event-description">
             {event.description}
           </p>
         )}
-
-        {/* Price */}
-        <div className="dark-event-price">
-          {priceDisplay}
-        </div>
 
         {/* Info and Ticket Links */}
         {showButtons && (

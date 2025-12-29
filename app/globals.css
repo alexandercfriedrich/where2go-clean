@@ -571,6 +571,27 @@ body {
   color: #BADFDE; /* Sky - secondary text in dark mode */
 }
 
+/* Date & Time on same line - Feature 1 */
+.dark-event-datetime-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.dark-event-date-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dark-event-time-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
 .dark-event-venue-link {
   color: #BADFDE; /* Sky */
   text-decoration: none;
@@ -612,6 +633,97 @@ body {
   font-size: 13px;
   font-weight: 600;
   margin-top: 8px; /* Reduced from 12px */
+}
+
+/* Price Info beside Location - Feature 5 */
+.dark-event-price-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dark-event-price-badge {
+  background: rgba(32, 184, 205, 0.15);
+  color: #20B8CD;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Responsive: Price info below Location on mobile */
+@media (max-width: 768px) {
+  .dark-event-price-info {
+    width: 100%;
+  }
+}
+
+/* Expandable Info Section - Feature 2 */
+.dark-event-expand-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #20B8CD;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 8px;
+}
+
+.dark-event-expand-trigger:hover {
+  background: rgba(32, 184, 205, 0.1);
+  border-color: rgba(32, 184, 205, 0.3);
+}
+
+.dark-event-expand-icon {
+  transition: transform 0.3s ease;
+}
+
+.dark-event-expand-icon.expanded {
+  transform: rotate(180deg);
+}
+
+.dark-event-expanded-info {
+  margin-top: 12px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dark-event-description-full {
+  font-size: 14px;
+  color: #CCCCCC;
+  line-height: 1.7;
+  margin-bottom: 12px;
+}
+
+.dark-event-expanded-address {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #BADFDE;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .dark-event-link {
