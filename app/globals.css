@@ -1837,12 +1837,12 @@ body {
   left: 0;
   right: 0;
   height: 90%;
-  /* ✅ KORRIGIERT: 90% unten, 50% bei 50%, 30% bei 70%, 0% bei 90% */
+  /* ✅ UPDATED: 90% unten, 60% bei 50%, 40% bei 70%, 0% bei 90% */
   background: linear-gradient(
     to top,
     rgba(0, 0, 0, 0.90) 0%,     /* 90% Opacity am unteren Ende */
-    rgba(0, 0, 0, 0.50) 50%,    /* 50% Opacity bei halber Höhe */
-    rgba(0, 0, 0, 0.30) 70%,    /* 30% Opacity bei 70% */
+    rgba(0, 0, 0, 0.60) 50%,    /* 60% Opacity bei halber Höhe */
+    rgba(0, 0, 0, 0.40) 70%,    /* 40% Opacity bei 70% */
     rgba(0, 0, 0, 0.0) 90%      /* 0% Opacity bei 90% (fast oben) */
   );
   border-radius: 0 0 12px 12px;

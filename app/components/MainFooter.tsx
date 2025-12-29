@@ -113,6 +113,10 @@ export default function MainFooter() {
                           href={`/${primaryCity.slug}/${categorySlug}/${filter.slug}`}
                           className="category-link"
                           data-animation-delay={idx}
+                          onClick={() => {
+                            // Scroll to top when category link is clicked
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
                         >
                           {filter.label} in {primaryCity.name}
                         </Link>
