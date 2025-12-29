@@ -76,7 +76,7 @@ class DasWerkScraper(BaseVenueScraper):
                                 self.log("SUPABASE_SERVICE_KEY not set, skipping image upload", "warning")
                                 return image_url
 
-        try:
+                try:
                         # Download image with proper headers to avoid hotlink blocking
                         req = urllib.request.Request(image_url, headers={'Referer': self.BASE_URL, 'User-Agent': 'Mozilla/5.0'})
                         with urllib.request.urlopen(req, timeout=10) as response:
@@ -100,7 +100,7 @@ class DasWerkScraper(BaseVenueScraper):
                                                         if self.debug:
                                                                                     self.log(f"Uploaded image to: {public_url}", "debug")
                                                                                 return public_url
-                                                    else:
+                                                                        else:
                                                                             self.log(f"Upload failed with status {upload_response.status}", "error")
                                                                             return image_url
 
