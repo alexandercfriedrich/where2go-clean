@@ -335,7 +335,6 @@ export default async function EventPage({ params }: EventPageProps) {
               borderRadius: '16px',
               overflow: 'hidden',
               display: 'flex',
-              flexDirection: 'row',
               gap: 0
             }}
             className="event-detail-card"
@@ -450,28 +449,34 @@ export default async function EventPage({ params }: EventPageProps) {
                         <meta itemProp="address" content={event.address} />
                       </>
                     )}
-                    {/* Google Maps Link */}
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.venue + (event.address ? ', ' + event.address : ''))}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ 
-                        color: '#20B8CD', 
-                        fontSize: '14px',
-                        textDecoration: 'none',
-                        marginTop: '8px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px'
-                      }}
-                    >
-                      Auf Google Maps öffnen
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                        <polyline points="15 3 21 3 21 9"></polyline>
-                        <line x1="10" y1="14" x2="21" y2="3"></line>
-                      </svg>
-                    </a>
+                    {/* Google Maps Link - Conditional with coordinates fallback */}
+                    {event.venue && (
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                          event.latitude != null && event.longitude != null
+                            ? `${event.latitude},${event.longitude}`
+                            : event.venue + (event.address ? ', ' + event.address : '')
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ 
+                          color: '#20B8CD', 
+                          fontSize: '14px',
+                          textDecoration: 'none',
+                          marginTop: '8px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        Auf Google Maps öffnen
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                          <polyline points="15 3 21 3 21 9"></polyline>
+                          <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                      </a>
+                    )}
                   </div>
                 </div>
                 

@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { useEffect, useRef } from 'react';
 
 interface ClickableEventImageProps {
   imageUrl: string;
@@ -8,36 +9,99 @@ interface ClickableEventImageProps {
 }
 
 export default function ClickableEventImage({ imageUrl, title }: ClickableEventImageProps) {
+  const lightboxRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    // Cleanup on unmount
+    return () => {
+      if (lightboxRef.current && document.body.contains(lightboxRef.current)) {
+        document.body.removeChild(lightboxRef.current);
+        document.body.style.overflow = '';
+      }
+    };
+  }, []);
+
   const handleClick = () => {
-    // Open lightbox - simple implementation
+    // Open lightbox with proper security, accessibility, and cleanup
     const lightbox = document.createElement('div');
-    lightbox.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0, 0, 0, 0.95);
-      z-index: 9999;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-      cursor: zoom-out;
-    `;
+    lightboxRef.current = lightbox;
+    
+    // Set individual style properties for security (avoid cssText injection)
+    lightbox.style.position = 'fixed';
+    lightbox.style.top = '0';
+    lightbox.style.left = '0';
+    lightbox.style.right = '0';
+    lightbox.style.bottom = '0';
+    lightbox.style.background = 'rgba(0, 0, 0, 0.95)';
+    lightbox.style.zIndex = '9999';
+    lightbox.style.display = 'flex';
+    lightbox.style.alignItems = 'center';
+    lightbox.style.justifyContent = 'center';
+    lightbox.style.padding = '20px';
+    lightbox.style.cursor = 'zoom-out';
+    lightbox.setAttribute('role', 'dialog');
+    lightbox.setAttribute('aria-modal', 'true');
+    lightbox.setAttribute('aria-label', 'Image lightbox');
     
     const img = document.createElement('img');
     img.src = imageUrl || '';
-    img.style.cssText = `
-      max-width: 95%;
-      max-height: 95%;
-      object-fit: contain;
-      border-radius: 8px;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-    `;
+    img.alt = title;
+    img.style.maxWidth = '95%';
+    img.style.maxHeight = '95%';
+    img.style.objectFit = 'contain';
+    img.style.borderRadius = '8px';
+    img.style.boxShadow = '0 10px 40px rgba(0, 0, 0, 0.5)';
+    
+    // Close button for accessibility
+    const closeButton = document.createElement('button');
+    closeButton.textContent = '×';
+    closeButton.setAttribute('aria-label', 'Close lightbox');
+    closeButton.style.position = 'absolute';
+    closeButton.style.top = '20px';
+    closeButton.style.right = '20px';
+    closeButton.style.background = 'rgba(0, 0, 0, 0.8)';
+    closeButton.style.color = 'white';
+    closeButton.style.border = 'none';
+    closeButton.style.borderRadius = '50%';
+    closeButton.style.width = '40px';
+    closeButton.style.height = '40px';
+    closeButton.style.fontSize = '24px';
+    closeButton.style.cursor = 'pointer';
+    closeButton.style.display = 'flex';
+    closeButton.style.alignItems = 'center';
+    closeButton.style.justifyContent = 'center';
+    
+    const closeLightbox = () => {
+      if (lightboxRef.current && document.body.contains(lightboxRef.current)) {
+        document.body.removeChild(lightboxRef.current);
+        document.body.style.overflow = ''; // Restore scroll
+        lightboxRef.current = null;
+      }
+    };
+    
+    // Only close when clicking the lightbox background, not the image
+    lightbox.onclick = (event: MouseEvent) => {
+      if (event.target === lightbox) {
+        closeLightbox();
+      }
+    };
+    
+    closeButton.onclick = closeLightbox;
+    
+    // Keyboard accessibility - close on Escape
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeLightbox();
+        document.removeEventListener('keydown', handleKeyDown);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
     
     lightbox.appendChild(img);
-    lightbox.onclick = () => document.body.removeChild(lightbox);
+    lightbox.appendChild(closeButton);
+    
+    // Prevent body scroll when lightbox is open
+    document.body.style.overflow = 'hidden';
     document.body.appendChild(lightbox);
   };
 
@@ -47,10 +111,18 @@ export default function ClickableEventImage({ imageUrl, title }: ClickableEventI
       style={{ 
         flex: 1,
         position: 'relative',
-        minHeight: '600px',
         cursor: 'pointer'
       }}
       onClick={handleClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
+      aria-label="Click to view image in full size"
     >
       <Image 
         src={imageUrl}

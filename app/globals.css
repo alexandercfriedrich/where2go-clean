@@ -658,78 +658,6 @@ body {
   }
 }
 
-/* Expandable Info Section - Feature 2 */
-.dark-event-expand-trigger {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
-  color: #20B8CD;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-top: 8px;
-}
-
-.dark-event-expand-trigger:hover {
-  background: rgba(32, 184, 205, 0.1);
-  border-color: rgba(32, 184, 205, 0.3);
-}
-
-.dark-event-expand-icon {
-  transition: transform 0.3s ease;
-}
-
-.dark-event-expand-icon.expanded {
-  transform: rotate(180deg);
-}
-
-.dark-event-expanded-info {
-  margin-top: 12px;
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.92); /* Even darker background for better readability */
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  animation: slideDown 0.3s ease;
-  /* Removed backdrop-filter to prevent blur bleeding through entire card */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-  position: relative;
-  z-index: 5;
-}
-
-@keyframes slideDown {
-  from {
-    opacity: 0;
-    transform: translateY(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.dark-event-description-full {
-  font-size: 14px;
-  color: #CCCCCC;
-  line-height: 1.7;
-  margin-bottom: 12px;
-}
-
-.dark-event-expanded-address {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  color: #BADFDE;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
 /* ===== EVENT DETAIL PAGE LAYOUT - Feature 3 & 6 ===== */
 .event-detail-card {
   display: flex;
@@ -1394,7 +1322,6 @@ body {
   transform: translateZ(0);
   backface-visibility: hidden;
   perspective: 1000px;
-  will-change: transform, box-shadow;
   
   /* Multi-Layer Schatten für Tiefe */
   box-shadow: 
@@ -1405,6 +1332,10 @@ body {
   
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* Apply will-change only on hover for performance */
+.mini-event-card:hover {
+  will-change: transform, box-shadow;
 
 .mini-event-card:hover {
   transform: translateY(-6px) scale(1.01);
@@ -1482,20 +1413,20 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.25);
 }
 
-/* Gradient Overlay SUBTIL für Textlesbarkeit */
+/* Gradient Overlay für Textlesbarkeit - Mini Cards */
 .mini-event-gradient-overlay {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 65%;
-  /* ✅ OPTIMIERT: Weniger Dunkelheit = mehr Bild sichtbar */
+  height: 85%;
+  /* ✅ UPDATED: 95% unten, 60% bei 50%, 30% bei 80%, 0% oben */
   background: linear-gradient(
     to top,
-    rgba(0, 0, 0, 0.90) 0%,    /* Statt 0.75 */
-    rgba(0, 0, 0, 0.60) 35%,   /* Statt 0.40 */
-    rgba(0, 0, 0, 0.10) 60%,   /* Statt 0.10 */
-    transparent 100%
+    rgba(0, 0, 0, 0.95) 0%,     /* 95% Opacity am unteren Ende */
+    rgba(0, 0, 0, 0.60) 50%,    /* 60% Opacity bei halber Höhe */
+    rgba(0, 0, 0, 0.30) 80%,    /* 30% Opacity bei 80% */
+    rgba(0, 0, 0, 0.0) 100%     /* 0% Opacity ganz oben */
   );
   border-radius: 0 0 12px 12px;
   z-index: 3;
@@ -1686,7 +1617,6 @@ body {
   transform: translateZ(0);
   backface-visibility: hidden;
   perspective: 1000px;
-  will-change: transform, box-shadow;
   
   /* Multi-Layer Schatten für Tiefe */
   box-shadow: 
@@ -1697,6 +1627,10 @@ body {
   
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* Apply will-change only on hover for performance */
+.event-poster-liquid-glass:hover {
+  will-change: transform, box-shadow;
 
 /* Hover state with enhanced elevation */
 .event-poster-liquid-glass:hover {
@@ -1786,13 +1720,13 @@ body {
   left: 0;
   right: 0;
   height: 90%;
-  /* ✅ UPDATED: 90% unten, 60% bei 50%, 40% bei 70%, 0% bei 90% */
+  /* ✅ UPDATED: 95% unten, 60% bei 50%, 30% bei 80%, 0% oben */
   background: linear-gradient(
     to top,
-    rgba(0, 0, 0, 0.90) 0%,     /* 90% Opacity am unteren Ende */
+    rgba(0, 0, 0, 0.95) 0%,     /* 95% Opacity am unteren Ende */
     rgba(0, 0, 0, 0.60) 50%,    /* 60% Opacity bei halber Höhe */
-    rgba(0, 0, 0, 0.40) 70%,    /* 40% Opacity bei 70% */
-    rgba(0, 0, 0, 0.0) 90%      /* 0% Opacity bei 90% (fast oben) */
+    rgba(0, 0, 0, 0.30) 80%,    /* 30% Opacity bei 80% */
+    rgba(0, 0, 0, 0.0) 100%     /* 0% Opacity ganz oben */
   );
   border-radius: 0 0 12px 12px;
   z-index: 3;
