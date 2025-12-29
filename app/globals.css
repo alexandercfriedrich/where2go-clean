@@ -1336,6 +1336,7 @@ body {
 /* Apply will-change only on hover for performance */
 .mini-event-card:hover {
   will-change: transform, box-shadow;
+}
 
 .mini-event-card:hover {
   transform: translateY(-6px) scale(1.01);
@@ -1631,6 +1632,7 @@ body {
 /* Apply will-change only on hover for performance */
 .event-poster-liquid-glass:hover {
   will-change: transform, box-shadow;
+}
 
 /* Hover state with enhanced elevation */
 .event-poster-liquid-glass:hover {
