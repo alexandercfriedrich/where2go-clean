@@ -1544,14 +1544,15 @@ body {
   
   /* ✅ OPTIMIERT: Subtile Filter wie Apple TV */
   filter: 
-    saturate(0.90)      /* -10% soft & elegant */
+    saturate(0.80)      /* vorher 0.90 */
     contrast(1.05)      /* +5% minimal */
-    brightness(0.97);   /* -3% cinematic dimming */
+    brightness(0.90);   /* vorher 0.97 */
+  
   
   -webkit-filter: 
-    saturate(0.90) 
+    saturate(0.80) 
     contrast(1.05) 
-    brightness(0.97);
+    brightness(0.90);
   
   transition: filter 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -1606,9 +1607,9 @@ body {
   /* ✅ OPTIMIERT: Weniger Dunkelheit = mehr Bild sichtbar */
   background: linear-gradient(
     to top,
-    rgba(0, 0, 0, 0.75) 0%,    /* Statt 0.85 */
-    rgba(0, 0, 0, 0.40) 35%,   /* Statt 0.50 */
-    rgba(0, 0, 0, 0.10) 60%,   /* Statt 0.15 */
+    rgba(0, 0, 0, 0.90) 0%,    /* Statt 0.75 */
+    rgba(0, 0, 0, 0.50) 45%,   /* Statt 0.50 */
+    rgba(0, 0, 0, 0.10) 75%,   /* Statt 0.15 */
     transparent 100%
   );
   border-radius: 0 0 12px 12px;
@@ -1716,10 +1717,10 @@ body {
   .event-gradient-overlay {
     background: linear-gradient(
       to top,
-      rgba(0, 0, 0, 0.70) 0%,
-      rgba(0, 0, 0, 0.35) 35%,
-      rgba(0, 0, 0, 0.08) 60%,
-      transparent 100%
+    rgba(0, 0, 0, 0.90) 0%,    /* Statt 0.75 */
+    rgba(0, 0, 0, 0.50) 45%,   /* Statt 0.50 */
+    rgba(0, 0, 0, 0.10) 75%,   /* Statt 0.15 */
+    transparent 100%
     );
   }
 }
