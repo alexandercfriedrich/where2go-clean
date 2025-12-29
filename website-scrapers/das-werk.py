@@ -12,6 +12,8 @@ import sys
 import os
 import re
 from typing import List, Dict, Optional
+import urllib.request
+import uuid
 import argparse
 
 # Add current directory to path
@@ -29,6 +31,11 @@ class DasWerkScraper(BaseVenueScraper):
     EVENTS_URL = "https://www.daswerk.org/programm/"
     CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Mixed"
+
+        # Supabase Storage Configuration
+        SUPABASE_URL = "https://ksjnmybbiwomhaumdrsk.supabase.co"
+    SUPABASE_SERVICE_KEY = os.getenv('SUPABASE_SERVICE_KEY', '')  # Set via environment
+    STORAGE_BUCKET = "event-images"
     
     def scrape_events(self) -> List[Dict]:
         """Scrape events from Das WERK"""
@@ -62,6 +69,44 @@ class DasWerkScraper(BaseVenueScraper):
                         "success" if status == "✓" else "warning")
         
         return events
+
+    def _upload_image_to_storage(self, image_url: str, event_title: str) -> Optional[str]:
+                """Download image and upload to Supabase Storage, return public URL"""
+                if not self.SUPABASE_SERVICE_KEY:
+                                self.log("SUPABASE_SERVICE_KEY not set, skipping image upload", "warning")
+                                return image_url
+
+        try:
+                        # Download image with proper headers to avoid hotlink blocking
+                        req = urllib.request.Request(image_url, headers={'Referer': self.BASE_URL, 'User-Agent': 'Mozilla/5.0'})
+                        with urllib.request.urlopen(req, timeout=10) as response:
+                                            image_data = response.read()
+                                            content_type = response.headers.get('Content-Type', 'image/jpeg')
+
+            # Generate unique filename
+            file_ext = content_type.split('/')[-1].split(';')[0]
+            filename = f"daswerk-{uuid.uuid4()}.{file_ext}"
+
+            # Upload to Supabase Storage
+            upload_url = f"{self.SUPABASE_URL}/storage/v1/object/{self.STORAGE_BUCKET}/{filename}"
+            upload_headers = {
+                                'Authorization': f'Bearer {self.SUPABASE_SERVICE_KEY}',
+                                'Content-Type': content_type
+                            }
+            upload_req = urllib.request.Request(upload_url, data=image_data, headers=upload_headers, method='POST')
+            with urllib.request.urlopen(upload_req, timeout=30) as upload_response:
+                                if upload_response.status in [200, 201]:
+                                                        public_url = f"{self.SUPABASE_URL}/storage/v1/object/public/{self.STORAGE_BUCKET}/{filename}"
+                                                        if self.debug:
+                                                                                    self.log(f"Uploaded image to: {public_url}", "debug")
+                                                                                return public_url
+                                                    else:
+                                                                            self.log(f"Upload failed with status {upload_response.status}", "error")
+                                                                            return image_url
+
+        except Exception as e:
+            self.log(f"Error uploading image: {e}", "error")
+            return image_url  # Fallback to original URL
     
     def _parse_event_item(self, item) -> Optional[Dict]:
         """Parse a single event item from Das WERK structure"""
@@ -173,9 +218,9 @@ class DasWerkScraper(BaseVenueScraper):
                 if match:
                     image_url = match.group(1)
                     if image_url and 'logo' not in image_url.lower():
-                        event_data['image_url'] = image_url
-                        if self.debug:
-                            self.log(f"  ✓ Image from detail: {image_url[:50]}...", "debug")
+                    # Upload image to Supabase Storage
+                                            stored_url = self._upload_image_to_storage(image_url, event_data.get('title', 'event'))
+                                            event_data['image_url'] = stored_url
             
             # Extract description from content divs
             desc_parts = []
