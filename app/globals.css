@@ -692,10 +692,13 @@ body {
 .dark-event-expanded-info {
   margin-top: 12px;
   padding: 16px;
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(0, 0, 0, 0.85); /* Darker background for better visibility */
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   animation: slideDown 0.3s ease;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
 @keyframes slideDown {
@@ -1698,7 +1701,7 @@ body {
   width: 100%;
   aspect-ratio: 2/3; /* Portrait format like Apple TV */
   border-radius: 12px;
-  overflow: hidden;
+  overflow: visible; /* Changed from hidden to allow expandable content */
   transform: translateZ(0);
   backface-visibility: hidden;
   perspective: 1000px;
@@ -1735,6 +1738,7 @@ body {
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+  border-radius: 12px; /* Add border radius to maintain rounded corners */
   
   /* ✅ OPTIMIERT: Subtile Filter wie Apple TV */
   filter: 
@@ -1875,8 +1879,8 @@ body {
   right: 0;
   z-index: 4;
   padding: 16px;
-  max-height: 40%;
-  overflow: hidden;
+  max-height: none; /* Remove max-height to allow expansion */
+  overflow: visible; /* Changed to visible for expandable section */
 }
 
 /* Source badge positioning */
