@@ -321,7 +321,7 @@ export default async function EventPage({ params }: EventPageProps) {
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
 
-          {/* Event Card */}
+          {/* Event Card - Redesigned Layout (Feature 3 & 4) */}
           <article 
             itemScope 
             itemType="https://schema.org/Event"
@@ -329,25 +329,15 @@ export default async function EventPage({ params }: EventPageProps) {
               background: '#13343B', /* Teal Dark for card */
               border: '1px solid #2E565D', /* Teal Medium border */
               borderRadius: '16px',
-              overflow: 'hidden'
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'row',
+              gap: 0
             }}
+            className="event-detail-card"
           >
-            {/* Event Image - Using Next.js Image to avoid hotlinking issues */}
-            {event.imageUrl && (
-              <div style={{ position: 'relative', width: '100%', height: '400px' }}>
-                <Image 
-                  src={event.imageUrl}
-                  alt={event.title}
-                  fill
-                  style={{ objectFit: 'cover' }}
-                  priority
-                  unoptimized // Allow external images without configuration
-                />
-                <meta itemProp="image" content={event.imageUrl} />
-              </div>
-            )}
-            
-            <div style={{ padding: '32px' }}>
+            {/* Left Column: Content (50% on desktop) */}
+            <div style={{ flex: 1, padding: '32px' }} className="event-detail-content">
               {/* Category Badge */}
               {event.category && (
                 <div style={{ 
@@ -384,7 +374,7 @@ export default async function EventPage({ params }: EventPageProps) {
                 display: 'grid', 
                 gap: '20px', 
                 marginBottom: '32px',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))'
+                gridTemplateColumns: '1fr'
               }}>
                 {/* Date & Time */}
                 <div style={{ 
@@ -424,7 +414,7 @@ export default async function EventPage({ params }: EventPageProps) {
                   </div>
                 </div>
                 
-                {/* Location */}
+                {/* Location with Google Maps - Feature 4 */}
                 <div 
                   itemProp="location" 
                   itemScope 
@@ -443,7 +433,7 @@ export default async function EventPage({ params }: EventPageProps) {
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
                     <circle cx="12" cy="10" r="3"/>
                   </svg>
-                  <div>
+                  <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '12px', color: '#BADFDE', marginBottom: '4px' }}>Location</div>
                     <div style={{ color: '#FCFAF6', fontWeight: 600 }} itemProp="name">
                       {event.venue}
@@ -456,33 +446,32 @@ export default async function EventPage({ params }: EventPageProps) {
                         <meta itemProp="address" content={event.address} />
                       </>
                     )}
-                    {(event.latitude && event.longitude) && (
-                      <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${event.latitude},${event.longitude}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ 
-                          color: '#20B8CD', 
-                          fontSize: '14px',
-                          textDecoration: 'none',
-                          marginTop: '4px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}
-                      >
-                        Auf Karte anzeigen
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                          <polyline points="15 3 21 3 21 9"></polyline>
-                          <line x1="10" y1="14" x2="21" y2="3"></line>
-                        </svg>
-                      </a>
-                    )}
+                    {/* Google Maps Link */}
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(event.venue + (event.address ? ', ' + event.address : ''))}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ 
+                        color: '#20B8CD', 
+                        fontSize: '14px',
+                        textDecoration: 'none',
+                        marginTop: '8px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      Auf Google Maps öffnen
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                        <polyline points="15 3 21 3 21 9"></polyline>
+                        <line x1="10" y1="14" x2="21" y2="3"></line>
+                      </svg>
+                    </a>
                   </div>
                 </div>
                 
-                {/* Price */}
+                {/* Price - beside Location - Feature 5 */}
                 {event.price && (
                   <div style={{ 
                     display: 'flex', 
@@ -587,6 +576,84 @@ export default async function EventPage({ params }: EventPageProps) {
                 )}
               </div>
             </div>
+
+            {/* Right Column: Image (50% on desktop, 100% on mobile) - Feature 3 & 6 */}
+            {event.imageUrl && (
+              <div 
+                className="event-detail-image-container"
+                style={{ 
+                  flex: 1,
+                  position: 'relative',
+                  minHeight: '600px',
+                  cursor: 'pointer'
+                }}
+                onClick={() => {
+                  // Open lightbox - simple implementation
+                  const lightbox = document.createElement('div');
+                  lightbox.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.95);
+                    z-index: 9999;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 20px;
+                    cursor: zoom-out;
+                  `;
+                  
+                  const img = document.createElement('img');
+                  img.src = event.imageUrl;
+                  img.style.cssText = `
+                    max-width: 95%;
+                    max-height: 95%;
+                    object-fit: contain;
+                    border-radius: 8px;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+                  `;
+                  
+                  lightbox.appendChild(img);
+                  lightbox.onclick = () => document.body.removeChild(lightbox);
+                  document.body.appendChild(lightbox);
+                }}
+              >
+                <Image 
+                  src={event.imageUrl}
+                  alt={event.title}
+                  fill
+                  style={{ objectFit: 'cover' }}
+                  priority
+                  unoptimized
+                />
+                <meta itemProp="image" content={event.imageUrl} />
+                {/* Zoom indicator */}
+                <div style={{
+                  position: 'absolute',
+                  top: '16px',
+                  right: '16px',
+                  background: 'rgba(0, 0, 0, 0.7)',
+                  color: 'white',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  fontSize: '14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  pointerEvents: 'none'
+                }}>
+                  <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <path d="m21 21-4.35-4.35"></path>
+                    <line x1="11" y1="8" x2="11" y2="14"></line>
+                    <line x1="8" y1="11" x2="14" y2="11"></line>
+                  </svg>
+                  Zum Vergrößern klicken
+                </div>
+              </div>
+            )}
           </article>
           
           {/* More Events at this Location */}

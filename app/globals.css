@@ -726,6 +726,55 @@ body {
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* ===== EVENT DETAIL PAGE LAYOUT - Feature 3 & 6 ===== */
+.event-detail-card {
+  display: flex;
+  flex-direction: row;
+}
+
+.event-detail-content {
+  flex: 1;
+}
+
+.event-detail-image-container {
+  flex: 1;
+  position: relative;
+  transition: opacity 0.3s ease;
+}
+
+.event-detail-image-container:hover {
+  opacity: 0.95;
+}
+
+/* Mobile: Stack image on top, 100% width */
+@media (max-width: 1024px) {
+  .event-detail-card {
+    flex-direction: column-reverse;
+  }
+  
+  .event-detail-image-container {
+    width: 100%;
+    min-height: 400px !important;
+  }
+}
+
+/* Desktop: Image 50% width, right-aligned */
+@media (min-width: 1025px) {
+  .event-detail-card {
+    flex-direction: row;
+  }
+  
+  .event-detail-content {
+    flex: 1;
+    max-width: 50%;
+  }
+  
+  .event-detail-image-container {
+    flex: 1;
+    max-width: 50%;
+  }
+}
+
 .dark-event-link {
   display: inline-flex;
   align-items: center;
