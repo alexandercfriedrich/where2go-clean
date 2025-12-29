@@ -606,7 +606,7 @@ export default async function EventPage({ params }: EventPageProps) {
                   `;
                   
                   const img = document.createElement('img');
-                  img.src = event.imageUrl;
+                  img.src = event.imageUrl || '';
                   img.style.cssText = `
                     max-width: 95%;
                     max-height: 95%;
