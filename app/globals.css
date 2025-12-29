@@ -1690,14 +1690,14 @@ body {
 .event-glass-overlay {
   position: absolute;
   inset: 0;
-  /* ✅ Stärkere Weißwerte für besseren Glas-Look ohne blur() */
+  /* ✅ Subtilere Weißwerte für natürlicheren Look */
   background: linear-gradient(
     145deg,
-    rgba(255, 255, 255, 0.18) 0%,
-    rgba(255, 255, 255, 0.08) 50%,
-    rgba(255, 255, 255, 0.12) 100%
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.04) 50%,
+    rgba(255, 255, 255, 0.08) 100%
   );
-  border: 1px solid rgba(255, 255, 255, 0.20);
+  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 12px;
   pointer-events: none;
   z-index: 2;
@@ -1708,11 +1708,11 @@ body {
 .event-poster-liquid-glass:hover .event-glass-overlay {
   background: linear-gradient(
     145deg,
-    rgba(255, 255, 255, 0.22) 0%,
-    rgba(255, 255, 255, 0.10) 50%,
-    rgba(255, 255, 255, 0.15) 100%
+    rgba(255, 255, 255, 0.16) 0%,
+    rgba(255, 255, 255, 0.07) 50%,
+    rgba(255, 255, 255, 0.10) 100%
   );
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
 /* Gradient Overlay SUBTIL für Textlesbarkeit + Drama */
@@ -1796,13 +1796,13 @@ body {
       0 6px 12px rgba(0, 0, 0, 0.16);
   }
   
-  /* ✅ Tablet: Kein backdrop-filter, stärkerer Gradient */
+  /* ✅ Tablet: Subtilere Werte */
   .event-glass-overlay {
     background: linear-gradient(
       145deg,
-      rgba(255, 255, 255, 0.16) 0%,
-      rgba(255, 255, 255, 0.07) 50%,
-      rgba(255, 255, 255, 0.10) 100%
+      rgba(255, 255, 255, 0.11) 0%,
+      rgba(255, 255, 255, 0.04) 50%,
+      rgba(255, 255, 255, 0.07) 100%
     );
   }
   
@@ -1832,12 +1832,13 @@ body {
     -webkit-filter: saturate(0.93) contrast(1.02) brightness(0.99);
   }
   
+  /* ✅ Mobile: Subtilere Werte */
   .event-glass-overlay {
     background: linear-gradient(
       145deg,
-      rgba(255, 255, 255, 0.14) 0%,
-      rgba(255, 255, 255, 0.06) 50%,
-      rgba(255, 255, 255, 0.09) 100%
+      rgba(255, 255, 255, 0.10) 0%,
+      rgba(255, 255, 255, 0.03) 50%,
+      rgba(255, 255, 255, 0.06) 100%
     );
   }
   
