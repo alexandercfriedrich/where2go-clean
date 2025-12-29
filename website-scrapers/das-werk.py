@@ -32,10 +32,10 @@ class DasWerkScraper(BaseVenueScraper):
     CATEGORY = "Clubs & Nachtleben"
     SUBCATEGORY = "Mixed"
 
-        # Supabase Storage Configuration
-        SUPABASE_URL = "https://ksjnmybbiwomhaumdrsk.supabase.co"
+    # Supabase Storage Configuration
+    SUPABASE_URL = "https://ksjnmybbiwomhaumdrsk.supabase.co"
     SUPABASE_SERVICE_KEY = os.getenv('SUPABASE_SERVICE_KEY', '')  # Set via environment
-    STORAGE_BUCKET = "event-images"
+        STORAGE_BUCKET = "event-images"
     
     def scrape_events(self) -> List[Dict]:
         """Scrape events from Das WERK"""
