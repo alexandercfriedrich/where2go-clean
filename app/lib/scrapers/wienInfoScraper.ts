@@ -58,6 +58,7 @@ export interface ScraperResult {
   eventsScraped: number;
   eventsUpdated: number;
   eventsFailed: number;
+  eventsDeleted: number;
   duration: number;
   errors: string[];
 }
@@ -89,7 +90,7 @@ export class WienInfoScraper {
   /**
    * Throttled fetch wrapper
    */
-  private async throttledFetch(url: string): Promise<string | null> {
+  private async throttledFetch(url: string): Promise<{ html: string | null; status: number }> {
     const throttledFn = this.throttle(async () => this.fetchPage(url));
     return throttledFn();
   }
@@ -115,8 +116,9 @@ export class WienInfoScraper {
 
   /**
    * Fetch a web page with proper headers
+   * Returns tuple of [html content, status code]
    */
-  private async fetchPage(url: string): Promise<string | null> {
+  private async fetchPage(url: string): Promise<{ html: string | null; status: number }> {
     try {
       const response = await fetch(url, {
         headers: {
@@ -129,13 +131,13 @@ export class WienInfoScraper {
 
       if (!response.ok) {
         this.log(`HTTP ${response.status} for ${url}`, 'warn');
-        return null;
+        return { html: null, status: response.status };
       }
 
-      return await response.text();
+      return { html: await response.text(), status: response.status };
     } catch (error: any) {
       this.log(`Failed to fetch ${url}: ${error.message}`, 'error');
-      return null;
+      return { html: null, status: 0 };
     }
   }
 
@@ -297,13 +299,14 @@ export class WienInfoScraper {
 
   /**
    * Scrape a single event page
+   * Returns tuple of [scraped data, HTTP status code]
    */
-  async scrapeEventPage(url: string): Promise<ScrapedEventData | null> {
+  async scrapeEventPage(url: string): Promise<{ data: ScrapedEventData | null; status: number }> {
     this.log(`Scraping: ${url}`, 'debug');
 
-    const html = await this.throttledFetch(url);
+    const { html, status } = await this.throttledFetch(url);
     if (!html) {
-      return null;
+      return { data: null, status };
     }
 
     const timeSlots = this.parseTimeSlots(html);
@@ -312,12 +315,15 @@ export class WienInfoScraper {
     const category = this.parseCategory(html);
 
     return {
-      timeSlots,
-      venueName: venueInfo.name,
-      venueAddress: venueInfo.address,
-      venuePhone: venueInfo.phone,
-      description,
-      category,
+      data: {
+        timeSlots,
+        venueName: venueInfo.name,
+        venueAddress: venueInfo.address,
+        venuePhone: venueInfo.phone,
+        description,
+        category,
+      },
+      status,
     };
   }
 
@@ -452,6 +458,84 @@ export class WienInfoScraper {
   }
 
   /**
+   * Delete an event from the database (e.g., when 404 is returned)
+   */
+  async deleteEvent(eventId: string, eventTitle: string, reason: string): Promise<boolean> {
+    if (this.options.dryRun) {
+      this.log(`[DRY-RUN] Would delete event ${eventTitle}: ${reason}`, 'info');
+      return true;
+    }
+
+    const { error } = await supabaseAdmin
+      .from('events')
+      .delete()
+      .eq('id', eventId);
+
+    if (error) {
+      this.log(`Error deleting event ${eventTitle}: ${error.message}`, 'error');
+      this.errors.push(`Failed to delete ${eventTitle}: ${error.message}`);
+      return false;
+    }
+
+    this.log(`Deleted event ${eventTitle}: ${reason}`, 'info');
+    return true;
+  }
+
+  /**
+   * Mark an event as having variable/no specific time (00:00:02)
+   * This is used when an event exists but has no time information available
+   */
+  async markEventAsVariableTime(
+    eventId: string,
+    eventTitle: string,
+    currentStartDateTime: string,
+    scrapedData: ScrapedEventData
+  ): Promise<boolean> {
+    const currentDate = currentStartDateTime.split('T')[0]; // YYYY-MM-DD
+    
+    // Set time to 00:00:02 to indicate "variable time"
+    const newStartDateTime = `${currentDate}T00:00:02.000Z`;
+
+    // Build update object
+    const updateData: Record<string, any> = {
+      start_date_time: newStartDateTime,
+      updated_at: new Date().toISOString(),
+    };
+
+    // Add description if we have it
+    if (scrapedData.description) {
+      updateData.description = scrapedData.description;
+    }
+
+    // Add venue info if we scraped it
+    if (scrapedData.venueName) {
+      updateData.custom_venue_name = scrapedData.venueName;
+    }
+    if (scrapedData.venueAddress) {
+      updateData.custom_venue_address = scrapedData.venueAddress;
+    }
+
+    if (this.options.dryRun) {
+      this.log(`[DRY-RUN] Would mark event as variable time ${eventTitle}: ${currentStartDateTime} -> ${newStartDateTime}`, 'info');
+      return true;
+    }
+
+    const { error } = await (supabaseAdmin as any)
+      .from('events')
+      .update(updateData)
+      .eq('id', eventId);
+
+    if (error) {
+      this.log(`Error updating event ${eventTitle} to variable time: ${error.message}`, 'error');
+      this.errors.push(`Failed to update ${eventTitle} to variable time: ${error.message}`);
+      return false;
+    }
+
+    this.log(`Marked ${eventTitle} as variable time (00:00:02)`, 'info');
+    return true;
+  }
+
+  /**
    * Run the scraper
    */
   async run(): Promise<ScraperResult> {
@@ -473,6 +557,7 @@ export class WienInfoScraper {
         eventsScraped: 0,
         eventsUpdated: 0,
         eventsFailed: 0,
+        eventsDeleted: 0,
         duration: Date.now() - startTime,
         errors: [],
       };
@@ -481,19 +566,54 @@ export class WienInfoScraper {
     let eventsScraped = 0;
     let eventsUpdated = 0;
     let eventsFailed = 0;
+    let eventsDeleted = 0;
 
     for (const event of events) {
       try {
-        const scrapedData = await this.scrapeEventPage(event.source_url);
+        const { data: scrapedData, status } = await this.scrapeEventPage(event.source_url);
         eventsScraped++;
 
-        if (!scrapedData || scrapedData.timeSlots.length === 0) {
-          this.log(`No time data found for: ${event.title}`, 'warn');
-          eventsFailed++;
-          this.errors.push(`No time data for: ${event.title}`);
+        // If 404, delete the event from database
+        if (status === 404) {
+          const deleted = await this.deleteEvent(
+            event.id,
+            event.title,
+            'Event not found (404)'
+          );
+          if (deleted) {
+            eventsDeleted++;
+          } else {
+            eventsFailed++;
+          }
           continue;
         }
 
+        // If page was fetched but no time data found, mark as variable time (00:00:02)
+        if (!scrapedData || scrapedData.timeSlots.length === 0) {
+          this.log(`No time data found for: ${event.title}, marking as variable time`, 'warn');
+          
+          // If we have scraped data (page exists), mark as variable time
+          if (scrapedData) {
+            const updated = await this.markEventAsVariableTime(
+              event.id,
+              event.title,
+              event.start_date_time,
+              scrapedData
+            );
+            if (updated) {
+              eventsUpdated++;
+            } else {
+              eventsFailed++;
+            }
+          } else {
+            // No data at all, treat as failed
+            eventsFailed++;
+            this.errors.push(`No data for: ${event.title}`);
+          }
+          continue;
+        }
+
+        // Normal update with scraped time
         const updated = await this.updateEventWithScrapedData(
           event.id,
           event.title,
@@ -516,13 +636,14 @@ export class WienInfoScraper {
 
     const duration = Date.now() - startTime;
 
-    this.log(`Scraping complete: ${eventsUpdated} updated, ${eventsFailed} failed in ${duration}ms`);
+    this.log(`Scraping complete: ${eventsUpdated} updated, ${eventsDeleted} deleted, ${eventsFailed} failed in ${duration}ms`);
 
     return {
       success: eventsFailed === 0,
       eventsScraped,
       eventsUpdated,
       eventsFailed,
+      eventsDeleted,
       duration,
       errors: this.errors,
     };

@@ -59,6 +59,7 @@ async function runWienInfoScraper(params: ScraperParams): Promise<NextResponse> 
         eventsScraped: result.eventsScraped,
         eventsUpdated: result.eventsUpdated,
         eventsFailed: result.eventsFailed,
+        eventsDeleted: result.eventsDeleted,
         duration: `${result.duration}ms`,
       },
       errors: result.errors.slice(0, 10), // Limit error output
@@ -72,6 +73,7 @@ async function runWienInfoScraper(params: ScraperParams): Promise<NextResponse> 
       eventsScraped: result.eventsScraped,
       eventsUpdated: result.eventsUpdated,
       eventsFailed: result.eventsFailed,
+      eventsDeleted: result.eventsDeleted,
       duration: `${result.duration}ms`,
     },
   });
