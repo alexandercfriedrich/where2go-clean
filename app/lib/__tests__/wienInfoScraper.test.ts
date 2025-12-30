@@ -203,10 +203,8 @@ describe('scrapeWienInfoEvents function', () => {
           select: () => ({
             eq: () => ({
               not: () => ({
-                or: () => ({
-                  order: () => ({
-                    limit: () => Promise.resolve({ data: [], error: null }),
-                  }),
+                order: () => ({
+                  limit: () => Promise.resolve({ data: [], error: null }),
                 }),
               }),
             }),

@@ -332,13 +332,13 @@ export class WienInfoScraper {
     source_url: string;
     start_date_time: string;
   }>> {
-    // Find only events with placeholder time (00:00:00 or 00:00:01)
+    // Fetch wien.info events
+    // Note: We can't use LIKE on timestamp columns in PostgreSQL, so we fetch all and filter client-side
     const { data, error } = await supabaseAdmin
       .from('events')
       .select('id, title, source_url, start_date_time')
       .eq('source', 'wien.info')
       .not('source_url', 'is', null)
-      .or('start_date_time.like.%00:00:00,start_date_time.like.%00:00:01')
       .order('start_date_time', { ascending: true })
       .limit(this.options.limit);
 
@@ -356,10 +356,22 @@ export class WienInfoScraper {
     }>;
 
     // Filter events with valid source_url
-    return events.filter(
+    let filteredEvents = events.filter(
       (e): e is { id: string; title: string; source_url: string; start_date_time: string } => 
         e.source_url !== null
     );
+
+    // Filter to events that need time scraping (placeholder times)
+    // These are events stored with either:
+    // - 00:00:00 (original data had no specific time)
+    // - 00:00:01 (already marked as all-day in Supabase)
+    filteredEvents = filteredEvents.filter(e => {
+      const dateStr = e.start_date_time;
+      return dateStr.includes('T00:00:00') || dateStr.includes(' 00:00:00') ||
+             dateStr.includes('T00:00:01') || dateStr.includes(' 00:00:01');
+    });
+
+    return filteredEvents;
   }
 
   /**
