@@ -51,8 +51,6 @@ export interface ScraperOptions {
   debug?: boolean;
   /** Requests per second limit (default: 2) */
   rateLimit?: number;
-  /** Only scrape events that have 00:00 as start time */
-  onlyMissingTimes?: boolean;
 }
 
 export interface ScraperResult {
@@ -76,10 +74,9 @@ export class WienInfoScraper {
   constructor(options: ScraperOptions = {}) {
     this.options = {
       dryRun: options.dryRun ?? false,
-      limit: options.limit ?? 10000, // Default to 10000 to process all events with missing times
+      limit: options.limit ?? 1000,
       debug: options.debug ?? false,
       rateLimit: options.rateLimit ?? 2,
-      onlyMissingTimes: options.onlyMissingTimes ?? true,
     };
 
     // Create throttle function to limit requests per second
@@ -326,6 +323,8 @@ export class WienInfoScraper {
 
   /**
    * Get Wien.info events from database that need scraping
+   * Only fetches events with placeholder times (00:00:00 or 00:00:01)
+   * These need the actual time scraped from wien.info
    */
   async getEventsToScrape(): Promise<Array<{
     id: string;
@@ -333,14 +332,13 @@ export class WienInfoScraper {
     source_url: string;
     start_date_time: string;
   }>> {
-    // Build base query
+    // Find only events with placeholder time (00:00:00 or 00:00:01)
     const { data, error } = await supabaseAdmin
       .from('events')
       .select('id, title, source_url, start_date_time')
       .eq('source', 'wien.info')
       .not('source_url', 'is', null)
-      .like('source_url', '%wien.info%')
-      .order('start_date_time', { ascending: true })
+      .or('start_date_time.like.%00:00:00,start_date_time.like.%00:00:01')
       .limit(this.options.limit);
 
     if (error) {
@@ -357,24 +355,10 @@ export class WienInfoScraper {
     }>;
 
     // Filter events with valid source_url
-    let filteredEvents = events.filter(
+    return events.filter(
       (e): e is { id: string; title: string; source_url: string; start_date_time: string } => 
         e.source_url !== null
     );
-
-    // If onlyMissingTimes is true, filter to events that need time scraping
-    // These are events stored with either:
-    // - 00:00:00 (original data had no specific time)
-    // - 00:00:01 (already marked as all-day in Supabase)
-    if (this.options.onlyMissingTimes) {
-      filteredEvents = filteredEvents.filter(e => {
-        const dateStr = e.start_date_time;
-        return dateStr.includes('T00:00:00') || dateStr.includes(' 00:00:00') ||
-               dateStr.includes('T00:00:01') || dateStr.includes(' 00:00:01');
-      });
-    }
-
-    return filteredEvents;
   }
 
   /**
