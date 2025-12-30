@@ -339,6 +339,7 @@ export class WienInfoScraper {
       .eq('source', 'wien.info')
       .not('source_url', 'is', null)
       .or('start_date_time.like.%00:00:00,start_date_time.like.%00:00:01')
+      .order('start_date_time', { ascending: true })
       .limit(this.options.limit);
 
     if (error) {
