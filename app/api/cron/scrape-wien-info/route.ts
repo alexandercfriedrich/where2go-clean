@@ -38,11 +38,10 @@ async function runWienInfoScraper(params: ScraperParams): Promise<NextResponse> 
     limit,
     dryRun,
     debug,
-    scrapeAll, // Parameter kept for backward compatibility but no longer used
+    // Note: scrapeAll parameter accepted but ignored - scraper always filters for placeholder times
   });
 
   // Run the scraper
-  // Note: scrapeAll parameter is ignored - scraper now always filters for placeholder times
   const result = await scrapeWienInfoEvents({
     limit,
     dryRun,
