@@ -38,7 +38,7 @@ async function runWienInfoScraper(params: ScraperParams): Promise<NextResponse> 
     limit,
     dryRun,
     debug,
-    onlyMissingTimes: !scrapeAll,
+    // Note: scrapeAll parameter accepted but ignored - scraper always filters for placeholder times
   });
 
   // Run the scraper
@@ -46,7 +46,6 @@ async function runWienInfoScraper(params: ScraperParams): Promise<NextResponse> 
     limit,
     dryRun,
     debug,
-    onlyMissingTimes: !scrapeAll,
     rateLimit: 2, // 2 requests per second to be respectful
   });
 
@@ -60,6 +59,7 @@ async function runWienInfoScraper(params: ScraperParams): Promise<NextResponse> 
         eventsScraped: result.eventsScraped,
         eventsUpdated: result.eventsUpdated,
         eventsFailed: result.eventsFailed,
+        eventsDeleted: result.eventsDeleted,
         duration: `${result.duration}ms`,
       },
       errors: result.errors.slice(0, 10), // Limit error output
@@ -73,6 +73,7 @@ async function runWienInfoScraper(params: ScraperParams): Promise<NextResponse> 
       eventsScraped: result.eventsScraped,
       eventsUpdated: result.eventsUpdated,
       eventsFailed: result.eventsFailed,
+      eventsDeleted: result.eventsDeleted,
       duration: `${result.duration}ms`,
     },
   });

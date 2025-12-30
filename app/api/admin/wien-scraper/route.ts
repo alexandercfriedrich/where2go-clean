@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
       limit,
       dryRun,
       debug,
-      onlyMissingTimes: !scrapeAll,
+      // Note: scrapeAll parameter accepted but ignored - scraper always filters for placeholder times
     });
     
     // 4. Run the scraper
@@ -126,7 +126,6 @@ export async function POST(request: NextRequest) {
       limit,
       dryRun,
       debug,
-      onlyMissingTimes: !scrapeAll,
       rateLimit: 2, // 2 requests per second to be respectful
     });
     
@@ -140,6 +139,7 @@ export async function POST(request: NextRequest) {
           eventsScraped: result.eventsScraped,
           eventsUpdated: result.eventsUpdated,
           eventsFailed: result.eventsFailed,
+          eventsDeleted: result.eventsDeleted,
           duration: `${result.duration}ms`,
         },
       });
@@ -153,6 +153,7 @@ export async function POST(request: NextRequest) {
           eventsScraped: result.eventsScraped,
           eventsUpdated: result.eventsUpdated,
           eventsFailed: result.eventsFailed,
+          eventsDeleted: result.eventsDeleted,
           duration: `${result.duration}ms`,
         },
       });
@@ -164,6 +165,7 @@ export async function POST(request: NextRequest) {
           eventsScraped: result.eventsScraped,
           eventsUpdated: result.eventsUpdated,
           eventsFailed: result.eventsFailed,
+          eventsDeleted: result.eventsDeleted,
           duration: `${result.duration}ms`,
         },
         errors: result.errors.slice(0, 10), // Limit error output
