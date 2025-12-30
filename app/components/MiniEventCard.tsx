@@ -48,7 +48,7 @@ export function MiniEventCard({ event, city = 'Wien' }: MiniEventCardProps) {
 
   const cardContent = (
     <div className="mini-event-card group">
-      {/* Event Image with overlay */}
+      {/* Event Image with Liquid Glass Effect */}
       <div 
         className="mini-event-image"
         style={{
@@ -58,17 +58,18 @@ export function MiniEventCard({ event, city = 'Wien' }: MiniEventCardProps) {
           backgroundColor: showTitleFallback ? fallbackColor : undefined,
         }}
       >
-        {/* Dark overlay for better text readability */}
-        {!showTitleFallback && (
-          <div className="mini-event-image-overlay" />
-        )}
-        
         {showTitleFallback && (
           <h4 className="mini-event-fallback-title">
             {event.title}
           </h4>
         )}
       </div>
+
+      {/* Glassmorphismus-Overlay */}
+      <div className="mini-event-glass-overlay"></div>
+
+      {/* Gradient Overlay für Textlesbarkeit */}
+      <div className="mini-event-gradient-overlay"></div>
 
       {/* Event Content */}
       <div className="mini-event-content">

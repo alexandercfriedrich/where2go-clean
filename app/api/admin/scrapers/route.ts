@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 // Scraper registry - maps scraper keys to their configuration
 // Note: Keep in sync with website-scrapers/run_all_scrapers.py scraper_map

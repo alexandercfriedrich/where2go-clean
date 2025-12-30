@@ -14,6 +14,10 @@ import { normalizeCitySlug } from '@/lib/slugGenerator';
 import { getVenueFallbackImage } from '@/lib/venueFallbackImages';
 import SchemaOrg from '@/components/SchemaOrg';
 import PageSearch from '@/components/PageSearch';
+import ClickableEventImage from '@/components/ClickableEventImage';
+import { ShareButtons } from '@/components/discovery/ShareButtons';
+import { AddToCalendar } from '@/components/discovery/AddToCalendar';
+import { FavoriteButton } from '@/components/discovery/FavoriteButton';
 import type { EventData } from '@/lib/types';
 import type { Database } from '@/lib/supabase/types';
 
@@ -321,7 +325,7 @@ export default async function EventPage({ params }: EventPageProps) {
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
 
-          {/* Event Card */}
+          {/* Event Card - Redesigned Layout (Feature 3 & 4) */}
           <article 
             itemScope 
             itemType="https://schema.org/Event"
@@ -329,25 +333,14 @@ export default async function EventPage({ params }: EventPageProps) {
               background: '#13343B', /* Teal Dark for card */
               border: '1px solid #2E565D', /* Teal Medium border */
               borderRadius: '16px',
-              overflow: 'hidden'
+              overflow: 'hidden',
+              display: 'flex',
+              gap: 0
             }}
+            className="event-detail-card"
           >
-            {/* Event Image - Using Next.js Image to avoid hotlinking issues */}
-            {event.imageUrl && (
-              <div style={{ position: 'relative', width: '100%', height: '400px' }}>
-                <Image 
-                  src={event.imageUrl}
-                  alt={event.title}
-                  fill
-                  style={{ objectFit: 'cover' }}
-                  priority
-                  unoptimized // Allow external images without configuration
-                />
-                <meta itemProp="image" content={event.imageUrl} />
-              </div>
-            )}
-            
-            <div style={{ padding: '32px' }}>
+            {/* Left Column: Content (50% on desktop) */}
+            <div style={{ flex: 1, padding: '32px' }} className="event-detail-content">
               {/* Category Badge */}
               {event.category && (
                 <div style={{ 
@@ -384,7 +377,7 @@ export default async function EventPage({ params }: EventPageProps) {
                 display: 'grid', 
                 gap: '20px', 
                 marginBottom: '32px',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))'
+                gridTemplateColumns: '1fr'
               }}>
                 {/* Date & Time */}
                 <div style={{ 
@@ -424,7 +417,7 @@ export default async function EventPage({ params }: EventPageProps) {
                   </div>
                 </div>
                 
-                {/* Location */}
+                {/* Location with Google Maps - Feature 4 */}
                 <div 
                   itemProp="location" 
                   itemScope 
@@ -443,7 +436,7 @@ export default async function EventPage({ params }: EventPageProps) {
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
                     <circle cx="12" cy="10" r="3"/>
                   </svg>
-                  <div>
+                  <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '12px', color: '#BADFDE', marginBottom: '4px' }}>Location</div>
                     <div style={{ color: '#FCFAF6', fontWeight: 600 }} itemProp="name">
                       {event.venue}
@@ -456,22 +449,27 @@ export default async function EventPage({ params }: EventPageProps) {
                         <meta itemProp="address" content={event.address} />
                       </>
                     )}
-                    {(event.latitude && event.longitude) && (
+                    {/* Google Maps Link - Conditional with coordinates fallback */}
+                    {event.venue && (
                       <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${event.latitude},${event.longitude}`}
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                          event.latitude != null && event.longitude != null
+                            ? `${event.latitude},${event.longitude}`
+                            : event.venue + (event.address ? ', ' + event.address : '')
+                        )}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{ 
                           color: '#20B8CD', 
                           fontSize: '14px',
                           textDecoration: 'none',
-                          marginTop: '4px',
+                          marginTop: '8px',
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '4px'
                         }}
                       >
-                        Auf Karte anzeigen
+                        Auf Google Maps öffnen
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
                           <polyline points="15 3 21 3 21 9"></polyline>
@@ -482,7 +480,7 @@ export default async function EventPage({ params }: EventPageProps) {
                   </div>
                 </div>
                 
-                {/* Price */}
+                {/* Price - Feature 1: Added Price Info */}
                 {event.price && (
                   <div style={{ 
                     display: 'flex', 
@@ -491,11 +489,12 @@ export default async function EventPage({ params }: EventPageProps) {
                     padding: '16px',
                     background: '#091717',
                     borderRadius: '8px',
-                  border: '1px solid #2E565D'
+                    border: '1px solid #2E565D'
                   }}>
                     <svg width="24" height="24" fill="none" stroke="#20B8CD" viewBox="0 0 24 24" strokeWidth="2">
-                      <line x1="12" y1="1" x2="12" y2="23"></line>
-                      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                      <circle cx="12" cy="12" r="10"/>
+                      <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/>
+                      <path d="M12 18V6"/>
                     </svg>
                     <div>
                       <div style={{ fontSize: '12px', color: '#BADFDE', marginBottom: '4px' }}>Preis</div>
@@ -527,7 +526,7 @@ export default async function EventPage({ params }: EventPageProps) {
               )}
               
               {/* Action Buttons */}
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginBottom: '24px' }}>
                 {event.bookingLink && (
                   <a
                     href={event.bookingLink}
@@ -586,7 +585,23 @@ export default async function EventPage({ params }: EventPageProps) {
                   </a>
                 )}
               </div>
+
+              {/* Social Sharing & Actions */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+                <FavoriteButton eventId={event.title} size="md" />
+                <AddToCalendar event={event} size="md" />
+                <ShareButtons 
+                  event={event} 
+                  url={`${BASE_URL}/events/${citySlug}/${params.slug}`}
+                  size="md"
+                />
+              </div>
             </div>
+
+            {/* Right Column: Image (50% on desktop, 100% on mobile) - Feature 3 & 6 */}
+            {event.imageUrl && (
+              <ClickableEventImage imageUrl={event.imageUrl} title={event.title} />
+            )}
           </article>
           
           {/* More Events at this Location */}

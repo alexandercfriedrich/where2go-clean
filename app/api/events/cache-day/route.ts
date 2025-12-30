@@ -4,6 +4,7 @@ import { EventData } from '@/lib/types';
 import { normalizeCategory } from '@/lib/eventCategories';
 import { getHotCity, getHotCityBySlug } from '@/lib/hotCityStore';
 
+export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 

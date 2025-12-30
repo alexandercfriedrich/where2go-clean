@@ -13,7 +13,6 @@ import { normalizeCitySlug } from '@/lib/slugGenerator';
 import { getVenueFallbackImage } from '@/lib/venueFallbackImages';
 import { getFallbackColor, hasValidImage } from '@/lib/eventImageFallback';
 import { AddToCalendar } from './discovery/AddToCalendar';
-import { ShareButtons } from './discovery/ShareButtons';
 import { FavoriteButton } from './discovery/FavoriteButton';
 import type { EventData } from '@/lib/types';
 
@@ -217,13 +216,13 @@ export function EventCard({
 
   // Common card content - extracted to avoid duplication
   const cardContent = (
-    <div className="dark-event-card">
+    <div className="event-poster-liquid-glass">
       {/* Source Badge - Always Visible */}
       <div className="dark-event-source-badge">
         {sourceDisplay}
       </div>
 
-      {/* Event Image */}
+      {/* Event Image with Liquid Glass Effect */}
       <div 
         className="dark-event-card-image"
         style={{
@@ -231,7 +230,7 @@ export function EventCard({
             ? `url(${eventImage})` 
             : undefined,
           backgroundColor: showTitleFallback ? fallbackColor : undefined,
-          minHeight: '240px',
+          minHeight: showTitleFallback ? '240px' : undefined,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           display: showTitleFallback ? 'flex' : undefined,
@@ -246,6 +245,12 @@ export function EventCard({
           </h3>
         )}
       </div>
+
+      {/* Glassmorphismus-Overlay */}
+      <div className="event-glass-overlay"></div>
+
+      {/* Gradient Overlay für Textlesbarkeit */}
+      <div className="event-gradient-overlay"></div>
 
       {/* Event Content */}
       <div className="dark-event-content">
@@ -263,25 +268,25 @@ export function EventCard({
 
         {/* Event Details with Icons */}
         <div className="dark-event-details">
-          {/* Date */}
+          {/* Date & Time on same line */}
           {displayDate && (
-            <div className="dark-event-detail">
-              <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span>{displayDate}</span>
+            <div className="dark-event-detail dark-event-datetime-row">
+              <div className="dark-event-date-section">
+                <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span>{displayDate}</span>
+              </div>
+              <div className="dark-event-time-section">
+                <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span {...(!eventTime && { 'aria-label': 'Ganztägige Veranstaltung' })}>
+                  {eventTime ? `${eventTime} Uhr` : 'ganztags'}
+                </span>
+              </div>
             </div>
           )}
-
-          {/* Time */}
-          <div className="dark-event-detail">
-            <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span {...(!eventTime && { 'aria-label': 'Ganztägige Veranstaltung' })}>
-              {eventTime ? `${eventTime} Uhr` : 'ganztags'}
-            </span>
-          </div>
 
           {/* Venue (clickable to Google Maps) */}
           {venue && (
@@ -306,18 +311,16 @@ export function EventCard({
               </a>
             </div>
           )}
-        </div>
 
-        {/* Description */}
-        {event.description && (
-          <p className="dark-event-description">
-            {event.description}
-          </p>
-        )}
-
-        {/* Price */}
-        <div className="dark-event-price">
-          {priceDisplay}
+          {/* Price Info beside Location on desktop / below on mobile */}
+          {priceDisplay && (
+            <div className="dark-event-detail dark-event-price-info">
+              <svg className="dark-event-icon" width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span className="dark-event-price-badge">{priceDisplay}</span>
+            </div>
+          )}
         </div>
 
         {/* Info and Ticket Links */}
@@ -360,18 +363,7 @@ export function EventCard({
           </div>
         )}
 
-        {/* Action Buttons */}
-        {showActions && (
-          <div className="mt-2 flex items-center gap-2 flex-wrap" onClick={(e) => e.preventDefault()}>
-            <FavoriteButton eventId={eventId} size="sm" />
-            <AddToCalendar event={event} size="sm" />
-            <ShareButtons 
-              event={event} 
-              url={`https://www.where2go.at/event/${eventId}`}
-              size="sm"
-            />
-          </div>
-        )}
+
       </div>
     </div>
   );
