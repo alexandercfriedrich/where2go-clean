@@ -1715,20 +1715,21 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.18);
 }
 
-/* Gradient Overlay SUBTIL für Textlesbarkeit + Drama */
+/* Gradient Overlay STÄRKER für bessere Textlesbarkeit - Diagonal */
 .event-gradient-overlay {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 90%;
-  /* ✅ UPDATED: 95% unten, 60% bei 50%, 30% bei 80%, 0% oben */
+  height: 100%; /* Full height coverage */
+  /* ✅ DIAGONAL GRADIENT: Dunkler nach links-unten, heller nach rechts-oben */
   background: linear-gradient(
-    to top,
-    rgba(0, 0, 0, 0.95) 0%,     /* 95% Opacity am unteren Ende */
-    rgba(0, 0, 0, 0.60) 50%,    /* 60% Opacity bei halber Höhe */
-    rgba(0, 0, 0, 0.30) 80%,    /* 30% Opacity bei 80% */
-    rgba(0, 0, 0, 0.0) 100%     /* 0% Opacity ganz oben */
+    135deg,  /* Diagonal from top-left to bottom-right */
+    rgba(0, 0, 0, 1.0) 0%,      /* 100% Opacity ganz oben (dunkel) */
+    rgba(0, 0, 0, 0.80) 15%,    /* 80% im oberen Bereich */
+    rgba(0, 0, 0, 0.60) 35%,    /* 60% im oberen Viertel */
+    rgba(0, 0, 0, 0.30) 55%,    /* 30% in der Mitte */
+    rgba(0, 0, 0, 0.95) 100%    /* 95% ganz unten (sehr dunkel) */
   );
   border-radius: 0 0 12px 12px;
   z-index: 3;
