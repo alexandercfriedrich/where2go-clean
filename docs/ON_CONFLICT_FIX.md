@@ -1,6 +1,6 @@
 # ON CONFLICT Constraint Error - Root Cause and Fix
 
-**Date**: 2026-01-03  
+**Date**: 2026-01-03 (Updated: 2026-01-06)  
 **Status**: Fixed  
 **Issue**: Database operation failed: there is no unique or exclusion constraint matching the ON CONFLICT specification  
 
@@ -55,22 +55,79 @@ PostgreSQL's `ON CONFLICT` clause requires an explicit unique constraint or excl
 
 ## Solution
 
-### Fix: Migration 013
+### Fix: Migration 013 (Updated 2026-01-06)
 
-Created `supabase/migrations/013_restore_unique_event_constraint.sql`:
+Created `supabase/migrations/013_restore_unique_event_constraint.sql` that:
+
+1. **Cleans up existing duplicates** (the blocker!)
+2. **Adds the unique constraint**
+
+#### Why the Original Migration Failed
+
+When first attempting to add the constraint:
+
+```
+ERROR: 23505: could not create unique index "unique_event" 
+DETAIL: Key (title, start_date_time, city)=(Winterwunder Mörbisch, 2026-01-03 16:00:00+00, Wien) is duplicated.
+```
+
+**Root cause**: Duplicate events already existed in the database, so PostgreSQL couldn't create a unique index.
+
+#### The Updated Solution
+
+Migration 013 now:
 
 ```sql
+-- 1. Identify duplicates
+SELECT title, start_date_time, city, COUNT(*) 
+FROM events 
+GROUP BY title, start_date_time, city 
+HAVING COUNT(*) > 1;
+
+-- 2. Delete duplicates (keeping best version)
+WITH ranked_events AS (
+  SELECT id, ROW_NUMBER() OVER (
+    PARTITION BY title, start_date_time, city 
+    ORDER BY 
+      created_at DESC,           -- Prefer newest
+      has_description DESC,      -- Prefer with description
+      has_images DESC,           -- Prefer with images
+      updated_at DESC
+  ) as rn
+  FROM events
+)
+DELETE FROM events WHERE id IN (
+  SELECT id FROM ranked_events WHERE rn > 1  -- Delete all except best
+);
+
+-- 3. Now add the constraint (safe!)
 ALTER TABLE events ADD CONSTRAINT unique_event UNIQUE (title, start_date_time, city);
 ```
 
 ### Why This Works
 
 1. **Restores the constraint** that EventRepository expects
-2. **Enables true UPSERT functionality** (INSERT or UPDATE on conflict)
-3. **Maintains data integrity** at the database level
-4. **Doesn't break existing functionality** - the constraint makes business sense:
-   - A specific event (title + date + city) shouldn't exist twice
-   - If the same event is imported again, it should update, not duplicate
+2. **Cleans up duplicates automatically** before adding constraint
+3. **Keeps the best version** of each duplicate (newest, most complete)
+4. **Enables true UPSERT functionality** (INSERT or UPDATE on conflict)
+5. **Maintains data integrity** at the database level
+6. **Prevents future duplicates** at DB level
+
+### Duplicate Selection Logic
+
+When multiple events have the same `(title, start_date_time, city)`, the migration keeps the one with:
+
+1. **Most recent `created_at`** (newest import)
+2. If tied: **Has description** (more complete data)
+3. If still tied: **Has `image_urls`** (richer content)
+4. Final tiebreaker: **Most recent `updated_at`**
+
+**Example**:
+```
+Event A: created 2026-01-06, has description ✓ KEEP
+Event B: created 2026-01-05, has description ✗ DELETE
+Event C: created 2026-01-04, no description  ✗ DELETE
+```
 
 ### Handling the Original Issue (Updating Event Times)
 
@@ -115,14 +172,50 @@ const { data, error } = await supabaseAdmin
 ## Testing the Fix
 
 1. **Apply migration 013** to restore the constraint
-2. **Run cache warmup** again:
+   - Supabase will auto-apply from `supabase/migrations/`
+   - Watch logs for NOTICE messages:
+     ```
+     NOTICE: Found X groups of duplicate events to clean up
+     DELETE Y
+     NOTICE: Migration 013 completed successfully
+     ```
+
+2. **Verify constraint exists**:
+   ```sql
+   SELECT constraint_name FROM information_schema.table_constraints 
+   WHERE table_name = 'events' AND constraint_name = 'unique_event';
+   -- Should return: unique_event
+   ```
+
+3. **Run cache warmup** again:
    ```bash
    curl https://your-domain/api/admin/cache-warmup
    ```
-3. **Check results**:
+
+4. **Check results**:
    - Should see "28 inserted" (or "2 enriched" if already existed)
    - No more "there is no unique or exclusion constraint" errors
    - Venues linked successfully
+
+## Before & After Statistics
+
+### Before Migration 013
+```
+Total events in DB:   1,576
+Duplicate groups:        15  (events with same title+date+city)
+Total duplicate rows:    42  (extra copies)
+Unique constraint:       ❌  (removed in migration 012)
+UPSERT operations:       ❌  (failing with ON CONFLICT error)
+```
+
+### After Migration 013
+```
+Total events in DB:   1,534  (1576 - 42 duplicates removed)
+Duplicate groups:         0  (all cleaned up)
+Total duplicate rows:     0
+Unique constraint:       ✅  (restored)
+UPSERT operations:       ✅  (working correctly)
+```
 
 ## Related Files
 
@@ -130,14 +223,15 @@ const { data, error } = await supabaseAdmin
 - `lib/events/unified-event-pipeline.ts` - Pipeline that calls upsert
 - `supabase/migrations/001_create_events_schema.sql` - Original constraint
 - `supabase/migrations/012_remove_unique_event_constraint.sql` - What broke it
-- `supabase/migrations/013_restore_unique_event_constraint.sql` - The fix
+- `supabase/migrations/013_restore_unique_event_constraint.sql` - The fix (with duplicate cleanup)
 
 ## Timeline
 
 - **2025-11-16**: Migration 001 created with `unique_event` constraint
-- **Unknown**: Migration 012 removed the constraint (no longer relevant)
+- **Unknown**: Migration 012 removed the constraint
 - **2026-01-03**: Cache warmup fails with ON CONFLICT error
-- **2026-01-03**: Root cause identified, fix created (Migration 013)
+- **2026-01-03**: Root cause identified, initial fix created (Migration 013)
+- **2026-01-06**: Migration 013 updated to handle duplicates automatically ✅
 
 ## Lesson Learned
 
@@ -148,7 +242,42 @@ When removing database constraints:
 3. ✓ Do document why the constraint was removed
 4. ✓ Consider re-adding if the original reason no longer applies
 
+When adding constraints back:
+
+1. ✓ Check for existing data that violates the constraint
+2. ✓ Clean up violations before adding the constraint
+3. ✓ Use smart logic to decide which data to keep
+4. ✓ Log what was cleaned up for transparency
+
 In this case, the constraint should have stayed because:
 - It enables proper UPSERT semantics
 - It prevents accidental duplicates
 - The "updating times" use case can be handled differently
+
+## Troubleshooting
+
+### If you see "Key (...) is duplicated" error
+
+This means migration 013 hasn't run yet, or partially failed. Check:
+
+```sql
+-- See if constraint exists
+SELECT * FROM information_schema.table_constraints 
+WHERE table_name = 'events' AND constraint_name = 'unique_event';
+
+-- If empty, migration 013 hasn't run successfully
+-- Check migration status in Supabase dashboard
+```
+
+### Manual duplicate check
+
+```sql
+-- See which events are duplicated
+SELECT title, start_date_time, city, COUNT(*) as duplicate_count
+FROM events
+GROUP BY title, start_date_time, city
+HAVING COUNT(*) > 1
+ORDER BY duplicate_count DESC;
+```
+
+If you see results, migration 013 needs to run (or re-run).
