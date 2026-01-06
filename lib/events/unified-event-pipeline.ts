@@ -403,31 +403,34 @@ export async function processEvents(
           };
 
           // ─────────────────────────────────────────────────────
-          // STEP 3d: UPSERT TO DATABASE
+          // STEP 3d: INSERT TO DATABASE
+          // Changed from UPSERT to INSERT since ON CONFLICT constraint no longer exists
+          // Duplicates will fail silently due to unique constraint on (title, start_date_time, city)
           // ─────────────────────────────────────────────────────
           if (!dryRun) {
-            // Use UPSERT with ON CONFLICT to handle the unique_event constraint
-            // This is idempotent and batch-safe - events with same (title, start_date_time, city)
-            // will be updated instead of causing duplicate key violations
             const { data, error } = await (supabaseAdmin as any)
               .from('events')
-              .upsert([eventData], {
-                onConflict: 'title,start_date_time,city',  // Uses unique_event constraint
-                ignoreDuplicates: false  // Update existing records
-              })
+              .insert([eventData])
               .select('id');
 
-            if (error) {
+            // Ignore PostgreSQL duplicate key errors (code 23505)
+            // Deduplication in STEP 2 should have already filtered these out
+            if (error && error.code !== '23505') {
               throw new Error(`Database operation failed: ${error.message}`);
             }
 
-            // Count as inserted (upsert handles both insert and update internally)
-            result.eventsInserted++;
+            // Count as inserted (if no duplicate key error)
+            if (!error) {
+              result.eventsInserted++;
+            } else if (error.code === '23505') {
+              // Duplicate key error - count as skipped
+              result.eventsSkippedAsDuplicates++;
+            }
 
             // NOTE: Cache sync removed - events are stored in Supabase only
           } else {
             if (debug) {
-              console.log(`[PIPELINE:DRY-RUN] Would upsert event: ${event.title}`);
+              console.log(`[PIPELINE:DRY-RUN] Would insert event: ${event.title}`);
             }
             result.eventsInserted++;
           }
@@ -649,7 +652,7 @@ async function matchOrCreateVenue(
   if (dryRun) {
     // In dry-run mode, generate a placeholder ID
     if (debug) {
-      console.log(`[PIPELINE:VENUE:DRY-RUN] Would upsert venue: ${venueInfo.name}`);
+      console.log(`[PIPELINE:VENUE:DRY-RUN] Would match/create venue: ${venueInfo.name}`);
     }
     return { id: `dry-run-${venueInfo.name.toLowerCase().replace(/\s+/g, '-')}`, isNew: true };
   }
