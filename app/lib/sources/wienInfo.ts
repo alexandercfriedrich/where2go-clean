@@ -455,7 +455,9 @@ function pickDateTimeWithinWindow(
     const end = event.endDate ? new Date(event.endDate) : new Date(event.startDate);
     if (start <= to && end >= from) {
       const time = extractTimeOrAllDay(event.startDate);
-      return { date: fromISO, time };
+      const [eventDate] = event.startDate.split('T');
+      return { date: eventDate, time };
+
     }
   }
 
