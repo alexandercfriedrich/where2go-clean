@@ -92,6 +92,8 @@ npm run import:wien
 
 The importer is also exposed via a secured API endpoint at `/api/admin/cache-warmup`.
 
+> **Note**: This endpoint is for manual/operational use only. The automated Vercel cron job (`/api/cron/cache-warmup`) has been removed as it's no longer necessary with the Supabase-only architecture. Events are now managed through the admin endpoint or CLI scripts as needed.
+
 #### Authentication
 
 The endpoint is protected by **middleware Basic Auth** (required) and optionally by a **Bearer token** (if configured).
