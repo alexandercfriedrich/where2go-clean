@@ -150,8 +150,9 @@ export class EventRepository {
   }
 
   /**
-   * Bulk upsert events into PostgreSQL
+   * Bulk insert events into PostgreSQL
    * IMPORTANT: Use this in background jobs or migrations
+   * NOTE: Changed from UPSERT to INSERT - duplicates will be skipped by unique constraint
    */
   static async bulkInsertEvents(
     events: EventData[],
@@ -169,19 +170,15 @@ export class EventRepository {
     const uniqueDbEvents = Array.from(seen.values())
 
     try {
-      // Type assertion needed due to Supabase SDK type inference limitations
-      // Based on testing: NO spaces in the onConflict column list (e.g., 'title,start_date_time,city')
-      // ignoreDuplicates: false means UPDATE on conflict (true would mean INSERT only, skip duplicates)
+      // Use INSERT instead of UPSERT since the ON CONFLICT constraint no longer exists
+      // Duplicate inserts will fail silently due to unique constraint on (title, start_date_time, city)
       const { data, error } = await supabaseAdmin
         .from('events')
-        .upsert(uniqueDbEvents as any, { 
-          onConflict: 'title,start_date_time,city',
-          ignoreDuplicates: false 
-        })
+        .insert(uniqueDbEvents as any)
         .select()
 
       if (error) {
-        errors.push(`Bulk upsert error: ${error.message}`)
+        errors.push(`Bulk insert error: ${error.message}`)
         return { success: false, inserted: 0, errors }
       }
 
@@ -266,8 +263,9 @@ export class EventRepository {
   }
 
   /**
-   * Upsert events (insert or update based on uniqueness)
+   * Insert events (does not update existing ones)
    * Uses title + date + city as unique constraint
+   * NOTE: Changed from UPSERT to INSERT since ON CONFLICT constraint no longer exists
    */
   static async upsertEvents(
     events: EventData[],
@@ -284,25 +282,21 @@ export class EventRepository {
     const uniqueDbEvents = Array.from(seen.values())
 
     try {
-      // Type assertion needed due to Supabase SDK type inference limitations
-      // Based on testing: NO spaces in the onConflict column list (e.g., 'title,start_date_time,city')
-      // ignoreDuplicates: false means UPDATE on conflict (true would mean INSERT only, skip duplicates)
+      // Use INSERT instead of UPSERT since the ON CONFLICT constraint no longer exists
+      // Duplicate inserts will fail silently due to unique constraint on (title, start_date_time, city)
       const { data, error } = await supabaseAdmin
         .from('events')
-        .upsert(uniqueDbEvents as any, { 
-          onConflict: 'title,start_date_time,city',
-          ignoreDuplicates: false 
-        })
+        .insert(uniqueDbEvents as any)
         .select()
 
       if (error) {
-        console.error('[EventRepository] Upsert error:', error)
+        console.error('[EventRepository] Insert error:', error)
         return { success: false, upserted: 0 }
       }
 
       return { success: true, upserted: data?.length || 0 }
     } catch (error) {
-      console.error('[EventRepository] Upsert exception:', error)
+      console.error('[EventRepository] Insert exception:', error)
       return { success: false, upserted: 0 }
     }
   }
@@ -543,10 +537,7 @@ export class EventRepository {
       try {
         const { data, error } = await supabaseAdmin
           .from('events')
-          .upsert(batch as any, {
-            onConflict: 'title,start_date_time,city',
-            ignoreDuplicates: false
-          })
+          .insert(batch as any)
           .select();
         
         if (error) {
