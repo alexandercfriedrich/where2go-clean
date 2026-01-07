@@ -13,7 +13,7 @@ import { EventData } from './types';
  * - 00:01 = all-day event marker (used by warmup importer)
  * - 00:02 = variable time event marker (used by scraper when time unavailable)
  */
-export const PLACEHOLDER_TIMES = ['00:00', '00:01', '00:02'] as const;
+export const PLACEHOLDER_TIMES = ['00:00', '00:01', '00:02'];
 
 /**
  * Calculate Levenshtein distance between two strings
@@ -77,7 +77,7 @@ export function calculateStringSimilarity(str1: string, str2: string): number {
 export function isPlaceholderTime(time: string | undefined): boolean {
   if (!time) return true;
   const trimmed = time.trim();
-  return trimmed === '' || PLACEHOLDER_TIMES.includes(trimmed as typeof PLACEHOLDER_TIMES[number]);
+  return trimmed === '' || PLACEHOLDER_TIMES.includes(trimmed);
 }
 
 /**
