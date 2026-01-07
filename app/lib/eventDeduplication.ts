@@ -81,7 +81,7 @@ function isPlaceholderTime(time: string | undefined): boolean {
  * Check if two events are duplicates based on fuzzy matching rules:
  * - Must be same city (case-insensitive)
  * - Must be within 1 hour time window (or both have placeholder times)
- * - Must have >85% title similarity (Levenshtein-based)
+ * - Must have >50% title similarity (Levenshtein-based)
  */
 export function areEventsDuplicates(event1: EventData, event2: EventData): boolean {
   // Rule 1: Must be same city (case-insensitive)
