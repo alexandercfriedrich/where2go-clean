@@ -163,6 +163,73 @@ describe('Event Deduplication Utilities', () => {
       const event2 = { ...baseEvent, time: '', date: '2025-11-21' };
       expect(areEventsDuplicates(event1, event2)).toBe(false);
     });
+
+    it('should match events when one has placeholder time 00:00 and other has specific time', () => {
+      const event1 = { ...baseEvent, time: '00:00', date: '2025-11-20' };
+      const event2 = { ...baseEvent, time: '19:30', date: '2025-11-20' };
+      expect(areEventsDuplicates(event1, event2)).toBe(true);
+    });
+
+    it('should match events when one has placeholder time 00:01 (all-day marker)', () => {
+      const event1 = { ...baseEvent, time: '00:01', date: '2025-11-20' };
+      const event2 = { ...baseEvent, time: '19:30', date: '2025-11-20' };
+      expect(areEventsDuplicates(event1, event2)).toBe(true);
+    });
+
+    it('should match events when one has placeholder time 00:02 (variable time marker)', () => {
+      const event1 = { ...baseEvent, time: '00:02', date: '2025-11-20' };
+      const event2 = { ...baseEvent, time: '19:30', date: '2025-11-20' };
+      expect(areEventsDuplicates(event1, event2)).toBe(true);
+    });
+
+    it('should match events when both have different placeholder times', () => {
+      const event1 = { ...baseEvent, time: '00:00', date: '2025-11-20' };
+      const event2 = { ...baseEvent, time: '00:01', date: '2025-11-20' };
+      expect(areEventsDuplicates(event1, event2)).toBe(true);
+    });
+
+    it('should NOT match placeholder time events on different dates', () => {
+      const event1 = { ...baseEvent, time: '00:01', date: '2025-11-20' };
+      const event2 = { ...baseEvent, time: '19:30', date: '2025-11-21' };
+      expect(areEventsDuplicates(event1, event2)).toBe(false);
+    });
+
+    it('should handle wien.info warmup scenario: placeholder updated to actual time', () => {
+      // This is the exact scenario from the bug report:
+      // 1. Warmup imports event with 00:01 placeholder
+      const warmupEvent = {
+        ...baseEvent,
+        title: 'Konzert im Musikverein',
+        time: '00:01',
+        date: '2025-11-20',
+        venue: 'Musikverein',
+        city: 'Wien'
+      };
+
+      // 2. Scraper updates the time to actual value
+      const scrapedEvent = {
+        ...baseEvent,
+        title: 'Konzert im Musikverein',
+        time: '19:30',
+        date: '2025-11-20',
+        venue: 'Musikverein',
+        city: 'Wien'
+      };
+
+      // 3. Warmup runs again with placeholder time
+      const warmupEventAgain = {
+        ...baseEvent,
+        title: 'Konzert im Musikverein',
+        time: '00:01',
+        date: '2025-11-20',
+        venue: 'Musikverein',
+        city: 'Wien'
+      };
+
+      // Both warmup events should be detected as duplicates of the scraped event
+      expect(areEventsDuplicates(warmupEvent, scrapedEvent)).toBe(true);
+      expect(areEventsDuplicates(warmupEventAgain, scrapedEvent)).toBe(true);
+    });
   });
 
   describe('deduplicateEvents', () => {

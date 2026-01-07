@@ -59,9 +59,28 @@ export function calculateStringSimilarity(str1: string, str2: string): number {
 }
 
 /**
+ * Check if a time string is a placeholder time (00:00, 00:01, 00:02)
+ * These placeholder times are used when:
+ * - 00:00 = midnight or no time specified
+ * - 00:01 = all-day event marker
+ * - 00:02 = variable time event marker
+ * 
+ * When comparing events, placeholder times should be treated as "no specific time"
+ * and fall back to date-only matching.
+ */
+function isPlaceholderTime(time: string | undefined): boolean {
+  if (!time) return true;
+  const trimmed = time.trim();
+  return trimmed === '' || 
+         trimmed === '00:00' || 
+         trimmed === '00:01' || 
+         trimmed === '00:02';
+}
+
+/**
  * Check if two events are duplicates based on fuzzy matching rules:
  * - Must be same city (case-insensitive)
- * - Must be within 1 hour time window
+ * - Must be within 1 hour time window (or both have placeholder times)
  * - Must have >85% title similarity (Levenshtein-based)
  */
 export function areEventsDuplicates(event1: EventData, event2: EventData): boolean {
@@ -73,31 +92,44 @@ export function areEventsDuplicates(event1: EventData, event2: EventData): boole
     return false;
   }
   
-  // Rule 2: Must be within 1 hour time window
+  // Rule 2: Must be within 1 hour time window OR both have placeholder times
   // Combine date and time to create comparable timestamps
-  const getTimestamp = (event: EventData): number | null => {
-    if (!event.date || !event.time) return null;
-    // Assuming date is in YYYY-MM-DD format and time is in HH:mm format
-    const dateTimeStr = `${event.date}T${event.time}:00.000Z`;
-    const date = new Date(dateTimeStr);
-    return isNaN(date.getTime()) ? null : date.getTime();
-  };
+  const hasPlaceholder1 = isPlaceholderTime(event1.time);
+  const hasPlaceholder2 = isPlaceholderTime(event2.time);
   
-  const timestamp1 = getTimestamp(event1);
-  const timestamp2 = getTimestamp(event2);
-  
-  if (timestamp1 === null || timestamp2 === null) {
-    // If we can't determine time, fall back to date comparison only
+  // If either event has a placeholder time, skip time comparison
+  // and only compare dates (fallback to date-only matching)
+  if (hasPlaceholder1 || hasPlaceholder2) {
     // Events must be on the same date
     if (event1.date !== event2.date) {
       return false;
     }
   } else {
-    const timeDiff = Math.abs(timestamp1 - timestamp2);
-    const oneHourMs = 3600000; // 3600000ms = 1 hour
+    // Both events have specific times, compare within 1 hour window
+    const getTimestamp = (event: EventData): number | null => {
+      if (!event.date || !event.time) return null;
+      // Assuming date is in YYYY-MM-DD format and time is in HH:mm format
+      const dateTimeStr = `${event.date}T${event.time}:00.000Z`;
+      const date = new Date(dateTimeStr);
+      return isNaN(date.getTime()) ? null : date.getTime();
+    };
     
-    if (timeDiff > oneHourMs) {
-      return false;
+    const timestamp1 = getTimestamp(event1);
+    const timestamp2 = getTimestamp(event2);
+    
+    if (timestamp1 === null || timestamp2 === null) {
+      // If we can't determine time, fall back to date comparison only
+      // Events must be on the same date
+      if (event1.date !== event2.date) {
+        return false;
+      }
+    } else {
+      const timeDiff = Math.abs(timestamp1 - timestamp2);
+      const oneHourMs = 3600000; // 3600000ms = 1 hour
+      
+      if (timeDiff > oneHourMs) {
+        return false;
+      }
     }
   }
   
