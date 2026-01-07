@@ -5,11 +5,52 @@ import {
   areEventsDuplicates,
   deduplicateEvents,
   enrichEventWithDuplicate,
-  deduplicateEventsWithEnrichment
+  deduplicateEventsWithEnrichment,
+  isPlaceholderTime,
+  PLACEHOLDER_TIMES
 } from '../eventDeduplication';
 import { EventData } from '../types';
 
 describe('Event Deduplication Utilities', () => {
+  describe('isPlaceholderTime', () => {
+    it('should return true for undefined time', () => {
+      expect(isPlaceholderTime(undefined)).toBe(true);
+    });
+
+    it('should return true for empty string', () => {
+      expect(isPlaceholderTime('')).toBe(true);
+      expect(isPlaceholderTime('   ')).toBe(true); // whitespace only
+    });
+
+    it('should return true for placeholder time 00:00', () => {
+      expect(isPlaceholderTime('00:00')).toBe(true);
+    });
+
+    it('should return true for placeholder time 00:01', () => {
+      expect(isPlaceholderTime('00:01')).toBe(true);
+    });
+
+    it('should return true for placeholder time 00:02', () => {
+      expect(isPlaceholderTime('00:02')).toBe(true);
+    });
+
+    it('should return false for actual event times', () => {
+      expect(isPlaceholderTime('19:30')).toBe(false);
+      expect(isPlaceholderTime('08:00')).toBe(false);
+      expect(isPlaceholderTime('23:59')).toBe(false);
+    });
+
+    it('should handle whitespace correctly', () => {
+      expect(isPlaceholderTime(' 00:01 ')).toBe(true);
+      expect(isPlaceholderTime(' 19:30 ')).toBe(false);
+    });
+
+    it('should have PLACEHOLDER_TIMES constant exported', () => {
+      expect(PLACEHOLDER_TIMES).toEqual(['00:00', '00:01', '00:02']);
+    });
+  });
+
+
   describe('levenshteinDistance', () => {
     it('should return 0 for identical strings', () => {
       expect(levenshteinDistance('hello', 'hello')).toBe(0);

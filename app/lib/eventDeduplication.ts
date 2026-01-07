@@ -8,6 +8,14 @@
 import { EventData } from './types';
 
 /**
+ * Placeholder time values used when specific event times are not available:
+ * - 00:00 = midnight or no time specified
+ * - 00:01 = all-day event marker (used by warmup importer)
+ * - 00:02 = variable time event marker (used by scraper when time unavailable)
+ */
+export const PLACEHOLDER_TIMES = ['00:00', '00:01', '00:02'] as const;
+
+/**
  * Calculate Levenshtein distance between two strings
  * Returns the minimum number of single-character edits needed to transform str1 into str2
  */
@@ -59,22 +67,17 @@ export function calculateStringSimilarity(str1: string, str2: string): number {
 }
 
 /**
- * Check if a time string is a placeholder time (00:00, 00:01, 00:02)
- * These placeholder times are used when:
- * - 00:00 = midnight or no time specified
- * - 00:01 = all-day event marker
- * - 00:02 = variable time event marker
+ * Check if a time string is a placeholder time.
+ * Placeholder times indicate no specific event time is available and should
+ * trigger date-only matching when comparing events for duplicates.
  * 
- * When comparing events, placeholder times should be treated as "no specific time"
- * and fall back to date-only matching.
+ * @param time - Time string in HH:mm format or undefined
+ * @returns true if time is empty or a placeholder value
  */
-function isPlaceholderTime(time: string | undefined): boolean {
+export function isPlaceholderTime(time: string | undefined): boolean {
   if (!time) return true;
   const trimmed = time.trim();
-  return trimmed === '' || 
-         trimmed === '00:00' || 
-         trimmed === '00:01' || 
-         trimmed === '00:02';
+  return trimmed === '' || PLACEHOLDER_TIMES.includes(trimmed as typeof PLACEHOLDER_TIMES[number]);
 }
 
 /**
