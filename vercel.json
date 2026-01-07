@@ -9,10 +9,6 @@
       "schedule": "0 3 * * *"
     },
     {
-      "path": "/api/cron/cache-warmup",
-      "schedule": "0 6 * * *"
-    },
-    {
       "path": "/api/cron/generate-blog-articles",
       "schedule": "15 6 * * *"
     }

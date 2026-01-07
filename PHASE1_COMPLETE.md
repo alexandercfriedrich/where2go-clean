@@ -283,6 +283,7 @@ This decision ensures:
    - Validation for date formats (YYYY-MM-DD) and numeric limits
    - Returns detailed import statistics
    - GET endpoint provides API documentation
+   - **Note**: This endpoint is for manual/operational use only. The automated Vercel cron job for cache-warmup has been removed as it's no longer necessary with the Supabase-only architecture.
 
 3. **`package.json`** (Modified)
    - Added `p-throttle@8.1.0` and `p-retry@7.1.0` dependencies
