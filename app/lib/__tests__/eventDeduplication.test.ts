@@ -499,6 +499,57 @@ describe('Event Deduplication Utilities', () => {
       expect(result.skippedDuplicates).toBe(0);
     });
 
+    it('should handle wien.info warmup → scraper → warmup cycle correctly', () => {
+      // Simulates the real-world scenario described in the bug report
+
+      // Step 1: First warmup imports event with placeholder time
+      const warmupImport: EventData = {
+        title: 'Konzert im Musikverein',
+        category: 'Live-Konzerte',
+        date: '2025-11-20',
+        time: '00:01', // Placeholder time from warmup
+        venue: 'Musikverein',
+        price: '',
+        website: 'https://example.com',
+        city: 'Wien'
+      };
+
+      // Step 2: Scraper updates the event with actual time
+      const afterScraper: EventData = {
+        title: 'Konzert im Musikverein',
+        category: 'Live-Konzerte',
+        date: '2025-11-20',
+        time: '19:30', // Actual time from scraper
+        venue: 'Musikverein',
+        price: '',
+        website: 'https://example.com',
+        city: 'Wien',
+        description: 'Detailed description from scraper'
+      };
+
+      // Step 3: Second warmup run tries to import same event again
+      const secondWarmupImport: EventData = {
+        title: 'Konzert im Musikverein',
+        category: 'Live-Konzerte',
+        date: '2025-11-20',
+        time: '00:01', // Same placeholder time
+        venue: 'Musikverein',
+        price: '',
+        website: 'https://example.com',
+        city: 'Wien'
+      };
+
+      // Test deduplication: second warmup should recognize scraped event as duplicate
+      const result = deduplicateEventsWithEnrichment([secondWarmupImport], [afterScraper]);
+
+      // Should skip as duplicate (not a unique event)
+      expect(result.uniqueEvents).toHaveLength(0);
+      // Should NOT offer enrichment (warmup has less data than scraper)
+      expect(result.eventsToEnrich).toHaveLength(0);
+      // Should count as skipped duplicate
+      expect(result.skippedDuplicates).toBe(1);
+    });
+
     it('should identify enrichment opportunities', () => {
       const newEvents: EventData[] = [
         {
