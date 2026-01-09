@@ -163,7 +163,17 @@ export default function BlogArticleClient({ article }: BlogArticleClientProps) {
           padding: 40px;
           line-height: 1.8;
           color: #333;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+          hyphens: auto;
         }
+
+        .article-body :global(*) {
+          max-width: 100%;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+        }
+
 
         .article-body :global(h2) {
           font-size: 1.75rem;
