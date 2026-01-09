@@ -169,6 +169,8 @@ title, category, date, time, venue, price, website, endTime, address, ticketPric
 
 ⭐ MANDATORY IMAGE REQUIREMENT:
 - EVERY event MUST have a valid imageUrl (HTTP/HTTPS URL)
+- VERIFY that image URLs are ACCESSIBLE before including them (check if URL returns an actual image, not a 404 or redirect)
+- Prefer direct image URLs ending in .jpg, .jpeg, .png, .webp, .gif over page URLs
 - If no image URL found for an event, DO NOT include that event
 - Only return events with image URLs from official sources:
   * Official event websites (poster/banner images)
@@ -176,7 +178,7 @@ title, category, date, time, venue, price, website, endTime, address, ticketPric
   * Venue websites (event photos)
   * Social media posts (event pictures from official accounts)
 - NEVER invent, fabricate, or use placeholder image URLs
-- If imageUrl is missing, empty, or invalid, EXCLUDE that event from results
+- If imageUrl is missing, empty, invalid, or NOT ACCESSIBLE, EXCLUDE that event from results
 
 RULES:
 - "category" must be EXACTLY one of: ${allowedCategoriesForSchema()}
@@ -219,10 +221,12 @@ Return comprehensive JSON array covering ALL main categories.
 Include both well-known and hidden gem events.
 
 ⭐ CRITICAL IMAGE REQUIREMENT:
-- Include ONLY events that have valid imageUrl
+- Include ONLY events that have valid AND ACCESSIBLE imageUrl
+- VERIFY image URLs are working (return actual images, not 404 errors or HTML pages)
+- Prefer direct image file URLs (.jpg, .jpeg, .png, .webp, .gif) over web page URLs
 - imageUrl must be an HTTP/HTTPS URL from legitimate event sources
-- If event has no image, DO NOT include it in results
-- Quality over quantity: fewer complete events are better than many incomplete ones
+- If event has no image or image URL is not accessible, DO NOT include it in results
+- Quality over quantity: fewer complete events with working images are better than many with broken links
 
 NO explanatory text outside the JSON structure.`;
   }
@@ -292,11 +296,13 @@ ELECTRONIC MUSIC & NIGHTLIFE FOCUS:
 - Include after-hours events and rave announcements
 
 ⭐ IMAGE REQUIREMENT FOR NIGHTLIFE EVENTS:
+- VERIFY image URLs are accessible before including (must return actual images)
+- Prefer direct image file URLs (.jpg, .png, .webp)
 - Club websites usually have event flyers/posters with images
 - Check for DJ event announcements with photos on official club social media
 - Look for parties on Instagram/Facebook with event images from organizers
-- Only include events with discoverable event images/posters
-- EXCLUDE events with no visual event materials found`,
+- Only include events with discoverable AND ACCESSIBLE event images/posters
+- EXCLUDE events with no visual event materials found or broken image links`,
 
       "Live-Konzerte": `
 LIVE MUSIC & CONCERT FOCUS:
@@ -768,8 +774,11 @@ Search Strategy:
 5. Find popup and temporary ${categoriesStr.toLowerCase()} activities
 
 ⭐ MANDATORY IMAGE REQUIREMENT:
-- ONLY return events that have valid imageUrl (HTTP/HTTPS)
-- Quality over quantity - exclude events without discoverable images
+- VERIFY that image URLs are ACCESSIBLE before including them (check if URL returns actual image)
+- Prefer direct image file URLs ending in .jpg, .jpeg, .png, .webp, .gif over page URLs
+- ONLY return events that have valid AND ACCESSIBLE imageUrl (HTTP/HTTPS)
+- EXCLUDE events if image URL is broken, returns 404, or returns non-image content
+- Quality over quantity - exclude events without discoverable AND working images
 - Images must be from legitimate sources (venue sites, official social media, ticketing platforms)
 
 Return comprehensive JSON array of events in ONLY these categories: ${categoriesStr}
