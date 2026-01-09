@@ -19,6 +19,7 @@ import { supabaseAdmin } from '@/lib/supabase/client';
 import { VenueRepository } from '@/lib/repositories/VenueRepository';
 import { deduplicateEventsWithEnrichment } from '@/lib/eventDeduplication';
 import { EventRepository } from '@/lib/repositories/EventRepository';
+import { uploadImageToStorage } from '@/lib/utils/imageStorage';
 import type { EventData } from '@/lib/types';
 import type { Database } from '@/lib/supabase/types';
 
@@ -372,7 +373,42 @@ export async function processEvents(
           const eventSlug = generateEventSlug(event.title, event.start_date_time);
 
           // ─────────────────────────────────────────────────────
-          // STEP 3c: PREPARE EVENT DATA FOR DATABASE
+          // STEP 3c: IMAGE PROCESSING FOR AI SEARCH
+          // Download and upload images to Supabase Storage for permanent storage
+          // Only process for ai-search source to ensure reliability
+          // ─────────────────────────────────────────────────────
+          let finalImageUrl = event.image_url;
+          
+          if (event.image_url && event.source === 'ai-search' && !dryRun) {
+            try {
+              const uploadResult = await uploadImageToStorage(
+                event.image_url,
+                event.venue_city,
+                eventSlug,
+                { debug }
+              );
+              
+              if (uploadResult.success && uploadResult.publicUrl) {
+                finalImageUrl = uploadResult.publicUrl;
+                if (debug) {
+                  console.log(`[PIPELINE:IMAGE] Uploaded image for "${event.title}": ${uploadResult.publicUrl}`);
+                }
+              } else {
+                // Log warning but continue with original URL as fallback
+                if (debug) {
+                  console.warn(`[PIPELINE:IMAGE] Failed to upload image for "${event.title}": ${uploadResult.error}. Using original URL.`);
+                }
+              }
+            } catch (imageError: any) {
+              // Log error but don't fail the event insertion
+              if (debug) {
+                console.error(`[PIPELINE:IMAGE] Exception processing image for "${event.title}":`, imageError);
+              }
+            }
+          }
+
+          // ─────────────────────────────────────────────────────
+          // STEP 3d: PREPARE EVENT DATA FOR DATABASE
           // ─────────────────────────────────────────────────────
           const eventData: DbEventInsert = {
             title: event.title,
@@ -393,7 +429,7 @@ export async function processEvents(
             booking_url: event.booking_url,
             ticket_url: event.ticket_url,
             source_url: event.source_url,
-            image_urls: event.image_url ? [event.image_url] : null,
+            image_urls: finalImageUrl ? [finalImageUrl] : null,  // ← Use processed image URL
             latitude: event.latitude,
             longitude: event.longitude,
             tags: event.tags,
@@ -403,7 +439,7 @@ export async function processEvents(
           };
 
           // ─────────────────────────────────────────────────────
-          // STEP 3d: INSERT TO DATABASE
+          // STEP 3e: INSERT TO DATABASE
           // Changed from UPSERT to INSERT since ON CONFLICT constraint no longer exists
           // Duplicates will fail silently due to unique constraint on (title, start_date_time, city)
           // ─────────────────────────────────────────────────────
