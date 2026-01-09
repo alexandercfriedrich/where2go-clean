@@ -118,7 +118,7 @@ export default function MainFooter() {
                             window.scrollTo({ top: 0, behavior: 'smooth' });
                           }}
                         >
-                          {filter.label} in {primaryCity.name}
+                          Welche {category.name} Events finden {filter.label} in {primaryCity.name} statt?
                         </Link>
                       ))}
                     </div>

@@ -141,9 +141,9 @@ export default function DiscoveryClient({
     if (selectedCategory && selectedDateFilter !== 'all') {
       return `Welche ${selectedCategory} Events finden ${dateLabel} in ${city} statt?`;
     } else if (selectedCategory) {
-      return `${selectedCategory} Events in ${city}`;
+      return `Welche ${selectedCategory} Events finden in ${city} statt?`;
     } else if (selectedDateFilter !== 'all') {
-      return `Events in ${city} ${dateLabel}`;
+      return `Welche Events finden ${dateLabel} in ${city} statt?`;
     }
     return `Discover Events in ${city}`;
   };
