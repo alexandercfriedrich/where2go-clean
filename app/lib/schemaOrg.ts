@@ -2,6 +2,7 @@
 import { EventData } from './types';
 import { normalizeCitySlug } from './slugGenerator';
 import { getVenueFallbackImage } from './venueFallbackImages';
+import { getCityCoordinates } from './cityCoordinates';
 
 /**
  * Generates Schema.org WebSite structured data
@@ -384,6 +385,8 @@ export function generateOrganizationSchema(
   city: string = 'Wien',
   baseUrl: string = 'https://www.where2go.at'
 ): object {
+  const coordinates = getCityCoordinates(city);
+  
   return {
     '@context': 'https://schema.org',
     '@type': 'Organization',
@@ -397,8 +400,8 @@ export function generateOrganizationSchema(
       'name': city,
       'geo': {
         '@type': 'GeoCoordinates',
-        'latitude': 48.2082,
-        'longitude': 16.3738
+        'latitude': coordinates.latitude,
+        'longitude': coordinates.longitude
       }
     },
     'areaServed': [
