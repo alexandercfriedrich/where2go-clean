@@ -29,6 +29,17 @@ const STORAGE_BUCKET = 'event-images';
 const DEFAULT_TIMEOUT = 10000; // 10 seconds
 const DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
+// Log initialization status
+if (typeof window === 'undefined') {
+  const hasServiceKey = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const hasUrl = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
+  console.log(`[ImageStorage:Init] Configuration:`, {
+    hasServiceRoleKey: hasServiceKey,
+    hasSupabaseUrl: hasUrl,
+    bucket: STORAGE_BUCKET
+  });
+}
+
 /**
  * Download an image from external URL and upload to Supabase Storage
  * 
@@ -58,12 +69,18 @@ export async function uploadImageToStorage(
   // Check if SUPABASE_SERVICE_ROLE_KEY is configured
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!serviceRoleKey) {
-    console.warn('[ImageStorage] SUPABASE_SERVICE_ROLE_KEY not configured - image upload skipped');
+    const errorMsg = 'SUPABASE_SERVICE_ROLE_KEY not configured - image upload skipped';
+    console.warn(`[ImageStorage] ${errorMsg}`);
+    console.warn(`[ImageStorage] Available env keys:`, Object.keys(process.env).filter(k => k.includes('SUPABASE')));
     return {
       success: false,
       originalUrl: imageUrl,
-      error: 'SUPABASE_SERVICE_ROLE_KEY not configured'
+      error: errorMsg
     };
+  }
+
+  if (debug) {
+    console.log(`[ImageStorage] Service key configured, proceeding with upload`);
   }
 
   try {
@@ -136,13 +153,25 @@ export async function uploadImageToStorage(
       });
 
     if (error) {
-      console.error(`[ImageStorage] Upload failed:`, error);
+      console.error(`[ImageStorage] Upload failed for "${filename}":`, {
+        error: error.message,
+        bucket: STORAGE_BUCKET,
+        filename,
+        size: imageData.length,
+        contentType
+      });
       return {
         success: false,
         originalUrl: imageUrl,
-        error: error.message
+        error: `Upload error: ${error.message}`
       };
     }
+
+    console.log(`[ImageStorage] Upload successful for "${filename}"`, {
+      bucket: STORAGE_BUCKET,
+      path: filename,
+      size: imageData.length
+    });
 
     // Get public URL
     const { data: publicUrlData } = supabaseAdmin.storage
