@@ -11,7 +11,8 @@ import {
   generateViennaPlaceSchema,
   generateFAQPageSchema,
   generateHowToSchema,
-  generateBreadcrumbSchema
+  generateBreadcrumbSchema,
+  generateOrganizationSchema
 } from '../schemaOrg';
 import { EventData } from '../types';
 
@@ -683,6 +684,94 @@ describe('New Schema.org Utilities', () => {
       expect(schema.location.address).toBeDefined();
       expect(schema.location.address.addressLocality).toBe('Wien');
       expect(schema.location.address.addressCountry).toBe('AT');
+    });
+  });
+
+  describe('generateOrganizationSchema', () => {
+    it('should generate valid Organization schema with required properties', () => {
+      const schema = generateOrganizationSchema();
+      
+      expect(schema['@context']).toBe('https://schema.org');
+      expect(schema['@type']).toBe('Organization');
+      expect(schema.name).toBe('Where2Go');
+      expect(schema.alternateName).toBe('Where 2 Go');
+      expect(schema.url).toBe('https://www.where2go.at');
+      expect(schema.description).toBeTruthy();
+      expect(schema.image).toBeTruthy();
+    });
+
+    it('should use default Vienna coordinates when no city provided', () => {
+      const schema = generateOrganizationSchema();
+      
+      expect(schema.location).toBeDefined();
+      expect(schema.location['@type']).toBe('Place');
+      expect(schema.location.name).toBe('Wien');
+      expect(schema.location.geo).toBeDefined();
+      expect(schema.location.geo['@type']).toBe('GeoCoordinates');
+      expect(schema.location.geo.latitude).toBe(48.2082);
+      expect(schema.location.geo.longitude).toBe(16.3738);
+    });
+
+    it('should use correct coordinates for different cities', () => {
+      const berlinSchema = generateOrganizationSchema('Berlin');
+      expect(berlinSchema.location.name).toBe('Berlin');
+      expect(berlinSchema.location.geo.latitude).toBe(52.5200);
+      expect(berlinSchema.location.geo.longitude).toBe(13.4050);
+      
+      const munichSchema = generateOrganizationSchema('München');
+      expect(munichSchema.location.name).toBe('München');
+      expect(munichSchema.location.geo.latitude).toBe(48.1351);
+      expect(munichSchema.location.geo.longitude).toBe(11.5820);
+    });
+
+    it('should handle case-insensitive city names', () => {
+      const schema1 = generateOrganizationSchema('wien');
+      const schema2 = generateOrganizationSchema('WIEN');
+      
+      expect(schema1.location.geo.latitude).toBe(48.2082);
+      expect(schema2.location.geo.latitude).toBe(48.2082);
+    });
+
+    it('should default to Vienna coordinates for unknown cities', () => {
+      const schema = generateOrganizationSchema('UnknownCity');
+      
+      expect(schema.location.name).toBe('UnknownCity');
+      expect(schema.location.geo.latitude).toBe(48.2082);
+      expect(schema.location.geo.longitude).toBe(16.3738);
+    });
+
+    it('should include areaServed with city information', () => {
+      const schema = generateOrganizationSchema('Berlin');
+      
+      expect(schema.areaServed).toBeDefined();
+      expect(Array.isArray(schema.areaServed)).toBe(true);
+      expect(schema.areaServed[0]['@type']).toBe('City');
+      expect(schema.areaServed[0].name).toBe('Berlin');
+    });
+
+    it('should use custom base URL when provided', () => {
+      const customUrl = 'https://custom.where2go.com';
+      const schema = generateOrganizationSchema('Wien', customUrl);
+      
+      expect(schema.url).toBe(customUrl);
+      expect(schema.image).toBe(`${customUrl}/og-image.jpg`);
+    });
+
+    it('should maintain consistent schema structure across cities', () => {
+      const cities = ['Wien', 'Berlin', 'München', 'Hamburg'];
+      
+      cities.forEach(city => {
+        const schema = generateOrganizationSchema(city);
+        
+        expect(schema['@context']).toBe('https://schema.org');
+        expect(schema['@type']).toBe('Organization');
+        expect(schema.location).toBeDefined();
+        expect(schema.location.geo).toBeDefined();
+        expect(schema.location.geo.latitude).toBeDefined();
+        expect(schema.location.geo.longitude).toBeDefined();
+        expect(typeof schema.location.geo.latitude).toBe('number');
+        expect(typeof schema.location.geo.longitude).toBe('number');
+      });
     });
   });
 });

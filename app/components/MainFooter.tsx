@@ -118,7 +118,7 @@ export default function MainFooter() {
                             window.scrollTo({ top: 0, behavior: 'smooth' });
                           }}
                         >
-                          {filter.label} in {primaryCity.name}
+                          Welche {category.name} Events finden {filter.label} in {primaryCity.name} statt?
                         </Link>
                       ))}
                     </div>
@@ -253,7 +253,7 @@ export default function MainFooter() {
         }
         
         .category-link {
-          color: #94a3b8;
+          color: rgba(255, 255, 255, 0.85);
           text-decoration: none;
           font-size: 14px;
           padding: 8px 12px;

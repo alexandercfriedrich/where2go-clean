@@ -2,6 +2,7 @@
 import { EventData } from './types';
 import { normalizeCitySlug } from './slugGenerator';
 import { getVenueFallbackImage } from './venueFallbackImages';
+import { getCityCoordinates } from './cityCoordinates';
 
 /**
  * Generates Schema.org WebSite structured data
@@ -374,5 +375,40 @@ export function generateBreadcrumbSchema(
       name: crumb.name,
       item: crumb.url.startsWith('http') ? crumb.url : `${baseUrl}${crumb.url}`
     }))
+  };
+}
+
+/**
+ * Generates Schema.org Organization structured data for Where2Go
+ */
+export function generateOrganizationSchema(
+  city: string = 'Wien',
+  baseUrl: string = 'https://www.where2go.at'
+): object {
+  const coordinates = getCityCoordinates(city);
+  
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    'name': 'Where2Go',
+    'alternateName': 'Where 2 Go',
+    'url': baseUrl,
+    'description': 'Die zentrale Plattform für alle Events in Wien und weltweit',
+    'image': `${baseUrl}/og-image.jpg`,
+    'location': {
+      '@type': 'Place',
+      'name': city,
+      'geo': {
+        '@type': 'GeoCoordinates',
+        'latitude': coordinates.latitude,
+        'longitude': coordinates.longitude
+      }
+    },
+    'areaServed': [
+      {
+        '@type': 'City',
+        'name': city
+      }
+    ]
   };
 }

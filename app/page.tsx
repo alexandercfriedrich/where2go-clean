@@ -6,9 +6,9 @@
 import { Metadata } from 'next';
 import DiscoveryClient from './discover/DiscoveryClient';
 import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getUpcomingEvents, getWeekendNightlifeEvents, convertToEventData } from '../lib/events/queries';
-import { discoverPageMetadata } from './lib/content/discoverPageContent';
+import { discoverPageMetadata, getDiscoverPageFAQs, getDiscoverPageHowTo } from './lib/content/discoverPageContent';
 import SchemaOrg from './components/SchemaOrg';
-import { generateEventListSchema, generateBreadcrumbSchema } from './lib/schemaOrg';
+import { generateEventListSchema, generateBreadcrumbSchema, generateFAQPageSchema, generateHowToSchema, generateOrganizationSchema } from './lib/schemaOrg';
 import { sortEventsWithImagesFirstThenByDate } from './lib/eventSortUtils';
 import type { EventData } from './lib/types';
 
@@ -101,11 +101,28 @@ export default async function HomePage({ searchParams }: PageProps) {
     const breadcrumbSchema = generateBreadcrumbSchema([
       { name: 'Home', url: '/' },
     ]);
+    
+    // Generate FAQ schema for AI search engines
+    const faqSchema = generateFAQPageSchema(getDiscoverPageFAQs(city));
+    
+    // Generate HowTo schema for AI search engines
+    const howToData = getDiscoverPageHowTo(city);
+    const howToSchema = generateHowToSchema(
+      howToData.title,
+      howToData.steps,
+      howToData.description
+    );
+    
+    // Generate Organization schema for Where2Go
+    const organizationSchema = generateOrganizationSchema(city);
 
     return (
       <>
         <SchemaOrg schema={eventListSchema} />
         <SchemaOrg schema={breadcrumbSchema} />
+        <SchemaOrg schema={faqSchema} />
+        <SchemaOrg schema={howToSchema} />
+        <SchemaOrg schema={organizationSchema} />
         <DiscoveryClient
           initialTrendingEvents={sortedTrendingEvents}
           initialWeekendEvents={sortedWeekendEvents}
