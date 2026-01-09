@@ -5,7 +5,7 @@
 
 import { Metadata } from 'next';
 import DiscoveryClient from '@/discover/DiscoveryClient';
-import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getUpcomingEvents, getWeekendNightlifeEvents, convertToEventData } from '../../lib/events/queries';
+import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getUpcomingEvents, getWeekendNightlifeEvents, convertToEventData } from '../../../lib/events/queries';
 import SchemaOrg from '@/components/SchemaOrg';
 import { generateEventListSchema, generateBreadcrumbSchema } from '@/lib/schemaOrg';
 import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
