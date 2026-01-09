@@ -141,7 +141,8 @@ function ArticleContent({ article }: BlogArticleVenueStyleProps) {
             borderRadius: '12px',
             padding: '40px',
             color: isDark ? '#FCFAF6' : '#091717',
-            hyphens: 'auto'
+            hyphens: 'auto',
+            overflowWrap: 'break-word'
           }}
         >
           <div
@@ -160,6 +161,8 @@ function ArticleContent({ article }: BlogArticleVenueStyleProps) {
         .article-content :global(*) {
           max-width: 100%;
           hyphens: auto;
+          overflow-wrap: break-word;
+          word-wrap: break-word;
         }
 
         .article-content :global(h2) {
@@ -169,6 +172,8 @@ function ArticleContent({ article }: BlogArticleVenueStyleProps) {
           color: ${isDark ? '#FCFAF6' : '#091717'};
           font-family: var(--font-space-grotesk);
           hyphens: auto;
+          overflow-wrap: break-word;
+          word-wrap: break-word;
         }
 
         .article-content :global(h3) {
@@ -178,12 +183,16 @@ function ArticleContent({ article }: BlogArticleVenueStyleProps) {
           color: ${isDark ? '#FCFAF6' : '#091717'};
           font-family: var(--font-space-grotesk);
           hyphens: auto;
+          overflow-wrap: break-word;
+          word-wrap: break-word;
         }
 
         .article-content :global(p) {
           margin: 0 0 1rem 0;
           color: ${isDark ? '#FCFAF6' : '#091717'};
           hyphens: auto;
+          overflow-wrap: break-word;
+          word-wrap: break-word;
           white-space: normal;
         }
 
@@ -197,6 +206,8 @@ function ArticleContent({ article }: BlogArticleVenueStyleProps) {
         .article-content :global(li) {
           margin: 0.5rem 0;
           hyphens: auto;
+          overflow-wrap: break-word;
+          word-wrap: break-word;
         }
 
         .article-content :global(a) {
