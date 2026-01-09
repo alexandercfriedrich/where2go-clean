@@ -253,7 +253,7 @@ export default function MainFooter() {
         }
         
         .category-link {
-          color: #94a3b8;
+          color: rgba(255, 255, 255, 0.85);
           text-decoration: none;
           font-size: 14px;
           padding: 8px 12px;
