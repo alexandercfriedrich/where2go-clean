@@ -139,7 +139,7 @@ export default function DiscoveryClient({
       : '';
 
     if (selectedCategory && selectedDateFilter !== 'all') {
-      return `${selectedCategory} Events in ${city} ${dateLabel}`;
+      return `Welche ${selectedCategory} Events finden ${dateLabel} in ${city} statt?`;
     } else if (selectedCategory) {
       return `${selectedCategory} Events in ${city}`;
     } else if (selectedDateFilter !== 'all') {
@@ -235,6 +235,78 @@ export default function DiscoveryClient({
               </div>
             )}
           </section>
+
+          {/* For You Section - Show ALL events when category is selected */}
+          {filteredEvents.personalized.length > 0 && (
+            <section ref={eventsGridRef} className="mb-16" aria-label="Personalized event recommendations">
+              <SectionHeader
+                title={selectedCategory ? `${selectedCategory} Events` : "For You"}
+                subtitle={selectedCategory 
+                  ? `All ${filteredEvents.personalized.length} events in this category`
+                  : "Personalized recommendations based on your interests"}
+                action={!selectedCategory ? { label: 'See all', href: '/discover/for-you' } : undefined}
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {/* Show all events when category is selected, otherwise limit to 8 */}
+                {(selectedCategory ? filteredEvents.personalized : filteredEvents.personalized.slice(0, 8)).map((event) => (
+                  <EventCard key={event.id} event={event} city={city} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Trending Section */}
+          {filteredEvents.trending.length > 0 && (
+            <section className="mb-16" aria-label="Trending events">
+              <SectionHeader
+                title="Trending Now"
+                subtitle="Popular events everyone is talking about"
+                action={{ label: 'See all', href: '/discover/trending' }}
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {filteredEvents.trending.slice(0, 8).map((event) => (
+                  <EventCard key={event.id} event={event} city={city} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Weekend Section */}
+          {filteredEvents.weekend.length > 0 && (
+            <section className="mb-16" aria-label="Weekend events">
+              <SectionHeader
+                title="This Weekend"
+                subtitle="Plan your perfect weekend"
+                action={{ label: 'See all', href: '/discover/weekend' }}
+              />
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {filteredEvents.weekend.map((event) => (
+                  <EventCard key={event.id} event={event} city={city} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Top Venues Section */}
+          <section className="mb-16">
+            <VenueStatsSection city={city} />
+          </section>
+
+          {/* Fallback message */}
+          {filteredEvents.personalized.length === 0 &&
+            filteredEvents.trending.length === 0 &&
+            filteredEvents.weekend.length === 0 && (
+              <div className="text-center py-16">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+                  {selectedCategory ? 'No events found in this category' : 'No events found'}
+                </h2>
+                <p className="text-gray-600 dark:text-gray-400">
+                  {selectedCategory 
+                    ? 'Try selecting a different category or clear the filter' 
+                    : `Check back soon for upcoming events in ${city}`}
+                </p>
+              </div>
+            )}
 
           {/* SEO/GEO Content Block for AI Search Engines */}
           <section className="seo-content-block" style={{ 
@@ -429,78 +501,6 @@ export default function DiscoveryClient({
               }
             `}</style>
           </section>
-
-          {/* For You Section - Show ALL events when category is selected */}
-          {filteredEvents.personalized.length > 0 && (
-            <section ref={eventsGridRef} className="mb-16" aria-label="Personalized event recommendations">
-              <SectionHeader
-                title={selectedCategory ? `${selectedCategory} Events` : "For You"}
-                subtitle={selectedCategory 
-                  ? `All ${filteredEvents.personalized.length} events in this category`
-                  : "Personalized recommendations based on your interests"}
-                action={!selectedCategory ? { label: 'See all', href: '/discover/for-you' } : undefined}
-              />
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {/* Show all events when category is selected, otherwise limit to 8 */}
-                {(selectedCategory ? filteredEvents.personalized : filteredEvents.personalized.slice(0, 8)).map((event) => (
-                  <EventCard key={event.id} event={event} city={city} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Trending Section */}
-          {filteredEvents.trending.length > 0 && (
-            <section className="mb-16" aria-label="Trending events">
-              <SectionHeader
-                title="Trending Now"
-                subtitle="Popular events everyone is talking about"
-                action={{ label: 'See all', href: '/discover/trending' }}
-              />
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {filteredEvents.trending.slice(0, 8).map((event) => (
-                  <EventCard key={event.id} event={event} city={city} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Weekend Section */}
-          {filteredEvents.weekend.length > 0 && (
-            <section className="mb-16" aria-label="Weekend events">
-              <SectionHeader
-                title="This Weekend"
-                subtitle="Plan your perfect weekend"
-                action={{ label: 'See all', href: '/discover/weekend' }}
-              />
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {filteredEvents.weekend.map((event) => (
-                  <EventCard key={event.id} event={event} city={city} />
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Top Venues Section */}
-          <section className="mb-16">
-            <VenueStatsSection city={city} />
-          </section>
-
-          {/* Fallback message */}
-          {filteredEvents.personalized.length === 0 &&
-            filteredEvents.trending.length === 0 &&
-            filteredEvents.weekend.length === 0 && (
-              <div className="text-center py-16">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-                  {selectedCategory ? 'No events found in this category' : 'No events found'}
-                </h2>
-                <p className="text-gray-600 dark:text-gray-400">
-                  {selectedCategory 
-                    ? 'Try selecting a different category or clear the filter' 
-                    : `Check back soon for upcoming events in ${city}`}
-                </p>
-              </div>
-            )}
 
           {/* FAQ Section */}
           <div className="max-w-4xl mx-auto">
