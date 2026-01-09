@@ -140,14 +140,18 @@ function ArticleContent({ article }: BlogArticleVenueStyleProps) {
             border: `1px solid ${isDark ? '#2E565D' : '#E5E3D4'}`,
             borderRadius: '12px',
             padding: '40px',
-            color: isDark ? '#FCFAF6' : '#091717'
+            color: isDark ? '#FCFAF6' : '#091717',
+            wordWrap: 'break-word',
+            overflowWrap: 'break-word'
           }}
         >
           <div
             dangerouslySetInnerHTML={{ __html: sanitizedContent }}
             style={{
               lineHeight: '1.8',
-              fontSize: '1.125rem'
+              fontSize: '1.125rem',
+              wordWrap: 'break-word',
+              overflowWrap: 'break-word'
             }}
             className="article-content"
           />
@@ -155,12 +159,20 @@ function ArticleContent({ article }: BlogArticleVenueStyleProps) {
       </div>
 
       <style jsx>{`
+        .article-content :global(*) {
+          max-width: 100%;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+        }
+
         .article-content :global(h2) {
           font-size: 1.875rem;
           font-weight: 700;
           margin: 2rem 0 1rem 0;
           color: ${isDark ? '#FCFAF6' : '#091717'};
           font-family: var(--font-space-grotesk);
+          word-wrap: break-word;
+          overflow-wrap: break-word;
         }
 
         .article-content :global(h3) {
@@ -169,11 +181,16 @@ function ArticleContent({ article }: BlogArticleVenueStyleProps) {
           margin: 1.75rem 0 0.875rem 0;
           color: ${isDark ? '#FCFAF6' : '#091717'};
           font-family: var(--font-space-grotesk);
+          word-wrap: break-word;
+          overflow-wrap: break-word;
         }
 
         .article-content :global(p) {
           margin: 0 0 1rem 0;
           color: ${isDark ? '#FCFAF6' : '#091717'};
+          word-wrap: break-word;
+          overflow-wrap: break-word;
+          white-space: normal;
         }
 
         .article-content :global(ul),
@@ -185,6 +202,8 @@ function ArticleContent({ article }: BlogArticleVenueStyleProps) {
 
         .article-content :global(li) {
           margin: 0.5rem 0;
+          word-wrap: break-word;
+          overflow-wrap: break-word;
         }
 
         .article-content :global(a) {

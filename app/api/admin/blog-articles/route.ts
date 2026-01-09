@@ -203,6 +203,10 @@ export async function POST(request: NextRequest) {
     // Only set generated_at for new articles
     if (!existingArticle) {
       articleData.generated_at = new Date().toISOString();
+      // Set published_at if status is 'published' (for programmatic creation)
+      if (articleData.status === 'published') {
+        articleData.published_at = new Date().toISOString();
+      }
     }
 
     // Upsert article - use insert with onConflict if not exists, otherwise update
@@ -309,7 +313,13 @@ export async function PUT(request: NextRequest) {
     if (payload.seo_keywords !== undefined) updateData.seo_keywords = payload.seo_keywords;
     if (payload.meta_description !== undefined) updateData.meta_description = payload.meta_description;
     if (payload.featured_image !== undefined) updateData.featured_image = payload.featured_image;
-    if (payload.status !== undefined) updateData.status = payload.status;
+    if (payload.status !== undefined) {
+      updateData.status = payload.status;
+      // Set published_at timestamp when status changes to 'published'
+      if (payload.status === 'published') {
+        updateData.published_at = new Date().toISOString();
+      }
+    }
 
     // Update article
     const query = supabaseAdmin

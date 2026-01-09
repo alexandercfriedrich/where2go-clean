@@ -24,7 +24,7 @@ async function getBlogArticles(): Promise<BlogArticle[]> {
       .from('blog_articles')
       .select('*')
       .eq('status', 'published')
-      .order('published_at', { ascending: false });
+      .order('published_at', { ascending: false, nullsFirst: false });
 
     if (error) {
       console.error('[Blog Page] Error fetching articles:', error);
