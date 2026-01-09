@@ -55,6 +55,17 @@ export async function uploadImageToStorage(
     };
   }
 
+  // Check if SUPABASE_SERVICE_ROLE_KEY is configured
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceRoleKey) {
+    console.warn('[ImageStorage] SUPABASE_SERVICE_ROLE_KEY not configured - image upload skipped');
+    return {
+      success: false,
+      originalUrl: imageUrl,
+      error: 'SUPABASE_SERVICE_ROLE_KEY not configured'
+    };
+  }
+
   try {
     if (debug) {
       console.log(`[ImageStorage] Downloading image from: ${imageUrl}`);

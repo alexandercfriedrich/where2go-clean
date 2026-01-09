@@ -380,6 +380,9 @@ export async function processEvents(
           let finalImageUrl = event.image_url;
           
           if (event.image_url && event.source === 'ai-search' && !dryRun) {
+            if (debug) {
+              console.log(`[PIPELINE:IMAGE] Processing image for "${event.title}" (source: ${event.source})`);
+            }
             try {
               const uploadResult = await uploadImageToStorage(
                 event.image_url,
@@ -390,20 +393,18 @@ export async function processEvents(
               
               if (uploadResult.success && uploadResult.publicUrl) {
                 finalImageUrl = uploadResult.publicUrl;
-                if (debug) {
-                  console.log(`[PIPELINE:IMAGE] Uploaded image for "${event.title}": ${uploadResult.publicUrl}`);
-                }
+                console.log(`[PIPELINE:IMAGE] ✓ Uploaded image for "${event.title}": ${uploadResult.publicUrl}`);
               } else {
                 // Log warning but continue with original URL as fallback
-                if (debug) {
-                  console.warn(`[PIPELINE:IMAGE] Failed to upload image for "${event.title}": ${uploadResult.error}. Using original URL.`);
-                }
+                console.warn(`[PIPELINE:IMAGE] ⚠ Failed to upload image for "${event.title}": ${uploadResult.error}. Using original URL: ${event.image_url}`);
               }
             } catch (imageError: any) {
               // Log error but don't fail the event insertion
-              if (debug) {
-                console.error(`[PIPELINE:IMAGE] Exception processing image for "${event.title}":`, imageError);
-              }
+              console.error(`[PIPELINE:IMAGE] ✗ Exception processing image for "${event.title}":`, imageError.message);
+            }
+          } else if (event.image_url && event.source !== 'ai-search') {
+            if (debug) {
+              console.log(`[PIPELINE:IMAGE] Skipping image upload for "${event.title}" (source: ${event.source}, not ai-search)`);
             }
           }
 
