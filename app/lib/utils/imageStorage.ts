@@ -7,7 +7,7 @@
  * Pattern follows das-werk.py scraper implementation.
  */
 
-import { supabaseAdmin } from '../../app/lib/supabase/client';
+import { supabaseAdmin } from '@/lib/supabase/client';
 
 export interface ImageUploadResult {
   success: boolean;
