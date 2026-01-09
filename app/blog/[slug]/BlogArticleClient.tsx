@@ -191,6 +191,9 @@ export default function BlogArticleClient({ article }: BlogArticleClientProps) {
 
         .article-body :global(p) {
           margin: 0 0 16px 0;
+                word-wrap: break-word !important;
+                      overflow-wrap: break-word !important;
+                            white-space: normal !important;
         }
 
         .article-body :global(ul),
