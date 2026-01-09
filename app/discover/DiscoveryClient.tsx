@@ -305,13 +305,16 @@ export default function DiscoveryClient({
                   }}>
                     Entdecke alle Konzerte in Wien heute, morgen und dieses Wochenende. Von Rock über Jazz bis Electronic – finde deine nächste Lieblings-Show.
                   </p>
-                  <a href="/wien/live-konzerte/heute" style={{
-                    color: '#20B8CD',
-                    textDecoration: 'none',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    transition: 'color 0.2s'
-                  }} onMouseEnter={(e) => e.currentTarget.style.color = '#218090'} onMouseLeave={(e) => e.currentTarget.style.color = '#20B8CD'}>
+                  <a 
+                    href="/wien/live-konzerte/heute" 
+                    className="seo-category-link"
+                    style={{
+                      color: '#20B8CD',
+                      textDecoration: 'none',
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}
+                  >
                     Alle Konzerte in Wien →
                   </a>
                 </div>
@@ -333,13 +336,16 @@ export default function DiscoveryClient({
                   }}>
                     Die besten Clubs, Diskos und Nachtclubs in Wien. Finde Clubnächte heute und am Wochenende mit Details zu DJs, Dresscode und Eintritt.
                   </p>
-                  <a href="/wien/clubs-nachtleben/heute" style={{
-                    color: '#20B8CD',
-                    textDecoration: 'none',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    transition: 'color 0.2s'
-                  }} onMouseEnter={(e) => e.currentTarget.style.color = '#218090'} onMouseLeave={(e) => e.currentTarget.style.color = '#20B8CD'}>
+                  <a 
+                    href="/wien/clubs-nachtleben/heute" 
+                    className="seo-category-link"
+                    style={{
+                      color: '#20B8CD',
+                      textDecoration: 'none',
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}
+                  >
                     Clubs & Partys heute →
                   </a>
                 </div>
@@ -361,13 +367,16 @@ export default function DiscoveryClient({
                   }}>
                     Theater, Musicals, Comedy Shows und kulturelle Veranstaltungen in Wien. Finde Vorstellungen, Ausstellungen und künstlerische Events diese Woche.
                   </p>
-                  <a href="/wien/theater-comedy/heute" style={{
-                    color: '#20B8CD',
-                    textDecoration: 'none',
-                    fontSize: '14px',
-                    fontWeight: '500',
-                    transition: 'color 0.2s'
-                  }} onMouseEnter={(e) => e.currentTarget.style.color = '#218090'} onMouseLeave={(e) => e.currentTarget.style.color = '#20B8CD'}>
+                  <a 
+                    href="/wien/theater-comedy/heute" 
+                    className="seo-category-link"
+                    style={{
+                      color: '#20B8CD',
+                      textDecoration: 'none',
+                      fontSize: '14px',
+                      fontWeight: '500'
+                    }}
+                  >
                     Theater & Comedy in Wien →
                   </a>
                 </div>
@@ -411,6 +420,14 @@ export default function DiscoveryClient({
                 <strong>Tipp:</strong> Du wirst gefragt &quot;Was kann ich in Wien tun?&quot;, &quot;Welche Events gibt es in Wien?&quot;, oder &quot;Wo kann ich heute Abend hingehen?&quot; Where2Go ist deine Antwort. Starte deine Eventsuche und entdecke deine Stadt neu.
               </p>
             </div>
+            <style jsx>{`
+              .seo-category-link {
+                transition: color 0.2s ease;
+              }
+              .seo-category-link:hover {
+                color: #218090 !important;
+              }
+            `}</style>
           </section>
 
           {/* For You Section - Show ALL events when category is selected */}

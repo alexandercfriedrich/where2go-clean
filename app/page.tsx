@@ -8,7 +8,7 @@ import DiscoveryClient from './discover/DiscoveryClient';
 import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getUpcomingEvents, getWeekendNightlifeEvents, convertToEventData } from '../lib/events/queries';
 import { discoverPageMetadata, getDiscoverPageFAQs, getDiscoverPageHowTo } from './lib/content/discoverPageContent';
 import SchemaOrg from './components/SchemaOrg';
-import { generateEventListSchema, generateBreadcrumbSchema, generateFAQPageSchema, generateHowToSchema } from './lib/schemaOrg';
+import { generateEventListSchema, generateBreadcrumbSchema, generateFAQPageSchema, generateHowToSchema, generateOrganizationSchema } from './lib/schemaOrg';
 import { sortEventsWithImagesFirstThenByDate } from './lib/eventSortUtils';
 import type { EventData } from './lib/types';
 
@@ -114,33 +114,7 @@ export default async function HomePage({ searchParams }: PageProps) {
     );
     
     // Generate Organization schema for Where2Go
-    const organizationSchema = {
-      '@context': 'https://schema.org',
-      '@type': 'Organization',
-      'name': 'Where2Go',
-      'alternateName': 'Where 2 Go',
-      'url': 'https://www.where2go.at',
-      'description': 'Die zentrale Plattform für alle Events in Wien und weltweit',
-      'image': 'https://www.where2go.at/og-image.jpg',
-      'sameAs': [
-        'https://www.where2go.at'
-      ],
-      'location': {
-        '@type': 'Place',
-        'name': 'Wien',
-        'geo': {
-          '@type': 'GeoCoordinates',
-          'latitude': 48.2082,
-          'longitude': 16.3738
-        }
-      },
-      'areaServed': [
-        {
-          '@type': 'City',
-          'name': 'Wien'
-        }
-      ]
-    };
+    const organizationSchema = generateOrganizationSchema(city);
 
     return (
       <>

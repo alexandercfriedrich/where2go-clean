@@ -376,3 +376,36 @@ export function generateBreadcrumbSchema(
     }))
   };
 }
+
+/**
+ * Generates Schema.org Organization structured data for Where2Go
+ */
+export function generateOrganizationSchema(
+  city: string = 'Wien',
+  baseUrl: string = 'https://www.where2go.at'
+): object {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    'name': 'Where2Go',
+    'alternateName': 'Where 2 Go',
+    'url': baseUrl,
+    'description': 'Die zentrale Plattform für alle Events in Wien und weltweit',
+    'image': `${baseUrl}/og-image.jpg`,
+    'location': {
+      '@type': 'Place',
+      'name': city,
+      'geo': {
+        '@type': 'GeoCoordinates',
+        'latitude': 48.2082,
+        'longitude': 16.3738
+      }
+    },
+    'areaServed': [
+      {
+        '@type': 'City',
+        'name': city
+      }
+    ]
+  };
+}
