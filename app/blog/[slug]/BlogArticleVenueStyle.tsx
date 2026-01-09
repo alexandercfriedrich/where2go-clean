@@ -148,8 +148,9 @@ function ArticleContent({ article }: BlogArticleVenueStyleProps) {
           <div
             dangerouslySetInnerHTML={{ __html: sanitizedContent }}
             style={{
-              lineHeight: '1.8',
-              fontSize: '1.125rem',
+              lineHeight: '1.1',
+              fontSize: '14px',
+              fontWeight: 300,
               wordWrap: 'break-word',
               overflowWrap: 'break-word'
             }}
