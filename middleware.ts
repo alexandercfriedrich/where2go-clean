@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import createMiddleware from 'next-intl/middleware';
+import { localesWithPrefix, localeWithoutPrefix } from './app/i18n.config';
 
 // Malicious file extensions to block
 const BLOCKED_EXTENSIONS = [
@@ -93,6 +95,21 @@ function isSuspiciousRequest(request: NextRequest): boolean {
 
   return false;
 }
+
+const intlMiddleware = createMiddleware({
+  locales: [localeWithoutPrefix, ...localesWithPrefix],
+  defaultLocale: localeWithoutPrefix,
+  localePrefix: {
+    mode: 'as-needed',
+    prefixes: {
+      de: '',
+      en: '/en',
+      es: '/es',
+      it: '/it',
+      fr: '/fr',
+    },
+  },
+});
 
 // Helper function to slugify city names (matching hotCityStore.ts)
 function slugify(text: string): string {
@@ -192,9 +209,10 @@ export function middleware(request: NextRequest) {
     // Authentication successful, continue to the requested resource
   }
 
-  // Add rate limiting and security headers
-  const response = NextResponse.next();
-  
+  // Locale handling (prefix as-needed) with next-intl
+  const intlResponse = intlMiddleware(request);
+  const response = intlResponse || NextResponse.next();
+
   // Add security headers
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-Frame-Options', 'SAMEORIGIN');

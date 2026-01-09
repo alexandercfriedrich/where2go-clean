@@ -1,3 +1,5 @@
+const withNextIntl = require('next-intl/plugin')('./app/i18n.config.ts');
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   // Remove the experimental appDir config as it's stable in Next.js 14
@@ -75,4 +77,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+module.exports = withNextIntl(nextConfig);

@@ -1,5 +1,6 @@
 // City- und Datums-Helfer, 100% repo-kompatibel (HotCities + Date-Tokens)
 import { getHotCityBySlug, getHotCity, slugify as slugifyCity } from '@/lib/hotCityStore';
+import { resolveCanonicalCitySlugFromLocalized } from '@/i18n.config';
 
 export type DateToken = 'heute' | 'morgen' | 'wochenende' | string;
 
@@ -16,12 +17,16 @@ export async function resolveCityFromParam(
   const decoded = decodeURIComponent(param || '').trim();
   if (!decoded) return null;
 
+  const localizedCanonical = resolveCanonicalCitySlugFromLocalized(decoded.toLowerCase());
+  const normalizedParam = localizedCanonical ?? decoded;
+  const normalizedSlug = slugifyCity(normalizedParam);
+
   // Slug → HotCity
-  const bySlug = await getHotCityBySlug(decoded);
+  const bySlug = await getHotCityBySlug(normalizedSlug);
   if (bySlug) return { slug: slugifyCity(bySlug.name), name: bySlug.name };
 
   // Name → HotCity
-  const byName = await getHotCity(decoded);
+  const byName = await getHotCity(normalizedParam);
   if (byName) return { slug: slugifyCity(byName.name), name: byName.name };
 
   // In strict mode, only accept known cities
@@ -30,7 +35,7 @@ export async function resolveCityFromParam(
   }
 
   // Fallback: accept any city name (for flexibility)
-  return { slug: slugifyCity(decoded), name: capitalize(decoded) };
+  return { slug: slugifyCity(normalizedParam), name: capitalize(normalizedParam) };
 }
 
 export function capitalize(s: string): string {

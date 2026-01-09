@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { dateTokenToISO, formatGermanDate, capitalize, KNOWN_DATE_TOKENS } from '../city';
+import { resolveCanonicalCitySlugFromLocalized, getCitySlugForLocale } from '../../i18n.config';
 
 describe('City Utils', () => {
   describe('dateTokenToISO', () => {
@@ -95,6 +96,23 @@ describe('City Utils', () => {
       expect(KNOWN_DATE_TOKENS).toContain('morgen');
       expect(KNOWN_DATE_TOKENS).toContain('wochenende');
       expect(KNOWN_DATE_TOKENS).toHaveLength(3);
+    });
+  });
+
+  describe('localized city slug mapping', () => {
+    it('should resolve localized slugs back to canonical', () => {
+      expect(resolveCanonicalCitySlugFromLocalized('vienna')).toBe('wien');
+      expect(resolveCanonicalCitySlugFromLocalized('vienne')).toBe('wien');
+      expect(resolveCanonicalCitySlugFromLocalized('berlino')).toBe('berlin');
+    });
+
+    it('should provide localized slug for locale', () => {
+      expect(getCitySlugForLocale('wien', 'en')).toBe('vienna');
+      expect(getCitySlugForLocale('berlin', 'it')).toBe('berlino');
+    });
+
+    it('should return null for unknown localized slug', () => {
+      expect(resolveCanonicalCitySlugFromLocalized('unknown-city')).toBeNull();
     });
   });
 });

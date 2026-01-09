@@ -15,6 +15,7 @@ import { eventAggregator } from '@/lib/aggregator';
 import { generateCitySEO } from '@/lib/seoContent';
 import { getCategoryContent } from '@/data/categoryContent';
 import type { EventData } from '@/lib/types';
+import { locales, getCitySlugForLocale, type SupportedLocale } from '@/i18n.config';
 
 // Mark as dynamic since we use Redis for HotCities
 export const dynamic = 'force-dynamic';
@@ -177,12 +178,22 @@ export async function generateMetadata({ params }: { params: { city: string; par
   const dateISO = dateTokenToISO(dateParam);
   const dateHuman = formatGermanDate(dateISO);
   const categoryPart = category ? `${category} ` : '';
-  const url = `https://www.where2go.at/${resolved.slug}/${p.join('/')}`;
+  const baseUrl = (process.env.SITE_URL || 'https://www.where2go.at').replace(/\/$/, '');
+  const url = `${baseUrl}/${resolved.slug}/${p.join('/')}`;
+
+  const languageAlternates: Record<string, string> = {};
+  (Object.keys(locales) as SupportedLocale[]).forEach((locale) => {
+    const localizedSlug = getCitySlugForLocale(resolved.slug, locale);
+    const prefix = locales[locale].prefix;
+    const localizedUrl = `${baseUrl}${prefix}/${localizedSlug}/${p.join('/')}`;
+    languageAlternates[locale === 'de' ? 'de-AT' : locale] = localizedUrl;
+  });
+  languageAlternates['x-default'] = url;
 
   return {
     title: `${categoryPart}Events in ${resolved.name} – ${dateHuman} | Where2Go`,
     description: `${categoryPart}Events in ${resolved.name} am ${dateHuman}.`,
-    alternates: { canonical: url },
+    alternates: { canonical: url, languages: languageAlternates },
     openGraph: {
       type: 'website',
       url,

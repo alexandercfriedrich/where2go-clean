@@ -10,6 +10,18 @@ import DesignCssLoader from './components/DesignCssLoader';
 import SchemaOrg from './components/SchemaOrg';
 import MainFooter from './components/MainFooter';
 import { generateWebSiteSchema, generateViennaPlaceSchema } from './lib/schemaOrg';
+import { locales, type SupportedLocale } from './i18n.config';
+
+const baseUrl = (process.env.SITE_URL || 'https://www.where2go.at').replace(/\/$/, '');
+const languageAlternates: Record<string, string> = {};
+
+(Object.keys(locales) as SupportedLocale[]).forEach((locale) => {
+  const prefix = locales[locale].prefix;
+  const url = `${baseUrl}${prefix || ''}`;
+  languageAlternates[locale === 'de' ? 'de-AT' : locale] = url;
+});
+
+languageAlternates['x-default'] = baseUrl;
 
 export const metadata: Metadata = {
   title: 'Where2Go - Entdecke Events in deiner Stadt!',
@@ -20,10 +32,8 @@ export const metadata: Metadata = {
   publisher: 'Where2Go',
   robots: { index: true, follow: true },
   alternates: {
-    canonical: 'https://www.where2go.at',
-    languages: {
-      'de-AT': 'https://www.where2go.at',
-    },
+    canonical: baseUrl,
+    languages: languageAlternates,
   },
   openGraph: {
     type: 'website',
