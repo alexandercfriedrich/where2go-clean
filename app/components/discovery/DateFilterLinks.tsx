@@ -12,15 +12,31 @@ interface DateFilterLinksProps {
   onFilterChange: (filter: string) => void;
 }
 
+// Map German filter values to English IDs for comparison
+const filterMapping: Record<string, string> = {
+  'heute': 'heute',
+  'morgen': 'morgen',
+  'wochenende': 'wochenende',
+  'today': 'heute',
+  'tomorrow': 'morgen',
+  'weekend': 'wochenende',
+  'this-week': 'this-week',
+  'next-week': 'next-week',
+  'all': 'all',
+};
+
 export function DateFilterLinks({ city, selectedFilter, onFilterChange }: DateFilterLinksProps) {
   const filters = [
     { id: 'all', label: 'Alle Events', href: `/discover?city=${city}` },
-    { id: 'today', label: 'Heute', href: `/discover?city=${city}&date=today` },
-    { id: 'tomorrow', label: 'Morgen', href: `/discover?city=${city}&date=tomorrow` },
+    { id: 'heute', label: 'Heute', href: `/discover?city=${city}&date=heute` },
+    { id: 'morgen', label: 'Morgen', href: `/discover?city=${city}&date=morgen` },
     { id: 'this-week', label: 'Diese Woche', href: `/discover?city=${city}&date=this-week` },
-    { id: 'weekend', label: 'Wochenende', href: `/discover?city=${city}&date=weekend` },
+    { id: 'wochenende', label: 'Wochenende', href: `/discover?city=${city}&date=wochenende` },
     { id: 'next-week', label: 'Nächste Woche', href: `/discover?city=${city}&date=next-week` },
   ];
+
+  // Normalize the selected filter for comparison
+  const normalizedSelected = filterMapping[selectedFilter] || selectedFilter;
 
   return (
     <nav aria-label="Event date filters" className="mb-8">
@@ -29,7 +45,8 @@ export function DateFilterLinks({ city, selectedFilter, onFilterChange }: DateFi
       </h3>
       <div className="flex flex-wrap gap-3">
         {filters.map((filter) => {
-          const isActive = selectedFilter === filter.id;
+          const normalizedFilterId = filterMapping[filter.id] || filter.id;
+          const isActive = normalizedSelected === normalizedFilterId;
           return (
             <Link
               key={filter.id}
