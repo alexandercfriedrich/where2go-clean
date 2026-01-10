@@ -234,6 +234,12 @@ export async function POST(request: NextRequest) {
             const { generateEventImageId } = await import('@/lib/aggregator');
             const { supabaseAdmin } = await import('@/lib/supabase/client');
 
+            // Early return if supabaseAdmin is not available
+            if (!supabaseAdmin) {
+              console.warn('[ImageDownload:Background] Supabase admin client not available');
+              return;
+            }
+
             const imageService = new ImageDownloadService(
               process.env.SUPABASE_URL!,
               process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -266,17 +272,19 @@ export async function POST(request: NextRequest) {
                 const result = downloadResults[idx];
                 const originalEvent = eventsToDownload[idx];
                 
-                if (result.success && result.publicUrl && supabaseAdmin) {
+                if (result.success && result.publicUrl) {
                   try {
                     // Update the event in the database with the new Supabase URL
                     const { error: updateError } = await supabaseAdmin
                       .from('events')
                       .update({ 
                         image_urls: [result.publicUrl]
-                      } as any) // Type assertion needed due to Supabase query builder limitations
+                      })
                       .eq('title', originalEvent.title)
                       .eq('venue_name', originalEvent.venue)
-                      .eq('city', originalEvent.city);
+                      .eq('city', originalEvent.city)
+                      .select()
+                      .single();
 
                     if (!updateError) {
                       successCount++;
