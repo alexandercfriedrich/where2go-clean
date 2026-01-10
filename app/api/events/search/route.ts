@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     const results = await service.executeMultiQuery(city, date, missingCategories, mergedOptions);
 
     // KI-Ergebnisse normalisieren: Quelle + kanonische Kategorie
-    const newEventsRaw = eventAggregator.aggregateResults(results).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
+    const newEventsRaw = (await eventAggregator.aggregateResults(results)).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
     const newEvents = newEventsRaw.map(e => ({ ...e, category: normalizeCategory(e.category || '') }));
 
     const combined = eventAggregator.deduplicateEvents([...dedupCached, ...newEvents]);

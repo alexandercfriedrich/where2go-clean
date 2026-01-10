@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
 
       if (options?.debug) {
         for (const result of results) {
-          const eventsFromResultRaw = eventAggregator.aggregateResults([result], validDates);
+          const eventsFromResultRaw = await eventAggregator.aggregateResults([result], validDates);
           const eventsFromResult = eventsFromResultRaw.map(e => ({ ...e, category: normalizeCategory(e.category || '') }));
           const category = eventsFromResult.length > 0 ? (eventsFromResult[0].category || 'Unknown') : 'Unknown';
 
@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
       }
 
       // KI-Events: Quelle setzen + Kategorie normalisieren
-      const chunkRaw = eventAggregator.aggregateResults(results, validDates).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
+      const chunkRaw = (await eventAggregator.aggregateResults(results, validDates)).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
       const chunk = chunkRaw.map(e => ({ ...e, category: normalizeCategory(e.category || '') }));
 
       // Cache per Kategorie

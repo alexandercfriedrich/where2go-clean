@@ -256,7 +256,7 @@ export class SmartEventFetcher {
         hotCity
       });
 
-      const events = eventAggregator.aggregateResults(results, date);
+      const events = await eventAggregator.aggregateResults(results, date);
 
       if (this.debug) {
         console.log(`[Phase2] Venue queries returned ${events.length} events from ${totalVenueSites} configured venues/sites`);
@@ -312,7 +312,7 @@ export class SmartEventFetcher {
             }
           );
           
-          const gapEvents = eventAggregator.aggregateResults([gapResult], date);
+          const gapEvents = await eventAggregator.aggregateResults([gapResult], date);
           allEvents.push(...gapEvents);
           aiCallsUsed++;
           
@@ -351,7 +351,7 @@ export class SmartEventFetcher {
               categoryConcurrency: batch.length // Process all categories in batch simultaneously
             });
 
-            const batchEvents = eventAggregator.aggregateResults(results, date);
+            const batchEvents = await eventAggregator.aggregateResults(results, date);
             allEvents.push(...batchEvents);
             aiCallsUsed++;
 
