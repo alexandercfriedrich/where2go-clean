@@ -158,10 +158,10 @@ export default function DiscoveryClient({
         {/* Hero Section */}
         <div style={{ backgroundColor: '#13343B' }} className="text-white"> {/* Teal Dark */}
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
-            <h1 className="text-3xl md:text-5xl mb-4" style={{ fontFamily: 'FK Grotesk Neue, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif', fontWeight: 300 }}>
+            <h1 className="text-3xl md:text-5xl font-bold mb-4" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
               {getPageTitle()}
             </h1>
-            <p className="text-lg md:text-xl text-gray-300 mb-8" style={{ fontFamily: 'FK Grotesk Neue, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif' }}>
+            <p className="text-lg md:text-xl text-gray-300 mb-8" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
               {selectedCategory 
                 ? `Alle ${selectedCategory.toLowerCase()} Veranstaltungen in ${city}`
                 : `Dein personalisierter Guide für die besten Events`}
