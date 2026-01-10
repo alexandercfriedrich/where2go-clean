@@ -43,7 +43,7 @@ export default async function WienHeutePage() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="Wien"
-          initialDateFilter="today"
+          initialDateFilter="heute"
         />
       </>
     );
@@ -56,7 +56,7 @@ export default async function WienHeutePage() {
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="Wien"
-        initialDateFilter="today"
+        initialDateFilter="heute"
       />
     );
   }

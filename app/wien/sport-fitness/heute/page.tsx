@@ -46,7 +46,7 @@ export default async function WienSportFitnessHeutePage() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="Wien"
-          initialDateFilter="today"
+          initialDateFilter="heute"
           initialCategory="Sport & Fitness"
         />
       <SeoContent category="sport-fitness" date="heute" />
@@ -64,7 +64,7 @@ export default async function WienSportFitnessHeutePage() {
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="Wien"
-        initialDateFilter="today"
+        initialDateFilter="heute"
         initialCategory="Sport & Fitness"
       />
         <SeoContent category="sport-fitness" date="heute" />

@@ -46,7 +46,7 @@ export default async function WienLgbtqHeutePage() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="Wien"
-          initialDateFilter="today"
+          initialDateFilter="heute"
           initialCategory="LGBTQ+"
         />
       <SeoContent category="lgbtq" date="heute" />
@@ -64,7 +64,7 @@ export default async function WienLgbtqHeutePage() {
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="Wien"
-        initialDateFilter="today"
+        initialDateFilter="heute"
         initialCategory="LGBTQ+"
       />
         <SeoContent category="lgbtq" date="heute" />

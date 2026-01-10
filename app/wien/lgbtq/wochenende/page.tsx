@@ -46,7 +46,7 @@ export default async function WienLgbtqWochenendePage() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="Wien"
-          initialDateFilter="weekend"
+          initialDateFilter="wochenende"
           initialCategory="LGBTQ+"
         />
       <SeoContent category="lgbtq" date="wochenende" />
@@ -64,7 +64,7 @@ export default async function WienLgbtqWochenendePage() {
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="Wien"
-        initialDateFilter="weekend"
+        initialDateFilter="wochenende"
         initialCategory="LGBTQ+"
       />
         <SeoContent category="lgbtq" date="wochenende" />

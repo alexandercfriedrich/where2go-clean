@@ -46,7 +46,7 @@ export default async function WienClubsNachtlebenHeutePage() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="Wien"
-          initialDateFilter="today"
+          initialDateFilter="heute"
           initialCategory="Clubs & Nachtleben"
         />
         <SeoContent category="clubs-nachtleben" date="heute" />
@@ -63,7 +63,7 @@ export default async function WienClubsNachtlebenHeutePage() {
           initialPersonalizedEvents={[]}
           initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
           city="Wien"
-          initialDateFilter="today"
+          initialDateFilter="heute"
           initialCategory="Clubs & Nachtleben"
         />
         <SeoContent category="clubs-nachtleben" date="heute" />

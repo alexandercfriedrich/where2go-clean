@@ -46,7 +46,7 @@ export default async function WienMuseenAusstellungenMorgenPage() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="Wien"
-          initialDateFilter="tomorrow"
+          initialDateFilter="morgen"
           initialCategory="Museen & Ausstellungen"
         />
       <SeoContent category="museen-ausstellungen" date="morgen" />
@@ -64,7 +64,7 @@ export default async function WienMuseenAusstellungenMorgenPage() {
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="Wien"
-        initialDateFilter="tomorrow"
+        initialDateFilter="morgen"
         initialCategory="Museen & Ausstellungen"
       />
         <SeoContent category="museen-ausstellungen" date="morgen" />

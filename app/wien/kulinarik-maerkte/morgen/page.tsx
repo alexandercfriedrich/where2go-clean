@@ -46,7 +46,7 @@ export default async function WienKulinarikMaerkteMorgenPage() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="Wien"
-          initialDateFilter="tomorrow"
+          initialDateFilter="morgen"
           initialCategory="Kulinarik & Märkte"
         />
       <SeoContent category="kulinarik-maerkte" date="morgen" />
@@ -64,7 +64,7 @@ export default async function WienKulinarikMaerkteMorgenPage() {
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="Wien"
-        initialDateFilter="tomorrow"
+        initialDateFilter="morgen"
         initialCategory="Kulinarik & Märkte"
       />
         <SeoContent category="kulinarik-maerkte" date="morgen" />

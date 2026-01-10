@@ -46,7 +46,7 @@ export default async function WienFilmKinoHeutePage() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="Wien"
-          initialDateFilter="today"
+          initialDateFilter="heute"
           initialCategory="Film & Kino"
         />
       <SeoContent category="film-kino" date="heute" />
@@ -64,7 +64,7 @@ export default async function WienFilmKinoHeutePage() {
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="Wien"
-        initialDateFilter="today"
+        initialDateFilter="heute"
         initialCategory="Film & Kino"
       />
         <SeoContent category="film-kino" date="heute" />

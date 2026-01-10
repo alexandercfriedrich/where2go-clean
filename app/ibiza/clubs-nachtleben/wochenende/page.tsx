@@ -43,7 +43,7 @@ export default async function IbizaClubsNachtlebenWochenendePage() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="Ibiza"
-          initialDateFilter="weekend"
+          initialDateFilter="wochenende"
           initialCategory="Clubs & Nachtleben"
         />
       </>
@@ -57,7 +57,7 @@ export default async function IbizaClubsNachtlebenWochenendePage() {
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="Ibiza"
-        initialDateFilter="weekend"
+        initialDateFilter="wochenende"
         initialCategory="Clubs & Nachtleben"
       />
     );
