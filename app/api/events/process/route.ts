@@ -273,7 +273,7 @@ export async function POST(request: NextRequest) {
                       .from('events')
                       .update({ 
                         image_urls: [result.publicUrl]
-                      })
+                      } as any) // Type assertion needed due to Supabase query builder limitations
                       .eq('title', originalEvent.title)
                       .eq('venue_name', originalEvent.venue)
                       .eq('city', originalEvent.city);
