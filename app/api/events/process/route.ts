@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
 
       if (options?.debug) {
         for (const result of results) {
-          const eventsFromResultRaw = await eventAggregator.aggregateResults([result], validDates);
+          const eventsFromResultRaw = eventAggregator.aggregateResults([result], validDates);
           const eventsFromResult = eventsFromResultRaw.map(e => ({ ...e, category: normalizeCategory(e.category || '') }));
           const category = eventsFromResult.length > 0 ? (eventsFromResult[0].category || 'Unknown') : 'Unknown';
 
@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
       }
 
       // KI-Events: Quelle setzen + Kategorie normalisieren
-      const chunkRaw = (await eventAggregator.aggregateResults(results, validDates)).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
+      const chunkRaw = eventAggregator.aggregateResults(results, validDates).map(e => ({ ...e, source: e.source ?? 'ai' as const }));
       const chunk = chunkRaw.map(e => ({ ...e, category: normalizeCategory(e.category || '') }));
 
       // Cache per Kategorie
@@ -224,6 +224,86 @@ export async function POST(request: NextRequest) {
         }
       })()
     );
+
+    // BACKGROUND: Download and store images in Supabase (non-blocking)
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      waitUntil(
+        (async () => {
+          try {
+            const { ImageDownloadService } = await import('@/lib/services/ImageDownloadService');
+            const { generateEventImageId } = await import('@/lib/aggregator');
+            const { supabaseAdmin } = await import('@/lib/supabase/client');
+
+            const imageService = new ImageDownloadService(
+              process.env.SUPABASE_URL!,
+              process.env.SUPABASE_SERVICE_ROLE_KEY!
+            );
+
+            // Collect events that need image downloads
+            const eventsToDownload = runningEvents
+              .filter(e => e.imageUrl && e.imageUrl.startsWith('http') && !e.imageUrl.includes('supabase'))
+              .map(e => ({
+                url: e.imageUrl!,
+                eventId: generateEventImageId(e),
+                city: e.city || city,
+                title: e.title,
+                venue: e.venue
+              }));
+
+            if (eventsToDownload.length > 0) {
+              console.log(`[ImageDownload:Background] Starting download for ${eventsToDownload.length} images...`);
+              
+              const downloadResults = await imageService.downloadAndStoreImageBatch(
+                eventsToDownload,
+                3 // 3 parallel downloads
+              );
+
+              // Update events in database with Supabase URLs
+              let successCount = 0;
+              let failCount = 0;
+              
+              for (let idx = 0; idx < downloadResults.length; idx++) {
+                const result = downloadResults[idx];
+                const originalEvent = eventsToDownload[idx];
+                
+                if (result.success && result.publicUrl && supabaseAdmin) {
+                  try {
+                    // Update the event in the database with the new Supabase URL
+                    const { error: updateError } = await supabaseAdmin
+                      .from('events')
+                      .update({ 
+                        image_urls: [result.publicUrl]
+                      })
+                      .eq('title', originalEvent.title)
+                      .eq('venue_name', originalEvent.venue)
+                      .eq('city', originalEvent.city);
+
+                    if (!updateError) {
+                      successCount++;
+                      console.log(`[ImageDownload:Background] ✅ ${originalEvent.title}: Image stored and database updated`);
+                    } else {
+                      failCount++;
+                      console.warn(`[ImageDownload:Background] ⚠️  ${originalEvent.title}: Image stored but DB update failed:`, updateError.message);
+                    }
+                  } catch (dbError) {
+                    failCount++;
+                    console.warn(`[ImageDownload:Background] ⚠️  ${originalEvent.title}: Image stored but DB update error:`, dbError);
+                  }
+                } else {
+                  failCount++;
+                  console.warn(`[ImageDownload:Background] ❌ ${originalEvent.title}: ${result.error}`);
+                }
+              }
+              
+              console.log(`[ImageDownload:Background] Complete: ${successCount} images stored and updated, ${failCount} failed`);
+            }
+          } catch (error) {
+            console.error('[ImageDownload:Background] Service failed:', error);
+            // Silent failure - don't impact the main pipeline
+          }
+        })()
+      );
+    }
 
     await jobStore.updateJob(jobId, {
       status: 'done',

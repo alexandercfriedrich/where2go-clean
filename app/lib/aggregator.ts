@@ -10,14 +10,13 @@ import { EventData, PerplexityResult } from './types';
 import { normalizeEvents } from './event-normalizer';
 import { validateAndNormalizeEvents, normalizeCategory } from './eventCategories';
 import { normalizeForEventId, generateEventId } from './eventId';
-import { ImageDownloadService } from './services/ImageDownloadService';
 
 const TIME_24H_REGEX = /^\d{1,2}:\d{2}/;
 const DATE_ISO_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const DATE_DDMMYYYY_REGEX = /^\d{1,2}\.\d{1,2}\.\d{4}$/;
 
 export class EventAggregator {
-  async aggregateResults(results: PerplexityResult[], requestedDate?: string | string[]): Promise<EventData[]> {
+  aggregateResults(results: PerplexityResult[], requestedDate?: string | string[]): EventData[] {
     const parsedRaw: EventData[] = [];
     for (const r of results) {
       const queryCategory = this.extractCategoryFromQuery(r.query);
@@ -41,56 +40,6 @@ export class EventAggregator {
         const d = ev.date?.slice(0, 10);
         return !d || validDates.includes(d);
       });
-    }
-
-    // NEW: Download and store images in Supabase
-    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      try {
-        const imageService = new ImageDownloadService(
-          process.env.SUPABASE_URL,
-          process.env.SUPABASE_SERVICE_ROLE_KEY
-        );
-
-        // Collect events that need image downloads
-        const eventsToDownload = filtered
-          .filter(e => e.imageUrl && e.imageUrl.startsWith('http'))
-          .map(e => ({
-            url: e.imageUrl!,
-            eventId: this.generateEventImageId(e),
-            city: e.city || 'unknown',
-            title: e.title
-          }));
-
-        if (eventsToDownload.length > 0) {
-          console.log(`[ImageDownload] Starting download for ${eventsToDownload.length} images...`);
-          
-          const downloadResults = await imageService.downloadAndStoreImageBatch(
-            eventsToDownload,
-            3 // 3 parallel downloads
-          );
-
-          // Update events with Supabase URLs
-          for (let idx = 0; idx < downloadResults.length; idx++) {
-            const result = downloadResults[idx];
-            const originalEvent = eventsToDownload[idx];
-            
-            if (result.success && result.publicUrl) {
-              const eventIdx = filtered.findIndex(e => e.imageUrl === originalEvent.url);
-              if (eventIdx >= 0) {
-                filtered[eventIdx].imageUrl = result.publicUrl;
-                console.log(`✅ ${filtered[eventIdx].title}: Image stored in Supabase`);
-              }
-            } else {
-              console.warn(`❌ Image download failed for ${originalEvent.title}: ${result.error}`);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('[ImageDownload] Service initialization failed:', error);
-        // Continue without image downloads - don't break the pipeline
-      }
-    } else {
-      console.warn('[ImageDownload] Supabase credentials not configured - skipping image downloads');
     }
 
     return filtered;
@@ -508,25 +457,25 @@ export class EventAggregator {
     const union = new Set([...Array.from(ta), ...Array.from(tb)]).size || 1;
     return inter / union;
   }
+}
 
-  /**
-   * Generate unique event ID for image storage
-   * Uses title + venue + date for stable uniqueness
-   */
-  private generateEventImageId(event: EventData): string {
-    const sanitize = (str: string) => 
-      (str || '')
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '')
-        .slice(0, 30);
-    
-    const titlePart = sanitize(event.title);
-    const venuePart = sanitize(event.venue);
-    const datePart = (event.date || '').replace(/-/g, '');
-    
-    return `${titlePart}-${venuePart}-${datePart}`.slice(0, 60);
-  }
+/**
+ * Generate unique event ID for image storage
+ * Uses title + venue + date for stable uniqueness
+ */
+export function generateEventImageId(event: EventData): string {
+  const sanitize = (str: string) => 
+    (str || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 30);
+  
+  const titlePart = sanitize(event.title);
+  const venuePart = sanitize(event.venue);
+  const datePart = (event.date || '').replace(/-/g, '');
+  
+  return `${titlePart}-${venuePart}-${datePart}`.slice(0, 60);
 }
 
 export const eventAggregator = new EventAggregator();
