@@ -240,6 +240,9 @@ export async function POST(request: NextRequest) {
               return;
             }
 
+            // TypeScript workaround: assign to local variable with definite type
+            const supabase = supabaseAdmin;
+
             const imageService = new ImageDownloadService(
               process.env.SUPABASE_URL!,
               process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -275,7 +278,7 @@ export async function POST(request: NextRequest) {
                 if (result.success && result.publicUrl) {
                   try {
                     // Update the event in the database with the new Supabase URL
-                    const { error: updateError } = await supabaseAdmin
+                    const { error: updateError } = await supabase
                       .from('events')
                       .update({ 
                         image_urls: [result.publicUrl]
