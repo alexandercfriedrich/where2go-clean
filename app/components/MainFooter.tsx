@@ -90,20 +90,12 @@ export default function MainFooter() {
                     aria-label={`Toggle events for ${category.name}`}
                   >
                     <div className="category-info">
-                      <span className="category-icon">{category.icon}</span>
-                      <span className="category-name">{category.name}</span>
+                      <div className="category-title">
+                        <span className="category-name">{category.name}</span>
+                      </div>
+                      <p className="category-description">3 Unterkategorien</p>
                     </div>
-                    <svg 
-                      className="chevron"
-                      width="20" 
-                      height="20" 
-                      viewBox="0 0 24 24" 
-                      fill="none" 
-                      stroke="currentColor" 
-                      strokeWidth="2"
-                    >
-                      <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
+                    <div className="arrow">↓</div>
                   </button>
                   <div className="category-content">
                     <div className="category-links">
@@ -118,7 +110,8 @@ export default function MainFooter() {
                             window.scrollTo({ top: 0, behavior: 'smooth' });
                           }}
                         >
-                          Welche {category.name} Events finden {filter.label} in {primaryCity.name} statt?
+                          <div className="query-dot"></div>
+                          <span>Welche {category.name} Events finden {filter.label} in {primaryCity.name} statt?</span>
                         </Link>
                       ))}
                     </div>
@@ -148,7 +141,7 @@ export default function MainFooter() {
 
       <style jsx>{`
         .main-footer {
-          background: var(--color-bg);
+          background: linear-gradient(135deg, #0a0e27 0%, #13182f 50%, #0a0e27 100%);
           color: #F5F5F5;
           padding: 48px 0 32px;
           margin-top: 80px;
@@ -162,10 +155,13 @@ export default function MainFooter() {
         
         .footer-category-accordion h3 {
           font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 18pt;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.15em;
+          margin-bottom: 1.5rem;
           color: rgb(32, 184, 205);
-          font-size: 24px;
-          font-weight: 600;
-          margin-bottom: 32px;
+          line-height: 21pt;
           text-align: center;
         }
         
@@ -217,8 +213,6 @@ export default function MainFooter() {
           padding: 1.5rem;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           animation: slideUpFade 0.6s ease-out both;
-          will-change: transform;
-          transform: translateZ(0);
         }
         
         .category-card:nth-child(1) { animation-delay: 0.05s; }
@@ -263,7 +257,7 @@ export default function MainFooter() {
           width: 100%;
           display: flex;
           justify-content: space-between;
-          align-items: center;
+          align-items: flex-start;
           padding: 0;
           background: transparent;
           border: none;
@@ -274,39 +268,57 @@ export default function MainFooter() {
         
         .category-info {
           display: flex;
-          align-items: center;
-          gap: 12px;
+          flex-direction: column;
+          gap: 0.5rem;
+          flex: 1;
         }
         
-        .category-icon {
-          font-size: 24px;
+        .category-title {
           display: flex;
           align-items: center;
-          justify-content: center;
-          width: 48px;
-          height: 48px;
-          border-radius: 0.75rem;
-          background: linear-gradient(135deg, currentColor, rgba(255, 255, 255, 0.1));
-          transition: all 0.3s ease-out;
-        }
-        
-        .category-card:hover .category-icon {
-          transform: rotate(12deg) scale(1.1);
+          justify-content: space-between;
         }
         
         .category-name {
-          font-size: 16px;
-          font-weight: 600;
-          color: #F5F5F5;
-        }
-        
-        .chevron {
-          transition: transform 0.3s ease;
+          font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 18pt;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
           color: rgb(32, 184, 205);
-          flex-shrink: 0;
+          line-height: 21pt;
         }
         
-        .category-card.open .chevron {
+        .category-description {
+          font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 14pt;
+          font-weight: 100;
+          color: #F5F5F5;
+          line-height: 18pt;
+          letter-spacing: 0.02em;
+          margin: 0;
+          transition: color 0.3s ease-out;
+        }
+        
+        .category-card:hover .category-description {
+          color: rgb(32, 184, 205);
+        }
+        
+        .arrow {
+          display: inline-block;
+          transition: transform 0.3s ease-out;
+          color: rgb(32, 184, 205);
+          font-size: 1.25rem;
+          line-height: 1;
+          opacity: 0.6;
+          margin-left: 1rem;
+        }
+        
+        .category-card:hover .arrow {
+          opacity: 1;
+        }
+        
+        .category-card.open .arrow {
           transform: rotate(180deg);
         }
         
@@ -336,14 +348,18 @@ export default function MainFooter() {
           gap: 0.75rem;
           padding: 0.75rem;
           border-radius: 0.5rem;
-          background: rgba(148, 163, 184, 0.1);
-          border: 1px solid rgba(148, 163, 184, 0.2);
-          font-size: 14px;
+          background: rgba(32, 225, 211, 0.05);
+          border: 1px solid rgba(32, 225, 211, 0.15);
+          font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 14pt;
+          font-weight: 100;
           color: #F5F5F5;
+          line-height: 18pt;
           text-decoration: none;
           cursor: pointer;
           transition: all 0.2s ease-out;
           animation: slideInLeft 0.3s ease-out backwards;
+          letter-spacing: 0.02em;
         }
         
         .category-card.open .category-link:nth-child(1) { animation-delay: 0.1s; }
@@ -354,6 +370,22 @@ export default function MainFooter() {
           background: rgba(32, 225, 211, 0.12);
           border-color: rgba(32, 225, 211, 0.3);
           color: rgb(32, 184, 205);
+        }
+        
+        .query-dot {
+          width: 0.5rem;
+          height: 0.5rem;
+          border-radius: 50%;
+          flex-shrink: 0;
+          margin-top: 0.4rem;
+          transition: all 0.2s ease-out;
+          background: rgb(32, 184, 205);
+          opacity: 0.3;
+        }
+        
+        .category-link:hover .query-dot {
+          transform: scale(1.3);
+          opacity: 0.7;
         }
         
         /* Color assignments for each category */
