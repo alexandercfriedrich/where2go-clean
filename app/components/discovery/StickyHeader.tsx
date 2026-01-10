@@ -97,7 +97,7 @@ export function StickyHeader({ city = 'Wien' }: StickyHeaderProps) {
                     color: '#FCFAF6',
                   }}
                 >
-                  Discover
+                  Entdecken
                 </Link>
                 <Link
                   href="/blog"
