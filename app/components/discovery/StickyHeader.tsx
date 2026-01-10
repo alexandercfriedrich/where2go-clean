@@ -8,7 +8,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useTheme } from '@/components/ui/ThemeProvider';
-import SearchBar from './SearchBar';
+import { SearchBar } from './SearchBar';
 
 interface StickyHeaderProps {
   city?: string;
