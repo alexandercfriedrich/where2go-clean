@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Where2Go - Modern Category Grid</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --color-primary: #3b82f6;
+            --color-secondary: #a855f7;
+            --color-accent: #ec4899;
+            --color-bg-primary: #0f172a;
+            --color-bg-secondary: #1e293b;
+            --color-text-primary: #ffffff;
+            --color-text-secondary: #cbd5e1;
+            --color-border: rgba(255, 255, 255, 0.1);
+            --color-border-hover: rgba(255, 255, 255, 0.2);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, var(--color-bg-primary) 0%, var(--color-bg-secondary) 50%, var(--color-bg-primary) 100%);
+            color: var(--color-text-primary);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+            animation: slideDownFade 0.6s ease-out;
+        }
+
+        .header h1 {
+            font-size: clamp(2rem, 5vw, 3rem);
+            font-weight: 800;
+            margin-bottom: 0.75rem;
+            background: linear-gradient(135deg, #60a5fa, #a855f7, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.02em;
+        }
+
+        .header p {
+            font-size: 1.125rem;
+            color: var(--color-text-secondary);
+            font-weight: 500;
+        }
+
+        /* Grid */
+        .category-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 6rem;
+            animation: fadeIn 0.8s ease-out 0.2s both;
+        }
+
+        @media (max-width: 768px) {
+            .category-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+        }
+
+        /* Category Card */
+        .category-card {
+            position: relative;
+            cursor: pointer;
+            overflow: hidden;
+            border-radius: 1.5rem;
+            border: 1px solid var(--color-border);
+            background: rgba(15, 23, 42, 0.5);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            padding: 1.5rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: slideUpFade 0.6s ease-out both;
+        }
+
+        .category-card:nth-child(1) { animation-delay: 0.05s; }
+        .category-card:nth-child(2) { animation-delay: 0.1s; }
+        .category-card:nth-child(3) { animation-delay: 0.15s; }
+        .category-card:nth-child(4) { animation-delay: 0.2s; }
+        .category-card:nth-child(5) { animation-delay: 0.25s; }
+        .category-card:nth-child(6) { animation-delay: 0.3s; }
+        .category-card:nth-child(n+7) { animation-delay: 0.35s; }
+
+        .category-card:hover {
+            border-color: var(--color-border-hover);
+            background: rgba(30, 41, 59, 0.6);
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .category-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 150px;
+            height: 150px;
+            background: radial-gradient(circle, currentColor 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.3s ease-out;
+            pointer-events: none;
+            filter: blur(40px);
+        }
+
+        .category-card:hover::before {
+            opacity: 0.5;
+        }
+
+        /* Icon */
+        .icon-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 3rem;
+            height: 3rem;
+            margin-bottom: 1rem;
+            border-radius: 0.75rem;
+            background: linear-gradient(135deg, currentColor, rgba(255, 255, 255, 0.1));
+            color: white;
+            font-size: 1.5rem;
+            transition: all 0.3s ease-out;
+        }
+
+        .category-card:hover .icon-wrapper {
+            transform: rotate(12deg) scale(1.1);
+        }
+
+        /* Title */
+        .category-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            color: var(--color-text-primary);
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .arrow {
+            display: inline-block;
+            transition: transform 0.3s ease-out;
+            color: rgba(203, 213, 225, 0.6);
+            font-size: 1.25rem;
+            line-height: 1;
+        }
+
+        .category-card[data-expanded="true"] .arrow {
+            transform: rotate(180deg);
+        }
+
+        /* Description */
+        .category-description {
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+            transition: color 0.3s ease-out;
+        }
+
+        .category-card:hover .category-description {
+            color: rgba(203, 213, 225, 0.8);
+        }
+
+        /* Queries Container */
+        .queries-container {
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            margin-top: 0;
+        }
+
+        .category-card[data-expanded="true"] .queries-container {
+            max-height: 500px;
+            opacity: 1;
+            margin-top: 1rem;
+        }
+
+        .query-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .query-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            background: rgba(148, 163, 184, 0.1);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+            cursor: pointer;
+            transition: all 0.2s ease-out;
+            animation: slideInLeft 0.3s ease-out backwards;
+        }
+
+        .query-item:nth-child(1) { animation-delay: 0.1s; }
+        .query-item:nth-child(2) { animation-delay: 0.15s; }
+        .query-item:nth-child(3) { animation-delay: 0.2s; }
+
+        .query-item:hover {
+            background: rgba(148, 163, 184, 0.2);
+            border-color: rgba(148, 163, 184, 0.4);
+        }
+
+        .query-dot {
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 50%;
+            flex-shrink: 0;
+            margin-top: 0.4rem;
+            transition: all 0.2s ease-out;
+            background: currentColor;
+            opacity: 0.4;
+        }
+
+        .query-item:hover .query-dot {
+            transform: scale(1.3);
+            opacity: 0.7;
+        }
+
+        .query-item[data-selected="true"] .query-dot {
+            transform: scale(1.3);
+            opacity: 1;
+        }
+
+        .query-item[data-selected="true"] {
+            background: rgba(59, 130, 246, 0.3);
+            border-color: rgba(59, 130, 246, 0.6);
+            color: rgba(148, 219, 252, 0.9);
+        }
+
+        /* Footer */
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, rgba(15, 23, 42, 0.95), rgba(15, 23, 42, 0.8));
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-top: 1px solid var(--color-border);
+            padding: 1.5rem 2rem;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.4s ease-out;
+            z-index: 1000;
+        }
+
+        .footer[data-show="true"] {
+            max-height: 200px;
+        }
+
+        .footer-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .footer-label {
+            color: var(--color-text-secondary);
+            font-weight: 500;
+            flex-shrink: 0;
+        }
+
+        .selected-queries {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            flex: 1;
+        }
+
+        .query-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 0.5rem;
+            color: var(--color-text-primary);
+            font-size: 0.875rem;
+            animation: slideUpFade 0.3s ease-out;
+        }
+
+        .query-badge button {
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            padding: 0;
+            margin-left: 0.5rem;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+
+        .query-badge button:hover {
+            opacity: 1;
+        }
+
+        .search-button {
+            padding: 0.75rem 1.5rem;
+            background: linear-gradient(135deg, var(--color-primary), var(--color-secondary));
+            color: white;
+            border: none;
+            border-radius: 0.75rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease-out;
+            box-shadow: 0 8px 16px rgba(59, 130, 246, 0.3);
+            flex-shrink: 0;
+        }
+
+        .search-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 12px 24px rgba(59, 130, 246, 0.4);
+        }
+
+        .search-button:active {
+            transform: scale(0.98);
+        }
+
+        /* Color Classes */
+        .color-pink { --color-current: #ec4899; }
+        .color-orange { --color-current: #fb5607; }
+        .color-yellow { --color-current: #ffbe0b; }
+        .color-purple { --color-current: #8338ec; }
+        .color-blue { --color-current: #3a86ff; }
+        .color-teal { --color-current: #06ffa5; }
+        .color-amber { --color-current: #ffb703; }
+        .color-red { --color-current: #d62828; }
+        .color-emerald { --color-current: #06d6a0; }
+        .color-sky { --color-current: #118ab2; }
+        .color-rose { --color-current: #ef476f; }
+
+        /* Animations */
+        @keyframes slideDownFade {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideUpFade {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Accessibility */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation: none !important;
+                transition: none !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎉 Entdecke Events in Wien</h1>
+            <p>Wähle eine Kategorie und erkunde die besten Events in deiner Stadt</p>
+        </div>
+
+        <div class="category-grid" id="categoryGrid"></div>
+    </div>
+
+    <div class="footer" id="footer" data-show="false">
+        <div class="footer-content">
+            <div class="footer-label">Ausgewählte Queries:</div>
+            <div class="selected-queries" id="selectedQueries"></div>
+            <button class="search-button" onclick="search()">🔍 Suchen</button>
+        </div>
+    </div>
+
+    <script>
+        const categories = [
+            {
+                id: 'clubs',
+                label: 'Clubs & Nachtleben',
+                icon: '🎵',
+                color: 'pink',
+                queries: [
+                    'Welche Clubs & Nachtleben Events finden heute in Wien statt?',
+                    'Welche Clubs & Nachtleben Events finden morgen in Wien statt?',
+                    'Welche Clubs & Nachtleben Events finden am Wochenende in Wien statt?',
+                ]
+            },
+            {
+                id: 'concerts',
+                label: 'Live-Konzerte',
+                icon: '🎤',
+                color: 'orange',
+                queries: [
+                    'Welche Live-Konzerte Events finden heute in Wien statt?',
+                    'Welche Live-Konzerte Events finden morgen in Wien statt?',
+                    'Welche Live-Konzerte Events finden am Wochenende in Wien statt?',
+                ]
+            },
+            {
+                id: 'classical',
+                label: 'Klassik & Oper',
+                icon: '🎻',
+                color: 'yellow',
+                queries: [
+                    'Welche Klassik & Oper Events finden heute in Wien statt?',
+                    'Welche Klassik & Oper Events finden morgen in Wien statt?',
+                    'Welche Klassik & Oper Events finden am Wochenende in Wien statt?',
+                ]
+            },
+            {
+                id: 'theater',
+                label: 'Theater & Comedy',
+                icon: '🎭',
+                color: 'purple',
+                queries: [
+                    'Welche Theater & Comedy Events finden heute in Wien statt?',
+                    'Welche Theater & Comedy Events finden morgen in Wien statt?',
+                    'Welche Theater & Comedy Events finden am Wochenende in Wien statt?',
+                ]
+            },
+            {
+                id: 'museums',
+                label: 'Museen & Ausstellungen',
+                icon: '🏛️',
+                color: 'blue',
+                queries: [
+                    'Welche Museen & Ausstellungen Events finden heute in Wien statt?',
+                    'Welche Museen & Ausstellungen Events finden morgen in Wien statt?',
+                    'Welche Museen & Ausstellungen Events finden am Wochenende in Wien statt?',
+                ]
+            },
+            {
+                id: 'film',
+                label: 'Film & Kino',
+                icon: '🎬',
+                color: 'teal',
+                queries: [
+                    'Welche Film & Kino Events finden heute in Wien statt?',
+                    'Welche Film & Kino Events finden morgen in Wien statt?',
+                    'Welche Film & Kino Events finden am Wochenende in Wien statt?',
+                ]
+            },
+            {
+                id: 'festivals',
+                label: 'Open Air & Festivals',
+                icon: '🏕️',
+                color: 'amber',
+                queries: [
+                    'Welche Open Air & Festivals Events finden heute in Wien statt?',
+                    'Welche Open Air & Festivals Events finden morgen in Wien statt?',
+                    'Welche Open Air & Festivals Events finden am Wochenende in Wien statt?',
+                ]
+            },
+            {
+                id: 'culinary',
+                label: 'Kulinarik & Märkte',
+                icon: '🍴',
+                color: 'red',
+                queries: [
+                    'Welche Kulinarik & Märkte Events finden heute in Wien statt?',
+                    'Welche Kulinarik & Märkte Events finden morgen in Wien statt?',
+                    'Welche Kulinarik & Märkte Events finden am Wochenende in Wien statt?',
+                ]
+            },
+            {
+                id: 'sports',
+                label: 'Sport & Fitness',
+                icon: '⚽',
+                color: 'emerald',
+                queries: [
+                    'Welche Sport & Fitness Events finden heute in Wien statt?',
+                    'Welche Sport & Fitness Events finden morgen in Wien statt?',
+                    'Welche Sport & Fitness Events finden am Wochenende in Wien statt?',
+                ]
+            },
+            {
+                id: 'education',
+                label: 'Bildung & Workshops',
+                icon: '📚',
+                color: 'sky',
+                queries: [
+                    'Welche Bildung & Workshops Events finden heute in Wien statt?',
+                    'Welche Bildung & Workshops Events finden morgen in Wien statt?',
+                    'Welche Bildung & Workshops Events finden am Wochenende in Wien statt?',
+                ]
+            },
+            {
+                id: 'family',
+                label: 'Familie & Kinder',
+                icon: '👨‍👩‍👧‍👦',
+                color: 'rose',
+                queries: [
+                    'Welche Familie & Kinder Events finden heute in Wien statt?',
+                    'Welche Familie & Kinder Events finden morgen in Wien statt?',
+                    'Welche Familie & Kinder Events finden am Wochenende in Wien statt?',
+                ]
+            },
+        ];
+
+        let selectedQueries = [];
+
+        function renderCategories() {
+            const grid = document.getElementById('categoryGrid');
+            grid.innerHTML = categories.map(cat => `
+                <div class="category-card color-${cat.color}" data-expanded="false" onclick="toggleExpand(this)">
+                    <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+                        <div style="flex: 1;">
+                            <div class="icon-wrapper">${cat.icon}</div>
+                            <div class="category-title">
+                                <span>${cat.label}</span>
+                            </div>
+                            <p class="category-description">${cat.queries.length} Events verfügbar</p>
+                        </div>
+                        <div class="arrow" style="margin-left: 1rem;">↓</div>
+                    </div>
+                    <div class="queries-container">
+                        <ul class="query-list">
+                            ${cat.queries.map((q, idx) => `
+                                <li class="query-item" data-selected="false" onclick="toggleQuery(event, '${q.replace(/'/g, "\\'")}')"><div class="query-dot"></div><span>${q}</span></li>
+                            `).join('')}
+                        </ul>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function toggleExpand(element) {
+            // Close other cards
+            document.querySelectorAll('.category-card[data-expanded="true"]').forEach(card => {
+                if (card !== element) {
+                    card.setAttribute('data-expanded', 'false');
+                }
+            });
+            // Toggle current
+            const isExpanded = element.getAttribute('data-expanded') === 'true';
+            element.setAttribute('data-expanded', !isExpanded);
+        }
+
+        function toggleQuery(event, query) {
+            event.stopPropagation();
+            const item = event.target.closest('.query-item');
+            const isSelected = item.getAttribute('data-selected') === 'true';
+            item.setAttribute('data-selected', !isSelected);
+
+            if (!isSelected) {
+                selectedQueries.push(query);
+            } else {
+                selectedQueries = selectedQueries.filter(q => q !== query);
+            }
+
+            updateFooter();
+        }
+
+        function updateFooter() {
+            const footer = document.getElementById('footer');
+            const container = document.getElementById('selectedQueries');
+
+            if (selectedQueries.length > 0) {
+                footer.setAttribute('data-show', 'true');
+                container.innerHTML = selectedQueries.map(query => `
+                    <div class="query-badge">
+                        ${query.substring(0, 30)}...
+                        <button onclick="removeQuery('${query.replace(/'/g, "\\'")}')">×</button>
+                    </div>
+                `).join('');
+            } else {
+                footer.setAttribute('data-show', 'false');
+            }
+        }
+
+        function removeQuery(query) {
+            selectedQueries = selectedQueries.filter(q => q !== query);
+            document.querySelectorAll('.query-item').forEach(item => {
+                if (item.textContent.includes(query.substring(0, 30))) {
+                    item.setAttribute('data-selected', 'false');
+                }
+            });
+            updateFooter();
+        }
+
+        function search() {
+            console.log('Searching for:', selectedQueries);
+            // Replace with actual search functionality
+            alert(`Suche nach ${selectedQueries.length} Queries:\n\n${selectedQueries.join('\n')}`);
+        }
+
+        renderCategories();
+    </script>
+</body>
+</html>
