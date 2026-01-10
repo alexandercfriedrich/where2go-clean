@@ -160,10 +160,10 @@ export default function DiscoveryClient({
         {/* Hero Section */}
         <div style={{ backgroundColor: '#13343B' }} className="text-white"> {/* Teal Dark */}
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
-            <h1 className="text-3xl md:text-5xl font-bold mb-4">
+            <h1 className="text-3xl md:text-5xl mb-4" style={{ fontFamily: 'FK Grotesk Neue, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif', fontWeight: 300 }}>
               {getPageTitle()}
             </h1>
-            <p className="text-lg md:text-xl text-gray-300 mb-8">
+            <p className="text-lg md:text-xl text-gray-300 mb-8" style={{ fontFamily: 'FK Grotesk Neue, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif' }}>
               {selectedCategory 
                 ? `Alle ${selectedCategory.toLowerCase()} Veranstaltungen in ${city}`
                 : `Dein personalisierter Guide für die besten Events`}
@@ -381,28 +381,30 @@ export default function DiscoveryClient({
             
             <style jsx>{`
               .seo-content-block {
-                background-color: transparent;
+                background-color: rgba(13, 14, 39, 0.4);
+                backdrop-filter: blur(12px);
+                -webkit-backdrop-filter: blur(12px);
                 padding: 48px 0;
                 margin-bottom: 48px;
-                border-top: 1px solid rgba(255, 255, 255, 0.1);
-                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(32, 225, 211, 0.2);
+                border-radius: 1.5rem;
               }
               
               .seo-content-container {
                 max-width: 1024px;
                 margin: 0 auto;
-                padding: 0 1rem;
+                padding: 0 2rem;
               }
               
               @media (min-width: 640px) {
                 .seo-content-container {
-                  padding: 0 1.5rem;
+                  padding: 0 2.5rem;
                 }
               }
               
               @media (min-width: 1024px) {
                 .seo-content-container {
-                  padding: 0 2rem;
+                  padding: 0 3rem;
                 }
               }
               
@@ -423,6 +425,10 @@ export default function DiscoveryClient({
                 line-height: 18pt;
                 color: #F5F5F5;
                 margin-bottom: 20px;
+              }
+              
+              [data-theme="light"] .seo-paragraph {
+                color: #1f2937;
               }
               
               .seo-categories-grid {
@@ -449,6 +455,10 @@ export default function DiscoveryClient({
                 line-height: 18pt;
                 color: #F5F5F5;
                 margin-bottom: 12px;
+              }
+              
+              [data-theme="light"] .seo-category-text {
+                color: #1f2937;
               }
               
               .seo-category-link {
@@ -492,6 +502,10 @@ export default function DiscoveryClient({
                 padding-left: 20px;
               }
               
+              [data-theme="light"] .seo-features-list {
+                color: #1f2937;
+              }
+              
               .seo-tip {
                 font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
                 font-size: 14pt;
@@ -499,6 +513,10 @@ export default function DiscoveryClient({
                 line-height: 18pt;
                 color: #F5F5F5;
                 font-style: italic;
+              }
+              
+              [data-theme="light"] .seo-tip {
+                color: #1f2937;
               }
             `}</style>
           </section>

@@ -93,7 +93,7 @@ export default function MainFooter() {
                       <div className="category-title">
                         <span className="category-name">{category.name}</span>
                       </div>
-                      <p className="category-description">3 Unterkategorien</p>
+                      <p className="category-description">Schnellauswahl</p>
                     </div>
                     <div className="arrow">↓</div>
                   </button>
@@ -293,7 +293,7 @@ export default function MainFooter() {
           font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           font-size: 14pt;
           font-weight: 100;
-          color: #F5F5F5;
+          color: #e5e7eb;
           line-height: 18pt;
           letter-spacing: 0.02em;
           margin: 0;
@@ -301,7 +301,7 @@ export default function MainFooter() {
         }
         
         .category-card:hover .category-description {
-          color: rgb(32, 184, 205);
+          color: #e5e7eb;
         }
         
         .arrow {
@@ -353,7 +353,7 @@ export default function MainFooter() {
           font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           font-size: 14pt;
           font-weight: 100;
-          color: #F5F5F5;
+          color: #e5e7eb;
           line-height: 18pt;
           text-decoration: none;
           cursor: pointer;
@@ -369,7 +369,7 @@ export default function MainFooter() {
         .category-link:hover {
           background: rgba(32, 225, 211, 0.12);
           border-color: rgba(32, 225, 211, 0.3);
-          color: rgb(32, 184, 205);
+          color: #e5e7eb;
         }
         
         .query-dot {
@@ -419,15 +419,18 @@ export default function MainFooter() {
         }
 
         .footer-link {
-          color: #94a3b8;
+          font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          color: #e5e7eb;
           text-decoration: none;
           font-size: 14px;
-          font-weight: 400;
+          font-weight: 100;
           transition: color 0.2s ease;
           padding: 4px 0;
+          opacity: 0.7;
         }
 
         .footer-link:hover {
+          opacity: 1;
           color: rgb(32, 184, 205);
         }
 
@@ -436,9 +439,12 @@ export default function MainFooter() {
         }
 
         .footer-copyright p {
-          color: #64748b;
+          font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          color: #e5e7eb;
           font-size: 13px;
+          font-weight: 100;
           margin: 0;
+          opacity: 0.7;
         }
         
         /* Accessibility: Prefers reduced motion */
