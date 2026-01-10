@@ -5,7 +5,6 @@ import SchemaOrg from '@/components/SchemaOrg';
 import { generateEventListSchema } from '@/lib/schemaOrg';
 import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
 import { generateCityMetadata } from '@/lib/seo/metadataGenerator';
-import { SeoContent } from '@/components/SeoContent';
 import { Breadcrumbs } from '@/components/Breadcrumbs';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -49,7 +48,6 @@ export default async function WienLiveKonzerteHeutePage() {
           initialDateFilter="today"
           initialCategory="Live-Konzerte"
         />
-      <SeoContent category="live-konzerte" date="heute" />
 
       </>
     );
@@ -67,7 +65,6 @@ export default async function WienLiveKonzerteHeutePage() {
         initialDateFilter="today"
         initialCategory="Live-Konzerte"
       />
-        <SeoContent category="live-konzerte" date="heute" />
       </>
     );
   }

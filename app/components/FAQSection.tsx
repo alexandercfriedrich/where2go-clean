@@ -67,10 +67,11 @@ export function FAQSection({ faqs, title = 'Häufig gestellte Fragen' }: FAQSect
               itemType="https://schema.org/Question"
               style={{
                 background: 'linear-gradient(135deg, #2A2A2A 0%, #1F1F1F 100%)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(32, 225, 211, 0.15)',
                 borderRadius: '12px',
                 padding: '20px',
               }}
+              className="dark:bg-white/5 dark:border-white/10"
             >
               <h3
                 itemProp="name"

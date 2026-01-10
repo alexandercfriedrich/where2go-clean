@@ -381,13 +381,11 @@ export default function DiscoveryClient({
             
             <style jsx>{`
               .seo-content-block {
-                background-color: rgba(13, 14, 39, 0.4);
-                backdrop-filter: blur(12px);
-                -webkit-backdrop-filter: blur(12px);
+                background: linear-gradient(135deg, #2A2A2A 0%, #1F1F1F 100%);
                 padding: 48px 0;
                 margin-bottom: 48px;
-                border: 1px solid rgba(32, 225, 211, 0.2);
-                border-radius: 1.5rem;
+                border: 1px solid rgba(32, 225, 211, 0.15);
+                border-radius: 12px;
               }
               
               .seo-content-container {

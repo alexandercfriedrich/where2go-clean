@@ -205,11 +205,9 @@ export default function MainFooter() {
           position: relative;
           cursor: pointer;
           overflow: hidden;
-          border-radius: 1.5rem;
-          border: 1px solid rgba(32, 225, 211, 0.1);
-          background: rgba(13, 14, 39, 0.4);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
+          border-radius: 12px;
+          border: 1px solid rgba(32, 225, 211, 0.15);
+          background: linear-gradient(135deg, #2A2A2A 0%, #1F1F1F 100%);
           padding: 1.5rem;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
           animation: slideUpFade 0.6s ease-out both;
