@@ -141,7 +141,7 @@ export default function MainFooter() {
 
       <style jsx>{`
         .main-footer {
-          background: linear-gradient(135deg, #0a0e27 0%, #13182f 50%, #0a0e27 100%);
+          background: #091717;
           color: #F5F5F5;
           padding: 48px 0 32px;
           margin-top: 80px;
