@@ -148,20 +148,21 @@ export default function MainFooter() {
 
       <style jsx>{`
         .main-footer {
-          background: #091717; /* Offblack */
-          color: #FCFAF6; /* Paper White */
+          background: linear-gradient(135deg, #0a0e27 0%, #13182f 50%, #0a0e27 100%);
+          color: #F5F5F5;
           padding: 48px 0 32px;
           margin-top: 80px;
         }
         
         .footer-category-accordion {
           padding: 0 0 48px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          border-bottom: 1px solid rgba(32, 225, 211, 0.1);
           margin-bottom: 32px;
         }
         
         .footer-category-accordion h3 {
-          color: #FCFAF6; /* Paper White */
+          font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          color: rgb(32, 184, 205);
           font-size: 24px;
           font-weight: 600;
           margin-bottom: 32px;
@@ -170,21 +171,92 @@ export default function MainFooter() {
         
         .category-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-          gap: 16px;
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          gap: 1.5rem;
+          max-width: 1400px;
+          margin: 0 auto;
+          animation: fadeIn 0.8s ease-out 0.2s both;
+        }
+        
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        
+        @keyframes slideUpFade {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        @keyframes slideInLeft {
+          from {
+            opacity: 0;
+            transform: translateX(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
         }
         
         .category-card {
-          background: rgba(255, 255, 255, 0.03);
-          border-radius: 12px;
-          border-left: 4px solid #20B8CD;
+          position: relative;
+          cursor: pointer;
           overflow: hidden;
-          transition: all 0.3s ease;
+          border-radius: 1.5rem;
+          border: 1px solid rgba(32, 225, 211, 0.1);
+          background: rgba(13, 14, 39, 0.4);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          padding: 1.5rem;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          animation: slideUpFade 0.6s ease-out both;
+          will-change: transform;
+          transform: translateZ(0);
         }
         
+        .category-card:nth-child(1) { animation-delay: 0.05s; }
+        .category-card:nth-child(2) { animation-delay: 0.1s; }
+        .category-card:nth-child(3) { animation-delay: 0.15s; }
+        .category-card:nth-child(4) { animation-delay: 0.2s; }
+        .category-card:nth-child(5) { animation-delay: 0.25s; }
+        .category-card:nth-child(6) { animation-delay: 0.3s; }
+        .category-card:nth-child(7) { animation-delay: 0.35s; }
+        .category-card:nth-child(8) { animation-delay: 0.4s; }
+        .category-card:nth-child(9) { animation-delay: 0.45s; }
+        .category-card:nth-child(10) { animation-delay: 0.5s; }
+        .category-card:nth-child(11) { animation-delay: 0.55s; }
+        .category-card:nth-child(12) { animation-delay: 0.6s; }
+        
         .category-card:hover {
-          background: rgba(255, 255, 255, 0.05);
-          border-left-color: #218090;
+          border-color: rgba(32, 225, 211, 0.2);
+          background: rgba(32, 225, 211, 0.08);
+          transform: translateY(-8px);
+          box-shadow: 0 20px 40px rgba(32, 225, 211, 0.15);
+        }
+        
+        .category-card::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          right: 0;
+          width: 150px;
+          height: 150px;
+          background: radial-gradient(circle, currentColor 0%, transparent 70%);
+          opacity: 0;
+          transition: opacity 0.3s ease-out;
+          pointer-events: none;
+          filter: blur(40px);
+        }
+        
+        .category-card:hover::before {
+          opacity: 0.3;
         }
         
         .category-header {
@@ -192,16 +264,12 @@ export default function MainFooter() {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 16px 20px;
+          padding: 0;
           background: transparent;
           border: none;
           cursor: pointer;
-          color: #FCFAF6; /* Paper White */
+          color: #F5F5F5;
           transition: all 0.2s ease;
-        }
-        
-        .category-header:hover {
-          background: rgba(255, 255, 255, 0.03);
         }
         
         .category-info {
@@ -215,19 +283,26 @@ export default function MainFooter() {
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 32px;
-          height: 32px;
+          width: 48px;
+          height: 48px;
+          border-radius: 0.75rem;
+          background: linear-gradient(135deg, currentColor, rgba(255, 255, 255, 0.1));
+          transition: all 0.3s ease-out;
+        }
+        
+        .category-card:hover .category-icon {
+          transform: rotate(12deg) scale(1.1);
         }
         
         .category-name {
           font-size: 16px;
           font-weight: 600;
-          color: #FCFAF6; /* Paper White */
+          color: #F5F5F5;
         }
         
         .chevron {
           transition: transform 0.3s ease;
-          color: #20B8CD;
+          color: rgb(32, 184, 205);
           flex-shrink: 0;
         }
         
@@ -237,66 +312,63 @@ export default function MainFooter() {
         
         .category-content {
           max-height: 0;
+          opacity: 0;
           overflow: hidden;
-          transition: max-height 0.3s ease;
+          transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          margin-top: 0;
         }
         
         .category-card.open .category-content {
           max-height: 500px;
+          opacity: 1;
+          margin-top: 1rem;
         }
         
         .category-links {
-          padding: 0 20px 16px;
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          gap: 0.5rem;
         }
         
         .category-link {
-          color: rgba(255, 255, 255, 0.85);
-          text-decoration: none;
+          display: flex;
+          align-items: flex-start;
+          gap: 0.75rem;
+          padding: 0.75rem;
+          border-radius: 0.5rem;
+          background: rgba(148, 163, 184, 0.1);
+          border: 1px solid rgba(148, 163, 184, 0.2);
           font-size: 14px;
-          padding: 8px 12px;
-          border-radius: 6px;
-          transition: all 0.2s ease;
+          color: #F5F5F5;
+          text-decoration: none;
+          cursor: pointer;
+          transition: all 0.2s ease-out;
+          animation: slideInLeft 0.3s ease-out backwards;
         }
         
-        .category-card.open .category-link {
-          animation: slideIn 0.3s ease forwards;
-        }
-        
-        .category-card.open .category-link[data-animation-delay="0"] {
-          animation-delay: 0ms;
-        }
-        
-        .category-card.open .category-link[data-animation-delay="1"] {
-          animation-delay: 50ms;
-        }
-        
-        .category-card.open .category-link[data-animation-delay="2"] {
-          animation-delay: 100ms;
-        }
-        
-        @keyframes slideIn {
-          from {
-            opacity: 0;
-            transform: translateX(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-        
-        .category-card:not(.open) .category-link {
-          opacity: 0;
-        }
+        .category-card.open .category-link:nth-child(1) { animation-delay: 0.1s; }
+        .category-card.open .category-link:nth-child(2) { animation-delay: 0.15s; }
+        .category-card.open .category-link:nth-child(3) { animation-delay: 0.2s; }
         
         .category-link:hover {
-          background: rgba(32, 184, 205, 0.1);
-          color: #20B8CD;
-          transform: translateX(4px);
+          background: rgba(32, 225, 211, 0.12);
+          border-color: rgba(32, 225, 211, 0.3);
+          color: rgb(32, 184, 205);
         }
+        
+        /* Color assignments for each category */
+        .category-card:nth-child(1) { color: #ec4899; } /* Clubs & Nachtleben - Pink */
+        .category-card:nth-child(2) { color: #fb5607; } /* Live-Konzerte - Orange */
+        .category-card:nth-child(3) { color: #ffbe0b; } /* Klassik & Oper - Yellow */
+        .category-card:nth-child(4) { color: #8338ec; } /* Theater & Comedy - Purple */
+        .category-card:nth-child(5) { color: #3a86ff; } /* Museen & Ausstellungen - Blue */
+        .category-card:nth-child(6) { color: #06ffa5; } /* Film & Kino - Teal */
+        .category-card:nth-child(7) { color: #ffb703; } /* Open Air & Festivals - Amber */
+        .category-card:nth-child(8) { color: #d62828; } /* Kulinarik & Märkte - Red */
+        .category-card:nth-child(9) { color: #06d6a0; } /* Sport & Fitness - Emerald */
+        .category-card:nth-child(10) { color: #118ab2; } /* Bildung & Workshops - Sky */
+        .category-card:nth-child(11) { color: #ef476f; } /* Familie & Kinder - Rose */
+        .category-card:nth-child(12) { color: #0891b2; } /* LGBTQ+ - Cyan */
 
         .footer-content {
           display: flex;
@@ -324,7 +396,7 @@ export default function MainFooter() {
         }
 
         .footer-link:hover {
-          color: #20B8CD;
+          color: rgb(32, 184, 205);
         }
 
         .footer-copyright {
@@ -335,6 +407,14 @@ export default function MainFooter() {
           color: #64748b;
           font-size: 13px;
           margin: 0;
+        }
+        
+        /* Accessibility: Prefers reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+          * {
+            animation: none !important;
+            transition: none !important;
+          }
         }
 
         @media (max-width: 767px) {
@@ -355,34 +435,27 @@ export default function MainFooter() {
           
           .category-grid {
             grid-template-columns: 1fr;
-            gap: 12px;
+            gap: 1rem;
           }
           
           .category-card {
-            border-left-width: 3px;
-          }
-          
-          .category-header {
-            padding: 14px 16px;
+            border-radius: 1rem;
+            padding: 1.25rem;
           }
           
           .category-icon {
             font-size: 20px;
-            width: 28px;
-            height: 28px;
+            width: 40px;
+            height: 40px;
           }
           
           .category-name {
             font-size: 15px;
           }
           
-          .category-links {
-            padding: 0 16px 14px;
-          }
-          
           .category-link {
             font-size: 13px;
-            padding: 6px 10px;
+            padding: 0.5rem;
           }
 
           .footer-links {
@@ -392,18 +465,6 @@ export default function MainFooter() {
 
           .footer-link {
             font-size: 13px;
-          }
-        }
-        
-        @media (min-width: 768px) {
-          .category-grid {
-            grid-template-columns: repeat(2, 1fr);
-          }
-        }
-        
-        @media (min-width: 1024px) {
-          .category-grid {
-            grid-template-columns: repeat(3, 1fr);
           }
         }
       `}</style>
