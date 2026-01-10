@@ -82,15 +82,15 @@ export function WeekendClient({ initialEvents, city }: WeekendClientProps) {
                 href="/"
                 className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
               >
-                ← Back to Discover
+                ← Zurück zur Entdeckung
               </Link>
             </div>
             <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-              🎉 This Weekend
+              🎉 Dieses Wochenende
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              Plan your perfect weekend with events happening Friday to Monday
-              {urlCategories.length > 0 && ` • Filtered by: ${urlCategories.join(', ')}`}
+              Plane dein perfektes Wochenende mit Events von Freitag bis Montag
+              {urlCategories.length > 0 && ` • Gefiltert nach: ${urlCategories.join(', ')}`}
             </p>
           </div>
           
@@ -104,18 +104,18 @@ export function WeekendClient({ initialEvents, city }: WeekendClientProps) {
           ) : (
             <div className="text-center py-16">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-                No weekend events found
+                Keine Wochenend-Events gefunden
               </h2>
               <p className="text-gray-600 dark:text-gray-400 mb-6">
                 {urlCategories.length > 0
-                  ? 'Try adjusting your filters to see more events'
-                  : `Check back soon for weekend events in ${city}`}
+                  ? 'Versuche deine Filter anzupassen, um mehr Events zu sehen'
+                  : `Schau bald wieder vorbei für Wochenend-Events in ${city}`}
               </p>
               <Link
                 href="/"
                 className="inline-block px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
               >
-                Browse All Events
+                Alle Events durchsuchen
               </Link>
             </div>
           )}

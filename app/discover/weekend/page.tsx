@@ -7,8 +7,8 @@ import { getWeekendEvents } from '../../../lib/events/queries';
 import { WeekendClient } from './WeekendClient';
 
 export const metadata: Metadata = {
-  title: 'This Weekend - Weekend Events | Where2Go',
-  description: 'Plan your perfect weekend with events happening Friday to Monday',
+  title: 'Dieses Wochenende - Wochenend-Events | Where2Go',
+  description: 'Plane dein perfektes Wochenende mit Events von Freitag bis Montag',
 };
 
 export default async function WeekendPage({

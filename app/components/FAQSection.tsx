@@ -42,9 +42,12 @@ export function FAQSection({ faqs, title = 'Häufig gestellte Fragen' }: FAQSect
       >
         <h2
           style={{
-            fontSize: '28px',
+            fontFamily: 'FK Grotesk Neue, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
+            fontSize: '18pt',
             fontWeight: 700,
-            color: '#FFFFFF',
+            fontVariant: 'small-caps',
+            lineHeight: '21pt',
+            color: '#20E1D3',
             marginBottom: '24px',
           }}
         >
@@ -72,9 +75,12 @@ export function FAQSection({ faqs, title = 'Häufig gestellte Fragen' }: FAQSect
               <h3
                 itemProp="name"
                 style={{
-                  fontSize: '18px',
-                  fontWeight: 600,
-                  color: '#FFFFFF',
+                  fontFamily: 'FK Grotesk Neue, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
+                  fontSize: '18pt',
+                  fontWeight: 700,
+                  fontVariant: 'small-caps',
+                  lineHeight: '21pt',
+                  color: '#20E1D3',
                   marginBottom: '12px',
                 }}
               >
@@ -88,9 +94,11 @@ export function FAQSection({ faqs, title = 'Häufig gestellte Fragen' }: FAQSect
                 <div
                   itemProp="text"
                   style={{
-                    fontSize: '15px',
-                    lineHeight: '1.6',
-                    color: 'rgba(255, 255, 255, 0.85)',
+                    fontFamily: 'FK Grotesk Neue, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
+                    fontSize: '14pt',
+                    fontWeight: 100,
+                    lineHeight: '18pt',
+                    color: '#F5F5F5',
                   }}
                 >
                   {faq.answer}

@@ -117,7 +117,7 @@ export default function DiscoveryClient({
       <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--color-bg)' }}>
         <div className="text-center">
           <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-r-transparent" style={{ borderColor: '#20B8CD', borderRightColor: 'transparent' }}></div>
-          <p className="mt-2 text-gray-600 dark:text-gray-400">Loading Discovery...</p>
+          <p className="mt-2 text-gray-600 dark:text-gray-400">Lade Entdeckung...</p>
         </div>
       </div>
     );
@@ -166,12 +166,12 @@ export default function DiscoveryClient({
             <p className="text-lg md:text-xl text-gray-300 mb-8">
               {selectedCategory 
                 ? `Alle ${selectedCategory.toLowerCase()} Veranstaltungen in ${city}`
-                : `Your personalized guide to the best events happening now`}
+                : `Dein personalisierter Guide für die besten Events`}
             </p>
             
             {/* Enhanced Search Bar */}
             <div className="max-w-2xl">
-              <SearchBar placeholder="Search events, venues, or categories..." />
+              <SearchBar placeholder="Events, Locations oder Kategorien suchen..." />
             </div>
           </div>
         </div>
@@ -195,10 +195,10 @@ export default function DiscoveryClient({
           />
 
           {/* Category Browser */}
-          <section className="mb-16" aria-label="Browse events by category">
+          <section className="mb-16" aria-label="Kategorien durchsuchen">
             <SectionHeader
-              title="Browse by Category"
-              subtitle="Explore events that match your interests"
+              title="Kategorien durchsuchen"
+              subtitle="Entdecke Events, die zu deinen Interessen passen"
             />
             <CategoryBrowser 
               onCategoryClick={(cat) => {
@@ -220,27 +220,27 @@ export default function DiscoveryClient({
             {selectedCategory && (
               <div className="mt-4 flex items-center gap-2">
                 <span className="text-sm text-gray-600 dark:text-gray-400">
-                  Filtered by: <strong>{selectedCategory}</strong>
+                  Gefiltert nach: <strong>{selectedCategory}</strong>
                 </span>
                 <button
                   onClick={() => setSelectedCategory(null)}
                   className="text-sm text-indigo-600 dark:text-indigo-400 hover:underline"
                 >
-                  Clear filter
+                  Filter zurücksetzen
                 </button>
               </div>
             )}
           </section>
 
-          {/* For You Section - Show ALL events when category is selected */}
+          {/* Für Dich Section - Show ALL events when category is selected */}
           {filteredEvents.personalized.length > 0 && (
-            <section ref={eventsGridRef} className="mb-16" aria-label="Personalized event recommendations">
+            <section ref={eventsGridRef} className="mb-16" aria-label="Personalisierte Event-Empfehlungen">
               <SectionHeader
-                title={selectedCategory ? `${selectedCategory} Events` : "For You"}
+                title={selectedCategory ? `${selectedCategory} Events` : "Für Dich"}
                 subtitle={selectedCategory 
-                  ? `All ${filteredEvents.personalized.length} events in this category`
-                  : "Personalized recommendations based on your interests"}
-                action={!selectedCategory ? { label: 'See all', href: '/discover/for-you' } : undefined}
+                  ? `Alle ${filteredEvents.personalized.length} Events in dieser Kategorie`
+                  : "Personalisierte Empfehlungen basierend auf deinen Interessen"}
+                action={!selectedCategory ? { label: 'Alle anzeigen', href: '/discover/for-you' } : undefined}
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {/* Show all events when category is selected, otherwise limit to 8 */}
@@ -251,13 +251,13 @@ export default function DiscoveryClient({
             </section>
           )}
 
-          {/* Trending Section */}
+          {/* Gerade angesagt Section */}
           {filteredEvents.trending.length > 0 && (
-            <section className="mb-16" aria-label="Trending events">
+            <section className="mb-16" aria-label="Gerade angesagte Events">
               <SectionHeader
-                title="Trending Now"
-                subtitle="Popular events everyone is talking about"
-                action={{ label: 'See all', href: '/discover/trending' }}
+                title="Gerade angesagt"
+                subtitle="Beliebte Events über die alle reden"
+                action={{ label: 'Alle anzeigen', href: '/discover/trending' }}
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {filteredEvents.trending.slice(0, 8).map((event) => (
@@ -267,13 +267,13 @@ export default function DiscoveryClient({
             </section>
           )}
 
-          {/* Weekend Section */}
+          {/* Wochenende Section */}
           {filteredEvents.weekend.length > 0 && (
-            <section className="mb-16" aria-label="Weekend events">
+            <section className="mb-16" aria-label="Wochenend-Events">
               <SectionHeader
-                title="This Weekend"
-                subtitle="Plan your perfect weekend"
-                action={{ label: 'See all', href: '/discover/weekend' }}
+                title="Dieses Wochenende"
+                subtitle="Plane dein perfektes Wochenende"
+                action={{ label: 'Alle anzeigen', href: '/discover/weekend' }}
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {filteredEvents.weekend.map((event) => (
@@ -294,12 +294,12 @@ export default function DiscoveryClient({
             filteredEvents.weekend.length === 0 && (
               <div className="text-center py-16">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-                  {selectedCategory ? 'No events found in this category' : 'No events found'}
+                  {selectedCategory ? 'Keine Events in dieser Kategorie gefunden' : 'Keine Events gefunden'}
                 </h2>
                 <p className="text-gray-600 dark:text-gray-400">
                   {selectedCategory 
-                    ? 'Try selecting a different category or clear the filter' 
-                    : `Check back soon for upcoming events in ${city}`}
+                    ? 'Versuche eine andere Kategorie oder setze den Filter zurück' 
+                    : `Schau bald wieder vorbei für neue Events in ${city}`}
                 </p>
               </div>
             )}
@@ -407,17 +407,21 @@ export default function DiscoveryClient({
               }
               
               .seo-heading {
-                font-size: 28px;
+                font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                font-size: 18pt;
                 font-weight: 700;
+                font-variant: small-caps;
+                line-height: 21pt;
                 margin-bottom: 24px;
-                color: #FFFFFF;
-                line-height: 1.3;
+                color: #20E1D3;
               }
               
               .seo-paragraph {
-                font-size: 16px;
-                line-height: 1.6;
-                color: rgba(255, 255, 255, 0.85);
+                font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                font-size: 14pt;
+                font-weight: 100;
+                line-height: 18pt;
+                color: #F5F5F5;
                 margin-bottom: 20px;
               }
               
@@ -429,16 +433,21 @@ export default function DiscoveryClient({
               }
               
               .seo-category-heading {
-                font-size: 18px;
-                font-weight: 600;
+                font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                font-size: 18pt;
+                font-weight: 700;
+                font-variant: small-caps;
+                line-height: 21pt;
                 margin-bottom: 12px;
-                color: #FFFFFF;
+                color: #20E1D3;
               }
               
               .seo-category-text {
-                font-size: 14px;
-                line-height: 1.5;
-                color: rgba(255, 255, 255, 0.85);
+                font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                font-size: 14pt;
+                font-weight: 100;
+                line-height: 18pt;
+                color: #F5F5F5;
                 margin-bottom: 12px;
               }
               
@@ -464,23 +473,31 @@ export default function DiscoveryClient({
               }
               
               .seo-features-heading {
-                font-size: 16px;
-                font-weight: 600;
+                font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                font-size: 18pt;
+                font-weight: 700;
+                font-variant: small-caps;
+                line-height: 21pt;
                 margin-bottom: 8px;
-                color: #FFFFFF;
+                color: #20E1D3;
               }
               
               .seo-features-list {
-                font-size: 14px;
-                line-height: 1.7;
-                color: rgba(255, 255, 255, 0.85);
+                font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                font-size: 14pt;
+                font-weight: 100;
+                line-height: 18pt;
+                color: #F5F5F5;
                 margin: 0;
                 padding-left: 20px;
               }
               
               .seo-tip {
-                font-size: 14px;
-                color: rgba(255, 255, 255, 0.85);
+                font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+                font-size: 14pt;
+                font-weight: 100;
+                line-height: 18pt;
+                color: #F5F5F5;
                 font-style: italic;
               }
             `}</style>

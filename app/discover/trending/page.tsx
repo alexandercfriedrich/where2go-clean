@@ -7,8 +7,8 @@ import { getTrendingEvents } from '../../../lib/events/queries';
 import { TrendingClient } from './TrendingClient';
 
 export const metadata: Metadata = {
-  title: 'Trending Now - Popular Events | Where2Go',
-  description: 'Discover the most popular and trending events everyone is talking about',
+  title: 'Gerade angesagt - Beliebte Events | Where2Go',
+  description: 'Entdecke die beliebtesten und angesagtesten Events über die alle reden',
 };
 
 export default async function TrendingPage({
