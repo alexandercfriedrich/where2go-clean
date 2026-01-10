@@ -9,13 +9,23 @@ interface ImageDownloadResult {
   originalUrl?: string;
 }
 
+/**
+ * OPTIMIZED ImageDownloadService v2
+ * 
+ * KEY IMPROVEMENTS:
+ * 1. Skips HEAD requests (they're being blocked)
+ * 2. Uses streaming GET with size limits
+ * 3. Better timeout handling (45s)
+ * 4. More detailed error logging
+ * 5. Success rate tracking
+ */
 export class ImageDownloadService {
   private supabase;
   private storageBucket = 'event-images';
   
   private readonly MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
   private readonly ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-  private readonly TIMEOUT = 30000; // 30 seconds
+  private readonly TIMEOUT = 45000; // 45 seconds (was 30s)
   private readonly ACCEPTED_STATUS_CODES = [200, 206];
 
   constructor(supabaseUrl: string, supabaseKey: string) {
@@ -23,8 +33,8 @@ export class ImageDownloadService {
   }
 
   /**
-   * CORE FUNCTION: Download, validate, optimize, and store image
-   * Returns public Supabase URL or null if failed
+   * CORE: Download, validate, optimize, and store image
+   * OPTIMIZED: Skips HEAD request, goes straight to GET
    */
   async downloadAndStoreImage(
     imageUrl: string,
@@ -38,21 +48,11 @@ export class ImageDownloadService {
         return {
           success: false,
           originalUrl: imageUrl,
-          error: `Invalid URL format: ${imageUrl}`
+          error: `Invalid URL format`
         };
       }
 
-      // 2. HEAD request: Check if URL is accessible
-      const headResult = await this.validateImageUrl(imageUrl);
-      if (!headResult.valid) {
-        return {
-          success: false,
-          originalUrl: imageUrl,
-          error: headResult.error
-        };
-      }
-
-      // 3. Download image with retry
+      // 2. Download image directly (skip HEAD request)
       const downloadResult = await this.fetchImageWithRetry(imageUrl);
       if (!downloadResult.success || !downloadResult.buffer) {
         return {
@@ -62,7 +62,7 @@ export class ImageDownloadService {
         };
       }
 
-      // 4. Validate and optimize image
+      // 3. Validate and optimize image
       let imageBuffer = downloadResult.buffer;
       const optimizationResult = await this.validateAndOptimizeImage(imageBuffer, eventTitle);
       if (!optimizationResult.success) {
@@ -74,7 +74,7 @@ export class ImageDownloadService {
       }
       imageBuffer = optimizationResult.buffer!;
 
-      // 5. Upload to Supabase Storage
+      // 4. Upload to Supabase Storage
       const storageResult = await this.uploadToStorage(
         imageBuffer,
         eventId,
@@ -89,7 +89,7 @@ export class ImageDownloadService {
         };
       }
 
-      // 6. Create public URL
+      // 5. Create public URL
       const publicUrl = this.getPublicUrl(storageResult.storagePath!);
 
       return {
@@ -110,66 +110,8 @@ export class ImageDownloadService {
   }
 
   /**
-   * HEAD request to validate URL without downloading
-   */
-  private async validateImageUrl(imageUrl: string): Promise<{
-    valid: boolean;
-    error?: string;
-    contentType?: string;
-    contentLength?: number;
-  }> {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), this.TIMEOUT);
-
-      const response = await fetch(imageUrl, {
-        method: 'HEAD',
-        headers: this.getHeaders(),
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!this.ACCEPTED_STATUS_CODES.includes(response.status)) {
-        return {
-          valid: false,
-          error: `HTTP ${response.status}: URL not accessible`
-        };
-      }
-
-      const contentType = response.headers.get('content-type');
-      const contentLength = response.headers.get('content-length');
-
-      if (contentType && !this.ALLOWED_MIME_TYPES.some(t => contentType.includes(t))) {
-        return {
-          valid: false,
-          error: `Invalid content type: ${contentType}`
-        };
-      }
-
-      if (contentLength) {
-        const size = parseInt(contentLength);
-        if (size > this.MAX_IMAGE_SIZE) {
-          return {
-            valid: false,
-            error: `Image too large: ${(size / 1024 / 1024).toFixed(2)}MB (max: 5MB)`
-          };
-        }
-      }
-
-      return { valid: true, contentType: contentType || undefined };
-
-    } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      if (errorMsg.includes('AbortError')) {
-        return { valid: false, error: `Timeout after ${this.TIMEOUT}ms` };
-      }
-      return { valid: false, error: `HEAD request failed: ${errorMsg}` };
-    }
-  }
-
-  /**
-   * Download with retry logic (3 attempts)
+   * OPTIMIZED: Skip HEAD request, use streaming GET directly
+   * More reliable than HEAD + GET (many servers block HEAD requests)
    */
   private async fetchImageWithRetry(imageUrl: string, attempt = 1): Promise<{
     success: boolean;
@@ -188,16 +130,59 @@ export class ImageDownloadService {
 
       clearTimeout(timeoutId);
 
+      // Check HTTP status
       if (!this.ACCEPTED_STATUS_CODES.includes(response.status)) {
-        if (attempt < 3) {
+        if (attempt < 3 && response.status >= 500) {
+          // Retry on server errors (5xx)
           await new Promise(r => setTimeout(r, 1000 * attempt));
           return this.fetchImageWithRetry(imageUrl, attempt + 1);
         }
-        return { success: false, error: `HTTP ${response.status} after ${attempt} attempts` };
+        return {
+          success: false,
+          error: `HTTP ${response.status} (${response.statusText}) - URL may be invalid or expired`
+        };
       }
 
-      const arrayBuffer = await response.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
+      // Check content type EARLY
+      const contentType = response.headers.get('content-type');
+      if (contentType && !this.ALLOWED_MIME_TYPES.some(t => contentType.includes(t))) {
+        return {
+          success: false,
+          error: `Invalid content type: ${contentType}. Expected: image/*`
+        };
+      }
+
+      // Stream to buffer with size limit
+      const chunks: Uint8Array[] = [];
+      let totalSize = 0;
+
+      if (!response.body) {
+        return { success: false, error: 'No response body' };
+      }
+
+      const reader = response.body.getReader();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          totalSize += value.length;
+          if (totalSize > this.MAX_IMAGE_SIZE) {
+            reader.cancel();
+            return {
+              success: false,
+              error: `Image too large: ${(totalSize / 1024 / 1024).toFixed(2)}MB (max: 5MB)`
+            };
+          }
+
+          chunks.push(value);
+        }
+      } finally {
+        reader.releaseLock();
+      }
+
+      // Combine chunks into buffer
+      const buffer = Buffer.concat(chunks.map(chunk => Buffer.from(chunk)));
 
       if (buffer.length === 0) {
         return { success: false, error: 'Downloaded image is empty' };
@@ -207,11 +192,36 @@ export class ImageDownloadService {
 
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
-      if (errorMsg.includes('AbortError') && attempt < 3) {
-        await new Promise(r => setTimeout(r, 1000 * attempt));
-        return this.fetchImageWithRetry(imageUrl, attempt + 1);
+
+      // Specific error handling
+      if (errorMsg.includes('AbortError')) {
+        if (attempt < 3) {
+          console.warn(`[ImageDownload] Timeout attempt ${attempt}/3, retrying ${imageUrl.substring(0, 50)}...`);
+          await new Promise(r => setTimeout(r, 1000 * attempt));
+          return this.fetchImageWithRetry(imageUrl, attempt + 1);
+        }
+        return {
+          success: false,
+          error: `Timeout after ${this.TIMEOUT}ms (${attempt} attempts)`
+        };
       }
-      return { success: false, error: `Download failed (attempt ${attempt}/3): ${errorMsg}` };
+
+      if (errorMsg.includes('fetch failed')) {
+        if (attempt < 2) {
+          console.warn(`[ImageDownload] Network error attempt ${attempt}/2, retrying...`);
+          await new Promise(r => setTimeout(r, 1000));
+          return this.fetchImageWithRetry(imageUrl, attempt + 1);
+        }
+        return {
+          success: false,
+          error: `Network error - server may be unreachable or blocking requests`
+        };
+      }
+
+      return {
+        success: false,
+        error: `Download failed (attempt ${attempt}/3): ${errorMsg}`
+      };
     }
   }
 
@@ -341,7 +351,9 @@ export class ImageDownloadService {
       'Referer': 'https://www.google.com/',
       'Sec-Fetch-Dest': 'image',
       'Sec-Fetch-Mode': 'no-cors',
-      'Sec-Fetch-Site': 'none'
+      'Sec-Fetch-Site': 'none',
+      'Pragma': 'no-cache',
+      'Cache-Control': 'no-cache'
     };
   }
 
@@ -359,6 +371,7 @@ export class ImageDownloadService {
 
   /**
    * Batch download for multiple images (concurrent)
+   * OPTIMIZED: Better progress logging and success rate tracking
    */
   async downloadAndStoreImageBatch(
     images: Array<{ url: string; eventId: string; city: string; title?: string }>,
@@ -366,27 +379,55 @@ export class ImageDownloadService {
   ): Promise<ImageDownloadResult[]> {
     const results: ImageDownloadResult[] = [];
     const queue = [...images];
+    let completed = 0;
+    let successful = 0;
+    const total = images.length;
 
-    const worker = async () => {
+    const worker = async (workerId: number) => {
       while (queue.length > 0) {
         const item = queue.shift();
         if (!item) break;
 
-        const result = await this.downloadAndStoreImage(
-          item.url,
-          item.eventId,
-          item.city,
-          item.title
-        );
-        results.push(result);
+        try {
+          const result = await this.downloadAndStoreImage(
+            item.url,
+            item.eventId,
+            item.city,
+            item.title
+          );
+          results.push(result);
+          completed++;
+          if (result.success) successful++;
+
+          // Log progress
+          const status = result.success ? '✅' : '❌';
+          const percent = Math.round((completed / total) * 100);
+          console.log(`[ImageDownload] ${status} ${item.title} (${completed}/${total} ${percent}%)`);
+          if (!result.success && result.error) {
+            console.warn(`  └─ ${result.error}`);
+          }
+        } catch (error) {
+          console.error(`[ImageDownload] Worker ${workerId} crashed:`, error);
+          completed++;
+          results.push({
+            success: false,
+            originalUrl: item.url,
+            error: `Worker crashed: ${error instanceof Error ? error.message : String(error)}`
+          });
+        }
       }
     };
 
     const workers = Array(Math.min(concurrency, queue.length))
       .fill(null)
-      .map(() => worker());
+      .map((_, i) => worker(i));
 
     await Promise.all(workers);
+
+    // Summary
+    const successRate = total > 0 ? ((successful / total) * 100).toFixed(1) : '0';
+    console.log(`[ImageDownload] Complete: ${successful}/${total} successful (${successRate}%)`);
+
     return results;
   }
 }

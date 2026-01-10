@@ -8,6 +8,7 @@ import { EVENT_CATEGORIES, mapToMainCategories, normalizeCategory } from '@/lib/
 import { upsertDayEvents } from '@/lib/dayCache';
 import { processEvents, RawEventInput } from '../../../../lib/events/unified-event-pipeline';
 import { waitUntil } from '@vercel/functions';
+import { supabaseAdmin } from '@/lib/supabase/client';
 
 export const runtime = 'nodejs';
 export const maxDuration = 300;
@@ -257,8 +258,7 @@ export async function POST(request: NextRequest) {
                 3 // 3 parallel downloads
               );
 
-              // Log results (images are stored in Supabase Storage)
-              // Note: Database updates will happen on next event aggregation when these Supabase URLs are returned
+              // Update database with new Supabase URLs (this is the whole point!)
               let successCount = 0;
               let failCount = 0;
               
@@ -267,15 +267,35 @@ export async function POST(request: NextRequest) {
                 const originalEvent = eventsToDownload[idx];
                 
                 if (result.success && result.publicUrl) {
-                  successCount++;
-                  console.log(`[ImageDownload:Background] ✅ ${originalEvent.title}: Image stored at ${result.publicUrl}`);
+                  try {
+                    // Update event in database with permanent Supabase URL
+                    const { error: updateError } = await supabaseAdmin
+                      .from('events')
+                      .update({ 
+                        image_urls: [result.publicUrl]
+                      })
+                      .eq('title', originalEvent.title)
+                      .eq('venue_name', originalEvent.venue)
+                      .eq('city', originalEvent.city);
+
+                    if (!updateError) {
+                      successCount++;
+                      console.log(`[ImageDownload:Background] ✅ ${originalEvent.title}: Stored and DB updated`);
+                    } else {
+                      failCount++;
+                      console.warn(`[ImageDownload:Background] ⚠️ ${originalEvent.title}: Stored but DB update failed: ${updateError.message}`);
+                    }
+                  } catch (dbError) {
+                    failCount++;
+                    console.warn(`[ImageDownload:Background] ⚠️ ${originalEvent.title}: Stored but DB update error`, dbError);
+                  }
                 } else {
                   failCount++;
                   console.warn(`[ImageDownload:Background] ❌ ${originalEvent.title}: ${result.error}`);
                 }
               }
               
-              console.log(`[ImageDownload:Background] Complete: ${successCount} images stored, ${failCount} failed`);
+              console.log(`[ImageDownload:Background] Complete: ${successCount} images stored & updated, ${failCount} failed`);
             }
           } catch (error) {
             console.error('[ImageDownload:Background] Service failed:', error);
