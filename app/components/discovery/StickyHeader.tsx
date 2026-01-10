@@ -173,7 +173,7 @@ export function StickyHeader({ city = 'Wien' }: StickyHeaderProps) {
                 </button>
                 {showComingSoon && (
                   <div className="absolute top-full right-0 mt-2 px-4 py-2 bg-gray-800 text-white text-sm rounded-lg shadow-lg whitespace-nowrap animate-fade-in z-50">
-                    Coming soon...
+                    Demnächst verfügbar...
                   </div>
                 )}
               </div>
