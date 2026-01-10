@@ -44,10 +44,10 @@ export function FAQSection({ faqs, title = 'Häufig gestellte Fragen' }: FAQSect
           style={{
             fontFamily: 'FK Grotesk Neue, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
             fontSize: '18pt',
-            fontWeight: 700,
+            fontWeight: 300,
             fontVariant: 'small-caps',
             lineHeight: '21pt',
-            color: '#20E1D3',
+            color: '#20b8cd',
             marginBottom: '24px',
           }}
         >
@@ -77,10 +77,10 @@ export function FAQSection({ faqs, title = 'Häufig gestellte Fragen' }: FAQSect
                 style={{
                   fontFamily: 'FK Grotesk Neue, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
                   fontSize: '18pt',
-                  fontWeight: 700,
+                  fontWeight: 300,
                   fontVariant: 'small-caps',
                   lineHeight: '21pt',
-                  color: '#20E1D3',
+                  color: '#20b8cd',
                   marginBottom: '12px',
                 }}
               >

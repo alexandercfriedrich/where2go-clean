@@ -31,23 +31,23 @@ export function SeoContent({ category, date }: SeoContentProps) {
         article :global(h1) {
           font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           font-size: 18pt;
-          font-weight: 700;
+          font-weight: 300;
           font-variant: small-caps;
           line-height: 21pt;
           margin-bottom: 2rem;
           margin-top: 0;
-          color: #20E1D3;
+          color: #20b8cd;
         }
         
         article :global(h2) {
           font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           font-size: 18pt;
-          font-weight: 700;
+          font-weight: 300;
           font-variant: small-caps;
           line-height: 21pt;
           margin-top: 2.5rem;
           margin-bottom: 1.25rem;
-          color: #20E1D3;
+          color: #20b8cd;
         }
         
         article :global(p) {

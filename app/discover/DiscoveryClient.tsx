@@ -146,7 +146,7 @@ export default function DiscoveryClient({
     } else if (selectedDateFilter !== 'all') {
       return `Welche Events finden ${dateLabel} in ${city} statt?`;
     }
-    return `Discover Events in ${city}`;
+    return `Entdecke Events in ${city}`;
   };
 
   return (
@@ -409,11 +409,11 @@ export default function DiscoveryClient({
               .seo-heading {
                 font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
                 font-size: 18pt;
-                font-weight: 700;
+                font-weight: 300;
                 font-variant: small-caps;
                 line-height: 21pt;
                 margin-bottom: 24px;
-                color: #20E1D3;
+                color: #20b8cd;
               }
               
               .seo-paragraph {
@@ -435,11 +435,11 @@ export default function DiscoveryClient({
               .seo-category-heading {
                 font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
                 font-size: 18pt;
-                font-weight: 700;
+                font-weight: 300;
                 font-variant: small-caps;
                 line-height: 21pt;
                 margin-bottom: 12px;
-                color: #20E1D3;
+                color: #20b8cd;
               }
               
               .seo-category-text {
@@ -475,11 +475,11 @@ export default function DiscoveryClient({
               .seo-features-heading {
                 font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
                 font-size: 18pt;
-                font-weight: 700;
+                font-weight: 300;
                 font-variant: small-caps;
                 line-height: 21pt;
                 margin-bottom: 8px;
-                color: #20E1D3;
+                color: #20b8cd;
               }
               
               .seo-features-list {
