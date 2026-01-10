@@ -9,7 +9,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { ThemeProvider } from '@/components/ui/ThemeProvider';
 import { SectionHeader } from '@/components/discovery/SectionHeader';
-import { DiscoveryNav } from '@/components/discovery/DiscoveryNav';
+import { StickyHeader } from '@/components/discovery/StickyHeader';
 import { LocationBar } from '@/components/discovery/LocationBar';
 import { CategoryBrowser } from '@/components/discovery/CategoryBrowser';
 import { SearchBar } from '@/components/discovery/SearchBar';
@@ -152,10 +152,8 @@ export default function DiscoveryClient({
   return (
     <ThemeProvider>
       <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg)' }}>
-        {/* Navigation with Offblack background */}
-        <div style={{ backgroundColor: '#091717' }}>
-          <DiscoveryNav />
-        </div>
+        {/* Sticky Header with integrated navigation and search */}
+        <StickyHeader city={city} />
 
         {/* Hero Section */}
         <div style={{ backgroundColor: '#13343B' }} className="text-white"> {/* Teal Dark */}
