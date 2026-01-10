@@ -253,49 +253,14 @@ export async function POST(request: NextRequest) {
             if (eventsToDownload.length > 0) {
               console.log(`[ImageDownload:Background] Starting download for ${eventsToDownload.length} images...`);
               
-              const downloadResults = await imageService.downloadAndStoreImageBatch(
+              // Download and store images (results contain publicUrl for each successful download)
+              await imageService.downloadAndStoreImageBatch(
                 eventsToDownload,
                 3 // 3 parallel downloads
               );
-
-              // Update database with new Supabase URLs (this is the whole point!)
-              let successCount = 0;
-              let failCount = 0;
               
-              for (let idx = 0; idx < downloadResults.length; idx++) {
-                const result = downloadResults[idx];
-                const originalEvent = eventsToDownload[idx];
-                
-                if (result.success && result.publicUrl) {
-                  try {
-                    // Update event in database with permanent Supabase URL
-                    const { error: updateError } = await supabaseAdmin
-                      .from('events')
-                      .update({ 
-                        image_urls: [result.publicUrl]
-                      })
-                      .eq('title', originalEvent.title)
-                      .eq('venue_name', originalEvent.venue)
-                      .eq('city', originalEvent.city);
-
-                    if (!updateError) {
-                      successCount++;
-                      console.log(`[ImageDownload:Background] ✅ ${originalEvent.title}: Stored and DB updated`);
-                    } else {
-                      failCount++;
-                      console.warn(`[ImageDownload:Background] ⚠️ ${originalEvent.title}: Stored but DB update failed: ${updateError.message}`);
-                    }
-                  } catch (dbError) {
-                    failCount++;
-                    console.warn(`[ImageDownload:Background] ⚠️ ${originalEvent.title}: Stored but DB update error`, dbError);
-                  }
-                } else {
-                  failCount++;
-                  console.warn(`[ImageDownload:Background] ❌ ${originalEvent.title}: ${result.error}`);
-                }
-              }
-              
-              console.log(`[ImageDownload:Background] Complete: ${successCount} images stored & updated, ${failCount} failed`);
+              // Images are now stored in Supabase Storage with permanent URLs
+              // The unified pipeline will use these URLs when aggregating events again
             }
           } catch (error) {
             console.error('[ImageDownload:Background] Service failed:', error);
