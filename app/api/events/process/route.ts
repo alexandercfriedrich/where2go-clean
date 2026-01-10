@@ -232,16 +232,6 @@ export async function POST(request: NextRequest) {
           try {
             const { ImageDownloadService } = await import('@/lib/services/ImageDownloadService');
             const { generateEventImageId } = await import('@/lib/aggregator');
-            const { supabaseAdmin } = await import('@/lib/supabase/client');
-
-            // Early return if supabaseAdmin is not available
-            if (!supabaseAdmin) {
-              console.warn('[ImageDownload:Background] Supabase admin client not available');
-              return;
-            }
-
-            // TypeScript workaround: assign to local variable with definite type
-            const supabase = supabaseAdmin;
 
             const imageService = new ImageDownloadService(
               process.env.SUPABASE_URL!,
@@ -267,7 +257,8 @@ export async function POST(request: NextRequest) {
                 3 // 3 parallel downloads
               );
 
-              // Update events in database with Supabase URLs
+              // Log results (images are stored in Supabase Storage)
+              // Note: Database updates will happen on next event aggregation when these Supabase URLs are returned
               let successCount = 0;
               let failCount = 0;
               
@@ -276,37 +267,15 @@ export async function POST(request: NextRequest) {
                 const originalEvent = eventsToDownload[idx];
                 
                 if (result.success && result.publicUrl) {
-                  try {
-                    // Update the event in the database with the new Supabase URL
-                    const { error: updateError } = await supabase
-                      .from('events')
-                      .update({ 
-                        image_urls: [result.publicUrl]
-                      })
-                      .eq('title', originalEvent.title)
-                      .eq('venue_name', originalEvent.venue)
-                      .eq('city', originalEvent.city)
-                      .select()
-                      .single();
-
-                    if (!updateError) {
-                      successCount++;
-                      console.log(`[ImageDownload:Background] ✅ ${originalEvent.title}: Image stored and database updated`);
-                    } else {
-                      failCount++;
-                      console.warn(`[ImageDownload:Background] ⚠️  ${originalEvent.title}: Image stored but DB update failed:`, updateError.message);
-                    }
-                  } catch (dbError) {
-                    failCount++;
-                    console.warn(`[ImageDownload:Background] ⚠️  ${originalEvent.title}: Image stored but DB update error:`, dbError);
-                  }
+                  successCount++;
+                  console.log(`[ImageDownload:Background] ✅ ${originalEvent.title}: Image stored at ${result.publicUrl}`);
                 } else {
                   failCount++;
                   console.warn(`[ImageDownload:Background] ❌ ${originalEvent.title}: ${result.error}`);
                 }
               }
               
-              console.log(`[ImageDownload:Background] Complete: ${successCount} images stored and updated, ${failCount} failed`);
+              console.log(`[ImageDownload:Background] Complete: ${successCount} images stored, ${failCount} failed`);
             }
           } catch (error) {
             console.error('[ImageDownload:Background] Service failed:', error);
