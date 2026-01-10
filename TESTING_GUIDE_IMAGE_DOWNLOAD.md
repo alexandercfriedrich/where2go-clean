@@ -3,7 +3,7 @@
 ## Prerequisites
 1. Ensure you have Supabase credentials:
    - SUPABASE_URL
-   - SUPABASE_SERVICE_KEY (service role key, not anon key)
+   - SUPABASE_SERVICE_ROLE_KEY (service role key, not anon key)
    
 2. Verify the `event-images` bucket exists in Supabase Storage
 
@@ -12,7 +12,7 @@
 ### Step 1: Set Environment Variables
 ```bash
 export SUPABASE_URL="https://your-project.supabase.co"
-export SUPABASE_SERVICE_KEY="your-service-role-key-here"
+export SUPABASE_SERVICE_ROLE_KEY="your-service-role-key-here"
 ```
 
 ### Step 2: Start Development Server
@@ -114,7 +114,7 @@ curl -X POST http://localhost:3000/api/events/process \
 ```bash
 # Unset environment variables
 unset SUPABASE_URL
-unset SUPABASE_SERVICE_KEY
+unset SUPABASE_SERVICE_ROLE_KEY
 
 # Start server and make request
 # Expected: "[ImageDownload] Supabase credentials not configured - skipping image downloads"
@@ -146,7 +146,7 @@ curl -X POST http://localhost:3000/api/events/process \
 ```bash
 # Verify environment variables are set
 echo "SUPABASE_URL: $SUPABASE_URL"
-echo "SUPABASE_SERVICE_KEY: ${SUPABASE_SERVICE_KEY:0:20}..." # Shows first 20 chars
+echo "SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:0:20}..." # Shows first 20 chars
 
 # Check if events have images
 curl http://localhost:3000/api/events/search?city=Wien&date=2025-01-20 | jq '.events[] | {title, imageUrl}'
@@ -235,7 +235,7 @@ If you encounter issues:
 **Quick Test Command:**
 ```bash
 export SUPABASE_URL="your-url" && \
-export SUPABASE_SERVICE_KEY="your-key" && \
+export SUPABASE_SERVICE_ROLE_KEY="your-key" && \
 npm run dev &
 sleep 5 && \
 curl -X POST http://localhost:3000/api/events/process \

@@ -68,10 +68,10 @@ private readonly TIMEOUT = 30000; // 30 seconds
 ✅ **Environment Variables**: Sensitive keys never hardcoded
 ```typescript
 // Service only initializes if credentials are present
-if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
+if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
   const imageService = new ImageDownloadService(
     process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_KEY
+    process.env.SUPABASE_SERVICE_ROLE_KEY
   );
 }
 ```

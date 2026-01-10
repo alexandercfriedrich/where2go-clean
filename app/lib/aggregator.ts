@@ -44,11 +44,11 @@ export class EventAggregator {
     }
 
     // NEW: Download and store images in Supabase
-    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
       try {
         const imageService = new ImageDownloadService(
           process.env.SUPABASE_URL,
-          process.env.SUPABASE_SERVICE_KEY
+          process.env.SUPABASE_SERVICE_ROLE_KEY
         );
 
         // Collect events that need image downloads

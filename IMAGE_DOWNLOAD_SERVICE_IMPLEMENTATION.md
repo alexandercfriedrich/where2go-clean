@@ -77,7 +77,7 @@ Example: wien/jazz-festival-stadtpark-20250120/event-1736513200000.jpg
 ### Environment Variables (Required)
 ```bash
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_KEY=your-service-role-key
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 ```
 
 **Note:** Service automatically disables if these are not set (graceful degradation)
@@ -151,7 +151,7 @@ imageUrl: "https://[project].supabase.co/storage/v1/object/public/event-images/w
 ```bash
 # Set environment variables
 export SUPABASE_URL=your_url
-export SUPABASE_SERVICE_KEY=your_key
+export SUPABASE_SERVICE_ROLE_KEY=your_key
 
 # Test with 5 events
 curl -X POST http://localhost:3000/api/events/process \
