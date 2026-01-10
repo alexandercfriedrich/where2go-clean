@@ -60,19 +60,6 @@ border: 1px solid rgba(32, 225, 211, 0.1);
 </div>
 ```
 
-### Keine Footer mehr
-✅ **Komplett entfernt**:
-- `.footer` Element
-- Footer CSS Styles (`.footer`, `.footer-content`, `.footer-label`, `.search-button`)
-- Footer JavaScript Funktionen (`updateFooter()`, `removeQuery()`, `search()`)
-- `.query-badge` und `.selected-queries` Styles
-- `selectedQueries` Array-Verwaltung
-
-### Queries sind jetzt einfache Links
-Jede Query ist ein `.query-item` mit:
-- `.query-dot` (visueller Punkt)
-- Klickbar aber ohne State-Persistierung
-- `onclick="toggleQuery(event, query)"` Handler
 
 ---
 
@@ -433,12 +420,11 @@ if (navigator.deviceMemory < 4) {
 
 ### Click on Category Card
 ✅ Expandiert/Collapses die Card
-✅ Zeigt die 3 Query-Items an
+✅ Zeigt die 3 Link-Items an
 ✅ Andere Cards werden geschlossen
 
 ### Click on Query Item
-✅ Aktuell: Nur `console.log('Angeklickt', query)`
-✅ Zukünftig: Könnte zu Search Results führen
+✅ aktuell: ruft link auf im gleichen fenster
 
 ### Hover Effects
 ✅ Card hebt sich ab (`translateY(-8px)`)
