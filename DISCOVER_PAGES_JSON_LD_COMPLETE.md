@@ -2,19 +2,43 @@
 
 ## Status: PRODUCTION READY
 
-All requirements for AI crawler visibility through server-side rendering and JSON-LD structured data have been successfully implemented.
+All requirements for AI crawler visibility through server-side rendering and JSON-LD structured data have been successfully implemented. Events are now visible in the initial HTML without requiring JavaScript execution.
 
 ---
 
 ## 📋 Implementation Summary
 
 ### Problem Statement
-AI Crawlers (ChatGPT, Perplexity, Claude, etc.) could access the site but couldn't see events because they were loaded client-side after page load.
+AI Crawlers (ChatGPT, Perplexity, Claude, etc.) could access the site but couldn't see events because:
+1. Events were passed to client components (`DiscoveryClient`, `EventCard`)
+2. Client components render after JavaScript executes
+3. AI crawlers and search bots don't execute JavaScript reliably
 
-### Solution Implemented
-1. ✅ **Server-Side Rendering**: Already implemented - events are fetched server-side
-2. ✅ **JSON-LD Structured Data**: Added to all discovery pages for AI crawlers and search engines
-3. ✅ **Complete Field Coverage**: All event fields have values, with intelligent fallbacks
+### Solutions Implemented
+
+#### ✅ Solution 1: Server Components für Event-Listen (IMPLEMENTED)
+**New Server Components Created:**
+- `EventCardSSR.tsx` - Server-rendered event card with Schema.org microdata
+- `MiniEventCardSSR.tsx` - Server-rendered mini event card for compact layouts
+- `EventListSSR.tsx` - Server-rendered event grid (up to 100 events)
+
+**How it Works:**
+Each discovery page now uses **dual rendering**:
+1. **Server-Rendered Content** (visible to AI crawlers):
+   - `<noscript>` blocks for browsers without JavaScript
+   - `.sr-only` sections with `data-crawler-visible` attribute
+   - EventListSSR renders all events in initial HTML
+   
+2. **Client-Side Interactive Component** (for user experience):
+   - DiscoveryClient provides filtering, animations, interactivity
+   - Hydrates on top of existing content
+   - No content shift or layout jump
+
+#### ✅ Solution 2: JSON-LD Structured Data (IMPLEMENTED)
+- Schema.org ItemList with up to 100 events per page
+- Complete Event schema with all required fields
+- Fallback values ensure no empty fields
+- Visible to all AI crawlers and search engines
 
 ---
 
