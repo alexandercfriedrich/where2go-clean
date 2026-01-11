@@ -213,6 +213,8 @@ export default function MainFooter() {
           animation: slideUpFade 0.6s ease-out both;
         }
         
+        /* Staggered animation delays for category cards (supports up to 12 categories)
+         * If more categories are added, extend the nth-child selectors below */
         .category-card:nth-child(1) { animation-delay: 0.05s; }
         .category-card:nth-child(2) { animation-delay: 0.1s; }
         .category-card:nth-child(3) { animation-delay: 0.15s; }

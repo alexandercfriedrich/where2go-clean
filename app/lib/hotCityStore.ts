@@ -70,7 +70,7 @@ const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_RE
     })
   : null;
 
-// Using file-based storage for Hot Cities (Redis support removed)
+// Hot Cities storage: Uses Redis if configured (env vars present), otherwise falls back to file-based storage
 
 // Ensure data directory exists
 async function ensureDataDir(): Promise<void> {

@@ -12,14 +12,16 @@ interface DateFilterLinksProps {
   onFilterChange: (filter: string) => void;
 }
 
-// Map German filter values to English IDs for comparison
+// Normalize filter values for comparison
+// Provides backwards compatibility: English values ('today') map to German canonical values ('heute')
+// This ensures proper filter highlighting when navigating from legacy routes or English filter params
 const filterMapping: Record<string, string> = {
   'heute': 'heute',
   'morgen': 'morgen',
   'wochenende': 'wochenende',
-  'today': 'heute',
-  'tomorrow': 'morgen',
-  'weekend': 'wochenende',
+  'today': 'heute',       // Backwards compatibility
+  'tomorrow': 'morgen',   // Backwards compatibility
+  'weekend': 'wochenende', // Backwards compatibility
   'this-week': 'this-week',
   'next-week': 'next-week',
   'all': 'all',
