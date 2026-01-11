@@ -155,10 +155,10 @@ export default function MainFooter() {
         
         .footer-category-accordion h3 {
           font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          font-size: 18pt;
-          font-weight: 700;
+          font-size: 16pt;
+          font-weight: 300;
           text-transform: uppercase;
-          letter-spacing: 0.15em;
+          letter-spacing: 0.45em;
           margin-bottom: 1.5rem;
           color: rgb(32, 184, 205);
           line-height: 21pt;
@@ -281,12 +281,13 @@ export default function MainFooter() {
         
         .category-name {
           font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          font-size: 18pt;
-          font-weight: 700;
+          font-size: 12pt;
+          font-weight: 200;
           text-transform: uppercase;
           letter-spacing: 0.1em;
           color: rgb(32, 184, 205);
           line-height: 21pt;
+          text-align: center;
         }
         
         .category-description {
@@ -308,9 +309,9 @@ export default function MainFooter() {
           display: inline-block;
           transition: transform 0.3s ease-out;
           color: rgb(32, 184, 205);
-          font-size: 1.25rem;
-          line-height: 1;
-          opacity: 0.6;
+          font-size: 1.2rem;
+          line-height: 1.45;
+          opacity: 0.5;
           margin-left: 1rem;
         }
         
@@ -351,15 +352,16 @@ export default function MainFooter() {
           background: rgba(32, 225, 211, 0.05);
           border: 1px solid rgba(32, 225, 211, 0.15);
           font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-          font-size: 14pt;
-          font-weight: 100;
-          color: #e5e7eb;
-          line-height: 18pt;
+          font-size: 10pt;
+          font-weight: 200;
+          text-transform: uppercase;
+          letter-spacing: 0.1em;
+          color: #f5f5f5;
+          line-height: 21pt;
           text-decoration: none;
           cursor: pointer;
           transition: all 0.2s ease-out;
           animation: slideInLeft 0.3s ease-out backwards;
-          letter-spacing: 0.02em;
         }
         
         .category-card.open .category-link:nth-child(1) { animation-delay: 0.1s; }

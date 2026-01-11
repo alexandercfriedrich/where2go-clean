@@ -43,12 +43,14 @@ export function FAQSection({ faqs, title = 'Häufig gestellte Fragen' }: FAQSect
         <h2
           style={{
             fontFamily: 'FK Grotesk Neue, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
-            fontSize: '18pt',
+            fontSize: '16pt',
             fontWeight: 300,
-            fontVariant: 'small-caps',
+            textTransform: 'uppercase',
+            letterSpacing: '0.45em',
             lineHeight: '21pt',
-            color: '#20b8cd',
-            marginBottom: '24px',
+            color: 'rgb(32, 184, 205)',
+            marginBottom: '1.5rem',
+            textAlign: 'center',
           }}
         >
           {title}
@@ -77,12 +79,14 @@ export function FAQSection({ faqs, title = 'Häufig gestellte Fragen' }: FAQSect
                 itemProp="name"
                 style={{
                   fontFamily: 'FK Grotesk Neue, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
-                  fontSize: '18pt',
-                  fontWeight: 300,
-                  fontVariant: 'small-caps',
+                  fontSize: '12pt',
+                  fontWeight: 200,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.1em',
                   lineHeight: '21pt',
-                  color: '#20b8cd',
+                  color: 'rgb(32, 184, 205)',
                   marginBottom: '12px',
+                  textAlign: 'center',
                 }}
               >
                 {faq.question}
@@ -96,10 +100,12 @@ export function FAQSection({ faqs, title = 'Häufig gestellte Fragen' }: FAQSect
                   itemProp="text"
                   style={{
                     fontFamily: 'FK Grotesk Neue, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
-                    fontSize: '14pt',
-                    fontWeight: 100,
-                    lineHeight: '18pt',
-                    color: '#F5F5F5',
+                    fontSize: '10pt',
+                    fontWeight: 200,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.1em',
+                    lineHeight: '21pt',
+                    color: '#f5f5f5',
                   }}
                 >
                   {faq.answer}
