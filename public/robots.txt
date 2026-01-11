@@ -13,6 +13,4 @@ Allow: /
 User-agent: PerplexityBot
 Allow: /
 
-Disallow: /?*
-
 Sitemap: https://www.where2go.at/sitemap.xml
