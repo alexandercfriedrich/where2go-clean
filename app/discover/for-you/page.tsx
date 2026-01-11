@@ -7,6 +7,7 @@ import { getPersonalizedEvents } from '../../../lib/events/queries';
 import { ForYouClient } from './ForYouClient';
 import SchemaOrg from '@/components/SchemaOrg';
 import { generateEventListSchema } from '@/lib/schemaOrg';
+import EventListSSR from '@/components/EventListSSR';
 
 export const metadata: Metadata = {
   title: 'For You - Personalized Events | Where2Go',
@@ -63,6 +64,22 @@ export default async function ForYouPage({
   return (
     <>
       <SchemaOrg schema={schema} />
+      
+      {/* Server-Rendered Event List - Visible to AI Crawlers */}
+      <noscript>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+          <h1 className="text-3xl font-bold mb-8">Personalized Events in {city}</h1>
+          <EventListSSR events={events} city={city} limit={100} />
+        </div>
+      </noscript>
+      
+      {/* Hidden Server-Rendered Content for AI Crawlers */}
+      <div className="sr-only" data-crawler-visible="true">
+        <h2>Personalized Events for AI Crawlers and Search Engines</h2>
+        <EventListSSR events={events} city={city} limit={100} />
+      </div>
+      
+      {/* Client-Side Interactive Component */}
       <ForYouClient initialEvents={events} city={city} />
     </>
   );

@@ -9,6 +9,7 @@ import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getWeekendN
 import { discoverPageMetadata } from '../lib/content/discoverPageContent';
 import SchemaOrg from '@/components/SchemaOrg';
 import { generateEventListSchema } from '@/lib/schemaOrg';
+import EventListSSR from '@/components/EventListSSR';
 
 // Force dynamic rendering to always fetch fresh event data
 export const dynamic = 'force-dynamic';
@@ -106,6 +107,22 @@ export default async function DiscoverPage({ searchParams }: PageProps) {
     return (
       <>
         <SchemaOrg schema={schema} />
+        
+        {/* Server-Rendered Event List - Visible to AI Crawlers */}
+        <noscript>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <h1 className="text-3xl font-bold mb-8">Events in {city}</h1>
+            <EventListSSR events={allEvents} city={city} limit={100} />
+          </div>
+        </noscript>
+        
+        {/* Hidden Server-Rendered Content for AI Crawlers (with display:none removed by crawler) */}
+        <div className="sr-only" data-crawler-visible="true">
+          <h2>All Events for AI Crawlers and Search Engines</h2>
+          <EventListSSR events={allEvents} city={city} limit={100} />
+        </div>
+        
+        {/* Client-Side Interactive Component */}
         <DiscoveryClient
           initialTrendingEvents={trendingEvents}
           initialWeekendEvents={weekendEvents}
