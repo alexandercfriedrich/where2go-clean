@@ -3,6 +3,7 @@ import DiscoveryClient from '@/discover/DiscoveryClient';
 import { getTrendingEvents, getWeekendEvents, getPersonalizedEvents, getWeekendNightlifeEvents, getUpcomingEvents } from '../../../../lib/events/queries';
 import SchemaOrg from '@/components/SchemaOrg';
 import { generateEventListSchema } from '@/lib/schemaOrg';
+import EventListSSR from '@/components/EventListSSR';
 import { sortEventsWithImagesFirstThenByDate } from '@/lib/eventSortUtils';
 import { generateCityMetadata } from '@/lib/seo/metadataGenerator';
 
@@ -37,6 +38,19 @@ export default async function IbizaClubsNachtlebenWochenendePage() {
     return (
       <>
         <SchemaOrg schema={schema} />
+        
+        {/* Server-Rendered Events für AI Crawler */}
+        <noscript>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <h1 className="text-3xl font-bold mb-8">Events in Ibiza</h1>
+            <EventListSSR events={sorted.personalized} city="Ibiza" limit={100} />
+          </div>
+        </noscript>
+        
+        <div className="sr-only" data-crawler-visible="true">
+          <h2>Events für AI Crawler</h2>
+          <EventListSSR events={sorted.personalized} city="Ibiza" limit={100} />
+        </div>
         <DiscoveryClient
           initialTrendingEvents={sorted.trending}
           initialWeekendEvents={sorted.weekend}
