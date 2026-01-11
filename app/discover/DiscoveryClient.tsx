@@ -341,7 +341,7 @@ export default function DiscoveryClient({
               <p style={{
                 fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                 fontSize: '14pt',
-                fontWeight: 100,
+                fontWeight: 200,
                 color: '#e5e7eb',
                 lineHeight: '18pt',
                 letterSpacing: '.02em',
@@ -354,7 +354,7 @@ export default function DiscoveryClient({
               <p style={{
                 fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                 fontSize: '14pt',
-                fontWeight: 100,
+                fontWeight: 200,
                 color: '#e5e7eb',
                 lineHeight: '18pt',
                 letterSpacing: '.02em',
@@ -367,7 +367,7 @@ export default function DiscoveryClient({
               <p style={{
                 fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                 fontSize: '14pt',
-                fontWeight: 100,
+                fontWeight: 200,
                 color: '#e5e7eb',
                 lineHeight: '18pt',
                 letterSpacing: '.02em',
@@ -395,7 +395,7 @@ export default function DiscoveryClient({
                   <p style={{
                     fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                     fontSize: '14pt',
-                    fontWeight: 100,
+                    fontWeight: 200,
                     color: '#e5e7eb',
                     lineHeight: '18pt',
                     letterSpacing: '.02em',
@@ -425,7 +425,7 @@ export default function DiscoveryClient({
                   <p style={{
                     fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                     fontSize: '14pt',
-                    fontWeight: 100,
+                    fontWeight: 200,
                     color: '#e5e7eb',
                     lineHeight: '18pt',
                     letterSpacing: '.02em',
@@ -455,7 +455,7 @@ export default function DiscoveryClient({
                   <p style={{
                     fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                     fontSize: '14pt',
-                    fontWeight: 100,
+                    fontWeight: 200,
                     color: '#e5e7eb',
                     lineHeight: '18pt',
                     letterSpacing: '.02em',
@@ -492,7 +492,7 @@ export default function DiscoveryClient({
                 <ul style={{
                   fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                   fontSize: '14pt',
-                  fontWeight: 100,
+                  fontWeight: 200,
                   lineHeight: '18pt',
                   color: '#e5e7eb',
                   margin: 0,
@@ -509,7 +509,7 @@ export default function DiscoveryClient({
               <p style={{
                 fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
                 fontSize: '14pt',
-                fontWeight: 100,
+                fontWeight: 200,
                 lineHeight: '18pt',
                 color: '#e5e7eb',
                 fontStyle: 'italic',

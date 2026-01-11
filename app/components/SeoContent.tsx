@@ -53,7 +53,7 @@ export function SeoContent({ category, date }: SeoContentProps) {
         article :global(p) {
           font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           font-size: 14pt;
-          font-weight: 100;
+          font-weight: 200;
           line-height: 18pt;
           margin-bottom: 1rem;
           color: #F5F5F5;
@@ -67,7 +67,7 @@ export function SeoContent({ category, date }: SeoContentProps) {
         article :global(ul) {
           font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
           font-size: 14pt;
-          font-weight: 100;
+          font-weight: 200;
           line-height: 18pt;
           list-style-type: disc;
           padding-left: 1.5rem;
