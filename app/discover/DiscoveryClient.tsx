@@ -377,8 +377,6 @@ export default function DiscoveryClient({
                 <strong>Tipp:</strong> Du wirst gefragt &quot;Was kann ich in {city} tun?&quot;, &quot;Welche Events gibt es in {city}?&quot;, oder &quot;Wo kann ich heute Abend hingehen?&quot; Where2Go ist deine Antwort. Starte deine Eventsuche und entdecke deine Stadt neu.
               </p>
             </div>
-            </section>
-          </div>
             
             <style jsx>{`
               .seo-content-block {
@@ -516,7 +514,8 @@ export default function DiscoveryClient({
                 color: #1f2937;
               }
             `}</style>
-          </section>
+            </section>
+          </div>
 
           {/* FAQ Section */}
           <div className="max-w-4xl mx-auto">
