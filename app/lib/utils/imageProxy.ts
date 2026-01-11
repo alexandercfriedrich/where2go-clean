@@ -54,7 +54,8 @@ export function getImageUrl(originalUrl: string | null | undefined): string {
     
     return `https://images.weserv.nl/?url=${encoded}&w=1200&h=1200&fit=cover&q=80&default=404`;
   } catch (error) {
-    console.warn(`[ImageProxy] Failed to encode URL: ${trimmedUrl}`, error);
+    // Don't log the full URL to avoid exposing sensitive tokens/credentials
+    console.warn(`[ImageProxy] Failed to encode URL (length: ${trimmedUrl.length})`, error);
     return getPlaceholderUrl('event-error');
   }
 }
@@ -110,10 +111,11 @@ export function getImageUrls(originalUrls: (string | null | undefined)[]): strin
 /**
  * Test if image URL is accessible
  * Optional - for QA/Testing purposes
+ * Note: This is a best-effort check. For images, opaque responses (no-cors) are acceptable.
  * 
  * @param url - URL to test
  * @param timeoutMs - Timeout in milliseconds (default: 5000)
- * @returns Promise resolving to true if image is accessible
+ * @returns Promise resolving to true if image appears to be accessible
  */
 export async function testImageUrl(url: string, timeoutMs: number = 5000): Promise<boolean> {
   try {
@@ -123,11 +125,13 @@ export async function testImageUrl(url: string, timeoutMs: number = 5000): Promi
     const response = await fetch(url, { 
       method: 'HEAD',
       signal: controller.signal,
-      mode: 'no-cors' // Important: CORS is not relevant for images
+      mode: 'no-cors' // Images work with opaque responses
     });
     
     clearTimeout(timeoutId);
-    return response.ok || response.type === 'opaque';
+    // With no-cors mode, we accept opaque responses as success
+    // This is the expected behavior for cross-origin images
+    return response.type === 'opaque' || response.ok;
   } catch (error) {
     return false;
   }
