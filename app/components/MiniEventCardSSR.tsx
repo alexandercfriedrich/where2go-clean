@@ -50,6 +50,7 @@ export default function MiniEventCardSSR({ event, city = 'Wien' }: MiniEventCard
       className="mini-event-card group"
       itemScope
       itemType="https://schema.org/Event"
+      aria-label={`Event: ${event.title}${venue ? ` bei ${venue}` : ''}`}
     >
       {/* Event Image with Liquid Glass Effect */}
       <div 

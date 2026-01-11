@@ -153,6 +153,7 @@ export default function EventCardSSR({ event, city = 'Wien' }: EventCardSSRProps
       style={{ backgroundColor: 'var(--color-card-bg)', minHeight: '380px' }}
       itemScope
       itemType="https://schema.org/Event"
+      aria-label={`Event: ${event.title} am ${formatGermanDate(eventDate)}${eventTime ? ` um ${eventTime}` : ''} bei ${venueName}`}
     >
       <Link href={eventUrl} className="block">
         {/* Event Image */}

@@ -50,8 +50,13 @@ export async function generateMetadata({ params }: BlogArticlePageProps): Promis
     title: `${article.title} - Where2Go Blog`,
     description: article.meta_description || article.title,
     keywords: article.seo_keywords,
+    authors: [{ name: 'Where2Go' }],
     alternates: {
       canonical: `https://www.where2go.at/blog/${article.slug}`,
+      languages: {
+        'de-AT': `https://www.where2go.at/blog/${article.slug}`,
+        'de': `https://www.where2go.at/blog/${article.slug}`,
+      },
     },
     openGraph: {
       title: article.title,
@@ -60,6 +65,13 @@ export async function generateMetadata({ params }: BlogArticlePageProps): Promis
       url: `https://www.where2go.at/blog/${article.slug}`,
       images: article.featured_image ? [article.featured_image] : [],
       publishedTime: article.published_at || article.generated_at,
+      modifiedTime: article.updated_at || article.published_at || article.generated_at,
+      authors: ['Where2Go'],
+    },
+    other: {
+      'article:published_time': article.published_at || article.generated_at,
+      'article:modified_time': article.updated_at || article.published_at || article.generated_at,
+      'article:author': 'Where2Go',
     },
   };
 }

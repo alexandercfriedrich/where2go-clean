@@ -11,8 +11,16 @@ import type { BlogArticle } from '@/lib/types';
 export const metadata: Metadata = {
   title: 'Blog - Where2Go',
   description: 'Entdecke die neuesten Event-Tipps, City Guides und Insider-Informationen für Wien, Berlin, Linz und Ibiza.',
+  authors: [{ name: 'Where2Go' }],
   alternates: {
     canonical: 'https://www.where2go.at/blog',
+    languages: {
+      'de-AT': 'https://www.where2go.at/blog',
+      'de': 'https://www.where2go.at/blog',
+    },
+  },
+  other: {
+    'author': 'Where2Go',
   },
 };
 

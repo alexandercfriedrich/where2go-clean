@@ -39,10 +39,8 @@ export function generateEventSchema(event: EventData, baseUrl: string = 'https:/
   };
 
   // Add event attendance mode and status
-  schema.eventAttendanceMode = event.eventType === 'online' 
-    ? 'https://schema.org/OnlineEventAttendanceMode'
-    : 'https://schema.org/OfflineEventAttendanceMode';
-  
+  // Always set to OfflineEventAttendanceMode and EventScheduled as per requirements
+  schema.eventAttendanceMode = 'https://schema.org/OfflineEventAttendanceMode';
   schema.eventStatus = 'https://schema.org/EventScheduled';
 
   // Add endDate only when explicit endTime is available
