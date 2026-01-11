@@ -167,16 +167,44 @@ ${buildCategoryListForPrompt()}
 REQUIRED FIELDS for each event:
 title, category, date, time, venue, price, website, endTime, address, ticketPrice, eventType, description, bookingLink, ageRestrictions, imageUrl
 
-⭐ MANDATORY IMAGE REQUIREMENT:
-- EVERY event MUST have a valid imageUrl (HTTP/HTTPS URL)
-- If no image URL found for an event, DO NOT include that event
-- Only return events with image URLs from official sources:
-  * Official event websites (poster/banner images)
-  * Ticketing platforms (event images)
-  * Venue websites (event photos)
-  * Social media posts (event pictures from official accounts)
-- NEVER invent, fabricate, or use placeholder image URLs
-- If imageUrl is missing, empty, or invalid, EXCLUDE that event from results
+⭐⭐⭐ MANDATORY IMAGE REQUIREMENT (CRITICAL QUALITY GATE):
+Every event returned MUST have a valid, verified imageUrl.
+This is your QUALITY GATE - better 80 complete events than 150 incomplete ones.
+
+IMAGE URL VERIFICATION CHECKLIST:
+✓ Direct HTTP/HTTPS URL (no redirects, no shortened URLs)
+✓ Accessible without authentication (no login required)
+✓ Returns HTTP 200 OK (not 403/404)
+✓ Is actual image file (PNG/JPG/WebP - verify by file extension or headers)
+✓ Minimum 400x300 pixels (for decent rendering)
+✓ From OFFICIAL SOURCES ONLY:
+  - Official event website (primary source)
+  - Ticketmaster.com / Eventim.de / Eventbrite.com (verified platforms)
+  - Venue's official social media (Facebook/Instagram official accounts)
+  - Event organizer's official website
+✗ NOT from:
+  - User-generated content
+  - Generic placeholder images
+  - Expired/archived links
+  - Dynamic token-based URLs (expire after time)
+  - Shortened URLs (bit.ly, tinyurl, etc)
+  - Pinterest/Reddit reposts
+
+SEARCH PRIORITY for imageUrl:
+1. Ticketmaster.com - if event is listed there, use their official event image
+2. Eventim.de - for Austria/Germany events, primary ticketing source
+3. Eventbrite.com - for local events, often has event images
+4. Official event website - check their /events or /calendar page for poster image
+5. Venue official website - theaters/clubs/museums have event images
+6. Facebook Event Page (OFFICIAL organizer account only) - has event poster
+7. Official venue Instagram - high-res event photos
+
+IMPORTANT:
+- If NO valid imageUrl found after checking all 7 sources, DO NOT include this event
+- Return imageUrl as null ONLY if truly not available (never empty string)
+- Better to return 60 events with images than 120 events with 40% broken images
+
+QUALITY METRIC: Aim for 85%+ of imageUrl being directly loadable (HTTP 200 OK)
 
 RULES:
 - "category" must be EXACTLY one of: ${allowedCategoriesForSchema()}
@@ -218,11 +246,13 @@ Focus areas:
 Return comprehensive JSON array covering ALL main categories.
 Include both well-known and hidden gem events.
 
-⭐ CRITICAL IMAGE REQUIREMENT:
+⭐⭐⭐ CRITICAL IMAGE REQUIREMENT:
 - Include ONLY events that have valid imageUrl
-- imageUrl must be an HTTP/HTTPS URL from legitimate event sources
-- If event has no image, DO NOT include it in results
+- imageUrl must be a direct HTTP/HTTPS URL from legitimate event sources
+- Check Ticketmaster, Eventim, Eventbrite, and official venue websites first
+- If event has no image after checking all sources, DO NOT include it in results
 - Quality over quantity: fewer complete events are better than many incomplete ones
+- Aim for 85%+ image success rate (directly loadable images)
 
 NO explanatory text outside the JSON structure.`;
   }
@@ -267,11 +297,13 @@ DIVERSITY WITHIN CATEGORY:
 OUTPUT: Return comprehensive JSON array of REAL ${mainCategory} events WITH IMAGES.
 Include booking/ticket links where available.
 
-⭐ MANDATORY: Every returned event MUST have:
-- Valid imageUrl (HTTP/HTTPS URL)
-- URL must be from official sources (venue sites, ticketing platforms, official social media)
-- If event has no image, DO NOT include it in this result
-- Prioritize events with images over quantity
+⭐⭐⭐ MANDATORY: Every returned event MUST have:
+- Valid imageUrl (HTTP/HTTPS URL) from official sources
+- Check in order: Ticketmaster → Eventim → Eventbrite → Official venue website → Facebook Events
+- Verify image URL is accessible and returns actual image
+- If event has no image after checking all sources, DO NOT include it in this result
+- Prioritize events with high-quality images over quantity
+- Aim for 85%+ of returned events to have working images
 
 NO explanatory text outside the JSON structure.
 
@@ -293,10 +325,13 @@ ELECTRONIC MUSIC & NIGHTLIFE FOCUS:
 
 ⭐ IMAGE REQUIREMENT FOR NIGHTLIFE EVENTS:
 - Club websites usually have event flyers/posters with images
-- Check for DJ event announcements with photos on official club social media
-- Look for parties on Instagram/Facebook with event images from organizers
+- Check Resident Advisor (RA.co) for electronic music event images
+- Look for DJ event announcements with photos on official club social media
+- Check for parties on Instagram/Facebook with event images from organizers
+- Ticketing platforms like Eventbrite often have nightclub event images
 - Only include events with discoverable event images/posters
-- EXCLUDE events with no visual event materials found`,
+- EXCLUDE events with no visual event materials found
+- Priority: Ticketmaster/Eventim → RA.co → Club website → Official Instagram/Facebook`,
 
       "Live-Konzerte": `
 LIVE MUSIC & CONCERT FOCUS:
@@ -308,12 +343,24 @@ LIVE MUSIC & CONCERT FOCUS:
 - Include jam sessions and live band performances
 
 ⭐ IMAGE REQUIREMENT FOR LIVE MUSIC EVENTS:
-- Prioritize events that have event images/posters/photos on:
-  * Live music venue websites
-  * Social media posts by venue/organizer (official accounts only)
-  * Ticketing platforms (Eventbrite, Ticketmaster, etc.)
-- EXCLUDE any events without discoverable images
-- Check multiple sources for event visuals before excluding`,
+Priority sources for concert images (in order):
+1. Ticketmaster concert listing (has official event poster)
+2. Eventim.de concert page (Austrian/German concerts)
+3. Eventbrite.com for local venue concerts
+4. Venue official website (concert hall website usually has event images)
+5. Artist official website (touring artists have concert posters)
+6. Official venue Facebook/Instagram (official accounts only)
+
+Image must be:
+- Artist image or concert poster (not generic music image)
+- From legitimate source (not fan pages)
+- Currently active/not expired link
+
+If no valid concert poster image found after checking all 6 sources:
+- DO NOT include this event in results
+- Better incomplete list with good images than full list with broken links
+
+Return: imageUrl as direct HTTP/HTTPS URL to concert poster/event image`,
 
       "Klassik & Oper": `
 CLASSICAL MUSIC & OPERA FOCUS:
@@ -325,12 +372,22 @@ CLASSICAL MUSIC & OPERA FOCUS:
 - Include baroque music events and contemporary classical
 
 ⭐ IMAGE REQUIREMENT FOR CLASSICAL EVENTS:
-- Prioritize events that have event images/posters/photos on:
-  * Classical venue websites
-  * Social media posts by venue/organizer (official accounts only)
-  * Ticketing platforms (Eventbrite, Ticketmaster, etc.)
-- EXCLUDE any events without discoverable images
-- Check multiple sources for event visuals before excluding`,
+Priority sources for classical event images (in order):
+1. Ticketmaster / Eventim - classical concerts often listed here
+2. Opera house / concert hall official website
+3. Eventbrite for chamber music events
+4. Venue Facebook/Instagram with official event photos
+5. Orchestra or ensemble official website
+
+Image must be:
+- Event poster, venue photo, or performance image
+- From official source (venue, ticketing platform, ensemble)
+- Currently active/not expired link
+
+If no valid image found after checking all 5 sources:
+- DO NOT include this event in results
+
+Return: imageUrl as direct HTTP/HTTPS URL to event image`,
 
       "Theater & Comedy": `
 THEATER & COMEDY FOCUS:
@@ -342,12 +399,22 @@ THEATER & COMEDY FOCUS:
 - Include experimental theater and physical theater
 
 ⭐ IMAGE REQUIREMENT FOR THEATER EVENTS:
-- Prioritize events that have event images/posters/photos on:
-  * Theater venue websites
-  * Social media posts by venue/organizer (official accounts only)
-  * Ticketing platforms (Eventbrite, Ticketmaster, etc.)
-- EXCLUDE any events without discoverable images
-- Check multiple sources for event visuals before excluding`,
+Priority sources for theater event images (in order):
+1. Ticketmaster / Eventim - major theater productions listed
+2. Theater venue official website (usually has show posters)
+3. Eventbrite for smaller theater/comedy shows
+4. Venue Facebook/Instagram with official show photos
+5. Production company website
+
+Image must be:
+- Show poster, production photo, or promotional image
+- From official source (theater, ticketing platform, production company)
+- Currently active/not expired link
+
+If no valid image found after checking all 5 sources:
+- DO NOT include this event in results
+
+Return: imageUrl as direct HTTP/HTTPS URL to show image`,
 
       "Museen & Ausstellungen": `
 MUSEUM & EXHIBITION FOCUS:
@@ -359,12 +426,22 @@ MUSEUM & EXHIBITION FOCUS:
 - Include private galleries, art spaces, and street art events
 
 ⭐ IMAGE REQUIREMENT FOR MUSEUM EVENTS:
-- Prioritize events that have event images/posters/photos on:
-  * Museum venue websites
-  * Social media posts by venue/organizer (official accounts only)
-  * Ticketing platforms (Eventbrite, Ticketmaster, etc.)
-- EXCLUDE any events without discoverable images
-- Check multiple sources for event visuals before excluding`,
+Priority sources for museum event images (in order):
+1. Museum official website (exhibitions, special events)
+2. Ticketmaster / Eventim for major museum events
+3. Eventbrite for museum workshops/tours
+4. Museum Facebook/Instagram with official event photos
+5. Tourism board websites for museum events
+
+Image must be:
+- Exhibition poster, artwork, or museum event photo
+- From official source (museum, ticketing platform)
+- Currently active/not expired link
+
+If no valid image found after checking all 5 sources:
+- DO NOT include this event in results
+
+Return: imageUrl as direct HTTP/HTTPS URL to exhibition/event image`,
 
       "Film & Kino": `
 FILM & CINEMA FOCUS:

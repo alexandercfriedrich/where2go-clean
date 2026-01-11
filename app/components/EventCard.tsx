@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { normalizeCitySlug } from '@/lib/slugGenerator';
 import { getVenueFallbackImage } from '@/lib/venueFallbackImages';
 import { getFallbackColor, hasValidImage } from '@/lib/eventImageFallback';
+import { getImageUrl } from '@/lib/utils/imageProxy';
 import { AddToCalendar } from './discovery/AddToCalendar';
 import { FavoriteButton } from './discovery/FavoriteButton';
 import type { EventData } from '@/lib/types';
@@ -175,9 +176,22 @@ export function EventCard({
   // Get first image from image_urls array or use imageUrl field
   // If no event image, fall back to venue logo image
   const imageUrls = 'image_urls' in event ? event.image_urls : undefined;
-  const eventImage = imageUrls && imageUrls.length > 0
+  const rawEventImage = imageUrls && imageUrls.length > 0
     ? imageUrls[0]
     : event.imageUrl || getVenueFallbackImage(venue);
+  
+  // Apply image proxy to external URLs for better reliability
+  const eventImage = getImageUrl(rawEventImage);
+  
+  // Log for debugging (only in development or when needed)
+  if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+    console.log('[EventCard] Image processing:', {
+      eventTitle: event.title?.substring(0, 30),
+      rawImage: rawEventImage?.substring(0, 80),
+      processedImage: eventImage?.substring(0, 80),
+      isProxied: eventImage?.includes('weserv.nl')
+    });
+  }
   
   // Price display - check multiple fields that might contain price information
   let priceDisplay = 'Preis auf Anfrage';
