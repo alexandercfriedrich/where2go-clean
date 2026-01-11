@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useEffect, useRef } from 'react';
+import { getImageUrl } from '@/lib/utils/imageProxy';
 
 interface ClickableEventImageProps {
   imageUrl: string;
@@ -10,6 +11,9 @@ interface ClickableEventImageProps {
 
 export default function ClickableEventImage({ imageUrl, title }: ClickableEventImageProps) {
   const lightboxRef = useRef<HTMLDivElement | null>(null);
+  
+  // Apply image proxy to ensure external images load properly
+  const proxiedImageUrl = getImageUrl(imageUrl);
 
   useEffect(() => {
     // Cleanup on unmount
@@ -44,7 +48,7 @@ export default function ClickableEventImage({ imageUrl, title }: ClickableEventI
     lightbox.setAttribute('aria-label', 'Image lightbox');
     
     const img = document.createElement('img');
-    img.src = imageUrl || '';
+    img.src = proxiedImageUrl || '';
     img.alt = title;
     img.style.maxWidth = '95%';
     img.style.maxHeight = '95%';
@@ -125,14 +129,14 @@ export default function ClickableEventImage({ imageUrl, title }: ClickableEventI
       aria-label="Click to view image in full size"
     >
       <Image 
-        src={imageUrl}
+        src={proxiedImageUrl}
         alt={title}
         fill
         style={{ objectFit: 'cover' }}
         priority
         unoptimized
       />
-      <meta itemProp="image" content={imageUrl} />
+      <meta itemProp="image" content={proxiedImageUrl} />
       {/* Zoom indicator */}
       <div style={{
         position: 'absolute',
