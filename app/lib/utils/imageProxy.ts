@@ -21,6 +21,7 @@
 export function getImageUrl(originalUrl: string | null | undefined): string {
   // Case 1: No URL provided
   if (!originalUrl || typeof originalUrl !== 'string' || originalUrl.trim() === '') {
+    console.log('[ImageProxy] No URL provided, using placeholder');
     return getPlaceholderUrl('event-default');
   }
 
@@ -28,16 +29,19 @@ export function getImageUrl(originalUrl: string | null | undefined): string {
 
   // Case 2: Local assets - use directly (check before invalid URL check)
   if (trimmedUrl.startsWith('/')) {
+    console.log('[ImageProxy] Local asset detected, passthrough:', trimmedUrl.substring(0, 50));
     return trimmedUrl;
   }
 
   // Case 3: Invalid URLs (not http/https)
   if (!trimmedUrl.startsWith('http://') && !trimmedUrl.startsWith('https://')) {
+    console.log('[ImageProxy] Invalid URL (no http/https), using placeholder. URL starts with:', trimmedUrl.substring(0, 20));
     return getPlaceholderUrl('event-invalid');
   }
 
   // Case 4: Supabase URLs - already optimized, use directly
   if (trimmedUrl.includes('supabase')) {
+    console.log('[ImageProxy] Supabase URL detected, passthrough:', trimmedUrl.substring(0, 80));
     return trimmedUrl;
   }
 
@@ -52,7 +56,12 @@ export function getImageUrl(originalUrl: string | null | undefined): string {
     // - q=80: JPG quality 80% (good balance between size/quality)
     // - default=404: Return 404 if image doesn't exist
     
-    return `https://images.weserv.nl/?url=${encoded}&w=1200&h=1200&fit=cover&q=80&default=404`;
+    const proxiedUrl = `https://images.weserv.nl/?url=${encoded}&w=1200&h=1200&fit=cover&q=80&default=404`;
+    console.log('[ImageProxy] Proxying external URL through weserv.nl');
+    console.log('[ImageProxy] Original domain:', new URL(trimmedUrl).hostname);
+    console.log('[ImageProxy] Proxied URL:', proxiedUrl);
+    
+    return proxiedUrl;
   } catch (error) {
     // Don't log the full URL to avoid exposing sensitive tokens/credentials
     console.warn(`[ImageProxy] Failed to encode URL (length: ${trimmedUrl.length})`, error);
@@ -105,7 +114,21 @@ function getPlaceholderUrl(
  * @returns Array of proxied image URLs
  */
 export function getImageUrls(originalUrls: (string | null | undefined)[]): string[] {
-  return originalUrls.map(url => getImageUrl(url));
+  const results = originalUrls.map(url => getImageUrl(url));
+  
+  // Log statistics
+  const stats = {
+    total: originalUrls.length,
+    null: originalUrls.filter(u => !u).length,
+    supabase: originalUrls.filter(u => u && typeof u === 'string' && u.includes('supabase')).length,
+    local: originalUrls.filter(u => u && typeof u === 'string' && u.startsWith('/')).length,
+    external: originalUrls.filter(u => u && typeof u === 'string' && (u.startsWith('http://') || u.startsWith('https://')) && !u.includes('supabase')).length,
+    invalid: originalUrls.filter(u => u && typeof u === 'string' && !u.startsWith('http') && !u.startsWith('/')).length
+  };
+  
+  console.log('[ImageProxy] Batch processing stats:', JSON.stringify(stats));
+  
+  return results;
 }
 
 /**
@@ -135,4 +158,26 @@ export async function testImageUrl(url: string, timeoutMs: number = 5000): Promi
   } catch (error) {
     return false;
   }
+}
+
+/**
+ * Diagnostic function to log detailed information about image proxy behavior
+ * Call this with sample URLs to see how they're being processed
+ * 
+ * @param sampleUrls - Array of sample URLs to test
+ */
+export function diagnoseImageProxy(sampleUrls: string[]): void {
+  console.log('=== IMAGE PROXY DIAGNOSTICS ===');
+  console.log(`Testing ${sampleUrls.length} sample URLs`);
+  
+  sampleUrls.forEach((url, index) => {
+    console.log(`\n--- Sample ${index + 1} ---`);
+    console.log('Input:', url ? url.substring(0, 100) : 'null/undefined');
+    const result = getImageUrl(url);
+    console.log('Output:', result.substring(0, 150));
+    console.log('Is Proxied:', result.includes('weserv.nl'));
+    console.log('Is Placeholder:', result.includes('unsplash.com'));
+  });
+  
+  console.log('\n=== END DIAGNOSTICS ===');
 }

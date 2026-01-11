@@ -183,6 +183,16 @@ export function EventCard({
   // Apply image proxy to external URLs for better reliability
   const eventImage = getImageUrl(rawEventImage);
   
+  // Log for debugging (only in development or when needed)
+  if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+    console.log('[EventCard] Image processing:', {
+      eventTitle: event.title?.substring(0, 30),
+      rawImage: rawEventImage?.substring(0, 80),
+      processedImage: eventImage?.substring(0, 80),
+      isProxied: eventImage?.includes('weserv.nl')
+    });
+  }
+  
   // Price display - check multiple fields that might contain price information
   let priceDisplay = 'Preis auf Anfrage';
   if ((event as any).is_free) {
