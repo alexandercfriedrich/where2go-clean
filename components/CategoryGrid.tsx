@@ -5,7 +5,7 @@ import {
   Mic2,
   Palette,
   Theater,
-  Museum,
+  Landmark,
   Film,
   Wind,
   UtensilsCrossed,
@@ -80,7 +80,7 @@ const categories: Category[] = [
   {
     id: 'museums',
     label: 'Museen & Ausstellungen',
-    icon: <Museum className="w-6 h-6" />,
+    icon: <Landmark className="w-6 h-6" />,
     color: '#3A86FF',
     gradientFrom: 'from-blue-500',
     gradientTo: 'to-cyan-500',
@@ -205,7 +205,7 @@ const CategoryGrid: React.FC = () => {
     visible: {
       opacity: 1,
       y: 0,
-      transition: { type: 'spring', stiffness: 100, damping: 15 },
+      transition: { type: 'spring' as const, stiffness: 100, damping: 15 },
     },
   };
 
