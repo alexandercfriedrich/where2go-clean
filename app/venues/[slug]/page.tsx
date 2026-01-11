@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { supabase } from '@/lib/supabase/client';
 import { EventCard } from '@/components/EventCard';
 import { transformVenueEventToEventData } from '@/lib/utils';
+import SchemaOrg from '@/components/SchemaOrg';
+import { generateLocalBusinessSchema } from '@/lib/schemaOrg';
 
 interface VenuePageProps {
   params: {
@@ -78,8 +80,20 @@ export default async function VenuePage({ params }: VenuePageProps) {
 
   const { venue, stats, upcoming_events } = venueData;
 
+  // Generate LocalBusiness Schema for venue
+  const venueSchema = generateLocalBusinessSchema({
+    name: venue.name,
+    address: venue.full_address,
+    latitude: venue.latitude,
+    longitude: venue.longitude,
+    url: venue.website,
+    description: `${venue.name} in Wien - ${stats.upcoming_events || 0} kommende Events`
+  });
+
   return (
-    <div className="min-h-screen text-white" style={{ backgroundColor: '#091717' }}> {/* Offblack */}
+    <>
+      <SchemaOrg schema={venueSchema} />
+      <div className="min-h-screen text-white" style={{ backgroundColor: '#091717' }}> {/* Offblack */}
       {/* Navigation */}
       <div className="border-b border-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
@@ -286,6 +300,7 @@ export default async function VenuePage({ params }: VenuePageProps) {
         </div>
       </div>
     </div>
+    </>
   );
 }
 
