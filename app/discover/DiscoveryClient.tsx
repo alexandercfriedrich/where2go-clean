@@ -158,10 +158,28 @@ export default function DiscoveryClient({
         {/* Hero Section */}
         <div style={{ backgroundColor: '#13343B' }} className="text-white"> {/* Teal Dark */}
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
-            <h1 className="text-3xl md:text-5xl font-bold mb-4" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
+            <h1 style={{
+              fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+              fontSize: '30pt',
+              fontWeight: 700,
+              letterSpacing: '.05em',
+              marginBottom: '1.5rem',
+              color: '#f5f5f5',
+              lineHeight: '21pt',
+              textAlign: 'left'
+            }}>
               {getPageTitle()}
             </h1>
-            <p className="text-lg md:text-xl text-gray-300 mb-8" style={{ fontFamily: 'var(--font-space-grotesk)' }}>
+            <p style={{
+              fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+              fontSize: '20px',
+              fontWeight: 200,
+              letterSpacing: '.05em',
+              color: 'rgb(209, 213, 219)',
+              lineHeight: '28px',
+              textAlign: 'left',
+              marginBottom: '2rem'
+            }}>
               {selectedCategory 
                 ? `Alle ${selectedCategory.toLowerCase()} Veranstaltungen in ${city}`
                 : `Dein personalisierter Guide für die besten Events`}
@@ -169,7 +187,7 @@ export default function DiscoveryClient({
             
             {/* Enhanced Search Bar */}
             <div className="max-w-2xl">
-              <SearchBar placeholder="Events, Locations oder Kategorien suchen..." />
+              <SearchBar placeholder="Nach Events, Locations oder Kategorien suchen..." />
             </div>
           </div>
         </div>
@@ -306,65 +324,180 @@ export default function DiscoveryClient({
           <div className="max-w-4xl mx-auto">
             <section className="seo-content-block">
               <div className="seo-content-container">
-              <h2 className="seo-heading">
+              <h2 style={{
+                fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                fontSize: '16pt',
+                fontWeight: 300,
+                textTransform: 'uppercase',
+                letterSpacing: '.45em',
+                marginBottom: '1.5rem',
+                color: 'rgb(32, 184, 205)',
+                lineHeight: '21pt',
+                textAlign: 'center'
+              }}>
                 Die zentrale Event-Suchmaschine für {city}
               </h2>
               
-              <p className="seo-paragraph">
+              <p style={{
+                fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                fontSize: '14pt',
+                fontWeight: 100,
+                color: '#e5e7eb',
+                lineHeight: '18pt',
+                letterSpacing: '.02em',
+                margin: 0,
+                marginBottom: '1rem'
+              }}>
                 <strong>Where2Go ist deine All-in-One Plattform für alle Events in {city}.</strong> Egal ob du nach Live-Konzerten, Theatervorstellungen, Clubnächten, Ausstellungen, Sportevents oder kulturellen Veranstaltungen suchst – hier findest du jeden Tag tausende aktualisierte Events aus {city} und darüber hinaus.
               </p>
               
-              <p className="seo-paragraph">
+              <p style={{
+                fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                fontSize: '14pt',
+                fontWeight: 100,
+                color: '#e5e7eb',
+                lineHeight: '18pt',
+                letterSpacing: '.02em',
+                margin: 0,
+                marginBottom: '1rem'
+              }}>
                 Wir aggregieren Veranstaltungen von allen wichtigen Event-Quellen: von der {city}.info API bis zu lokalen Venues und Ticketplattformen. Jedes Event wird täglich aktualisiert mit aktuellen Informationen wie Datum, Uhrzeit, Location, Preis und direktem Ticketing-Link.
               </p>
               
-              <p className="seo-paragraph">
+              <p style={{
+                fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                fontSize: '14pt',
+                fontWeight: 100,
+                color: '#e5e7eb',
+                lineHeight: '18pt',
+                letterSpacing: '.02em',
+                margin: 0,
+                marginBottom: '1rem'
+              }}>
                 <strong>Was kann ich in {city} machen?</strong> Das ist die Frage, die Where2Go jeden Tag beantwortet – für alle, die ihre Stadt neu entdecken wollen.
               </p>
               
-              <div className="seo-categories-grid">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '28px' }}>
                 <div>
-                  <h3 className="seo-category-heading">
-                    🎤 Live-Konzerte & Musik
+                  <h3 style={{
+                    fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                    fontSize: '12pt',
+                    fontWeight: 200,
+                    textTransform: 'uppercase',
+                    letterSpacing: '.1em',
+                    color: 'rgb(32, 184, 205)',
+                    lineHeight: '21pt',
+                    textAlign: 'center',
+                    marginBottom: '12px'
+                  }}>
+                    Live-Konzerte & Musik
                   </h3>
-                  <p className="seo-category-text">
+                  <p style={{
+                    fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                    fontSize: '14pt',
+                    fontWeight: 100,
+                    color: '#e5e7eb',
+                    lineHeight: '18pt',
+                    letterSpacing: '.02em',
+                    marginBottom: '12px'
+                  }}>
                     Entdecke alle Konzerte in {city} heute, morgen und dieses Wochenende. Von Rock über Jazz bis Electronic – finde deine nächste Lieblings-Show.
                   </p>
-                  <Link href={`/${city.toLowerCase()}/live-konzerte/heute`} className="seo-category-link">
+                  <Link href={`/${city.toLowerCase()}/live-konzerte/heute`} style={{ color: '#20B8CD', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>
                     Alle Konzerte in {city} →
                   </Link>
                 </div>
                 
                 <div>
-                  <h3 className="seo-category-heading">
-                    🎪 Clubs & Nachtleben
+                  <h3 style={{
+                    fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                    fontSize: '12pt',
+                    fontWeight: 200,
+                    textTransform: 'uppercase',
+                    letterSpacing: '.1em',
+                    color: 'rgb(32, 184, 205)',
+                    lineHeight: '21pt',
+                    textAlign: 'center',
+                    marginBottom: '12px'
+                  }}>
+                    Clubs & Nachtleben
                   </h3>
-                  <p className="seo-category-text">
+                  <p style={{
+                    fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                    fontSize: '14pt',
+                    fontWeight: 100,
+                    color: '#e5e7eb',
+                    lineHeight: '18pt',
+                    letterSpacing: '.02em',
+                    marginBottom: '12px'
+                  }}>
                     Die besten Clubs, Diskos und Nachtclubs in {city}. Finde Clubnächte heute und am Wochenende mit Details zu DJs, Dresscode und Eintritt.
                   </p>
-                  <Link href={`/${city.toLowerCase()}/clubs-nachtleben/heute`} className="seo-category-link">
+                  <Link href={`/${city.toLowerCase()}/clubs-nachtleben/heute`} style={{ color: '#20B8CD', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>
                     Clubs & Partys heute →
                   </Link>
                 </div>
                 
                 <div>
-                  <h3 className="seo-category-heading">
-                    🎭 Theater & Kultur
+                  <h3 style={{
+                    fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                    fontSize: '12pt',
+                    fontWeight: 200,
+                    textTransform: 'uppercase',
+                    letterSpacing: '.1em',
+                    color: 'rgb(32, 184, 205)',
+                    lineHeight: '21pt',
+                    textAlign: 'center',
+                    marginBottom: '12px'
+                  }}>
+                    Theater & Kultur
                   </h3>
-                  <p className="seo-category-text">
+                  <p style={{
+                    fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                    fontSize: '14pt',
+                    fontWeight: 100,
+                    color: '#e5e7eb',
+                    lineHeight: '18pt',
+                    letterSpacing: '.02em',
+                    marginBottom: '12px'
+                  }}>
                     Theater, Musicals, Comedy Shows und kulturelle Veranstaltungen in {city}. Finde Vorstellungen, Ausstellungen und künstlerische Events diese Woche.
                   </p>
-                  <Link href={`/${city.toLowerCase()}/theater-comedy/heute`} className="seo-category-link">
+                  <Link href={`/${city.toLowerCase()}/theater-comedy/heute`} style={{ color: '#20B8CD', textDecoration: 'none', fontSize: '14px', fontWeight: 500 }}>
                     Theater & Comedy in {city} →
                   </Link>
                 </div>
               </div>
               
-              <div className="seo-features-box">
-                <h3 className="seo-features-heading">
-                  💡 Where2Go macht Eventsuche einfach:
+              <div style={{
+                backgroundColor: 'rgba(32, 184, 205, 0.08)',
+                borderLeft: '4px solid #20B8CD',
+                padding: '16px 20px',
+                borderRadius: '8px',
+                marginBottom: '24px'
+              }}>
+                <h3 style={{
+                  fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                  fontSize: '12pt',
+                  fontWeight: 200,
+                  textTransform: 'uppercase',
+                  letterSpacing: '.1em',
+                  color: 'rgb(32, 184, 205)',
+                  lineHeight: '21pt',
+                  textAlign: 'center',
+                  marginBottom: '8px'
+                }}>
+                  Where2Go macht Eventsuche einfach:
                 </h3>
-                <ul className="seo-features-list">
+                <ul style={{
+                  fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                  fontSize: '14pt',
+                  fontWeight: 100,
+                  lineHeight: '18pt',
+                  color: '#e5e7eb',
+                  margin: 0,
+                  paddingLeft: '20px'
+                }}>
                   <li><strong>Tägliche Aktualisierung:</strong> Alle Events sind live und aktuell – keine veralteten oder stornierten Events</li>
                   <li><strong>Umfassende Filter:</strong> Nach Kategorie, Datum, Preis, Bezirk und mehr filtern</li>
                   <li><strong>Direktes Ticketing:</strong> Ein Klick führt dich zum Ticketing-System des Veranstalters</li>
@@ -373,7 +506,15 @@ export default function DiscoveryClient({
                 </ul>
               </div>
               
-              <p className="seo-tip">
+              <p style={{
+                fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                fontSize: '14pt',
+                fontWeight: 100,
+                lineHeight: '18pt',
+                color: '#e5e7eb',
+                fontStyle: 'italic',
+                letterSpacing: '.02em'
+              }}>
                 <strong>Tipp:</strong> Du wirst gefragt &quot;Was kann ich in {city} tun?&quot;, &quot;Welche Events gibt es in {city}?&quot;, oder &quot;Wo kann ich heute Abend hingehen?&quot; Where2Go ist deine Antwort. Starte deine Eventsuche und entdecke deine Stadt neu.
               </p>
             </div>
