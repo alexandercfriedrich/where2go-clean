@@ -22,7 +22,7 @@ const spaceGrotesk = Space_Grotesk({
 
 const manrope = Manrope({
   subsets: ['latin'],
-  weight: ['100', '300', '400', '500', '700'],
+  weight: ['200', '300', '400', '500', '700'],
   display: 'swap',
   variable: '--font-manrope',
 });
