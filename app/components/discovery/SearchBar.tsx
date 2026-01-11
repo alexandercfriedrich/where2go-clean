@@ -306,6 +306,10 @@ export function SearchBar({
           className="w-full pl-11 pr-4 py-3 md:py-4 rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 focus:outline-none focus:ring-2 transition-colors"
           style={{
             '--tw-ring-color': '#20B8CD',
+            fontFamily: '"FK Grotesk Neue", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            fontSize: '12pt',
+            fontWeight: 200,
+            letterSpacing: '.05em'
           } as React.CSSProperties}
           aria-label="Search events and venues"
           aria-autocomplete="list"

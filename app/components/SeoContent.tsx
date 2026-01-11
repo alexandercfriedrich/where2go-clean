@@ -29,27 +29,34 @@ export function SeoContent({ category, date }: SeoContentProps) {
       
       <style jsx>{`
         article :global(h1) {
-          font-size: 2.5rem;
-          font-weight: 700;
+          font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 18pt;
+          font-weight: 300;
+          font-variant: small-caps;
+          line-height: 21pt;
           margin-bottom: 2rem;
           margin-top: 0;
-          color: inherit;
-          line-height: 1.2;
+          color: #20b8cd;
         }
         
         article :global(h2) {
-          font-size: 1.75rem;
-          font-weight: 700;
+          font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 18pt;
+          font-weight: 300;
+          font-variant: small-caps;
+          line-height: 21pt;
           margin-top: 2.5rem;
           margin-bottom: 1.25rem;
-          color: inherit;
-          line-height: 1.3;
+          color: #20b8cd;
         }
         
         article :global(p) {
+          font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 14pt;
+          font-weight: 200;
+          line-height: 18pt;
           margin-bottom: 1rem;
-          line-height: 1.75;
-          color: inherit;
+          color: #F5F5F5;
         }
         
         article :global(strong) {
@@ -58,23 +65,30 @@ export function SeoContent({ category, date }: SeoContentProps) {
         }
         
         article :global(ul) {
+          font-family: 'FK Grotesk Neue', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+          font-size: 14pt;
+          font-weight: 200;
+          line-height: 18pt;
           list-style-type: disc;
           padding-left: 1.5rem;
           margin: 1rem 0;
+          color: #F5F5F5;
         }
         
         article :global(li) {
           margin-bottom: 0.5rem;
-          line-height: 1.75;
+          line-height: 18pt;
         }
         
         @media (max-width: 768px) {
           article :global(h1) {
-            font-size: 1.875rem;
+            font-size: 16pt;
+            line-height: 19pt;
           }
           
           article :global(h2) {
-            font-size: 1.5rem;
+            font-size: 16pt;
+            line-height: 19pt;
           }
         }
       `}</style>

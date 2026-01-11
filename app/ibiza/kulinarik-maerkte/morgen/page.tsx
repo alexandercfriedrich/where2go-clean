@@ -43,7 +43,7 @@ export default async function IbizaKulinarikMaerkteMorgenPage() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="Ibiza"
-          initialDateFilter="tomorrow"
+          initialDateFilter="morgen"
           initialCategory="Kulinarik & Märkte"
         />
       </>
@@ -57,7 +57,7 @@ export default async function IbizaKulinarikMaerkteMorgenPage() {
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="Ibiza"
-        initialDateFilter="tomorrow"
+        initialDateFilter="morgen"
         initialCategory="Kulinarik & Märkte"
       />
     );

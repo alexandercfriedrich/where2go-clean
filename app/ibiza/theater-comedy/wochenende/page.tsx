@@ -43,7 +43,7 @@ export default async function IbizaTheaterComedyWochenendePage() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="Ibiza"
-          initialDateFilter="weekend"
+          initialDateFilter="wochenende"
           initialCategory="Theater & Comedy"
         />
       </>
@@ -57,7 +57,7 @@ export default async function IbizaTheaterComedyWochenendePage() {
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="Ibiza"
-        initialDateFilter="weekend"
+        initialDateFilter="wochenende"
         initialCategory="Theater & Comedy"
       />
     );

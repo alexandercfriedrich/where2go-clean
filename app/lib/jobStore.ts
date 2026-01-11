@@ -372,10 +372,10 @@ export function createJobStore(): JobStore {
   const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
 
   if (redisUrl && redisToken) {
-    console.log('Using Redis JobStore for durable job state');
+    // Using Redis JobStore for durable job state
     return new RedisJobStore(redisUrl, redisToken);
   } else {
-    console.log('Using in-memory JobStore (Redis env vars not configured)');
+    // Using in-memory JobStore (Redis not configured)
     return new InMemoryJobStore();
   }
 }

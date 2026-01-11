@@ -82,16 +82,16 @@ export function TrendingClient({ initialEvents, city }: TrendingClientProps) {
                 href="/"
                 className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
               >
-                ← Back to Discover
+                ← Zurück zur Entdeckung
               </Link>
             </div>
             <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-              🔥 Trending Now
+              🔥 Gerade angesagt
             </h1>
             <p className="text-gray-600 dark:text-gray-400">
-              Popular events everyone is talking about
-              {urlCategories.length > 0 && ` • Filtered by: ${urlCategories.join(', ')}`}
-              {selectedDateFilter !== 'all' && ` • Date: ${selectedDateFilter}`}
+              Beliebte Events über die alle reden
+              {urlCategories.length > 0 && ` • Gefiltert nach: ${urlCategories.join(', ')}`}
+              {selectedDateFilter !== 'all' && ` • Datum: ${selectedDateFilter}`}
             </p>
           </div>
           
@@ -105,18 +105,18 @@ export function TrendingClient({ initialEvents, city }: TrendingClientProps) {
           ) : (
             <div className="text-center py-16">
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
-                No trending events found
+                Keine angesagten Events gefunden
               </h2>
               <p className="text-gray-600 dark:text-gray-400 mb-6">
                 {urlCategories.length > 0 || selectedDateFilter !== 'all'
-                  ? 'Try adjusting your filters to see more events'
-                  : `Check back soon for popular events in ${city}`}
+                  ? 'Versuche deine Filter anzupassen, um mehr Events zu sehen'
+                  : `Schau bald wieder vorbei für beliebte Events in ${city}`}
               </p>
               <Link
                 href="/"
                 className="inline-block px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
               >
-                Browse All Events
+                Alle Events durchsuchen
               </Link>
             </div>
           )}

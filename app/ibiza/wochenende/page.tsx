@@ -43,7 +43,7 @@ export default async function IbizaWochenendePage() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="Ibiza"
-          initialDateFilter="weekend"
+          initialDateFilter="wochenende"
         />
       </>
     );
@@ -56,7 +56,7 @@ export default async function IbizaWochenendePage() {
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="Ibiza"
-        initialDateFilter="weekend"
+        initialDateFilter="wochenende"
       />
     );
   }

@@ -43,7 +43,7 @@ export default async function IbizaHeutePage() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="Ibiza"
-          initialDateFilter="today"
+          initialDateFilter="heute"
         />
       </>
     );
@@ -56,7 +56,7 @@ export default async function IbizaHeutePage() {
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="Ibiza"
-        initialDateFilter="today"
+        initialDateFilter="heute"
       />
     );
   }

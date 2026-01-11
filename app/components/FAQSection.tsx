@@ -42,10 +42,15 @@ export function FAQSection({ faqs, title = 'Häufig gestellte Fragen' }: FAQSect
       >
         <h2
           style={{
-            fontSize: '28px',
-            fontWeight: 700,
-            color: '#FFFFFF',
-            marginBottom: '24px',
+            fontFamily: 'FK Grotesk Neue, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
+            fontSize: '16pt',
+            fontWeight: 300,
+            textTransform: 'uppercase',
+            letterSpacing: '0.45em',
+            lineHeight: '21pt',
+            color: 'rgb(32, 184, 205)',
+            marginBottom: '1.5rem',
+            textAlign: 'center',
           }}
         >
           {title}
@@ -64,18 +69,24 @@ export function FAQSection({ faqs, title = 'Häufig gestellte Fragen' }: FAQSect
               itemType="https://schema.org/Question"
               style={{
                 background: 'linear-gradient(135deg, #2A2A2A 0%, #1F1F1F 100%)',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                border: '1px solid rgba(32, 225, 211, 0.15)',
                 borderRadius: '12px',
                 padding: '20px',
               }}
+              className="dark:bg-white/5 dark:border-white/10"
             >
               <h3
                 itemProp="name"
                 style={{
-                  fontSize: '18px',
-                  fontWeight: 600,
-                  color: '#FFFFFF',
+                  fontFamily: 'FK Grotesk Neue, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
+                  fontSize: '12pt',
+                  fontWeight: 200,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.1em',
+                  lineHeight: '21pt',
+                  color: 'rgb(32, 184, 205)',
                   marginBottom: '12px',
+                  textAlign: 'center',
                 }}
               >
                 {faq.question}
@@ -88,9 +99,13 @@ export function FAQSection({ faqs, title = 'Häufig gestellte Fragen' }: FAQSect
                 <div
                   itemProp="text"
                   style={{
-                    fontSize: '15px',
-                    lineHeight: '1.6',
-                    color: 'rgba(255, 255, 255, 0.85)',
+                    fontFamily: 'FK Grotesk Neue, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif',
+                    fontSize: '10pt',
+                    fontWeight: 200,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.1em',
+                    lineHeight: '21pt',
+                    color: '#f5f5f5',
                   }}
                 >
                   {faq.answer}

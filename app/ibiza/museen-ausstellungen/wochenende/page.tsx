@@ -43,7 +43,7 @@ export default async function IbizaMuseenAusstellungenWochenendePage() {
           initialPersonalizedEvents={sorted.personalized}
           initialWeekendNightlifeEvents={nightlife}
           city="Ibiza"
-          initialDateFilter="weekend"
+          initialDateFilter="wochenende"
           initialCategory="Museen & Ausstellungen"
         />
       </>
@@ -57,7 +57,7 @@ export default async function IbizaMuseenAusstellungenWochenendePage() {
         initialPersonalizedEvents={[]}
         initialWeekendNightlifeEvents={{ friday: [], saturday: [], sunday: [] }}
         city="Ibiza"
-        initialDateFilter="weekend"
+        initialDateFilter="wochenende"
         initialCategory="Museen & Ausstellungen"
       />
     );

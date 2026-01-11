@@ -7,8 +7,8 @@ import { getPersonalizedEvents } from '../../../lib/events/queries';
 import { ForYouClient } from './ForYouClient';
 
 export const metadata: Metadata = {
-  title: 'For You - Personalized Events | Where2Go',
-  description: 'Your personalized event recommendations based on your interests and preferences',
+  title: 'Für Dich - Personalisierte Events | Where2Go',
+  description: 'Deine personalisierten Event-Empfehlungen basierend auf deinen Interessen und Vorlieben',
 };
 
 export default async function ForYouPage({
